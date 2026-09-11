@@ -10,13 +10,14 @@ from manuals_rag_chunking.hierarchical import build_chunks
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import execute, execute_many, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
+from manuals_rag_common.ingestion_progress import complete_ingestion_step, fail_ingestion_step, start_ingestion_step
 from manuals_rag_common.logging import configure_logging
 from manuals_rag_common.queue import dequeue, enqueue
 from manuals_rag_common.storage import ObjectStore
 from manuals_rag_normalizers.normalize import normalize_nodes
 from manuals_rag_observability.metrics import INGEST_DURATION, PARSE_FAILURES
 from manuals_rag_parsers.docling_parser import parse_document
-from manuals_rag_parsers.metadata import infer_document_metadata
+from manuals_rag_parsers.metadata import MetadataSourceSegment, infer_document_metadata_from_segments
 from manuals_rag_schemas.enums import NodeType
 
 log = logging.getLogger(__name__)
@@ -62,7 +63,30 @@ def _metadata_extraction_payload(metadata: object) -> dict[str, object]:
         "document_kind": getattr(metadata, "document_kind").value,
         "revision_date": getattr(metadata, "revision_date").isoformat() if getattr(metadata, "revision_date") else None,
         "effective_date": getattr(metadata, "effective_date").isoformat() if getattr(metadata, "effective_date") else None,
+        "metadata_schema_version": getattr(metadata, "metadata_schema_version"),
+        "metadata_evidence": getattr(metadata, "metadata_evidence"),
+        "normalized_identifier_aliases": getattr(metadata, "normalized_identifier_aliases"),
+        "routing_product_models": getattr(metadata, "routing_product_models"),
+        "routing_part_numbers": getattr(metadata, "routing_part_numbers"),
+        "routing_protocol_terms": getattr(metadata, "routing_protocol_terms"),
+        "firmware_applicability": getattr(metadata, "firmware_applicability"),
+        "software_applicability": getattr(metadata, "software_applicability"),
+        "metadata_claims": getattr(metadata, "metadata_claims"),
+        "metadata_pipeline_version": getattr(metadata, "metadata_pipeline_version"),
     }
+
+
+def _metadata_source_segments(nodes: list[object]) -> list[MetadataSourceSegment]:
+    return [
+        MetadataSourceSegment(
+            text=str(getattr(node, "text_normalized", "") or getattr(node, "text_raw", "")),
+            page_from=getattr(node, "page_from", None),
+            page_to=getattr(node, "page_to", None),
+            section_path=tuple(getattr(node, "section_path_json", []) or []),
+        )
+        for node in nodes
+        if str(getattr(node, "text_normalized", "") or getattr(node, "text_raw", "")).strip()
+    ]
 
 
 def _put_once(store: ObjectStore, bucket: str, object_name: str, data: bytes, content_type: str) -> str:
@@ -202,24 +226,54 @@ def process_job(job: dict[str, str]) -> None:
     if not document:
         raise ValueError("Source document not found.")
     execute("update ingestion_runs set status = 'running', updated_at = now() where id = %s", (run_id,))
+    current_step = "load_source"
     try:
+        start_ingestion_step(run_id, current_step, details={"storage_uri": document["storage_uri"]})
+        raw = _read_minio_uri(document["storage_uri"])
+        complete_ingestion_step(run_id, current_step, details={"bytes_loaded": len(raw)})
+
+        current_step = "parse"
+        start_ingestion_step(run_id, current_step, details={"filename": document["source_filename"]})
         with INGEST_DURATION.labels("parse").time():
-            raw = _read_minio_uri(document["storage_uri"])
             result = parse_document(document["version_id"], document["source_filename"], raw)
+        complete_ingestion_step(
+            run_id,
+            current_step,
+            details={
+                "page_count": result.page_count,
+                "parse_profile": result.profile.value,
+                "quality_score": result.quality_score,
+                "warning_count": len(result.parse_warnings),
+                "warnings": result.parse_warnings,
+                "logical_nodes": len(result.logical_nodes),
+            },
+        )
+
+        current_step = "normalize"
+        start_ingestion_step(run_id, current_step, details={"input_nodes": len(result.logical_nodes)})
         normalized = normalize_nodes(result.logical_nodes)
+        complete_ingestion_step(run_id, current_step, details={"normalized_nodes": len(normalized)})
+
+        current_step = "metadata"
+        start_ingestion_step(run_id, current_step)
         table_extraction_used = any(node.node_type == NodeType.table for node in normalized)
-        combined_text = "\n\n".join(node.text_normalized or node.text_raw for node in normalized[:20])
-        inferred_metadata = infer_document_metadata(document["source_filename"], combined_text)
+        inferred_metadata = infer_document_metadata_from_segments(
+            document["source_filename"],
+            _metadata_source_segments(normalized),
+        )
         metadata = {
             "tenant_id": document["tenant_id"],
             "corpus_id": document["corpus_id"],
             "document_kind": inferred_metadata.document_kind.value,
-            "manufacturer": inferred_metadata.manufacturer if inferred_metadata.manufacturer != "Unknown" else document["manufacturer"],
+            # Schema-v2 identity is a verified projection. Never refill an unresolved
+            # value from upload-time/legacy metadata, which may itself be an example
+            # entity extracted from the document body.
+            "manufacturer": inferred_metadata.manufacturer,
             "companies": inferred_metadata.companies,
-            "product_family": inferred_metadata.product_family or document["product_family"],
-            "product_model": inferred_metadata.product_model or document["product_model"],
+            "product_family": inferred_metadata.product_family,
+            "product_model": inferred_metadata.product_model,
             "product_families": inferred_metadata.product_families,
-            "product_models": inferred_metadata.product_models or ([document["product_model"]] if document["product_model"] else []),
+            "product_models": inferred_metadata.product_models,
             "devices": inferred_metadata.devices,
             "part_numbers": inferred_metadata.part_numbers,
             "document_protocol_terms": inferred_metadata.protocol_terms,
@@ -227,6 +281,14 @@ def process_job(job: dict[str, str]) -> None:
             "parameters": inferred_metadata.parameters,
             "document_menu_labels": inferred_metadata.menu_labels,
             "document_topics": inferred_metadata.document_topics,
+            "metadata_schema_version": inferred_metadata.metadata_schema_version,
+            "metadata_pipeline_version": inferred_metadata.metadata_pipeline_version,
+            "normalized_identifier_aliases": inferred_metadata.normalized_identifier_aliases,
+            "routing_product_models": inferred_metadata.routing_product_models,
+            "routing_part_numbers": inferred_metadata.routing_part_numbers,
+            "routing_protocol_terms": inferred_metadata.routing_protocol_terms,
+            "firmware_applicability": inferred_metadata.firmware_applicability,
+            "software_applicability": inferred_metadata.software_applicability,
             "language": document["language"],
             "visibility_scope": document["visibility_scope"],
             "permissions_tags": document["permissions_tags"] or [],
@@ -237,6 +299,22 @@ def process_job(job: dict[str, str]) -> None:
             "ocr_used": False,
             "is_active": True,
         }
+        complete_ingestion_step(
+            run_id,
+            current_step,
+            details={
+                "title": inferred_metadata.title,
+                "manufacturer": metadata["manufacturer"],
+                "product_family": metadata["product_family"],
+                "product_model": metadata["product_model"],
+                "document_kind": metadata["document_kind"],
+                "part_numbers": inferred_metadata.part_numbers,
+                "topics": inferred_metadata.document_topics,
+            },
+        )
+
+        current_step = "chunk"
+        start_ingestion_step(run_id, current_step, details={"normalized_nodes": len(normalized)})
         chunks = build_chunks(
             source_document_id=document["id"],
             document_version_id=document["version_id"],
@@ -244,6 +322,13 @@ def process_job(job: dict[str, str]) -> None:
             nodes=normalized,
             metadata=metadata,
         )
+        chunk_types: dict[str, int] = {}
+        for chunk in chunks:
+            chunk_types[chunk.chunk_type.value] = chunk_types.get(chunk.chunk_type.value, 0) + 1
+        complete_ingestion_step(run_id, current_step, details={"chunk_count": len(chunks), "chunk_types": chunk_types})
+
+        current_step = "assets"
+        start_ingestion_step(run_id, current_step, details={"page_count": result.page_count})
         store = ObjectStore()
         result.docling_artifact["image_assets"] = _store_document_images(
             store=store,
@@ -253,6 +338,18 @@ def process_job(job: dict[str, str]) -> None:
             source_document_id=str(document["id"]),
             version_id=str(document["version_id"]),
         )
+        image_assets = result.docling_artifact["image_assets"]
+        complete_ingestion_step(
+            run_id,
+            current_step,
+            details={
+                "page_images": len(image_assets.get("page_images", [])),
+                "table_images": len(image_assets.get("table_images", [])),
+            },
+        )
+
+        current_step = "persist"
+        start_ingestion_step(run_id, current_step, details={"nodes": len(normalized), "chunks": len(chunks)})
         artifact_bytes = json.dumps(result.docling_artifact, sort_keys=True).encode("utf-8")
         artifact_object_name = _artifact_object_name(str(document["tenant_id"]), artifact_bytes)
         artifact_uri = (
@@ -405,12 +502,27 @@ def process_job(job: dict[str, str]) -> None:
             ),
         )
         execute("update ingestion_runs set status = 'parsed', updated_at = now() where id = %s", (run_id,))
+        complete_ingestion_step(
+            run_id,
+            current_step,
+            details={
+                "nodes_persisted": len(normalized),
+                "chunks_persisted": len(chunks),
+                "artifact_uri": artifact_uri,
+                "table_extraction_used": table_extraction_used,
+            },
+        )
         enqueue("embed_jobs", {"run_id": run_id, "document_id": document["id"], "version_id": document["version_id"]})
     except Exception as exc:
         PARSE_FAILURES.labels("PARSE_FAILED").inc()
+        fail_ingestion_step(run_id, current_step, str(exc))
         execute(
             "update ingestion_runs set status = 'failed', failure_class = 'PARSE_FAILED', failure_reason = %s, updated_at = now() where id = %s",
             (str(exc), run_id),
+        )
+        execute(
+            "update source_documents set ingest_status = 'failed', updated_at = now() where id = %s",
+            (document["id"],),
         )
         raise
 

@@ -2,7 +2,15 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-ingestion-width-1";
+const ASSET_VERSION = "20260908-agent-sync";
+const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
+const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
+const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
+const MATRIX_GENERATION_DEFAULT_PROMPT = "Generate realistic engineer, technician, sales, support, or manager questions that are specific to the supplied source content. First use the document context to identify the product/device, parent article, feature area, and source-backed answer. Prefer concrete procedures, specs, limits, warnings, settings, table row subjects, units, symptoms, and user-visible product anchors when the source supports them. Optimize for useful retrieval questions, not exhaustive coverage of every parseable cell. Avoid vague questions, filename/document artifacts, and questions about storage format, display precision, parser coordinates, or internal representation unless clearly user-facing. If the source window cannot support a specific non-duplicative user-style question, return NONE.";
+const MATRIX_GENERATION_LEGACY_DEFAULT_PROMPTS = new Set([
+  "Generate realistic engineer, technician, sales, support, or manager questions that are specific to the supplied source content. First use the document context to identify the product/device, parent article, feature area, and source-backed answer. Prefer concrete procedures, specs, limits, warnings, settings, table row subjects, units, symptoms, and user-visible product anchors when the source supports them. Avoid vague questions that could match many places or nothing, and avoid filename/document artifacts. If the source window cannot support a specific non-duplicative user-style question, return NONE.",
+  "Generate realistic engineer, technician, sales, support, or manager questions that are specific to the supplied source content. Avoid vague prompts that could match many places or nothing. Prefer concrete models, symptoms, procedures, specs, limits, warnings, table row subjects, and user-visible product anchors when the source supports them. If the source window cannot support a specific user-style question, return NONE.",
+]);
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
 
@@ -24,6 +32,23 @@ const state = {
   runDebug: null,
   runDebugTimer: null,
   ingestionTimer: null,
+  ingestion: {
+    payload: null,
+    selectedDocumentIds: new Set(),
+    selectedRunId: null,
+    selectedStepKey: null,
+  },
+  agentLab: {
+    runs: {},
+    job: null,
+    timer: null,
+  },
+  agentMatrix: {
+    payload: null,
+    job: null,
+    timer: null,
+    selectedCaseId: null,
+  },
   evalRuntime: null,
 };
 
@@ -41,42 +66,42 @@ const MATRIX_STAGES = [
   {
     key: "dense",
     label: "Dense",
-    description: "YES when the expected document is present in the dense sample window; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when the expected page or chunk evidence is present in the dense sample window. DOC_ONLY means only the manual matched and counts as fail.",
   },
   {
     key: "sparse",
     label: "Sparse",
-    description: "YES when the expected document is present in the sparse sample window; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when the expected page or chunk evidence is present in the sparse sample window. DOC_ONLY means only the manual matched and counts as fail.",
   },
   {
     key: "special",
     label: "Special",
-    description: "YES when the expected document is present in specialized/table search; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when the expected page or chunk evidence is present in specialized/table search. DOC_ONLY means only the manual matched and counts as fail.",
   },
   {
     key: "fuse",
     label: "Fuse",
-    description: "YES when fusion still contains the expected document; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when fusion still contains the expected page or chunk evidence. DOC_ONLY means only the manual matched and counts as fail.",
   },
   {
     key: "rerank",
     label: "Rerank",
-    description: "YES when reranking still contains the expected document; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when reranking still contains the expected page or chunk evidence; it does not mean merely the correct manual survived.",
   },
   {
     key: "assemble",
     label: "Context",
-    description: "YES when final context contains the expected document; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when final context contains the expected page or chunk evidence; DOC_ONLY means the answer context is still too broad and counts as fail.",
   },
   {
     key: "metadata",
     label: "Doc Select",
-    description: "Pass when metadata document selection ranked the expected source document in the scored top window; fail when a different document was selected; blank when metadata selection was not attempted.",
+    description: "Pass when metadata document selection ranked the expected manual in the scored top window. This is a routing diagnostic, not retrieval success by itself.",
   },
   {
     key: "retrieval",
     label: "Retrieval",
-    description: "PASS when the expected document survives to final context; FAIL when retrieval loses it. Evidence/answer checks decide whether the right content was actually sufficient.",
+    description: "PASS only when final context retained the expected page or chunk evidence. The correct manual alone is DOC_ONLY upstream and FAIL here.",
   },
   {
     key: "relevance",
@@ -118,12 +143,14 @@ const MATRIX_STAGES = [
 const MATRIX_COLUMN_HINTS = {
   number: "Question number within the loaded matrix.",
   question: "Generated eval question and source dataset/run. The text is formed from source-backed chunks, not written by the answer agent.",
+  generation_review: "Live question-generation reviewer status. Accepted questions pass, rejected questions fail, and generated candidates remain blank until review completes.",
   type: "Single means one evidence target; multi-step means several evidence targets; multi-doc means expected evidence spans more than one source document.",
 };
 
 const MATRIX_BASE_COLUMNS = [
   { key: "number", label: "#", description: MATRIX_COLUMN_HINTS.number },
   { key: "question", label: "Question", description: MATRIX_COLUMN_HINTS.question },
+  { key: "generation_review", label: "Review", description: MATRIX_COLUMN_HINTS.generation_review },
   { key: "type", label: "Type", description: MATRIX_COLUMN_HINTS.type },
   { key: "dataset", label: "Dataset", description: "Question-bank dataset or analysis file that supplied this row." },
   { key: "run", label: "Run", description: "Latest saved run id, or the active live matrix job id while this row is being evaluated." },
@@ -283,8 +310,8 @@ function itemRetrievalEvaluation(item = {}) {
   return item.retrieval_evaluation || item.evaluation || {};
 }
 
-function matrixCell(status, detail = "") {
-  return { status, detail };
+function matrixCell(status, detail = "", label = "") {
+  return { status, detail, label };
 }
 
 function questionTypeInfo(item = {}) {
@@ -335,11 +362,11 @@ function buildMatrixCells(item = {}) {
     cells.retrieval = matrixCell("blank");
   } else if (metadata.attempted) {
     cells.metadata = matrixCell(metadata.passed ? "pass" : "fail", metadata.passed ? `rank ${metadata.rank ?? "?"}` : metadata.failure_category || "expected document not selected");
-    cells.retrieval = matrixCell(retrieval.candidate_recall ? "pass" : "fail", retrieval.candidate_recall ? "expected document present in final retrieval" : retrieval.failure_category || "expected document missing from retrieval");
+    cells.retrieval = matrixCell(retrieval.passed ? "pass" : "fail", retrieval.passed ? `retrieval passed: ${retrieval.match_reason || "expected evidence found"}` : retrieval.failure_category || "expected page/chunk evidence missing from retrieval");
     blocked = !retrieval.passed;
   } else {
     cells.metadata = matrixCell("blank", "not attempted");
-    cells.retrieval = matrixCell(retrieval.candidate_recall ? "pass" : "fail", retrieval.candidate_recall ? "expected document present in final retrieval" : retrieval.failure_category || "expected document missing from retrieval");
+    cells.retrieval = matrixCell(retrieval.passed ? "pass" : "fail", retrieval.passed ? `retrieval passed: ${retrieval.match_reason || "expected evidence found"}` : retrieval.failure_category || "expected page/chunk evidence missing from retrieval");
     blocked = !retrieval.passed;
   }
 
@@ -404,6 +431,173 @@ function summarizeMatrixRows(items = []) {
   return { rows, totals };
 }
 
+function blankGeneratedQuestionCells() {
+  return Object.fromEntries(
+    MATRIX_STAGES.map((stage) => [
+      stage.key,
+      stage.key === "question"
+        ? matrixCell("pass", "accepted during live question generation")
+        : matrixCell("blank", "waiting for evaluation"),
+    ]),
+  );
+}
+
+function generatedCandidateCells(status, detail = "") {
+  const cells = blankGeneratedQuestionCells();
+  if (status === "accepted") {
+    cells.question = matrixCell("pass", detail || "accepted by generation reviewer");
+  } else if (status === "rejected") {
+    cells.question = matrixCell("fail", detail || "rejected by generation reviewer");
+  } else if (status === "reviewing") {
+    cells.question = matrixCell("blank", detail || "under generation reviewer review");
+  } else {
+    cells.question = matrixCell("blank", detail || "generated candidate awaiting review");
+  }
+  return cells;
+}
+
+function generationReviewCell(status, detail = "") {
+  if (status === "accepted") return matrixCell("pass", detail || "accepted by generation reviewer", "ACCEPT");
+  if (status === "rejected") return matrixCell("fail", detail || "rejected by generation reviewer", "REJECT");
+  if (status === "reviewing") return matrixCell("blank", detail || "under generation reviewer review", "REVIEW");
+  if (status === "generated") return matrixCell("blank", detail || "generated candidate awaiting review", "PENDING");
+  return matrixCell("blank", "not generated in the current live job", "");
+}
+
+function candidateKeyForQuestion(chunkId, question) {
+  return `${chunkId || "chunk"}::${question || ""}`;
+}
+
+function liveGeneratedQuestionCandidatesFromEvents(job = {}) {
+  const candidates = new Map();
+  const events = Array.isArray(job.events) ? job.events : [];
+  for (const event of events) {
+    if (event.event === "question_generation_model_completed" && Array.isArray(event.preview)) {
+      for (const question of event.preview) {
+        const key = candidateKeyForQuestion(event.chunk_id, question);
+        if (!candidates.has(key)) {
+          candidates.set(key, {
+            question,
+            chunk_id: event.chunk_id,
+            source_filename: event.source_filename,
+            document_title: event.document_title,
+            chunk_title: event.chunk_title,
+            section_path: event.section_path,
+            page_from: event.page_from,
+            page_to: event.page_to,
+            manufacturer: event.manufacturer,
+            product_family: event.product_family,
+            product_model: event.product_model,
+            document_kind: event.document_kind,
+            intent: event.intent,
+            status: "generated",
+            detail: "generated candidate awaiting review",
+            timestamp: event.timestamp,
+          });
+        }
+      }
+      continue;
+    }
+    if (!event.question) continue;
+    const key = candidateKeyForQuestion(event.chunk_id, event.question);
+    const current = candidates.get(key) || {
+      question: event.question,
+      chunk_id: event.chunk_id,
+      source_filename: event.source_filename,
+      document_title: event.document_title,
+      chunk_title: event.chunk_title,
+      section_path: event.section_path,
+      page_from: event.page_from,
+      page_to: event.page_to,
+      manufacturer: event.manufacturer,
+      product_family: event.product_family,
+      product_model: event.product_model,
+      document_kind: event.document_kind,
+      intent: event.intent,
+      status: "generated",
+      detail: "generated candidate awaiting review",
+      timestamp: event.timestamp,
+    };
+    current.source_filename ||= event.source_filename;
+    current.document_title ||= event.document_title;
+    current.chunk_title ||= event.chunk_title;
+    current.section_path ||= event.section_path;
+    current.page_from ||= event.page_from;
+    current.page_to ||= event.page_to;
+    current.manufacturer ||= event.manufacturer;
+    current.product_family ||= event.product_family;
+    current.product_model ||= event.product_model;
+    current.document_kind ||= event.document_kind;
+    current.intent ||= event.intent;
+    current.timestamp = event.timestamp || current.timestamp;
+    if (event.event === "question_review_started") {
+      current.status = "reviewing";
+      current.detail = "under generation reviewer review";
+    } else if (event.event === "question_review_completed") {
+      current.status = event.approved ? "accepted" : "rejected";
+      current.detail = event.feedback || (event.approved ? "accepted by generation reviewer" : "rejected by generation reviewer");
+    } else if (event.event === "question_generation_rejected") {
+      current.status = "rejected";
+      current.detail = event.reason || "rejected by generation reviewer";
+    } else if (event.event === "question_generation_accepted") {
+      current.status = "accepted";
+      current.detail = "accepted by generation reviewer";
+    }
+    candidates.set(key, current);
+  }
+  return Array.from(candidates.values());
+}
+
+function liveGeneratedQuestionRows() {
+  const job = state.matrixJob || {};
+  if (job.mode !== "generate_questions") return [];
+  const acceptedQuestions = Array.isArray(job.generated_questions) ? job.generated_questions : [];
+  const candidates = liveGeneratedQuestionCandidatesFromEvents(job);
+  for (const question of acceptedQuestions) {
+    const key = candidateKeyForQuestion(question.chunk_id, question.question);
+    if (!candidates.some((candidate) => candidateKeyForQuestion(candidate.chunk_id, candidate.question) === key)) {
+      candidates.push({ ...question, status: "accepted", detail: "accepted by generation reviewer" });
+    }
+  }
+  return candidates.map((question, index) => ({
+    key: `live-generated-question-${index + 1}-${question.chunk_id || "chunk"}`,
+    dataset: "live question generation",
+    dataset_status: "live",
+    question_number: index + 1,
+    case: {
+      query: question.question || "",
+      retrieval_task: job.generation?.retrieval_task || "single_step_retrieval",
+      generation_method: question.intent || "live_question_generation",
+      source_chunk_id: question.chunk_id || "",
+      source_filename: question.source_filename || "",
+      document_title: question.document_title || "",
+      chunk_title: question.chunk_title || "",
+      section_path: question.section_path || "",
+      page_from: question.page_from,
+      page_to: question.page_to,
+      manufacturer: question.manufacturer || "",
+      product_family: question.product_family || "",
+      product_model: question.product_model || "",
+      document_kind: question.document_kind || "",
+    },
+    question_type: {
+      multi_step: job.generation?.retrieval_task === "multi_step_retrieval",
+      multi_document: question.intent === "cross_document",
+      expected_evidence_count: job.generation?.retrieval_task === "multi_step_retrieval" ? 2 : 1,
+    },
+    latest_result: null,
+    cells: generatedCandidateCells(question.status, question.detail),
+    live_generated: true,
+    live_generation_status: question.status,
+    generation_review: generationReviewCell(question.status, question.detail),
+  }));
+}
+
+function matrixItemsWithLiveGeneratedQuestions(payload) {
+  const items = payload?.rows || [];
+  return [...items, ...liveGeneratedQuestionRows()];
+}
+
 function matrixCellsForItem(item = {}) {
   const baseCells = item.cells || buildMatrixCells(item);
   const liveCells = state.matrixJob?.live_cells?.[item.key];
@@ -444,7 +638,13 @@ function normalizedMatrixText(row) {
     item.dataset,
     latest.run_id,
     caseData.source_filename,
+    caseData.document_title,
+    caseData.product_model,
+    caseData.product_family,
+    caseData.section_path,
     answer,
+    item.generation_review?.label,
+    item.generation_review?.detail,
   ].join(" ").toLowerCase();
 }
 
@@ -480,6 +680,7 @@ function matrixSortValue(row, key) {
   const typeInfo = questionTypeInfo(item);
   if (key === "number") return row.index + 1;
   if (key === "question") return String(caseData.query || item.query || "").toLowerCase();
+  if (key === "generation_review") return `${item.generation_review?.status || ""}:${item.generation_review?.label || ""}:${item.generation_review?.detail || ""}`.toLowerCase();
   if (key === "type") return typeInfo.label.toLowerCase();
   if (key === "dataset") return String(item.dataset || "").toLowerCase();
   if (key === "run") return String(item.latest_result?.run_id || (state.matrixJob?.live_cells?.[item.key] ? state.matrixJob?.id : "") || "").toLowerCase();
@@ -591,8 +792,10 @@ function renderMatrixSummary(totals = {}, totalRows = 0) {
 }
 
 function renderQuestionMatrix(payload) {
-  const items = payload?.rows || [];
-  const loaded = Number(payload?.loaded_questions || items.length || 0);
+  const baseItems = payload?.rows || [];
+  const liveItems = liveGeneratedQuestionRows();
+  const items = [...baseItems, ...liveItems];
+  const loaded = Number(payload?.loaded_questions || baseItems.length || 0) + liveItems.length;
   const official = Number(payload?.official_total_questions || 0);
   const countText = official && official !== loaded
     ? `${loaded} loaded / ${official} official`
@@ -637,10 +840,22 @@ function renderQuestionMatrix(payload) {
               ${columns.map((column) => {
                 if (column.key === "number") return `<td data-label="#">${index + 1}</td>`;
                 if (column.key === "question") {
+                  const questionContext = [
+                    caseData.product_model,
+                    caseData.product_family,
+                    caseData.document_title || caseData.chunk_title,
+                    caseData.section_path,
+                    caseData.page_from ? `p. ${caseData.page_from}${caseData.page_to && caseData.page_to !== caseData.page_from ? `-${caseData.page_to}` : ""}` : "",
+                    caseData.source_filename,
+                  ].filter(Boolean).join(" | ");
                   return `<td class="matrix-text-cell" data-label="Question">
                     <strong>${escapeHtml(shortText(caseData.query || item.query, 160))}</strong>
-                    <small>${escapeHtml(caseData.source_filename || "")}</small>
+                    <small>${escapeHtml(questionContext)}</small>
                   </td>`;
+                }
+                if (column.key === "generation_review") {
+                  const cell = item.generation_review || matrixCell("blank", "not generated in the current live job");
+                  return `<td data-label="Review" title="${escapeHtml(cell.detail || MATRIX_COLUMN_HINTS.generation_review)}"><span class="matrix-cell ${escapeHtml(cell.status)}">${escapeHtml(cell.label || matrixStatusLabel(cell))}</span></td>`;
                 }
                 if (column.key === "type") {
                   return `<td data-label="Type" title="${escapeHtml(typeInfo.detail || MATRIX_COLUMN_HINTS.type)}"><span class="question-type ${escapeHtml(typeInfo.className)}">${escapeHtml(typeInfo.label)}</span></td>`;
@@ -690,8 +905,12 @@ function matrixRowElementForKey(key) {
 }
 
 function updateQuestionMatrixLiveState() {
-  const items = state.questionMatrix?.rows || [];
-  if (!items.length || !$("matrix-table")?.querySelector(".matrix-grid")) return;
+  const items = matrixItemsWithLiveGeneratedQuestions(state.questionMatrix);
+  if (!items.length) return;
+  if (!$("matrix-table")?.querySelector(".matrix-grid")) {
+    renderQuestionMatrix(state.questionMatrix);
+    return;
+  }
   const { rows, totals } = getMatrixViewRows(items);
   const renderedKeys = Array.from(document.querySelectorAll("[data-matrix-key]")).map((row) => row.dataset.matrixKey);
   const nextKeys = rows.map((row) => String(row.item.key || ""));
@@ -736,7 +955,86 @@ function isCurrentMatrixJobRow(item = {}) {
     return Number(item.question_number) === Number(job.current_question_number);
   }
   if (!job.current_case_id) return false;
-  return item.key === job.current_case_id;
+  return item.key === (job.current_row_key || `${job.current_dataset}::${job.current_case_id}`);
+}
+
+const MATRIX_GENERATION_CONTROL_IDS = [
+  "matrix-generation-task",
+  "matrix-generation-family",
+  "matrix-generation-count",
+  "matrix-generation-offset",
+  "matrix-generation-window",
+  "matrix-generation-per-window",
+  "matrix-generation-num-ctx",
+  "matrix-generation-timeout",
+  "matrix-generation-resume",
+  "matrix-generation-prompt",
+];
+
+function readSavedMatrixGenerationDefaults() {
+  try {
+    const payload = JSON.parse(localStorage.getItem(MATRIX_GENERATION_DEFAULTS_KEY) || "{}");
+    const defaults = payload && typeof payload === "object" ? payload : {};
+    const savedPrompt = String(defaults["matrix-generation-prompt"] || "").trim();
+    if (!savedPrompt || MATRIX_GENERATION_LEGACY_DEFAULT_PROMPTS.has(savedPrompt)) {
+      defaults["matrix-generation-prompt"] = MATRIX_GENERATION_DEFAULT_PROMPT;
+    }
+    const savedNumCtx = String(defaults["matrix-generation-num-ctx"] || "").trim();
+    if (!savedNumCtx || MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX.has(savedNumCtx)) {
+      defaults["matrix-generation-num-ctx"] = MATRIX_GENERATION_DEFAULT_NUM_CTX;
+    }
+    return defaults;
+  } catch {
+    return { "matrix-generation-prompt": MATRIX_GENERATION_DEFAULT_PROMPT, "matrix-generation-num-ctx": MATRIX_GENERATION_DEFAULT_NUM_CTX };
+  }
+}
+
+function applyMatrixGenerationDefaults() {
+  const defaults = readSavedMatrixGenerationDefaults();
+  for (const id of MATRIX_GENERATION_CONTROL_IDS) {
+    const node = $(id);
+    if (!node || !(id in defaults)) continue;
+    if (node.type === "checkbox") {
+      node.checked = Boolean(defaults[id]);
+    } else {
+      node.value = String(defaults[id] ?? "");
+    }
+  }
+}
+
+function collectMatrixGenerationDefaults() {
+  const defaults = {};
+  for (const id of MATRIX_GENERATION_CONTROL_IDS) {
+    const node = $(id);
+    if (!node) continue;
+    defaults[id] = node.type === "checkbox" ? Boolean(node.checked) : node.value;
+  }
+  return defaults;
+}
+
+function saveMatrixGenerationDefaults() {
+  localStorage.setItem(MATRIX_GENERATION_DEFAULTS_KEY, JSON.stringify(collectMatrixGenerationDefaults()));
+}
+
+function setGenerationFieldEnabled(wrapper, enabled) {
+  wrapper.hidden = !enabled;
+  wrapper.querySelectorAll("input, select, textarea").forEach((control) => {
+    control.disabled = !enabled;
+  });
+}
+
+function updateMatrixGenerationControlVisibility() {
+  const task = $("matrix-generation-task")?.value || "single_step_retrieval";
+  const isSingleStep = task === "single_step_retrieval";
+  document.querySelectorAll("[data-generation-field]").forEach((wrapper) => {
+    const mode = wrapper.dataset.generationField;
+    const enabled =
+      mode === "always" ||
+      (mode === "single" && isSingleStep) ||
+      (mode === "multi" && !isSingleStep) ||
+      (mode === "single-llm" && isSingleStep);
+    setGenerationFieldEnabled(wrapper, enabled);
+  });
 }
 
 function setupMatrixControls() {
@@ -745,10 +1043,25 @@ function setupMatrixControls() {
     select.innerHTML = MATRIX_STAGES.map((stage) => `<option value="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</option>`).join("");
     select.value = "retrieval";
   }
+  applyMatrixGenerationDefaults();
+  MATRIX_GENERATION_CONTROL_IDS.forEach((id) => {
+    $(id)?.addEventListener("input", () => {
+      saveMatrixGenerationDefaults();
+      updateMatrixGenerationControlVisibility();
+    });
+    $(id)?.addEventListener("change", () => {
+      saveMatrixGenerationDefaults();
+      updateMatrixGenerationControlVisibility();
+    });
+  });
+  updateMatrixGenerationControlVisibility();
   state.matrixVisibleColumns = { ...MATRIX_DEFAULT_VISIBLE_COLUMNS };
   renderMatrixColumnControls();
   $("matrix-run-all-bank")?.addEventListener("click", () => startMatrixJob({ mode: "all_bank" }));
   $("matrix-run-column")?.addEventListener("click", () => startMatrixJob({ mode: "column", column: $("matrix-column")?.value || "retrieval" }));
+  $("matrix-generate-questions")?.addEventListener("click", startQuestionGenerationJob);
+  $("matrix-clear-questions")?.addEventListener("click", clearGeneratedQuestions);
+  $("matrix-reset-bank")?.addEventListener("click", resetQuestionBank);
   $("matrix-refresh")?.addEventListener("click", loadQuestionMatrix);
   $("matrix-clear-results")?.addEventListener("click", clearMatrixResults);
   $("matrix-stop")?.addEventListener("click", stopMatrixJob);
@@ -785,12 +1098,16 @@ function setupMatrixControls() {
 }
 
 function setMatrixControlsBusy(busy) {
-  ["matrix-run-all-bank", "matrix-run-column", "matrix-clear-results"].forEach((id) => {
+  ["matrix-run-all-bank", "matrix-run-column", "matrix-clear-results", "matrix-generate-questions", "matrix-clear-questions", "matrix-reset-bank"].forEach((id) => {
     const button = $(id);
     if (button) button.disabled = busy;
   });
   const stopButton = $("matrix-stop");
   if (stopButton) stopButton.disabled = !busy;
+  ["matrix-column", "matrix-use-model-judge", "matrix-stop-on-answer-failure"].forEach((id) => {
+    const control = $(id);
+    if (control) control.disabled = busy;
+  });
 }
 
 function renderMatrixJobStatus(job) {
@@ -804,15 +1121,44 @@ function renderMatrixJobStatus(job) {
   }
   const completed = Number(job.completed_datasets || 0);
   const total = Number(job.dataset_count || 0);
-  const modeLabel = job.mode === "column" ? `Column: ${MATRIX_STAGES.find((stage) => stage.key === job.column)?.label || job.column}` : "All bank";
+  const modeLabel = job.mode === "generate_questions"
+    ? "Generate questions"
+    : (job.mode === "column" ? `Column: ${MATRIX_STAGES.find((stage) => stage.key === job.column)?.label || job.column}` : "All bank");
   const judgeText = job.use_model_judge ? "model judge on" : "model judge off";
+  const stopText = job.response_mode === "answer_with_citations"
+    ? (job.stop_on_answer_failure ? "stop on answer failure" : "continue after answer failures")
+    : "";
+  const generationText = job.generation
+    ? `${job.generation.retrieval_task === "multi_step_retrieval" ? "multi-step" : "single-step"} | ${job.generation.max_questions || 0} questions | offset ${job.generation.chunk_offset || 0} | attempt window ${job.generation.chunk_window || "all"} | ${job.generation.previous_question_dataset_count || 0} history files`
+    : "";
   const questionText = job.current_question_number ? `question ${job.current_question_number}` : "";
   const recoveredText = job.recovered ? "recovered after UI restart" : "";
   const recentEvents = Array.isArray(job.events) ? job.events.slice(-6) : [];
+  const generatedQuestions = Array.isArray(job.generated_questions) ? job.generated_questions : [];
+  const visibleQuestions = generatedQuestions.slice(-25).reverse();
+  const eventDetailText = (event) => {
+    const preview = Array.isArray(event.preview) ? event.preview.join(" | ") : String(event.preview || "");
+    return [
+      event.matrix_key || event.step,
+      event.label || event.status,
+      event.question_number ? `q${event.question_number}` : "",
+      event.generated_count != null ? `${event.generated_count} generated` : "",
+      event.accepted_count != null ? `${event.accepted_count} accepted` : "",
+      event.approved != null ? `approved: ${Boolean(event.approved)}` : "",
+      event.done ? "done" : "",
+      event.question || preview || event.feedback || event.reason,
+      event.source_filename,
+    ].filter(Boolean).join(" | ");
+  };
   node.className = job.status === "failed" ? "error-box" : "empty-state";
   node.innerHTML = `
     <strong>${escapeHtml(modeLabel)} ${escapeHtml(job.status || "queued")}</strong>
-    <span>${escapeHtml(`${completed}/${total} datasets | ${job.response_mode || ""} | ${judgeText}`)}</span>
+    <span>${escapeHtml(generationText || [
+      `${completed}/${total} datasets`,
+      job.response_mode || "",
+      judgeText,
+      stopText,
+    ].filter(Boolean).join(" | "))}</span>
     ${job.current_dataset ? `<small>${escapeHtml([job.current_dataset, questionText].filter(Boolean).join(" | "))}</small>` : ""}
     ${job.event_log_path ? `<small>${escapeHtml(`history: ${job.event_log_path}`)}</small>` : ""}
     ${recoveredText ? `<small>${escapeHtml(recoveredText)}</small>` : ""}
@@ -823,10 +1169,26 @@ function renderMatrixJobStatus(job) {
           <li>
             <span>${escapeHtml(event.timestamp || "")}</span>
             <strong>${escapeHtml(event.event || "")}</strong>
-            <small>${escapeHtml([event.matrix_key || event.step, event.label || event.status, event.question_number ? `q${event.question_number}` : ""].filter(Boolean).join(" | "))}</small>
+            <small>${escapeHtml(eventDetailText(event))}</small>
           </li>
         `).join("")}
       </ol>
+    ` : ""}
+    ${visibleQuestions.length ? `
+      <div class="generated-question-list">
+        <strong>Generated questions (${Number(job.generated_question_count || generatedQuestions.length)})</strong>
+        <ol>
+          ${visibleQuestions.map((item) => `
+            <li>
+              <span>
+                <span class="matrix-cell ${escapeHtml(item.review_status === "accepted" || item.status === "accepted" ? "pass" : "blank")}">${escapeHtml(item.review_label || (item.review_status === "accepted" || item.status === "accepted" ? "ACCEPT" : "PENDING"))}</span>
+                ${escapeHtml(item.question || "")}
+              </span>
+              <small>${escapeHtml([item.source_filename, item.section_path, item.chunk_id, item.intent].filter(Boolean).join(" | "))}</small>
+            </li>
+          `).join("")}
+        </ol>
+      </div>
     ` : ""}
   `;
   const busy = ["queued", "running", "stopping"].includes(job.status);
@@ -843,6 +1205,7 @@ async function pollMatrixJob(jobId) {
       state.matrixJobTimer = setTimeout(() => pollMatrixJob(jobId), MATRIX_JOB_POLL_MS);
       return;
     }
+    if (job.current_row_key) state.selectedMatrixKey = job.current_row_key;
     await loadQuestionMatrix();
   } catch (error) {
     renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: state.matrixJob?.dataset_count || 0, completed_datasets: state.matrixJob?.completed_datasets || 0 });
@@ -856,14 +1219,57 @@ async function startMatrixJob({ mode, column = "retrieval" }) {
   }
   if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
   const useModelJudge = Boolean($("matrix-use-model-judge")?.checked);
-  renderMatrixJobStatus({ status: "queued", mode, column: mode === "column" ? column : "all", use_model_judge: useModelJudge, dataset_count: 0, completed_datasets: 0 });
+  const stopOnAnswerFailure = Boolean($("matrix-stop-on-answer-failure")?.checked);
+  renderMatrixJobStatus({ status: "queued", mode, column: mode === "column" ? column : "all", use_model_judge: useModelJudge, stop_on_answer_failure: stopOnAnswerFailure, dataset_count: 0, completed_datasets: 0 });
   try {
-    const job = await localPostJson("/local/question-matrix/run", { mode, column, use_model_judge: useModelJudge });
+    const job = await localPostJson("/local/question-matrix/run", { mode, column, use_model_judge: useModelJudge, stop_on_answer_failure: stopOnAnswerFailure });
     state.matrixJob = job;
     renderMatrixJobStatus(job);
     pollMatrixJob(job.id);
   } catch (error) {
-    renderMatrixJobStatus({ status: "failed", mode, column, use_model_judge: useModelJudge, error: error.message, dataset_count: 0, completed_datasets: 0 });
+    renderMatrixJobStatus({ status: "failed", mode, column, use_model_judge: useModelJudge, stop_on_answer_failure: stopOnAnswerFailure, error: error.message, dataset_count: 0, completed_datasets: 0 });
+  }
+}
+
+function intFromControl(id, fallback) {
+  const value = Number.parseInt($(id)?.value || "", 10);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function questionGenerationPayload() {
+  const retrievalTask = $("matrix-generation-task")?.value || "single_step_retrieval";
+  const isSingleStep = retrievalTask === "single_step_retrieval";
+  return {
+    retrieval_task: retrievalTask,
+    multi_step_case_family: isSingleStep ? "all" : ($("matrix-generation-family")?.value || "all"),
+    max_questions: intFromControl("matrix-generation-count", 20),
+    chunk_offset: intFromControl("matrix-generation-offset", 0),
+    chunk_window: intFromControl("matrix-generation-window", 0),
+    questions_per_window: isSingleStep ? intFromControl("matrix-generation-per-window", 1) : 1,
+    num_ctx: isSingleStep ? intFromControl("matrix-generation-num-ctx", Number(MATRIX_GENERATION_DEFAULT_NUM_CTX)) : 0,
+    per_query_timeout_seconds: intFromControl("matrix-generation-timeout", 60),
+    warmup_queries: 0,
+    resume_previous_questions: isSingleStep && Boolean($("matrix-generation-resume")?.checked),
+    use_llm_generation: isSingleStep,
+    prompt_guidance: isSingleStep ? ($("matrix-generation-prompt")?.value || "") : "",
+  };
+}
+
+async function startQuestionGenerationJob() {
+  if (state.matrixJob && ["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    renderMatrixJobStatus(state.matrixJob);
+    return;
+  }
+  if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+  const payload = questionGenerationPayload();
+  renderMatrixJobStatus({ status: "queued", mode: "generate_questions", generation: payload, dataset_count: 1, completed_datasets: 0 });
+  try {
+    const job = await localPostJson("/local/question-matrix/generate", payload);
+    state.matrixJob = job;
+    renderMatrixJobStatus(job);
+    pollMatrixJob(job.id);
+  } catch (error) {
+    renderMatrixJobStatus({ status: "failed", mode: "generate_questions", generation: payload, error: error.message, dataset_count: 1, completed_datasets: 0 });
   }
 }
 
@@ -894,6 +1300,54 @@ async function clearMatrixResults() {
     renderMatrixJobStatus(null);
     await loadQuestionMatrix();
     $("matrix-action-status").textContent = `Cleared ${result.total_deleted || 0} saved result file(s).`;
+  } catch (error) {
+    renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: 0, completed_datasets: 0 });
+  }
+}
+
+async function clearGeneratedQuestions() {
+  if (state.matrixJob && ["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    renderMatrixJobStatus(state.matrixJob);
+    return;
+  }
+  if (!window.confirm("Clear all questions from the matrix view? Question-bank files and the manifest will be kept.")) return;
+  try {
+    const result = await localPostJson("/local/question-matrix/questions/clear", {});
+    if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+    state.matrixJobTimer = null;
+    state.matrixJob = null;
+    state.selectedMatrixKey = null;
+    state.selectedMatrixIndex = 0;
+    const resumeControl = $("matrix-generation-resume");
+    if (resumeControl) {
+      resumeControl.checked = false;
+      saveMatrixGenerationDefaults();
+    }
+    renderMatrixJobStatus(null);
+    await loadQuestionMatrix();
+    $("matrix-action-status").textContent = `Cleared question list. Removed ${result.total_deleted || 0} generated question dataset(s).`;
+  } catch (error) {
+    renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: 0, completed_datasets: 0 });
+  }
+}
+
+async function resetQuestionBank() {
+  if (state.matrixJob && ["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    renderMatrixJobStatus(state.matrixJob);
+    return;
+  }
+  const confirmation = window.prompt("This will reset the official question bank and move listed bank files into a timestamped backup folder. Type RESET BANK to continue.");
+  if (confirmation !== "RESET BANK") return;
+  try {
+    const result = await localPostJson("/local/question-matrix/bank/reset", {});
+    if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+    state.matrixJobTimer = null;
+    state.matrixJob = null;
+    state.selectedMatrixKey = null;
+    state.selectedMatrixIndex = 0;
+    renderMatrixJobStatus(null);
+    await loadQuestionMatrix();
+    $("matrix-action-status").textContent = `Reset question bank. Moved ${result.total_moved || 0} file(s) to ${result.backup_dir || "backup"}.`;
   } catch (error) {
     renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: 0, completed_datasets: 0 });
   }
@@ -1052,9 +1506,11 @@ async function loadQuestionMatrix() {
         if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
         pollMatrixJob(payload.active_job.id);
       }
-    } else if (!state.matrixJob || !["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    } else if (!state.matrixJob) {
       state.matrixJob = null;
       renderMatrixJobStatus(null);
+    } else {
+      renderMatrixJobStatus(state.matrixJob);
     }
     renderQuestionMatrix(payload);
   } catch (error) {
@@ -1121,8 +1577,9 @@ function renderList(items) {
 }
 
 function statusCount(rows = [], status) {
-  const row = rows.find((item) => item.status === status || item.ingest_status === status);
-  return Number(row?.count || 0);
+  return rows
+    .filter((item) => item.status === status || item.ingest_status === status)
+    .reduce((total, item) => total + Number(item.count || 0), 0);
 }
 
 function renderCitations(citations = []) {
@@ -2014,6 +2471,379 @@ async function runQuery() {
   }
 }
 
+function agentBackendLabel(backend) {
+  return backend === "langgraph_agent" ? "LangGraph" : "LlamaIndex";
+}
+
+function agentEventLabel(event) {
+  return {
+    run_started: "Run started",
+    plan_completed: "Plan created",
+    tool_selected: "Retrieval tool selected",
+    hop_started: "Retrieval started",
+    hop_completed: "Evidence assessed",
+    recovery_scheduled: "Recovery scheduled",
+    retrieval_completed: "Retrieval complete",
+    answer_started: "Answer generation started",
+    answer_completed: "Answer generated",
+    run_completed: "Run complete",
+    run_failed: "Run failed",
+  }[event] || event;
+}
+
+function renderAgentEvidence(results = []) {
+  if (!results.length) return '<div class="empty-state">No evidence returned for this hop.</div>';
+  return `
+    <div class="agent-evidence-list">
+      ${results.slice(0, 10).map((result, index) => `
+        <details class="agent-evidence" ${index === 0 ? "open" : ""}>
+          <summary>
+            <span>${escapeHtml(result.title || result.source_document_id || result.chunk_id)}</span>
+            <span class="model-meta">p. ${escapeHtml((result.pages || []).join(", ") || "—")} · ${Number(result.score || 0).toFixed(3)}</span>
+          </summary>
+          <div class="model-meta">${escapeHtml((result.section_path || []).join(" › "))}</div>
+          <p>${escapeHtml(result.content || "")}</p>
+          <div class="model-meta">Chunk ${escapeHtml(result.chunk_id || "")}</div>
+        </details>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderAgentRun(run) {
+  const elapsed = run.completedAt
+    ? run.completedAt - run.startedAt
+    : performance.now() - run.startedAt;
+  const plan = run.plan || {};
+  const hops = Object.values(run.hops || {});
+  const trace = run.trace || {};
+  const statusClass = run.status === "completed" ? "pass" : run.status === "failed" ? "fail" : "running";
+  return `
+    <article class="panel agent-run-card" data-agent-backend="${escapeHtml(run.backend)}">
+      <div class="section-heading agent-run-heading">
+        <div>
+          <h2>${escapeHtml(agentBackendLabel(run.backend))}</h2>
+          <div class="model-meta">${escapeHtml(run.policy || "policy pending")} · ${escapeHtml(plan.mode || "waiting for plan")} · ${escapeHtml(String(Math.max(0, elapsed / 1000).toFixed(1)))}s</div>
+        </div>
+        <span class="status-pill ${statusClass}">${escapeHtml(run.status)}</span>
+      </div>
+      ${plan.hops ? `
+        <section class="agent-plan">
+          <h3>Plan</h3>
+          <p>${escapeHtml(plan.rationale || "No rationale returned.")}</p>
+          <ol>${plan.hops.map((hop) => `<li><strong>${escapeHtml(hop.hop_id)}</strong> · ${escapeHtml(hop.strategy)} · ${escapeHtml(hop.objective)}${hop.depends_on?.length ? ` <span class="model-meta">after ${escapeHtml(hop.depends_on.join(", "))}</span>` : ""}</li>`).join("")}</ol>
+        </section>
+      ` : '<div class="empty-state">Waiting for planner output…</div>'}
+      <section>
+        <h3>Live hops</h3>
+        <div class="agent-hop-list">
+          ${hops.length ? hops.map((hop) => `
+            <details class="agent-hop" ${hop.status === "running" || !hop.renderedOnce ? "open" : ""}>
+              <summary>
+                <span>${escapeHtml(hop.hop_id)} · ${escapeHtml(hop.strategy || "pending")}</span>
+                <span class="badge ${hop.sufficient === true ? "pass" : hop.sufficient === false ? "fail" : ""}">${escapeHtml(hop.status)}${hop.sufficient != null ? ` · ${hop.sufficient ? "sufficient" : "insufficient"}` : ""}</span>
+              </summary>
+              <dl class="agent-hop-meta">
+                <div><dt>Objective</dt><dd>${escapeHtml(hop.objective || "")}</dd></div>
+                <div><dt>Executed query</dt><dd>${escapeHtml(hop.executed_query || hop.query || "")}</dd></div>
+                <div><dt>Strategy</dt><dd>${escapeHtml(hop.strategy || "")}${hop.planned_strategy && hop.planned_strategy !== hop.strategy ? ` (planned ${escapeHtml(hop.planned_strategy)})` : ""}</dd></div>
+                <div><dt>Coverage</dt><dd>${hop.assessment?.query_term_coverage != null ? `${(Number(hop.assessment.query_term_coverage) * 100).toFixed(0)}%` : "—"}</dd></div>
+              </dl>
+              ${renderAgentEvidence(hop.results || [])}
+            </details>
+          `).join("") : '<div class="empty-state">Waiting for the first retrieval hop…</div>'}
+        </div>
+      </section>
+      ${trace.stop_reason ? `
+        <section class="agent-verdict ${trace.sufficient ? "pass" : "fail"}">
+          <strong>${trace.sufficient ? "Evidence sufficient" : "Evidence insufficient"}</strong>
+          <span>${escapeHtml(trace.stop_reason)} · ${escapeHtml(trace.completed_hops?.length || 0)} hop(s) · ${Number(trace.duration_ms || 0).toFixed(0)} ms retrieval</span>
+        </section>
+      ` : ""}
+      <section>
+        <h3>Answer</h3>
+        ${run.answer ? `
+          <p class="answer-text">${escapeHtml(run.answer.answer || "")}</p>
+          ${renderCitations(run.answer.citations || [])}
+          ${run.answer.warnings?.length ? `<div class="warning-box">${renderList(run.answer.warnings)}</div>` : ""}
+        ` : '<div class="empty-state">Answer generation has not completed.</div>'}
+      </section>
+      <details class="agent-event-log">
+        <summary>Event log (${run.events.length})</summary>
+        <ol>${run.events.map((event) => `<li><span class="model-meta">+${((event.receivedAt - run.startedAt) / 1000).toFixed(1)}s</span> ${escapeHtml(agentEventLabel(event.event))}${event.error ? ` · <span class="error-text">${escapeHtml(event.error)}</span>` : ""}</li>`).join("")}</ol>
+      </details>
+    </article>
+  `;
+}
+
+function renderAgentLab() {
+  const runs = Object.values(state.agentLab.runs);
+  const node = $("agent-results");
+  if (!runs.length) {
+    node.innerHTML = '<div class="empty-state">Run a question to compare the agent backends and inspect every retrieval hop.</div>';
+    return;
+  }
+  node.className = `agent-results ${runs.length > 1 ? "compare" : ""}`;
+  node.innerHTML = runs.map(renderAgentRun).join("");
+  runs.forEach((run) => Object.values(run.hops || {}).forEach((hop) => { hop.renderedOnce = true; }));
+  const running = runs.filter((run) => run.status === "running").length;
+  const failed = runs.filter((run) => run.status === "failed").length;
+  const status = $("agent-lab-status");
+  status.textContent = running ? `${running} backend${running === 1 ? "" : "s"} running` : failed ? `${failed} failed` : "Complete";
+  status.className = `status-pill ${running ? "running" : failed ? "fail" : "pass"}`;
+}
+
+function applyAgentEvent(run, event, shouldRender = true) {
+  event.receivedAt ??= performance.now();
+  run.events.push(event);
+  if (event.policy) run.policy = event.policy;
+  if (event.event === "plan_completed") run.plan = event.plan;
+  if (event.event === "hop_started") {
+    run.hops[event.hop_id] = { ...event, status: "running", results: [] };
+  }
+  if (event.event === "hop_completed") {
+    run.hops[event.hop_id] = {
+      ...(run.hops[event.hop_id] || {}),
+      ...(event.ledger_entry || {}),
+      assessment: event.assessment,
+      results: event.results || [],
+      sufficient: event.sufficient,
+      status: "completed",
+    };
+  }
+  if (event.event === "recovery_scheduled") {
+    run.hops[event.hop_id] = { ...event, status: "scheduled", results: [] };
+  }
+  if (event.event === "retrieval_completed") run.trace = event.trace || {};
+  if (event.event === "answer_completed") run.answer = event.answer;
+  if (event.event === "run_completed") {
+    run.answer = event.result || run.answer;
+    run.status = "completed";
+    run.completedAt = event.receivedAt;
+  }
+  if (event.event === "run_failed") {
+    run.status = "failed";
+    run.error = event.error;
+    run.completedAt = event.receivedAt;
+  }
+  if (shouldRender) renderAgentLab();
+}
+
+function hydrateAgentLiveJob(job) {
+  if (!job) return;
+  state.agentLab.job = job;
+  const nowEpoch = Date.now() / 1000;
+  const startedEpoch = Number(job.started_at_epoch || nowEpoch);
+  const startedAt = performance.now() - Math.max(0, nowEpoch - startedEpoch) * 1000;
+  state.agentLab.runs = {};
+  Object.entries(job.runs || {}).forEach(([backend, snapshot]) => {
+    const run = {
+      backend,
+      status: snapshot.status === "queued" ? "running" : snapshot.status,
+      startedAt,
+      completedAt: job.completed_at_epoch
+        ? startedAt + Math.max(0, Number(job.completed_at_epoch) - startedEpoch) * 1000
+        : null,
+      events: [],
+      hops: {},
+      plan: null,
+      trace: null,
+      answer: null,
+      error: snapshot.error || null,
+    };
+    state.agentLab.runs[backend] = run;
+    (snapshot.events || []).forEach((rawEvent) => {
+      const event = { ...rawEvent };
+      event.receivedAt = event.received_at_epoch
+        ? startedAt + Math.max(0, Number(event.received_at_epoch) - startedEpoch) * 1000
+        : performance.now();
+      applyAgentEvent(run, event, false);
+    });
+    if (snapshot.status === "failed" && run.status !== "failed") {
+      applyAgentEvent(run, { event: "run_failed", error: snapshot.error || "Agent run failed." }, false);
+    }
+  });
+  $("agent-query").value = job.query || $("agent-query").value;
+  $("agent-corpus").value = (job.corpus_ids || []).join(", ") || $("agent-corpus").value;
+  $("agent-max-hops").value = job.max_retrieval_hops || $("agent-max-hops").value;
+  $("run-agent-test").disabled = ["queued", "running"].includes(job.status);
+  renderAgentLab();
+}
+
+async function pollAgentLiveJob(jobId) {
+  if (state.agentLab.timer) clearTimeout(state.agentLab.timer);
+  const job = await localJson(`/local/agent-runs/jobs/${encodeURIComponent(jobId)}`);
+  hydrateAgentLiveJob(job);
+  if (["queued", "running"].includes(job.status)) {
+    state.agentLab.timer = setTimeout(() => pollAgentLiveJob(jobId).catch((error) => {
+      $("agent-lab-status").textContent = `Sync pending: ${error.message}`;
+      $("agent-lab-status").className = "status-pill running";
+    }), MATRIX_JOB_POLL_MS);
+    return;
+  }
+  state.agentLab.timer = null;
+  $("run-agent-test").disabled = false;
+}
+
+async function loadAgentLiveJob() {
+  const payload = await localJson("/local/agent-runs/current");
+  if (!payload.job) return;
+  hydrateAgentLiveJob(payload.job);
+  if (["queued", "running"].includes(payload.job.status)) {
+    await pollAgentLiveJob(payload.job.id);
+  }
+}
+
+async function runAgentTest() {
+  const query = $("agent-query").value.trim();
+  if (!query) {
+    $("agent-lab-status").textContent = "Enter a question";
+    $("agent-lab-status").className = "status-pill fail";
+    return;
+  }
+  const selected = $("agent-backend").value;
+  const backends = selected === "compare" ? ["langgraph_agent", "llamaindex_agent"] : [selected];
+  const startedAt = performance.now();
+  state.agentLab.runs = Object.fromEntries(backends.map((backend) => [backend, {
+    backend,
+    status: "running",
+    startedAt,
+    completedAt: null,
+    events: [],
+    hops: {},
+    plan: null,
+    trace: null,
+    answer: null,
+  }]));
+  $("run-agent-test").disabled = true;
+  renderAgentLab();
+  const job = await localPostJson("/local/agent-runs/run", {
+    query,
+    corpus_ids: splitList($("agent-corpus").value || DEFAULT_CORPUS),
+    backends,
+    max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-max-hops").value || 4))),
+  });
+  hydrateAgentLiveJob(job);
+  await pollAgentLiveJob(job.id);
+}
+
+const AGENT_MATRIX_LAYERS = [
+  ["tool_selection", "Tool Select"],
+  ["candidate_recall", "Candidate Recall"],
+  ["document_retention", "Doc Retain"],
+  ["hop_dependencies", "Hop / Dependency"],
+  ["evidence_sufficiency", "Sufficiency"],
+  ["grounded_answer", "Grounded Answer"],
+  ["latency_token_cost", "Latency / Tokens"],
+];
+
+function agentMatrixCell(result, layer) {
+  const backends = [["langgraph", "LG"], ["llamaindex", "LI"]];
+  return backends.map(([backend, label]) => {
+    const cell = result?.[backend]?.agent_evaluation?.cells?.[layer];
+    const status = cell?.status || "blank";
+    return `<span class="matrix-cell ${escapeHtml(status)}" title="${escapeHtml(cell?.detail || `${label} not evaluated`)}">${label} ${escapeHtml(cell?.label || "—")}</span>`;
+  }).join(" ");
+}
+
+function renderAgentMatrix(payload) {
+  state.agentMatrix.payload = payload;
+  $("agent-matrix-dataset").value = payload.dataset || $("agent-matrix-dataset").value;
+  const rows = payload.rows || [];
+  const summary = payload.summary || {};
+  const categoryCounts = payload.category_counts || {};
+  $("agent-matrix-summary").className = "matrix-summary";
+  $("agent-matrix-summary").innerHTML = `
+    <article class="matrix-stat"><span>Questions</span><strong>${rows.length}</strong><small>${escapeHtml(payload.dataset || "")}</small></article>
+    <article class="matrix-stat"><span>LangGraph passed</span><strong>${escapeHtml(summary.langgraph?.agent_matrix_passed ?? "—")}</strong><small>complete agent rows</small></article>
+    <article class="matrix-stat"><span>LlamaIndex passed</span><strong>${escapeHtml(summary.llamaindex?.agent_matrix_passed ?? "—")}</strong><small>complete agent rows</small></article>
+    <article class="matrix-stat"><span>Coverage</span><strong>${Object.keys(categoryCounts).length || "—"}</strong><small>${escapeHtml(Object.entries(categoryCounts).map(([key, value]) => `${key}: ${value}`).join(" · ") || "categories pending")}</small></article>
+  `;
+  if (!rows.length) {
+    $("agent-matrix-table").innerHTML = '<div class="empty-state">The selected dataset has no questions.</div>';
+    $("agent-matrix-detail").innerHTML = "";
+    return;
+  }
+  $("agent-matrix-table").innerHTML = `
+    <table class="matrix-grid agent-matrix-grid">
+      <thead><tr><th>#</th><th>Category</th><th>Question</th>${AGENT_MATRIX_LAYERS.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((row) => `
+        <tr class="clickable${row.case_id === state.agentMatrix.selectedCaseId ? " selected-row" : ""}" data-agent-matrix-case="${escapeHtml(row.case_id)}">
+          <td>${row.number}</td>
+          <td><span class="status-pill">${escapeHtml(row.agent_case_category)}</span><small>${escapeHtml(row.expected_graph_mode)}</small></td>
+          <td class="matrix-text-cell"><strong>${escapeHtml(row.question)}</strong><small>${escapeHtml(row.retrieval_task)} · ${row.expected_evidence_count} evidence target(s) · ${row.expected_document_count} document(s)</small></td>
+          ${AGENT_MATRIX_LAYERS.map(([key]) => `<td>${agentMatrixCell(row.result, key)}</td>`).join("")}
+        </tr>
+      `).join("")}</tbody>
+    </table>`;
+  document.querySelectorAll("[data-agent-matrix-case]").forEach((node) => node.addEventListener("click", () => {
+    state.agentMatrix.selectedCaseId = node.dataset.agentMatrixCase;
+    renderAgentMatrix(payload);
+    renderAgentMatrixDetail();
+  }));
+  renderAgentMatrixDetail();
+}
+
+function renderAgentMatrixDetail() {
+  const row = (state.agentMatrix.payload?.rows || []).find((item) => item.case_id === state.agentMatrix.selectedCaseId);
+  if (!row?.result) {
+    $("agent-matrix-detail").innerHTML = row
+      ? '<div class="empty-state">This question has not been evaluated yet.</div>'
+      : "";
+    return;
+  }
+  $("agent-matrix-detail").innerHTML = `
+    <section class="panel">
+      <h3>${escapeHtml(row.question)}</h3>
+      <p class="muted">${escapeHtml(row.agent_case_category)} · expected ${escapeHtml(row.expected_graph_mode || "unspecified")} evidence graph</p>
+      ${["langgraph", "llamaindex"].map((backend) => {
+        const result = row.result[backend] || {};
+        return `<details open><summary><strong>${escapeHtml(backend)}</strong> · ${result.agent_evaluation?.passed ? "PASS" : "FAIL"} · ${Number(result.elapsed_ms || 0).toFixed(0)} ms</summary>
+          <p>${escapeHtml(result.answer?.answer || "No answer")}</p>
+          <dl class="agent-hop-meta">${AGENT_MATRIX_LAYERS.map(([key, label]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(result.agent_evaluation?.cells?.[key]?.detail || "Not scored")}</dd></div>`).join("")}</dl>
+          <details><summary>Trace JSON</summary><pre>${escapeHtml(JSON.stringify(result.trace || {}, null, 2))}</pre></details>
+        </details>`;
+      }).join("")}
+    </section>`;
+}
+
+async function loadAgentMatrix() {
+  try {
+    renderAgentMatrix(await localJson("/local/agent-matrix"));
+  } catch (error) {
+    $("agent-matrix-summary").className = "matrix-summary empty-state";
+    $("agent-matrix-summary").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function pollAgentMatrixJob(jobId) {
+  if (state.agentMatrix.timer) clearTimeout(state.agentMatrix.timer);
+  const job = await localJson(`/local/agent-matrix/jobs/${encodeURIComponent(jobId)}`);
+  state.agentMatrix.job = job;
+  const status = $("agent-matrix-status");
+  status.textContent = [job.status, `${job.completed_questions}/${job.limit}`, job.current_case_id].filter(Boolean).join(" · ");
+  status.className = `status-pill ${job.status === "completed" ? "pass" : job.status === "failed" ? "fail" : "running"}`;
+  if (["queued", "running"].includes(job.status)) {
+    state.agentMatrix.timer = setTimeout(() => pollAgentMatrixJob(jobId).catch(console.error), MATRIX_JOB_POLL_MS);
+    return;
+  }
+  $("run-agent-matrix").disabled = false;
+  await loadAgentMatrix();
+}
+
+async function runAgentMatrix() {
+  $("run-agent-matrix").disabled = true;
+  const job = await localPostJson("/local/agent-matrix/run", {
+    dataset: $("agent-matrix-dataset").value.trim(),
+    limit: Number($("agent-matrix-limit").value || 10),
+    max_hops: Number($("agent-matrix-hops").value || 4),
+    corpus_id: $("agent-matrix-corpus").value.trim() || DEFAULT_CORPUS,
+    no_llm: $("agent-matrix-no-llm").checked,
+  });
+  state.agentMatrix.job = job;
+  await pollAgentMatrixJob(job.id);
+}
+
 async function loadHistory() {
   const runs = await apiJson("/runs?limit=50&include_result=false");
   $("history-table").innerHTML = `
@@ -2041,16 +2871,6 @@ async function loadHistory() {
     row.addEventListener("click", async () => {
       const run = await apiJson(`/runs/${row.dataset.runId}`);
       $("history-detail").innerHTML = `<details open><summary>Run JSON</summary><pre>${escapeHtml(JSON.stringify(run, null, 2))}</pre></details>`;
-      if (run.run_type === "end_to_end_eval" && (run.result_json || run.status === "running" || run.status === "queued")) {
-        state.selectedEvalIndex = 0;
-        document.querySelector('[data-tab="eval"]').click();
-        if (run.result_json) {
-          renderCompletedEvalRun(run, "history");
-          setStatus(`Loaded ${run.status} run`, run.status === "failed" ? "error" : "complete");
-        } else {
-          await resumeEvalRun(run.id);
-        }
-      }
     });
   });
 }
@@ -2058,72 +2878,268 @@ async function loadHistory() {
 async function recoverAfterPageReturn() {
   if (document.visibilityState && document.visibilityState !== "visible") return;
   try {
-    await loadLatestRun();
-    if (state.activeRun?.id && !state.running) {
-      await resumeEvalRun(state.activeRun.id);
-    } else if (!state.running) {
-      await loadHistory();
+    const activeTab = document.querySelector(".tab.active")?.dataset.tab;
+    if (activeTab === "matrix") {
+      await loadQuestionMatrix();
     }
-    if (document.querySelector(".tab.active")?.dataset.tab === "ingestion") {
+    if (activeTab === "agent-lab") {
+      await Promise.all([loadAgentMatrix(), loadAgentLiveJob()]);
+    }
+    if (activeTab === "ingestion") {
       await loadIngestionStatus();
     }
-    setConnectionStatus(`API connected at ${API_BASE}`);
+    if (activeTab === "history") {
+      await loadHistory();
+    }
+    setConnectionStatus("UI synchronized");
   } catch (error) {
     setConnectionStatus(`API reconnect pending: ${error.message}`, isTransientFetchError(error) ? "idle" : "error");
   }
 }
 
-function renderIngestionTable(rows = [], mode = "runs") {
-  if (!rows.length) return '<div class="empty-state">No ingestion records yet.</div>';
-  if (mode === "documents") {
-    return `
-      <table>
-        <thead><tr><th>Updated</th><th>Status</th><th>Corpus</th><th>File</th><th>Pages</th><th>Chunks</th></tr></thead>
-        <tbody>
-          ${rows
-            .map(
-              (row) => `
-                <tr>
-                  <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
-                  <td data-label="Status">${escapeHtml(row.ingest_status)}</td>
-                  <td data-label="Corpus">${escapeHtml(row.corpus_id)}</td>
-                  <td data-label="File">${escapeHtml(row.source_filename)}</td>
-                  <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
-                  <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
-                </tr>
-              `,
-            )
-            .join("")}
-        </tbody>
-      </table>
-    `;
+function ingestionStatusBadge(status) {
+  const normalized = String(status || "unknown").toLowerCase();
+  const mode = ["completed", "indexed", "parsed"].includes(normalized) ? "pass" : normalized === "failed" ? "fail" : "pending";
+  return `<span class="badge ${mode}">${escapeHtml(normalized)}</span>`;
+}
+
+function ingestionMatches(row) {
+  const documentId = $("ingestion-filter-document").value;
+  const text = $("ingestion-filter-text").value.trim().toLowerCase();
+  const status = $("ingestion-filter-status").value;
+  if (documentId && String(row.document_id) !== documentId) return false;
+  if (status && ![row.status, row.ingest_status].map((value) => String(value || "").toLowerCase()).includes(status)) return false;
+  if (!text) return true;
+  return [row.source_filename, row.corpus_id, row.document_id, row.run_id]
+    .map((value) => String(value || "").toLowerCase())
+    .some((value) => value.includes(text));
+}
+
+function filteredIngestionDocuments() {
+  return (state.ingestion.payload?.recent_documents || []).filter(ingestionMatches);
+}
+
+function filteredIngestionRuns() {
+  return (state.ingestion.payload?.recent_runs || []).filter(ingestionMatches);
+}
+
+function humanizeDetailKey(key) {
+  return String(key || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatIngestionDuration(durationMs) {
+  if (durationMs === null || durationMs === undefined) return '<span class="muted">Not reported</span>';
+  const milliseconds = Number(durationMs);
+  if (milliseconds < 1000) return `${escapeHtml(milliseconds.toFixed(1))} ms`;
+  const seconds = milliseconds / 1000;
+  if (seconds < 60) return `${escapeHtml(seconds.toFixed(1))} seconds`;
+  return `${Math.floor(seconds / 60)} min ${escapeHtml((seconds % 60).toFixed(1))} sec`;
+}
+
+function renderIngestionDetailValue(value) {
+  if (value === null || value === undefined || value === "") return '<span class="muted">Not reported</span>';
+  if (Array.isArray(value)) {
+    if (!value.length) return '<span class="muted">None</span>';
+    return `<ul class="detail-list">${value.map((item) => `<li>${renderIngestionDetailValue(item)}</li>`).join("")}</ul>`;
   }
+  if (typeof value === "object") {
+    return `<dl class="detail-grid nested">${Object.entries(value)
+      .map(([key, item]) => `<dt>${escapeHtml(humanizeDetailKey(key))}</dt><dd>${renderIngestionDetailValue(item)}</dd>`)
+      .join("")}</dl>`;
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return escapeHtml(value);
+}
+
+function renderIngestionDocuments(rows) {
+  if (!rows.length) return '<div class="empty-state">No documents match the current filters.</div>';
   return `
-    <table>
-      <thead><tr><th>Updated</th><th>Status</th><th>File</th><th>Doc Status</th><th>Pages</th><th>Chunks</th><th>Failure</th></tr></thead>
-      <tbody>
-        ${rows
-          .map(
-            (row) => `
-              <tr>
-                <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
-                <td data-label="Status">${escapeHtml(row.status)}</td>
-                <td data-label="File">${escapeHtml(row.source_filename)}</td>
-                <td data-label="Doc Status">${escapeHtml(row.ingest_status)}</td>
-                <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
-                <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
-                <td data-label="Failure">${escapeHtml(row.failure_reason || row.failure_class || "")}</td>
-              </tr>
-            `,
-          )
-          .join("")}
-      </tbody>
-    </table>
-  `;
+    <table class="ingestion-documents-table">
+      <thead><tr><th class="selection-column">Select</th><th>Updated</th><th>Status</th><th>Corpus</th><th>File</th><th>Pages</th><th>Chunks</th></tr></thead>
+      <tbody>${rows
+        .map((row) => {
+          const documentId = String(row.document_id);
+          return `<tr>
+            <td data-label="Select"><input class="row-checkbox" type="checkbox" data-ingestion-document="${escapeHtml(documentId)}" ${state.ingestion.selectedDocumentIds.has(documentId) ? "checked" : ""} aria-label="Select ${escapeHtml(row.source_filename)}" /></td>
+            <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
+            <td data-label="Status">${ingestionStatusBadge(row.ingest_status)}</td>
+            <td data-label="Corpus">${escapeHtml(row.corpus_id)}</td>
+            <td data-label="File"><strong>${escapeHtml(row.source_filename)}</strong><small>${escapeHtml(documentId)}</small></td>
+            <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
+            <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
+          </tr>`;
+        })
+        .join("")}</tbody>
+    </table>`;
+}
+
+function renderIngestionStepDetail() {
+  const target = $("ingestion-step-detail");
+  const run = (state.ingestion.payload?.recent_runs || []).find((item) => String(item.run_id) === state.ingestion.selectedRunId);
+  const step = (run?.steps || []).find((item) => item.step_key === state.ingestion.selectedStepKey);
+  if (!run || !step) {
+    target.className = "ingestion-step-detail empty-state";
+    target.innerHTML = run && !(run.steps || []).length
+      ? "This historical run predates detailed step tracking. New and re-ingested documents record every step."
+      : "Select a run and then a step to inspect its details.";
+    return;
+  }
+  const details = step.detail_json && typeof step.detail_json === "object" ? step.detail_json : {};
+  target.className = "ingestion-step-detail";
+  target.innerHTML = `
+    <div class="section-heading"><div><h4>${escapeHtml(step.label)}</h4><p class="muted">${escapeHtml(run.source_filename)}</p></div>${ingestionStatusBadge(step.status)}</div>
+    <dl class="detail-grid">
+      <dt>Started</dt><dd>${renderIngestionDetailValue(step.started_at)}</dd>
+      <dt>Completed</dt><dd>${renderIngestionDetailValue(step.completed_at)}</dd>
+      <dt>Duration</dt><dd>${formatIngestionDuration(step.duration_ms)}</dd>
+      ${step.error ? `<dt>Error</dt><dd class="error-text">${escapeHtml(step.error)}</dd>` : ""}
+      ${Object.entries(details)
+        .map(([key, value]) => `<dt>${escapeHtml(humanizeDetailKey(key))}</dt><dd>${renderIngestionDetailValue(value)}</dd>`)
+        .join("")}
+    </dl>`;
+}
+
+function renderIngestionRuns(rows) {
+  if (!rows.length) return '<div class="empty-state">No ingestion runs match the current filters.</div>';
+  const table = `
+    <table class="ingestion-runs-table">
+      <thead><tr><th>Updated</th><th>Status</th><th>File</th><th>Document</th><th>Pages</th><th>Chunks</th><th>Steps</th><th></th></tr></thead>
+      <tbody>${rows
+        .map((row) => {
+          const selected = String(row.run_id) === state.ingestion.selectedRunId;
+          const completedSteps = (row.steps || []).filter((step) => step.status === "completed").length;
+          return `<tr class="${selected ? "selected-row" : ""}">
+            <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
+            <td data-label="Status">${ingestionStatusBadge(row.status)}</td>
+            <td data-label="File"><strong>${escapeHtml(row.source_filename)}</strong></td>
+            <td data-label="Document">${ingestionStatusBadge(row.ingest_status)}</td>
+            <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
+            <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
+            <td data-label="Steps">${row.step_count ? `${completedSteps}/${row.step_count}` : "Historical"}</td>
+            <td><button class="secondary-button" type="button" data-ingestion-run="${escapeHtml(row.run_id)}">${selected ? "Selected" : "View steps"}</button></td>
+          </tr>`;
+        })
+        .join("")}</tbody>
+    </table>`;
+  const selectedRun = rows.find((row) => String(row.run_id) === state.ingestion.selectedRunId)
+    || (state.ingestion.payload?.recent_runs || []).find((row) => String(row.run_id) === state.ingestion.selectedRunId);
+  if (!selectedRun) return table;
+  const steps = selectedRun.steps || [];
+  const stepNavigation = steps.length
+    ? `<div class="ingestion-step-track" role="list" aria-label="Ingestion steps">${steps
+        .map((step) => `<button type="button" role="listitem" class="ingestion-step ${escapeHtml(step.status)} ${step.step_key === state.ingestion.selectedStepKey ? "active" : ""}" data-ingestion-step="${escapeHtml(step.step_key)}"><span class="step-marker" aria-hidden="true"></span><span>${escapeHtml(step.label)}</span><small>${escapeHtml(step.status)}</small></button>`)
+        .join("")}</div>`
+    : '<div class="empty-state">Detailed steps were not recorded for this historical run.</div>';
+  return `${table}${stepNavigation}`;
+}
+
+function updateIngestionDocumentFilter(documents) {
+  const selected = $("ingestion-filter-document").value;
+  $("ingestion-filter-document").innerHTML = `<option value="">All documents</option>${documents
+    .map((row) => `<option value="${escapeHtml(row.document_id)}">${escapeHtml(row.source_filename)} · ${escapeHtml(row.ingest_status)}</option>`)
+    .join("")}`;
+  if (documents.some((row) => String(row.document_id) === selected)) $("ingestion-filter-document").value = selected;
+}
+
+function updateIngestionSelectionActions() {
+  const count = state.ingestion.selectedDocumentIds.size;
+  const ingestButton = $("ingestion-ingest-selected");
+  ingestButton.disabled = count === 0;
+  ingestButton.textContent = count ? `Ingest selected (${count})` : "Ingest selected";
+  const visibleIds = filteredIngestionDocuments().map((row) => String(row.document_id));
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => state.ingestion.selectedDocumentIds.has(id));
+  $("ingestion-select-visible").textContent = allVisibleSelected ? "Clear visible" : "Select visible";
+}
+
+function bindIngestionInteractions() {
+  document.querySelectorAll("[data-ingestion-document]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) state.ingestion.selectedDocumentIds.add(checkbox.dataset.ingestionDocument);
+      else state.ingestion.selectedDocumentIds.delete(checkbox.dataset.ingestionDocument);
+      updateIngestionSelectionActions();
+    });
+  });
+  document.querySelectorAll("[data-ingestion-run]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.ingestion.selectedRunId = button.dataset.ingestionRun;
+      const run = (state.ingestion.payload?.recent_runs || []).find((item) => String(item.run_id) === state.ingestion.selectedRunId);
+      const steps = run?.steps || [];
+      state.ingestion.selectedStepKey = (steps.find((step) => step.status === "running" || step.status === "failed") || steps[0])?.step_key || null;
+      renderIngestion();
+    });
+  });
+  document.querySelectorAll("[data-ingestion-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.ingestion.selectedStepKey = button.dataset.ingestionStep;
+      renderIngestion();
+    });
+  });
+}
+
+function renderIngestion() {
+  const documents = filteredIngestionDocuments();
+  const runs = filteredIngestionRuns();
+  $("ingestion-documents").innerHTML = renderIngestionDocuments(documents);
+  $("ingestion-runs").innerHTML = renderIngestionRuns(runs);
+  bindIngestionInteractions();
+  updateIngestionSelectionActions();
+  renderIngestionStepDetail();
+}
+
+async function uploadIngestionDocuments() {
+  const files = Array.from($("ingestion-files").files || []);
+  if (!files.length) {
+    $("ingestion-action-status").innerHTML = '<span class="error-text">Choose at least one PDF document.</span>';
+    return;
+  }
+  const button = $("ingestion-upload");
+  button.disabled = true;
+  $("ingestion-action-status").textContent = `Uploading ${files.length} document${files.length === 1 ? "" : "s"}...`;
+  try {
+    const form = new FormData();
+    files.forEach((file) => form.append("files", file));
+    form.append("corpus_id", $("ingestion-corpus").value.trim() || DEFAULT_CORPUS);
+    const response = await apiFetch("/documents/upload", { method: "POST", body: form });
+    const payload = await response.json();
+    const uploaded = payload.uploaded || [];
+    uploaded.forEach((item) => state.ingestion.selectedDocumentIds.add(String(item.document_id)));
+    const duplicates = uploaded.filter((item) => item.duplicate).length;
+    $("ingestion-action-status").innerHTML = `<span class="success-text">Added ${uploaded.length} document${uploaded.length === 1 ? "" : "s"}${duplicates ? ` (${duplicates} already uploaded)` : ""}. They are selected below; click Ingest selected to process them.</span>`;
+    $("ingestion-files").value = "";
+    await loadIngestionStatus();
+  } catch (error) {
+    $("ingestion-action-status").innerHTML = `<span class="error-text">Upload failed: ${escapeHtml(error.message)}</span>`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function ingestSelectedDocuments() {
+  const documentIds = [...state.ingestion.selectedDocumentIds];
+  if (!documentIds.length) return;
+  const button = $("ingestion-ingest-selected");
+  button.disabled = true;
+  const failures = [];
+  for (let index = 0; index < documentIds.length; index += 1) {
+    $("ingestion-action-status").textContent = `Queueing document ${index + 1} of ${documentIds.length}...`;
+    try {
+      await apiJson(`/documents/${encodeURIComponent(documentIds[index])}/ingest`, { method: "POST", body: "{}" });
+    } catch (error) {
+      failures.push(`${documentIds[index]}: ${error.message}`);
+    }
+  }
+  state.ingestion.selectedDocumentIds.clear();
+  $("ingestion-action-status").innerHTML = failures.length
+    ? `<span class="error-text">Queued ${documentIds.length - failures.length}; ${failures.length} failed.</span><ul class="detail-list">${failures.map((failure) => `<li>${escapeHtml(failure)}</li>`).join("")}</ul>`
+    : `<span class="success-text">Queued ${documentIds.length} document${documentIds.length === 1 ? "" : "s"} for ingestion.</span>`;
+  await loadIngestionStatus();
 }
 
 async function loadIngestionStatus() {
-  const payload = await apiJson("/debug/ingestion-status?limit=80");
+  const payload = await apiJson("/debug/ingestion-status?limit=200");
+  state.ingestion.payload = payload;
   const docRows = payload.document_status || [];
   const runRows = payload.run_status || [];
   const queues = payload.queues || {};
@@ -2140,8 +3156,8 @@ async function loadIngestionStatus() {
   ]
     .map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
     .join("");
-  $("ingestion-runs").innerHTML = renderIngestionTable(payload.recent_runs || [], "runs");
-  $("ingestion-documents").innerHTML = renderIngestionTable(payload.recent_documents || [], "documents");
+  updateIngestionDocumentFilter(payload.recent_documents || []);
+  renderIngestion();
 }
 
 function maybePollIngestion() {
@@ -2161,7 +3177,12 @@ function setupTabs() {
       tab.classList.add("active");
       $(tab.dataset.tab).classList.add("active");
       if (tab.dataset.tab === "matrix") loadQuestionMatrix();
+      if (tab.dataset.tab === "agent-lab") {
+        loadAgentMatrix();
+        loadAgentLiveJob().catch(console.error);
+      }
       if (tab.dataset.tab === "ingestion") maybePollIngestion();
+      if (tab.dataset.tab === "history") loadHistory();
     });
   });
 }
@@ -2189,30 +3210,48 @@ function setupProgressInteractions() {
 
 async function init() {
   setupTabs();
-  setupEvalScopeControls();
-  setupProgressInteractions();
   setupMatrixControls();
-  $("run-eval").addEventListener("click", runEval);
-  $("load-latest").addEventListener("click", loadLatestResults);
   $("run-query").addEventListener("click", runQuery);
+  $("run-agent-test").addEventListener("click", () => runAgentTest().catch((error) => {
+    $("run-agent-test").disabled = false;
+    $("agent-lab-status").textContent = error.message;
+    $("agent-lab-status").className = "status-pill fail";
+  }));
+  $("run-agent-matrix").addEventListener("click", () => runAgentMatrix().catch((error) => {
+    $("run-agent-matrix").disabled = false;
+    $("agent-matrix-status").textContent = error.message;
+    $("agent-matrix-status").className = "status-pill fail";
+  }));
+  $("refresh-agent-matrix").addEventListener("click", loadAgentMatrix);
   $("refresh-history").addEventListener("click", loadHistory);
   $("refresh-ingestion").addEventListener("click", loadIngestionStatus);
-  try {
-    await loadDocuments();
-    await loadLatestRun();
-    await loadHistory();
-    await loadIngestionStatus();
-    await loadQuestionMatrix();
-    state.ingestionTimer = setInterval(maybePollIngestion, 5000);
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const { payload, meta } = JSON.parse(saved);
-      renderEval(payload, meta);
+  $("ingestion-upload").addEventListener("click", uploadIngestionDocuments);
+  $("ingestion-ingest-selected").addEventListener("click", ingestSelectedDocuments);
+  ["ingestion-filter-document", "ingestion-filter-text", "ingestion-filter-status"].forEach((id) => {
+    $(id).addEventListener(id === "ingestion-filter-text" ? "input" : "change", renderIngestion);
+  });
+  $("ingestion-clear-filters").addEventListener("click", () => {
+    $("ingestion-filter-document").value = "";
+    $("ingestion-filter-text").value = "";
+    $("ingestion-filter-status").value = "";
+    renderIngestion();
+  });
+  $("ingestion-select-visible").addEventListener("click", () => {
+    const visibleIds = filteredIngestionDocuments().map((row) => String(row.document_id));
+    const allSelected = visibleIds.length && visibleIds.every((id) => state.ingestion.selectedDocumentIds.has(id));
+    visibleIds.forEach((id) => (allSelected ? state.ingestion.selectedDocumentIds.delete(id) : state.ingestion.selectedDocumentIds.add(id)));
+    renderIngestion();
+  });
+  setConnectionStatus("UI ready · synchronizing active views");
+  state.ingestionTimer = setInterval(maybePollIngestion, 5000);
+  Promise.allSettled([loadQuestionMatrix(), loadAgentLiveJob()]).then((results) => {
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) {
+      setConnectionStatus(`View sync pending: ${failure.reason?.message || failure.reason}`, "idle");
+      return;
     }
-    setConnectionStatus(`API connected at ${API_BASE}`);
-  } catch (error) {
-    setConnectionStatus(`API error: ${error.message}`, "error");
-  }
+    setConnectionStatus("UI synchronized");
+  });
 }
 
 window.addEventListener("online", recoverAfterPageReturn);

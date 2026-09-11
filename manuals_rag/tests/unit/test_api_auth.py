@@ -41,3 +41,33 @@ def test_upload_document_path_does_not_contain_vendor_manufacturer_fallback():
     constants = " ".join(str(value) for value in api_main.upload_documents.__code__.co_consts)
     assert "manufacturer" in constants
     assert "Keyence" not in constants
+
+
+def test_ingest_document_initializes_all_step_records_before_queueing(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        api_main,
+        "fetch_one",
+        lambda _query, _params: {
+            "current_version_id": "version-1",
+            "source_filename": "manual.pdf",
+            "file_size_bytes": 123,
+            "sha256": "abc",
+            "storage_uri": "s3://manuals/manual.pdf",
+            "corpus_id": "manuals",
+        },
+    )
+    monkeypatch.setattr(api_main, "execute", lambda query, params=(): calls.append(("execute", query, params)))
+    monkeypatch.setattr(api_main, "initialize_ingestion_steps", lambda run_id, upload_details=None: calls.append(("steps", run_id, upload_details)))
+    monkeypatch.setattr(api_main, "enqueue", lambda queue, payload: calls.append(("enqueue", queue, payload)))
+
+    response = client.post("/documents/doc-1/ingest", headers={"Authorization": "Bearer admin-token"})
+
+    assert response.status_code == 200
+    run_id = response.json()["run_id"]
+    step_index = next(index for index, call in enumerate(calls) if call[0] == "steps")
+    queue_index = next(index for index, call in enumerate(calls) if call[0] == "enqueue")
+    assert step_index < queue_index
+    assert calls[step_index][1] == run_id
+    assert calls[step_index][2]["filename"] == "manual.pdf"
+    assert calls[queue_index][1] == "ingest_jobs"

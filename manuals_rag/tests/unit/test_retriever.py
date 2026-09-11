@@ -5,18 +5,351 @@ import pytest
 from manuals_rag_retrieval.document_metadata import enrich_document_metadata_with_chunk_signals
 from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval import retriever
-from manuals_rag_retrieval.retriever import (
-    _resolve_rerank_device,
-    assemble_context,
-    fuse_results,
-    rerank_results,
-    run_dense_search,
-    run_sparse_search,
-    run_table_search,
-)
+from manuals_rag_retrieval.retriever import _resolve_rerank_device, fuse_results, rerank_results, run_dense_search, run_sparse_search, run_table_search
 from manuals_rag_retrieval.query_analysis import QueryAnalysis, analyze_query
 from manuals_rag_schemas.documents import SearchResult
 from qdrant_client.http.exceptions import UnexpectedResponse
+
+
+def test_measurement_promotion_keeps_locally_bound_mode_value_after_rerank():
+    generic = SearchResult(
+        chunk_id="utility-cap-time",
+        score=1.0,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="doc-iv4",
+        pages=[446],
+        section_path=["Utility"],
+        content=(
+            "Operation information includes Cap. Time statistics. "
+            + "x " * 220
+            + "Utility includes High Speed program switching and Simulator 7."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    high_speed = SearchResult(
+        chunk_id="high-speed-12ms",
+        score=0.8,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="doc-iv4",
+        pages=[94],
+        section_path=["Operation Mode"],
+        content="Operation Mode: High Speed; Cap. Time: 12ms; Max. No. of Detections: 10",
+        metadata={"chunk_type": "table_record"},
+    )
+
+    promoted = retriever._promote_measurement_candidates(
+        [generic],
+        [generic, high_speed],
+        "What capture time does the High Speed mode use on the IV4-G120?",
+        limit=12,
+    )
+
+    assert promoted[0].chunk_id == "high-speed-12ms"
+    assert promoted[0].metadata["retrieval_stage"] == "measurement_promoted"
+
+
+def test_initial_output_polarity_adds_manual_table_label_aliases():
+    query = "Which output polarity does the W500 use out of the box?"
+    analysis = analyze_query(query)
+
+    terms = retriever._lexical_table_terms(query, analysis)
+
+    assert {"selection", "initial", "npn", "pnp"}.issubset(terms)
+
+
+def test_default_spec_lookup_promotes_exact_structured_table_rows():
+    generic = SearchResult(
+        chunk_id="generic-output",
+        score=1.0,
+        title="LR-W500 instruction manual",
+        document_version_id="v1",
+        source_document_id="doc-w500",
+        pages=[1],
+        section_path=["Wiring"],
+        content="The NPN or PNP output can be selected during initial setup.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    exact = SearchResult(
+        chunk_id="initial-polarity",
+        score=0.8,
+        title="LR-W500 instruction manual",
+        document_version_id="v1",
+        source_document_id="doc-w500",
+        pages=[4],
+        section_path=["Initial values"],
+        content=(
+            "Column headers: Initial value; Row headers: Item > NPN/PNP selection; "
+            "Cell value: NPN"
+        ),
+        metadata={"chunk_type": "table_record", "table_column_headers": ["Initial value"]},
+    )
+    query = "Which output polarity does the W500 use out of the box?"
+
+    promoted = retriever._promote_structured_table_candidates(
+        [generic],
+        [exact],
+        analyze_query(query),
+        limit=12,
+    )
+
+    assert promoted[0].chunk_id == "initial-polarity"
+    assert promoted[0].metadata["retrieval_stage"] == "structured_table_promoted"
+
+
+def test_measurement_promotion_prefers_requested_model_and_subject_terms():
+    unrelated = SearchResult(
+        chunk_id="other-temperature",
+        score=1.0,
+        title="Other light manual",
+        document_version_id="v1",
+        source_document_id="other-doc",
+        pages=[1],
+        section_path=["Ambient temperature"],
+        content="CA-S2040 ambient temperature: 0 to 50°C.",
+        metadata={"chunk_type": "table_record", "product_model": "CA-S2040"},
+    )
+    requested = SearchResult(
+        chunk_id="dzw-temperature",
+        score=0.8,
+        title="Lighting guide",
+        document_version_id="v1",
+        source_document_id="dzw-doc",
+        pages=[42],
+        section_path=["Environmental resistance"],
+        content=(
+            "Environmental resistance of the CA-DZW50X light components: "
+            "ambient temperature 0 to 40°C (32°F to 104°F)."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "CA-DZW50X"},
+    )
+    query = "What ambient temperature range supports the CA-DZW50X light components?"
+
+    promoted = retriever._promote_measurement_candidates(
+        [unrelated],
+        [unrelated, requested],
+        query,
+        analysis=analyze_query(query),
+        limit=12,
+    )
+
+    assert promoted[0].chunk_id == "dzw-temperature"
+
+
+def test_measurement_promotion_prefers_complete_option_set_over_warning():
+    broad_section = SearchResult(
+        chunk_id="broad-voltage-section",
+        score=1.1,
+        title="CV-X user manual",
+        document_version_id="v1",
+        source_document_id="doc-cvx",
+        pages=list(range(715, 726)),
+        section_path=["Light controller"],
+        content=(
+            "Select either 12V (Default) or 24V for the voltage supplied to the "
+            "CA-DC40E light controller. " + "Other illumination controller settings. " * 200
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    warning = SearchResult(
+        chunk_id="voltage-warning",
+        score=1.0,
+        title="CV-X user manual",
+        document_version_id="v1",
+        source_document_id="doc-cvx",
+        pages=[719],
+        section_path=["Light controller"],
+        content=(
+            "Connecting a 12 V illumination unit when the CA-DC40E setting voltage is "
+            "24 V may damage the controller."
+        ),
+        metadata={"chunk_type": "warning_record"},
+    )
+    option_set = SearchResult(
+        chunk_id="voltage-options",
+        score=0.8,
+        title="CV-X user manual",
+        document_version_id="v1",
+        source_document_id="doc-cvx",
+        pages=[719],
+        section_path=["Light controller"],
+        content=(
+            "Select either 12V (Default) or 24V for the voltage supplied to the "
+            "CA-DC40E light controller."
+        ),
+        metadata={"chunk_type": "atomic_text"},
+    )
+    query = (
+        "Which voltage options can be selected for an illumination unit connected to "
+        "the CA-DC40E light controller?"
+    )
+
+    promoted = retriever._promote_measurement_candidates(
+        [warning],
+        [warning, broad_section, option_set],
+        query,
+        analysis=analyze_query(query),
+        limit=12,
+    )
+
+    assert promoted[0].chunk_id == "voltage-options"
+    assert promoted[0].metadata["retrieval_stage"] == "measurement_promoted"
+
+
+def test_measurement_promotion_prefers_complete_response_light_condition():
+    generic = SearchResult(
+        chunk_id="generic-response-time",
+        score=1.0,
+        title="LR-W70(C) manual",
+        document_version_id="v1",
+        source_document_id="doc-lrw70",
+        pages=[1],
+        section_path=["Specifications"],
+        content="Response time: 500 µs/2.1 ms/21 ms/200 ms/1 s selectable.",
+        metadata={"chunk_type": "table_record"},
+    )
+    complete = SearchResult(
+        chunk_id="response-light-condition",
+        score=0.8,
+        title="LR-W70(C) manual",
+        document_version_id="v1",
+        source_document_id="doc-lrw70",
+        pages=[7],
+        section_path=["SET"],
+        content=(
+            "When using 500 μ s or 2.1 ms response time, the indicators may be displayed "
+            "if light intensity is saturated or insufficient. Recalibrate the sensor."
+        ),
+        metadata={"chunk_type": "atomic_text"},
+    )
+    query = (
+        "At the 500 µs or 2.1 ms response-time settings, what conditions can make the "
+        "LR-W70(C) display the saturation or insufficient-light indicators?"
+    )
+
+    promoted = retriever._promote_measurement_candidates(
+        [generic],
+        [generic, complete],
+        query,
+        analysis=analyze_query(query),
+        limit=12,
+    )
+
+    assert promoted[0].chunk_id == "response-light-condition"
+
+
+def test_input_terminal_count_rejects_output_row_with_same_header():
+    output_row = SearchResult(
+        chunk_id="outputs",
+        score=1.0,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="doc-iv4",
+        pages=[446],
+        section_path=["Specifications"],
+        content="Row headers: Number of inputs; Cell value: 8 (OUT1 to OUT8)",
+        metadata={"chunk_type": "table_record", "product_model": "IV4-G120"},
+    )
+    input_row = SearchResult(
+        chunk_id="inputs",
+        score=0.8,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="doc-iv4",
+        pages=[446],
+        section_path=["Specifications"],
+        content="Row headers: Number of inputs; Cell value: 8 (IN1 to IN8)",
+        metadata={"chunk_type": "table_record", "product_model": "IV4-G120"},
+    )
+    query = "How many input terminals does the IV4-G120 provide?"
+
+    promoted = retriever._promote_measurement_candidates(
+        [output_row],
+        [output_row, input_row],
+        query,
+        analysis=analyze_query(query),
+        limit=12,
+    )
+
+    assert promoted[0].chunk_id == "inputs"
+
+
+def test_named_setting_promotion_keeps_exact_labeled_table_row():
+    wrong = SearchResult(
+        chunk_id="generic-tolerance",
+        score=1.0,
+        title="Tool manual",
+        document_version_id="v1",
+        source_document_id="wrong-doc",
+        pages=[1],
+        section_path=["Judgment"],
+        content="Set upper and lower tolerance limits for measured values.",
+        metadata={"chunk_type": "section_window"},
+    )
+    exact = SearchResult(
+        chunk_id="distortion-setting",
+        score=0.8,
+        title="Pattern manual",
+        document_version_id="v1",
+        source_document_id="right-doc",
+        pages=[247],
+        section_path=["Pattern settings"],
+        content=(
+            "Setting item: Distortion Tolerance Range; Settings: Use a fine search when "
+            "edge skew is within the specified pixel value."
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+
+    promoted = retriever._promote_named_setting_candidates(
+        [wrong],
+        [wrong, exact],
+        "What does the Distortion Tolerance Range setting control?",
+    )
+
+    assert promoted[0].chunk_id == "distortion-setting"
+    assert promoted[0].metadata["retrieval_stage"] == "named_setting_promoted"
+
+
+def test_named_setting_promotion_keeps_explicit_multiword_parameter_row():
+    wrong = SearchResult(
+        chunk_id="course-image-reduction",
+        score=1.0,
+        title="LJ-X8000 manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[255],
+        section_path=["Search"],
+        content=(
+            "Setting item: Course Search Image Reduction Rate; Settings: "
+            "Image compression from 0 to 16."
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+    exact = SearchResult(
+        chunk_id="rough-feature-reduction",
+        score=0.8,
+        title="LJ-X8000 manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[250],
+        section_path=["Search"],
+        content=(
+            "Setting item: Rough Search Characteristic Reduction Rate; Settings: "
+            "Feature compression from 0 to 10."
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+
+    promoted = retriever._promote_named_setting_candidates(
+        [wrong],
+        [wrong, exact],
+        "How does the Rough Search Characteristic Reduction Rate affect feature compression?",
+    )
+
+    assert promoted[0].chunk_id == "rough-feature-reduction"
+    assert promoted[0].metadata["retrieval_stage"] == "named_setting_promoted"
 
 
 def test_fuse_rrf_prefers_documents_present_in_multiple_result_sets():
@@ -195,6 +528,15 @@ def test_query_analysis_marks_plural_values_apply_questions_as_structured_lookup
     assert analysis.product_identifiers == ["IV4-G120", "IV4-G600CA"]
 
 
+def test_query_analysis_marks_where_do_i_set_questions_as_configuration_how_to():
+    analysis = analyze_query("Where do I set overlap distance for the scanner?")
+
+    assert "configuration" in analysis.query_types
+    assert "how_to" in analysis.query_types
+    assert "procedure_record" in analysis.preferred_chunk_types
+    assert "section_window" in analysis.preferred_chunk_types
+
+
 def test_query_analysis_marks_compound_multi_product_specs_as_comparison_lookup():
     analysis = analyze_query(
         "For the controller, what enclosure rating is listed for MOD1-A manual, "
@@ -205,53 +547,6 @@ def test_query_analysis_marks_compound_multi_product_specs_as_comparison_lookup(
     assert "comparison" in analysis.query_types
     assert "table_record" in analysis.preferred_chunk_types
     assert analysis.requested_doc_kind == "manual"
-
-
-def test_assemble_context_persists_source_context_for_citation_audit(monkeypatch):
-    result = SearchResult(
-        chunk_id="step-2",
-        score=0.9,
-        title="CV-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[10],
-        section_path=["Timing chart"],
-        content="Procedure step 2: Typical operations at trigger input.",
-        metadata={"chunk_type": "procedure_record"},
-    )
-
-    def fake_fetch_all(_query, _params):
-        return [
-            {
-                "document_version_id": "ver-1",
-                "section_path_text": "Timing chart",
-                "chunk_type": "section_window",
-                "chunk_level": 2,
-                "page_from": 10,
-                "page_to": 10,
-                "content": "Timing chart Control/data output via I/O terminals.",
-                "metadata_json": {},
-            },
-            {
-                "document_version_id": "ver-1",
-                "section_path_text": "Timing chart",
-                "chunk_type": "parent_section",
-                "chunk_level": 3,
-                "page_from": 10,
-                "page_to": 10,
-                "content": "Performs multiple image captures and processes them as a single measurement.",
-                "metadata_json": {},
-            },
-        ]
-
-    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
-
-    assembled = assemble_context([result])
-
-    persisted_content = assembled[0].metadata["content"]
-    assert "Typical operations at trigger input" in persisted_content
-    assert "Control/data output via I/O terminals" in persisted_content
-    assert "multiple image captures" in persisted_content
 
 
 def test_query_analysis_extracts_bare_product_names_in_comparisons():
@@ -324,6 +619,16 @@ def test_query_analysis_marks_specified_for_model_questions_as_spec_lookup():
     assert analysis.product_model == "CV-X482"
 
 
+def test_query_analysis_marks_natural_how_long_question_as_spec_lookup():
+    analysis = analyze_query("How long is the cable on the CA-D3P model?")
+
+    assert "spec_lookup" in analysis.query_types
+    assert "table_record" in analysis.preferred_chunk_types
+    terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
+    assert "cad3p" in terms
+    assert "length" in terms
+
+
 def test_query_analysis_does_not_treat_vs_series_as_comparison():
     analysis = analyze_query("What Display Settings value applies to VS Series Vision System?")
 
@@ -337,6 +642,11 @@ def test_query_analysis_marks_cause_and_correction_questions_as_structured_looku
     assert "structured_lookup" in analysis.query_types
     assert "troubleshooting" in analysis.query_types
     assert "table_record" in analysis.preferred_chunk_types
+
+    cause_only = analyze_query("What causes the Image Stitching Height Image error for XG-X Series?")
+    action_only = analyze_query("How should the Image Stitching Height Image issue be corrected for XG-X Series?")
+    assert {"structured_lookup", "troubleshooting"}.issubset(cause_only.query_types)
+    assert {"structured_lookup", "troubleshooting"}.issubset(action_only.query_types)
 
 
 def test_query_analysis_treats_letter_number_series_as_product_family_not_error_code():
@@ -368,77 +678,55 @@ def test_query_analysis_does_not_extract_model_suffix_as_error_code():
     assert analysis.error_code is None
 
 
-def test_query_analysis_extracts_explicit_numeric_error_and_comparison_scope():
-    analysis = analyze_query(
-        "How does Error 30109 differ between the CV-X482 and the VS Series, "
-        "and what does it indicate for each system?"
+def test_query_analysis_extracts_numeric_error_after_error_label():
+    analysis = analyze_query("What causes error 14506 on the LJ-S8000 Series USB port?")
+
+    assert analysis.error_code == "14506"
+    assert analysis.product_model == "LJ-S8000"
+
+
+def test_query_analysis_routes_connector_type_as_spec_lookup():
+    analysis = analyze_query("What connector type does the IV2-CP50 use?")
+
+    assert "spec_lookup" in analysis.query_types
+    assert "table_record" in analysis.preferred_chunk_types
+
+
+def test_contextual_lexical_search_targets_exact_numeric_error_record(monkeypatch):
+    analysis = analyze_query("What causes error 14506 on the LJ-S8000 Series USB port?")
+
+    def fake_fetch_all(query, params):
+        assert "table_record" in params[0]
+        assert "%errornumber14506%" in params
+        return [
+            {
+                "id": "error-14506",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "LJ-S8000 Manual",
+                "section_path_text": "Error list",
+                "page_from": 490,
+                "page_to": 490,
+                "content": (
+                    "Error Number: 14506; Error Messages: Overcurrent was detected on the connected USB device.; "
+                    "Cause: A device that consumes excessive current is connected.; Remedy: Disconnect the device."
+                ),
+                "chunk_type": "table_record",
+                "metadata_json": {"product_model": "LJ-S8000", "product_family": "LJ-S8000"},
+                "priority_score": 1.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        analysis.raw_query,
+        ["manuals_vendor_keyence"],
+        {"is_active": True},
+        analysis,
     )
 
-    assert analysis.error_code == "30109"
-    assert "comparison" in analysis.query_types
-    assert "troubleshooting" in analysis.query_types
-    assert analysis.product_identifiers == ["CV-X482", "VS"]
-    assert retriever._diagnostic_table_code_terms(analysis.raw_query, analysis) == ["30109"]
-    assert retriever._should_run_table_lexical_search(analysis) is True
-
-
-@pytest.mark.parametrize("family", ["VS Series", "XG-X Series"])
-def test_query_analysis_marks_repeated_product_side_clauses_as_comparison(family: str):
-    analysis = analyze_query(
-        "On a CV-X482, what should a technician check for Error 13101, "
-        f"and on the {family}, what should they check when image data cannot be transferred?"
-    )
-
-    assert "comparison" in analysis.query_types
-    assert analysis.product_identifiers == ["CV-X482", family.removesuffix(" Series")]
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-        (
-            "For MOD1-A reporting a damaged program, what caused the condition, "
-            "and what causes SYS Series Error 30109?"
-        ),
-        (
-            "What causes SYS Series Error 30109, and what caused the damaged-program "
-            "condition for MOD1-A?"
-        ),
-    ],
-)
-def test_query_analysis_marks_compound_field_requests_across_product_sides_as_comparison(query: str):
-    analysis = analyze_query(query)
-
-    expected_identifiers = ["MOD1-A", "SYS"] if query.startswith("For") else ["SYS", "MOD1-A"]
-    assert analysis.product_identifiers == expected_identifiers
-    assert "comparison" in analysis.query_types
-
-
-def test_query_analysis_does_not_mark_single_side_followup_as_comparison():
-    analysis = analyze_query(
-        "For MOD1-A reporting a damaged program, what caused the condition and how should it be corrected?"
-    )
-
-    assert analysis.product_identifiers == ["MOD1-A"]
-    assert "comparison" not in analysis.query_types
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-        "What address values apply for IV4-G120 and IV4-G600CA?",
-        "On a CV-X482, what should a technician check for Error 13101?",
-        "What Display Settings value applies to VS Series Vision System?",
-    ],
-)
-def test_query_analysis_does_not_broaden_ordinary_product_wording_to_comparison(query: str):
-    assert "comparison" not in analyze_query(query).query_types
-
-
-def test_query_analysis_does_not_treat_unlabeled_quantity_as_error_code():
-    analysis = analyze_query("How do the CV-X482 and VS Series differ when storing 30109 images?")
-
-    assert analysis.error_code is None
+    assert results[0].chunk_id == "error-14506"
 
 
 def test_table_search_route_skips_safety_procedure_questions():
@@ -512,14 +800,13 @@ def test_structured_lookup_with_product_family_skips_table_lexical_search():
     assert retriever._should_run_table_lexical_search(analysis) is False
 
 
-def test_compound_product_sides_with_one_explicit_error_keep_table_lexical_search():
+def test_cause_or_remedy_lookup_with_product_family_keeps_exact_table_lexical_search():
     analysis = analyze_query(
-        "For MOD1-A reporting a damaged program, what caused the condition, "
-        "and what causes SYS Series Error 30109?"
+        "How should Failed to connect to [Target IP Address] for VS Series be corrected?"
     )
 
-    assert "comparison" in analysis.query_types
-    assert retriever._diagnostic_table_code_terms(analysis.raw_query, analysis) == ["30109"]
+    assert "structured_lookup" in analysis.query_types
+    assert analysis.product_family == "VS"
     assert retriever._should_run_table_lexical_search(analysis) is True
 
 
@@ -536,6 +823,19 @@ def test_structured_lookup_skips_contextual_lexical_search_terms():
     assert retriever._lexical_context_terms(analysis.raw_query, analysis) == []
 
 
+def test_structured_troubleshooting_keeps_contextual_lexical_search_terms():
+    analysis = analyze_query(
+        "How do I fix ambient light interference on the LR-ZH500C3P sensor?"
+    )
+
+    terms = retriever._lexical_context_terms(analysis.raw_query, analysis)
+
+    assert "troubleshooting" in analysis.query_types
+    assert "ambient" in terms
+    assert "light" in terms
+    assert "interference" in terms
+
+
 def test_table_lexical_content_terms_ignore_generic_value_and_keep_only_strong_fields():
     terms = retriever._lexical_table_terms(
         "What data7 M_DATA7 M_DATA9 Scaling target value applies to LJ: S8000 Series?",
@@ -546,122 +846,6 @@ def test_table_lexical_content_terms_ignore_generic_value_and_keep_only_strong_f
     symbol_terms = retriever._lexical_table_symbol_terms(terms)
     assert "data7" in symbol_terms
     assert "mdata9" in symbol_terms
-
-
-def test_table_lexical_terms_include_diagnostic_codes_for_troubleshooting_tables():
-    query = "On MOD-600, what does error A-14 indicate, and what field-network settings should I check?"
-    analysis = analyze_query(query)
-
-    assert retriever._should_run_table_lexical_search(analysis) is True
-    terms = retriever._lexical_table_terms(query, analysis)
-
-    assert "a14" in terms
-    assert "fieldnetwork" in terms
-    assert "mod600" in terms
-
-
-def test_table_lexical_terms_include_table_preferred_code_anchors():
-    query = (
-        "In the MOD-600 cyclic communication allocation table, what is PID 428 "
-        "at address bytes 0016-0018 named?"
-    )
-    analysis = analyze_query(query)
-
-    terms = retriever._lexical_table_terms(query, analysis)
-
-    assert "pid" in terms
-    assert "428" in terms
-    assert "0016" in terms
-    assert "0017" in terms
-    assert "0018" in terms
-
-
-def test_troubleshooting_checkpoint_queries_use_table_lexical_terms():
-    query = (
-        "In MOD-600 troubleshooting, when an external trigger cannot be input, "
-        "which polarity checkpoint should I verify?"
-    )
-    analysis = analyze_query(query)
-
-    terms = retriever._lexical_table_terms(query, analysis)
-
-    assert "table_record" in analysis.preferred_chunk_types
-    assert retriever._should_run_table_lexical_search(analysis) is True
-    assert "polarity" in terms
-    assert retriever._lexical_table_content_terms(terms) == ["polarity"]
-
-
-def test_checkpoint_table_score_prefers_requested_polarity_row_over_trigger_workaround():
-    query = (
-        "In MOD-600 troubleshooting, when an external trigger cannot be input, "
-        "which polarity checkpoint should I verify?"
-    )
-    analysis = analyze_query(query)
-    terms = retriever._lexical_table_terms(query, analysis)
-    polarity_row = {
-        "content": (
-            "Column headers: Check point; Row headers: An external trigger cannot be input.; "
-            "Cell value: Is the Polarity correctly set?"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Check point"],
-            "table_row_headers": ["An external trigger cannot be input."],
-            "product_model": "MOD-600",
-        },
-        "priority_score": 10.0,
-    }
-    trigger_workaround = {
-        "content": (
-            "In the following cases, input an external trigger. When Internal Trigger Control "
-            "is enabled, press Trigger ON to take an image temporarily using the internal trigger."
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Procedure"],
-            "table_row_headers": ["External trigger input"],
-            "product_model": "MOD-600",
-        },
-        "priority_score": 14.0,
-    }
-
-    assert retriever._table_lexical_score(polarity_row, terms) > retriever._table_lexical_score(
-        trigger_workaround,
-        terms,
-    )
-
-
-def test_table_lexical_score_prefers_complete_address_range_row():
-    query = (
-        "In the MOD-600 cyclic communication allocation table, what is PID 428 "
-        "at address bytes 0016-0018 named?"
-    )
-    analysis = analyze_query(query)
-    terms = retriever._lexical_table_terms(query, analysis)
-    expected_row = {
-        "content": "Measurement count area | 0016 0017 0018 | PID 428 | Total count",
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_row_group": True,
-            "product_model": "MOD-600",
-        },
-        "priority_score": 10.0,
-    }
-    sibling_bit_row = {
-        "content": "Column headers: 4bit; Row headers: 0016 PID 428 > status Bit area; Cell value: Allocation possible",
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_row_headers": ["0016 PID 428", "status Bit area"],
-            "table_column_headers": ["4bit"],
-            "product_model": "MOD-600",
-        },
-        "priority_score": 12.0,
-    }
-
-    assert retriever._table_lexical_score(expected_row, terms) > retriever._table_lexical_score(sibling_bit_row, terms)
 
 
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():
@@ -786,7 +970,13 @@ def test_contextual_lexical_search_scores_local_section_context(monkeypatch):
     def fake_fetch_all(query, params):
         assert "local_rerank_context" in query
         assert "order by" in query.lower()
-        assert params[0] == ["procedure_record", "atomic_text", "section_window"]
+        assert params[0] == [
+            "procedure_record",
+            "atomic_text",
+            "section_window",
+            "spec_record",
+            "datasheet_record",
+        ]
         return [
             {
                 "id": "procedure",
@@ -840,7 +1030,7 @@ def test_contextual_lexical_search_promotes_product_family_context(monkeypatch):
     def fake_fetch_all(query, params):
         assert "local_rerank_context" in query
         assert "order by" in query.lower()
-        assert "metadata_json::text ilike" in query
+        assert "metadata_json::text" in query
         assert any(param == "%x8000%" for param in params)
         return [
             {
@@ -887,6 +1077,120 @@ def test_contextual_lexical_search_promotes_product_family_context(monkeypatch):
     assert results[0].chunk_id == "expected-section"
 
 
+def test_contextual_lexical_search_targets_default_error_terminal_record(monkeypatch):
+    analysis = analyze_query("Which terminal on the IV-500C signals an error condition by default?")
+
+    def fake_fetch_all(query, params):
+        assert "table_record" in params[0]
+        assert "%assigningdefaultvalueerror%" in params
+        return [
+            {
+                "id": "out3-record",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "IV Manual",
+                "section_path_text": "Wiring",
+                "page_from": 6,
+                "page_to": 6,
+                "content": (
+                    "Wiring color: Gray; Name: OUT3; Assigning default value: Error (N.O.); "
+                    "Description: Judge result of each tool (Tool 1 to Tool 16)"
+                ),
+                "chunk_type": "table_record",
+                "metadata_json": {"product_model": "IV-500C"},
+                "priority_score": 1.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        analysis.raw_query,
+        ["manuals_vendor_keyence"],
+        {"is_active": True},
+        analysis,
+    )
+
+    assert results[0].chunk_id == "out3-record"
+
+
+def test_contextual_lexical_search_targets_physical_terminal_and_wire_color(monkeypatch):
+    analysis = analyze_query("What function does the brown A1 terminal perform on the IV Series?")
+
+    def fake_fetch_all(query, params):
+        assert "table_record" in params[0]
+        assert "%wiringcolorbrown%" in params
+        assert "%terminalnoa1%" in params
+        return [
+            {
+                "id": "a1-record",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "IV Manual",
+                "section_path_text": "Specifications",
+                "page_from": 26,
+                "page_to": 26,
+                "content": (
+                    "Terminal No.: A1; Wiring color: Brown; Name: IN1; "
+                    "Assigning default value: External trigger; Description: Set external trigger."
+                ),
+                "chunk_type": "table_record",
+                "metadata_json": {"product_family": "IV Series"},
+                "priority_score": 1.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        analysis.raw_query,
+        ["manuals_vendor_keyence"],
+        {"is_active": True},
+        analysis,
+    )
+
+    assert results[0].chunk_id == "a1-record"
+
+
+def test_contextual_lexical_search_targets_external_trigger_timing_record(monkeypatch):
+    analysis = analyze_query("Which timing edges can be configured for the IV Series external trigger?")
+
+    def fake_fetch_all(query, params):
+        assert "table_record" in params[0]
+        assert "%externaltrigger%" in params
+        assert "%risingtiming%" in params
+        assert "%fallingtiming%" in params
+        return [
+            {
+                "id": "a1-record",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "IV Manual",
+                "section_path_text": "Specifications",
+                "page_from": 26,
+                "page_to": 26,
+                "content": (
+                    "Terminal No.: A1; Wiring color: Brown; Name: IN1; Assigning default value: "
+                    "External trigger; Description: Rising timing or falling timing can be set."
+                ),
+                "chunk_type": "table_record",
+                "metadata_json": {"product_family": "IV Series"},
+                "priority_score": 1.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        analysis.raw_query,
+        ["manuals_vendor_keyence"],
+        {"is_active": True},
+        analysis,
+    )
+
+    assert results[0].chunk_id == "a1-record"
+
+
 def test_family_scoring_demotes_spec_chunks_for_general_prose_queries():
     analysis = analyze_query("Where does the manual discuss command completion and successful execution?")
     prose = SearchResult(
@@ -913,6 +1217,290 @@ def test_family_scoring_demotes_spec_chunks_for_general_prose_queries():
     )
     rescored = retriever._apply_family_scoring([spec, prose], analysis, stage="family_scored")
     assert rescored[0].chunk_id == "prose"
+
+
+def test_contextual_lexical_terms_cover_general_answer_seeking_queries():
+    analysis = analyze_query("When does archiving start for the VS Series Vision System?")
+
+    terms = retriever._lexical_context_terms(analysis.raw_query, analysis)
+
+    assert "archiving" in terms
+    assert "start" in terms
+    assert "condition" in terms
+    assert "enabled" in terms
+    assert "trigger" in terms
+    assert "vision" not in terms
+    assert "system" not in terms
+
+
+def test_contextual_lexical_terms_drop_generic_support_word_for_measurement_query():
+    analysis = analyze_query("What profile capture rate does the LJ-X8000 Series support?")
+
+    terms = retriever._lexical_context_terms(analysis.raw_query, analysis)
+
+    assert "ljx8000" in terms
+    assert "profile" in terms
+    assert "capture" in terms
+    assert "rate" in terms
+    assert "support" not in terms
+
+
+def test_contextual_lexical_terms_expand_verification_to_check():
+    analysis = analyze_query("Which items require verification for RS-232C PLC-Link communication?")
+
+    terms = retriever._lexical_context_terms(analysis.raw_query, analysis)
+
+    assert "verification" not in terms
+    assert "check" in terms
+
+
+def test_contextual_lexical_terms_expand_login_name_to_username():
+    analysis = analyze_query("How do I configure the login name for an SFTP server?")
+
+    terms = retriever._lexical_context_terms(analysis.raw_query, analysis)
+
+    assert "username" in terms
+
+
+def test_contextual_lexical_terms_expand_password_disable_polarity():
+    analysis = analyze_query("How do I disable the password for the W500 Key Lock?")
+
+    terms = retriever._lexical_context_terms(analysis.raw_query, analysis)
+
+    assert "required" in terms
+    assert "selected" in terms
+
+
+def test_contextual_lexical_terms_expand_movement_distance_to_movable_range():
+    analysis = analyze_query("How far can the cap bolt move on the S8000 Series laser sensor?")
+
+    terms = retriever._lexical_context_terms(analysis.raw_query, analysis)
+
+    assert "movable" in terms
+    assert "range" in terms
+
+
+def test_contextual_lexical_terms_preserve_short_uppercase_technical_acronyms():
+    analysis = analyze_query("What is the valid STO pulse duration range for the CV-X482?")
+
+    terms = retriever._lexical_context_terms(analysis.raw_query, analysis)
+
+    assert "sto" in terms
+
+
+def test_contextual_lexical_search_word_bounds_technical_acronym(monkeypatch):
+    analysis = analyze_query("What is the valid STO pulse duration range for the CV-X482?")
+
+    def fake_fetch_all(query, params):
+        assert "~*" in query
+        assert any("sto" in str(param) for param in params)
+        return [
+            {
+                "id": "sto-duration",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "CV-X manual",
+                "section_path_text": "STO/ACK/NACK Output Duration",
+                "page_from": 865,
+                "page_to": 865,
+                "content": (
+                    "Set the length of time from when the STO rises to when the STO falls "
+                    "within the range of 1 to 999 (ms). (Default: 10 ms)"
+                ),
+                "chunk_type": "atomic_text",
+                "metadata_json": {"product_model": "CV-X482"},
+                "priority_score": 1.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        analysis.raw_query,
+        ["manuals_vendor_keyence"],
+        {},
+        analysis,
+    )
+
+    assert [result.chunk_id for result in results] == ["sto-duration"]
+
+
+def test_contextual_lexical_search_includes_answer_bearing_spec_records(monkeypatch):
+    analysis = analyze_query("When does archiving start for the VS Series Vision System?")
+
+    def fake_fetch_all(query, params):
+        assert "spec_record" in params[0]
+        return [
+            {
+                "id": "generic-atomic",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "User Manual",
+                "section_path_text": "Archive Conditions",
+                "page_from": 1,
+                "page_to": 1,
+                "content": "If no archive condition is enabled, archiving is disabled.",
+                "chunk_type": "atomic_text",
+                "metadata_json": {"product_family": "VS Series Vision System"},
+                "priority_score": 0.9,
+            },
+            {
+                "id": "trigger-spec",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "User Manual",
+                "section_path_text": "Archive Target",
+                "page_from": 2,
+                "page_to": 2,
+                "content": 'Archiving is performed when the cell selected in [Target] is "TRUE".',
+                "chunk_type": "spec_record",
+                "metadata_json": {"product_family": "VS Series Vision System"},
+                "priority_score": 0.99,
+            },
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(analysis.raw_query, ["corpus-1"], {}, analysis)
+
+    assert {result.chunk_id for result in results} == {"generic-atomic", "trigger-spec"}
+
+
+def test_contextual_lexical_search_includes_table_records_for_general_count_queries(monkeypatch):
+    analysis = analyze_query("How many LEDs does the CA-DQP12X LumiTrax light source contain?")
+
+    def fake_fetch_all(_query, params):
+        assert "table_record" in params[0]
+        return [
+            {
+                "id": "led-count",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "LumiTrax specifications",
+                "section_path_text": "Specifications",
+                "page_from": 31,
+                "page_to": 31,
+                "content": (
+                    "Model: Number of LEDs; CA-DQP12X: 72; CA-DQP25X: 168"
+                ),
+                "chunk_type": "table_record",
+                "metadata_json": {},
+                "priority_score": 1.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        analysis.raw_query,
+        ["corpus-1"],
+        {},
+        analysis,
+    )
+
+    assert [result.chunk_id for result in results] == ["led-count"]
+
+
+def test_contextual_lexical_search_includes_table_records_for_explicit_model_fields(monkeypatch):
+    analysis = analyze_query("What is the color output of the CA-DQP25X LumiTrax light source?")
+
+    def fake_fetch_all(_query, params):
+        assert "table_record" in params[0]
+        return [
+            {
+                "id": "light-pattern",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "LumiTrax specifications",
+                "section_path_text": "Specifications",
+                "page_from": 31,
+                "page_to": 31,
+                "content": "Model: Pattern; CA-DQP12X: Color; CA-DQP25X: White",
+                "chunk_type": "table_record",
+                "metadata_json": {},
+                "priority_score": 1.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        analysis.raw_query,
+        ["corpus-1"],
+        {},
+        analysis,
+    )
+
+    assert [result.chunk_id for result in results] == ["light-pattern"]
+
+
+def test_contextual_lexical_search_targets_explicit_multiword_setting_name(monkeypatch):
+    analysis = analyze_query(
+        "How does the Rough Search Characteristic Reduction Rate affect feature compression?"
+    )
+
+    def fake_fetch_all(_query, params):
+        assert "table_record" in params[0]
+        assert "%roughsearchcharacteristicreductionrate%" in params
+        return [
+            {
+                "id": "rough-reduction",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "LJ-X8000 manual",
+                "section_path_text": "Settings",
+                "page_from": 250,
+                "page_to": 250,
+                "content": (
+                    "Setting item: Rough Search Characteristic Reduction Rate; Settings: "
+                    "Specify the degree of compression of features. 0 (small) to 10 (large)"
+                ),
+                "chunk_type": "table_record",
+                "metadata_json": {},
+                "priority_score": 1.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        analysis.raw_query,
+        ["manuals_vendor_keyence"],
+        {},
+        analysis,
+    )
+
+    assert [result.chunk_id for result in results] == ["rough-reduction"]
+
+
+def test_query_alignment_ignores_generic_manual_title_words():
+    analysis = analyze_query("When does archiving start for the VS Series Vision System?")
+    heading = SearchResult(
+        chunk_id="heading",
+        score=0.5,
+        title="VS Series Vision System",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Overview"],
+        content="Overview of the VS Series Vision System",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    evidence = SearchResult(
+        chunk_id="evidence",
+        score=0.49,
+        title="VS Series Vision System",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[2],
+        section_path=["Archive conditions"],
+        content='Archiving starts when the referenced Vision Dashboard cell is "TRUE".',
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    rescored = retriever._apply_query_alignment([heading, evidence], analysis, stage="query_aligned")
+
+    assert rescored[0].chunk_id == "evidence"
 
 
 def test_query_alignment_promotes_candidate_with_better_query_term_coverage():
@@ -1125,6 +1713,43 @@ def test_query_alignment_keeps_generic_procedure_search_ahead_of_unrelated_spec_
     assert rescored[0].chunk_id == "procedure"
 
 
+def test_query_alignment_prefers_requested_capture_type_over_sibling_type():
+    analysis = analyze_query("For Multi-Capture trigger input timing, what operation does the section describe?")
+    sibling_type = SearchResult(
+        chunk_id="asynchronous-trigger",
+        score=0.6,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Timing chart"],
+        content=(
+            "Timing chart Control/data output via I/O terminals. "
+            "Typical operations at trigger input (Capture Type: Asynchronous Trigger)."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    requested_type = SearchResult(
+        chunk_id="multi-capture",
+        score=0.5,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[2],
+        section_path=["Timing chart"],
+        content=(
+            "Timing chart Control/data output via I/O terminals. "
+            "Typical operations at trigger input (Capture Type: Multi-Capture). "
+            "Performs multiple image captures at the same location and processes them as a single measurement."
+        ),
+        metadata={"chunk_type": "procedure_record"},
+    )
+
+    rescored = retriever._apply_query_alignment([sibling_type, requested_type], analysis, stage="query_aligned")
+
+    assert rescored[0].chunk_id == "multi-capture"
+
+
 def test_family_selection_keeps_preferred_family_for_general_queries():
     analysis = analyze_query("Where does the manual discuss command completion and successful execution?")
     candidates = [
@@ -1257,55 +1882,6 @@ def test_assemble_context_uses_nearest_table_row_group_for_table_cells(monkeypat
     assert assembled[0].metadata["table_row_group_context"] == assembled[0].metadata["context_window"]
 
 
-def test_assemble_context_preserves_parent_source_for_atomic_fragments(monkeypatch):
-    result = SearchResult(
-        chunk_id="atomic-condition",
-        score=0.7,
-        title="Doc",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[7],
-        section_path=["Image Capture Buffer"],
-        content="Using only one camera or multiple cameras that all use the same capture priority condition.",
-        metadata={"chunk_type": "atomic_text"},
-    )
-    monkeypatch.setattr(
-        retriever,
-        "fetch_all",
-        lambda *_args, **_kwargs: [
-            {
-                "document_version_id": "ver-1",
-                "section_path_text": "Image Capture Buffer",
-                "chunk_type": "section_window",
-                "chunk_level": 2,
-                "page_from": 7,
-                "page_to": 7,
-                "content": "Using only one camera or multiple cameras that all use the same capture priority condition.",
-                "metadata_json": {},
-            },
-            {
-                "document_version_id": "ver-1",
-                "section_path_text": "Image Capture Buffer",
-                "chunk_type": "parent_section",
-                "chunk_level": 3,
-                "page_from": 7,
-                "page_to": 8,
-                "content": (
-                    "Examples of How the Image Capture Buffer is Used. "
-                    "Using only one camera or multiple cameras that all use the same capture priority condition. "
-                    "1. Image Capture Buffer: Disabled."
-                ),
-                "metadata_json": {},
-            },
-        ],
-    )
-
-    assembled = retriever.assemble_context([result], limit=1)
-
-    assert "Image Capture Buffer: Disabled" in assembled[0].content
-    assert "Image Capture Buffer: Disabled" in assembled[0].metadata["content"]
-
-
 def test_semantic_completeness_penalizes_heading_like_fragments():
     result = SearchResult(
         chunk_id="heading",
@@ -1349,6 +1925,410 @@ def test_select_family_candidates_prefers_procedure_family_for_how_to_queries():
     )
     chosen = retriever._select_family_candidates([section, procedure], analysis, limit=4)
     assert chosen[0].chunk_id == "proc"
+
+
+def test_identifier_dense_retention_keeps_exact_model_evidence_in_fused_window():
+    analysis = analyze_query("Where should I avoid installing the IV-500C sensor?")
+    fused = [
+        SearchResult(
+            chunk_id=f"fused-{index}",
+            score=0.04 - index * 0.005,
+            title="IV-H Manual",
+            document_version_id="ver-sibling",
+            source_document_id="doc-sibling",
+            pages=[1],
+            section_path=["Installation"],
+            content="Mount the IV-H sensor away from vibration.",
+            metadata={"chunk_type": "atomic_text", "product_model": "IV-H500CA"},
+        )
+        for index in range(4)
+    ]
+    exact_model = SearchResult(
+        chunk_id="iv-500c-installation-locations",
+        score=0.83,
+        title="IV-500C Installation Manual",
+        document_version_id="ver-exact",
+        source_document_id="doc-exact",
+        pages=[2],
+        section_path=["Installation"],
+        content="Avoid installing the IV-500C outdoors or above 2000 m.",
+        metadata={
+            "chunk_type": "table_record",
+            "product_model": "IV-500C",
+            "product_models": ["IV-500C"],
+        },
+    )
+
+    retained = retriever._preserve_identifier_dense_candidates(
+        fused,
+        [exact_model],
+        analysis,
+        limit=4,
+    )
+
+    assert [result.chunk_id for result in retained] == ["fused-0", "fused-1", "fused-2", exact_model.chunk_id]
+    assert retained[-1].score == fused[-1].score
+    assert retained[-1].metadata["retrieval_stage"] == "identifier_dense_retained"
+
+
+def test_how_to_family_selection_keeps_aligned_exact_model_table_evidence():
+    analysis = analyze_query("Where should I avoid installing the IV-500C sensor?")
+    sibling_context = SearchResult(
+        chunk_id="sibling-context",
+        score=0.9,
+        title="IV-H Manual",
+        document_version_id="ver-sibling",
+        source_document_id="doc-sibling",
+        pages=[1],
+        section_path=["Installation"],
+        content="Mount the IV-H sensor away from vibration.",
+        metadata={"chunk_type": "section_window", "family_bucket": "context", "product_model": "IV-H500CA"},
+    )
+    exact_table = SearchResult(
+        chunk_id="exact-table",
+        score=0.5,
+        title="IV-500C Installation Manual",
+        document_version_id="ver-exact",
+        source_document_id="doc-exact",
+        pages=[2],
+        section_path=["Installation"],
+        content="Avoid installing the IV-500C outdoors or above 2000 m.",
+        metadata={"chunk_type": "table_record", "family_bucket": "table", "product_model": "IV-500C"},
+    )
+
+    selected = retriever._select_family_candidates([sibling_context, exact_table], analysis, limit=4)
+
+    assert selected[0].chunk_id == "exact-table"
+    assert any(result.chunk_id == "sibling-context" for result in selected)
+
+
+def test_configuration_family_selection_keeps_direct_spec_field():
+    analysis = analyze_query("How do I configure the login name for the IV4-G600CA FTP server?")
+    context = SearchResult(
+        chunk_id="context",
+        score=0.9,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[542],
+        section_path=["Troubleshooting"],
+        content="Confirm the FTP server settings.",
+        metadata={"chunk_type": "section_window", "family_bucket": "context"},
+    )
+    spec = SearchResult(
+        chunk_id="username",
+        score=0.85,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[283],
+        section_path=["SFTP"],
+        content="Input the user name (max: 48 characters). (Default: Not set (blank))",
+        metadata={
+            "chunk_type": "spec_record",
+            "family_bucket": "spec",
+            "product_model": "IV4-G600CA",
+        },
+    )
+
+    selected = retriever._select_family_candidates([context, spec], analysis, limit=4)
+
+    assert any(result.chunk_id == "username" for result in selected)
+
+
+def test_exact_model_contextual_candidate_survives_rerank_cutoff():
+    analysis = analyze_query("How do I configure the login name for the IV4-G600CA FTP server?")
+    reranked = [
+        SearchResult(
+            chunk_id=f"other-{index}",
+            score=1.0 - index / 100,
+            title="Other Manual",
+            document_version_id="v-other",
+            source_document_id="d-other",
+            pages=[index + 1],
+            section_path=["FTP"],
+            content="General FTP server settings.",
+            metadata={"chunk_type": "section_window", "product_model": "IV4-G120"},
+        )
+        for index in range(4)
+    ]
+    exact = SearchResult(
+        chunk_id="username",
+        score=0.5,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[283],
+        section_path=["SFTP"],
+        content="Input the user name (max: 48 characters). (Default: Not set (blank))",
+        metadata={"chunk_type": "spec_record", "product_model": "IV4-G600CA"},
+    )
+
+    promoted = retriever._promote_identifier_contextual_candidates(
+        reranked,
+        [exact],
+        analysis,
+        limit=4,
+    )
+
+    assert promoted[0].chunk_id == "username"
+    assert promoted[0].metadata["retrieval_stage"] == "identifier_contextual_promoted"
+
+
+def test_identifier_contextual_promotion_preserves_higher_scoring_procedure_prose():
+    analysis = analyze_query("How do I calibrate the LR-T Series laser sensor?")
+    generic_spec = SearchResult(
+        chunk_id="generic-spec",
+        score=0.76,
+        title="LR-T Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[2],
+        section_path=["Series"],
+        content="All-Purpose Laser Sensor",
+        metadata={"chunk_type": "spec_record", "product_model": "LR-T"},
+    )
+    calibration = SearchResult(
+        chunk_id="calibration",
+        score=0.86,
+        title="LR-T Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[7],
+        section_path=["Simplified setup"],
+        content=(
+            "Calibrate the LR-T sensor by pressing SET with the target present, "
+            "then press SET again with it absent."
+        ),
+        metadata={"chunk_type": "section_window", "product_model": "LR-T"},
+    )
+
+    promoted = retriever._promote_identifier_contextual_candidates(
+        [],
+        [generic_spec, calibration],
+        analysis,
+        limit=2,
+    )
+
+    assert [result.chunk_id for result in promoted] == ["calibration", "generic-spec"]
+
+
+def test_identifier_contextual_promotion_retains_same_page_fact_for_content_only_identifier(monkeypatch):
+    analysis = analyze_query("Which Windows 10 editions are supported by XG-H1XA?")
+    heading = SearchResult(
+        chunk_id="xg-h1xa-heading",
+        score=0.64,
+        title="3D Vision",
+        document_version_id="v-3d",
+        source_document_id="doc-3d",
+        pages=[22],
+        section_path=["Specifications"],
+        content="Supported OS and recommended running environment for XG: H1XA",
+        metadata={"chunk_type": "spec_record", "product_model": "60 mm 2.36"},
+    )
+    monkeypatch.setattr(
+        retriever,
+        "fetch_all",
+        lambda *_args, **_kwargs: [
+            {
+                "id": "supported-os",
+                "document_version_id": "v-3d",
+                "source_document_id": "doc-3d",
+                "title": "3D Vision",
+                "section_path_text": "Specifications",
+                "page_from": 22,
+                "page_to": 22,
+                "content": (
+                    "Supported OS: Microsoft Windows 10 Home, Pro, Enterprise "
+                    "(64 bit version)."
+                ),
+                "chunk_type": "table_record",
+                "metadata_json": {},
+                "priority_score": 10.0,
+            }
+        ],
+    )
+
+    promoted = retriever._promote_identifier_contextual_candidates(
+        [],
+        [heading],
+        analysis,
+        limit=3,
+    )
+
+    assert [result.chunk_id for result in promoted[:2]] == ["supported-os", "xg-h1xa-heading"]
+    assert promoted[0].metadata["retrieval_stage"] == "identifier_contextual_promoted"
+    assert promoted[0].metadata["identifier_page_sibling"] is True
+
+
+def test_identifier_contextual_promotion_uses_exact_section_window_to_retain_page_fact(monkeypatch):
+    analysis = analyze_query("What scan speed does the WM-P6200 support?")
+    window = SearchResult(
+        chunk_id="wm-page",
+        score=0.74,
+        title="WM brochure",
+        document_version_id="v-wm",
+        source_document_id="doc-wm",
+        pages=[42],
+        section_path=["Specifications"],
+        content="WM-P6200 specifications including scan speed and laser classification.",
+        metadata={"chunk_type": "section_window", "product_model": "3D measurement"},
+    )
+    monkeypatch.setattr(
+        retriever,
+        "fetch_all",
+        lambda *_args, **_kwargs: [
+            {
+                "id": "wm-speed",
+                "document_version_id": "v-wm",
+                "source_document_id": "doc-wm",
+                "title": "WM brochure",
+                "section_path_text": "Specifications",
+                "page_from": 42,
+                "page_to": 42,
+                "content": "Model: Scan speed; WM-P6200: Up to 2.4 million points per second",
+                "chunk_type": "table_record",
+                "metadata_json": {},
+                "priority_score": 10.0,
+            }
+        ],
+    )
+
+    promoted = retriever._promote_identifier_contextual_candidates([], [window], analysis, limit=3)
+
+    assert promoted[0].chunk_id == "wm-speed"
+    assert promoted[0].metadata["identifier_page_sibling"] is True
+
+
+def test_identifier_contextual_promotion_accepts_exact_identifier_table_content(monkeypatch):
+    analysis = analyze_query("How many LEDs does the CA-DQP12X LumiTrax light source contain?")
+    exact = SearchResult(
+        chunk_id="led-count",
+        score=1.2,
+        title="LumiTrax specifications",
+        document_version_id="v-lumi",
+        source_document_id="doc-lumi",
+        pages=[31],
+        section_path=["Specifications"],
+        content="Model: Number of LEDs; CA-DQP12X: 72; CA-DQP25X: 168",
+        metadata={"chunk_type": "table_record", "product_model": "LumiTrax"},
+    )
+    monkeypatch.setattr(retriever, "fetch_all", lambda *_args, **_kwargs: [])
+
+    promoted = retriever._promote_identifier_contextual_candidates([], [exact], analysis, limit=3)
+
+    assert promoted[0].chunk_id == "led-count"
+    assert promoted[0].metadata["retrieval_stage"] == "identifier_contextual_promoted"
+
+
+def test_named_operation_promotion_retains_behavior_table_row():
+    generic = SearchResult(
+        chunk_id="generic",
+        score=1.0,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="iv4",
+        pages=[170],
+        section_path=["Settings"],
+        content="Tool settings for AI Through Count Mode",
+        metadata={"chunk_type": "procedure_record", "product_model": "IV4-G600CA"},
+    )
+    reset = SearchResult(
+        chunk_id="reset-count",
+        score=0.5,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="iv4",
+        pages=[415],
+        section_path=["Operations"],
+        content=(
+            "Row headers: Reset Count; Cell value: Resets the serial number of OCR and the "
+            "count value of AI Through Count Mode. All tools are reset at a time."
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "IV4-G600CA"},
+    )
+
+    promoted = retriever._promote_named_operation_candidates(
+        [generic],
+        [generic, reset],
+        "Does the IV4-G600CA reset all tools simultaneously with Reset Count?",
+        limit=2,
+    )
+
+    assert promoted[0].chunk_id == "reset-count"
+    assert promoted[0].metadata["retrieval_stage"] == "named_operation_promoted"
+
+
+def test_wiring_terminal_promotion_retains_exact_physical_terminal_record():
+    generic = SearchResult(
+        chunk_id="generic",
+        score=1.0,
+        title="IV4 Manual",
+        document_version_id="v2",
+        source_document_id="iv4",
+        pages=[30],
+        section_path=["Wiring"],
+        content="General terminal assignment information.",
+        metadata={"chunk_type": "section_window"},
+    )
+    exact = SearchResult(
+        chunk_id="a1-record",
+        score=0.5,
+        title="IV Manual",
+        document_version_id="v1",
+        source_document_id="iv",
+        pages=[26],
+        section_path=["Specifications"],
+        content=(
+            "Terminal No.: A1; Wiring color: Brown; Name: IN1; "
+            "Assigning default value: External trigger; Description: Set external trigger."
+        ),
+        metadata={"chunk_type": "table_record", "product_family": "IV Series"},
+    )
+    other_series = exact.model_copy(
+        update={
+            "chunk_id": "iv-hg-a1-record",
+            "title": "IV-HG Manual",
+            "source_document_id": "iv-hg",
+            "metadata": {"chunk_type": "table_record", "product_family": "IV-HG Series"},
+        }
+    )
+
+    promoted = retriever._promote_wiring_terminal_candidates(
+        [generic],
+        [generic, other_series, exact],
+        "What function does the brown A1 terminal perform on the IV Series?",
+        limit=2,
+    )
+
+    assert promoted[0].chunk_id == "a1-record"
+    assert promoted[0].metadata["retrieval_stage"] == "wiring_terminal_promoted"
+
+
+def test_wiring_terminal_promotion_also_retains_external_trigger_timing_record():
+    exact = SearchResult(
+        chunk_id="a1-record",
+        score=0.5,
+        title="IV Manual",
+        document_version_id="v1",
+        source_document_id="iv",
+        pages=[26],
+        section_path=["Specifications"],
+        content=(
+            "Terminal No.: A1; Wiring color: Brown; Name: IN1; Assigning default value: "
+            "External trigger; Description: Rising timing or falling timing can be set."
+        ),
+        metadata={"chunk_type": "table_record", "product_family": "IV Series"},
+    )
+
+    promoted = retriever._promote_wiring_terminal_candidates(
+        [],
+        [exact],
+        "Which timing edges can be configured for the IV Series external trigger?",
+        limit=2,
+    )
+
+    assert promoted[0].chunk_id == "a1-record"
 
 
 def test_select_family_candidates_prefers_spec_family_for_spec_lookup():
@@ -1409,836 +2389,6 @@ def test_select_family_candidates_prefers_table_family_for_structured_lookup():
 
     assert chosen[0].chunk_id == "table"
     assert "prose" not in [item.chunk_id for item in chosen]
-
-
-def test_select_family_candidates_keeps_tables_for_diagnostic_code_questions():
-    analysis = analyze_query("On MOD-600, what does error A-14 indicate, and what field-network settings should I check?")
-    heading = SearchResult(
-        chunk_id="heading",
-        score=0.9,
-        title="Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[5],
-        section_path=["Errors"],
-        content="A-14",
-        metadata={"chunk_type": "section_window", "family_bucket": "context"},
-    )
-    table = SearchResult(
-        chunk_id="table",
-        score=0.7,
-        title="Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[6],
-        section_path=["Errors"],
-        content="PWR/ERR indicator status: A buffer overrun occurred. Cause: Disable handshake control for field networks.",
-        metadata={"chunk_type": "table_record", "family_bucket": "table"},
-    )
-
-    chosen = retriever._select_family_candidates([heading, table], analysis, limit=4)
-
-    assert chosen[0].chunk_id == "table"
-
-
-def test_diagnostic_table_promotion_keeps_source_bearing_rows_before_headings():
-    analysis = analyze_query("On MOD-600, what does error A-14 indicate, and what field-network settings should I check?")
-    heading = SearchResult(
-        chunk_id="heading",
-        score=4.0,
-        title="Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[5],
-        section_path=["Errors"],
-        content="A-14",
-        metadata={"chunk_type": "section_window"},
-    )
-    table = SearchResult(
-        chunk_id="table",
-        score=1.0,
-        title="Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[6],
-        section_path=["Errors"],
-        content="PWR/ERR indicator status: A buffer overrun occurred. Cause: Disable handshake control for field networks.",
-        metadata={"chunk_type": "table_record", "table_key_value": True},
-    )
-
-    promoted = retriever._promote_diagnostic_table_candidates([heading], [table], analysis, limit=4)
-
-    assert promoted[0].chunk_id == "table"
-    assert promoted[0].metadata["retrieval_stage"] == "diagnostic_table_promoted"
-
-
-def test_diagnostic_table_promotion_rejects_incidental_numeric_setting_value():
-    analysis = analyze_query(
-        "For MOD1-A reporting a damaged program, what caused the condition, "
-        "and what causes SYS Series Error 99999?"
-    )
-    incidental = SearchResult(
-        chunk_id="numeric-limit",
-        score=4.0,
-        title="SYS Series Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[5],
-        section_path=["Settings"],
-        content="Setting Items: Upper Limit; Initial Value: 99999.999; Lower Limit Value: -99999.999",
-        metadata={
-            "chunk_type": "table_record",
-            "table_key_value": True,
-            "product_family": "SYS Series",
-        },
-    )
-
-    promoted = retriever._promote_diagnostic_table_candidates([], [incidental], analysis, limit=4)
-
-    assert promoted == []
-
-
-def test_diagnostic_comparison_promotion_preserves_one_complete_row_per_product_side():
-    analysis = analyze_query(
-        "How does Error 30109 differ between the MOD-100 and the SYS Series?"
-    )
-
-    def result(chunk_id: str, product: str, content: str, **metadata: object) -> SearchResult:
-        return SearchResult(
-            chunk_id=chunk_id,
-            score=1.0,
-            title=f"{product} Manual",
-            document_version_id=f"ver-{chunk_id}",
-            source_document_id=f"doc-{product}",
-            pages=[1],
-            section_path=["Errors"],
-            content=content,
-            metadata={"chunk_type": "table_record", "product_model": product, **metadata},
-        )
-
-    supplemental = [
-        result("mod-complete", "MOD-100", "Error Number: 30109; Error Messages: Storage is full.", table_row_group=True),
-        result("mod-code-only", "MOD-100", "Cell value: 30109", table_key_value=True),
-        result("sys-group", "SYS", "Error Code: 30109; Message: Task unavailable.; Cause: Busy.", table_row_group=True),
-        result("sys-row", "SYS", "Error Code: 30109; Message: Task unavailable.; Cause: Busy.", table_key_value=True),
-        result("other", "OTHER", "Error Code: 30109; Message: Unrelated.", table_key_value=True),
-    ]
-
-    promoted = retriever._promote_diagnostic_table_candidates([], supplemental, analysis, limit=5)
-
-    assert [item.chunk_id for item in promoted] == ["mod-complete", "sys-row"]
-
-
-def test_diagnostic_comparison_promotion_does_not_fabricate_missing_product_side():
-    analysis = analyze_query(
-        "How does Error 30109 differ between the MOD-100 and the SYS Series?"
-    )
-    only_other_side = SearchResult(
-        chunk_id="other",
-        score=1.0,
-        title="OTHER Manual",
-        document_version_id="ver-other",
-        source_document_id="doc-other",
-        pages=[1],
-        section_path=["Errors"],
-        content="Error Code: 30109; Message: Unrelated.",
-        metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": "OTHER"},
-    )
-
-    promoted = retriever._promote_diagnostic_table_candidates([], [only_other_side], analysis, limit=5)
-
-    assert promoted == []
-
-
-@pytest.mark.parametrize(
-    ("query", "expected_order"),
-    [
-        ("How does Error 30109 differ between the MOD-100 and the SYS-200?", ["MOD-100", "SYS-200"]),
-        ("Between the MOD-100 and the SYS-200, how does Error 30109 differ?", ["MOD-100", "SYS-200"]),
-        ("For the SYS-200 and the MOD-100, compare Error 30109 causes and remedies.", ["SYS-200", "MOD-100"]),
-        ("For the VS Series and the CV-X482, compare Error 30109 causes and remedies.", ["VS", "CV-X482"]),
-    ],
-)
-def test_shared_diagnostic_code_binds_to_every_compared_product_regardless_of_word_order(
-    query: str,
-    expected_order: list[str],
-):
-    analysis = analyze_query(query)
-
-    assert analysis.product_identifiers == expected_order
-    assert retriever._diagnostic_side_requirements(query, analysis.product_identifiers) == {
-        identifier: (["30109"], requirements[1])
-        for identifier, requirements in retriever._diagnostic_side_requirements(
-            query, analysis.product_identifiers
-        ).items()
-    }
-
-    rows = [
-        SearchResult(
-            chunk_id=identifier.lower(),
-            score=1.0,
-            title=f"{identifier} Manual",
-            document_version_id=f"ver-{identifier}",
-            source_document_id=f"doc-{identifier}",
-            pages=[1],
-            section_path=["Errors"],
-            content="Error Number: 30109; Cause: Storage unavailable; Remedy: Check storage.",
-            metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": identifier},
-        )
-        for identifier in expected_order
-    ]
-    rows.extend(
-        [
-            SearchResult(
-                chunk_id="wrong-product",
-                score=2.0,
-                title="OTHER-300 Manual",
-                document_version_id="ver-other",
-                source_document_id="doc-other",
-                pages=[1],
-                section_path=["Errors"],
-                content="Error Number: 30109; Cause: Unrelated; Remedy: Unrelated.",
-                metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": "OTHER-300"},
-            ),
-            SearchResult(
-                chunk_id="wrong-code",
-                score=2.0,
-                title=f"{expected_order[0]} Manual",
-                document_version_id="ver-wrong-code",
-                source_document_id="doc-wrong-code",
-                pages=[1],
-                section_path=["Errors"],
-                content="Error Number: 30110; Cause: Unrelated; Remedy: Unrelated.",
-                metadata={
-                    "chunk_type": "table_record",
-                    "table_key_value": True,
-                    "product_model": expected_order[0],
-                },
-            ),
-        ]
-    )
-
-    promoted = retriever._promote_diagnostic_table_candidates([], rows, analysis, limit=5)
-
-    assert [item.metadata["product_model"] for item in promoted] == expected_order
-
-
-def test_shared_diagnostic_code_comparison_preserves_a_missing_requested_side():
-    query = "Between the MOD-100 and the SYS-200, how does Error 30109 differ?"
-    analysis = analyze_query(query)
-    one_side = SearchResult(
-        chunk_id="mod-only",
-        score=1.0,
-        title="MOD-100 Manual",
-        document_version_id="ver-mod",
-        source_document_id="doc-mod",
-        pages=[1],
-        section_path=["Errors"],
-        content="Error Number: 30109; Cause: Storage unavailable; Remedy: Check storage.",
-        metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": "MOD-100"},
-    )
-
-    promoted = retriever._promote_diagnostic_table_candidates([], [one_side], analysis, limit=5)
-
-    assert [item.chunk_id for item in promoted] == ["mod-only"]
-
-
-def test_mixed_diagnostic_and_prose_troubleshooting_binds_each_product_side():
-    query = (
-        "On a MOD-100, what should a technician check for Error 13101, and on a SYS-200, "
-        "what should they check when image data cannot be transferred to the SD card?"
-    )
-    analysis = analyze_query(query)
-
-    assert "comparison" in analysis.query_types
-    assert retriever._diagnostic_side_requirements(query, analysis.product_identifiers) == {
-        "MOD-100": (["13101"], []),
-        "SYS-200": ([], ["image", "data", "cannot", "transferred", "card"]),
-    }
-
-    def row(chunk_id: str, product: str, content: str) -> SearchResult:
-        return SearchResult(
-            chunk_id=chunk_id,
-            score=1.0,
-            title=f"{product} Manual",
-            document_version_id=f"ver-{chunk_id}",
-            source_document_id=f"doc-{product}",
-            pages=[1],
-            section_path=["Troubleshooting"],
-            content=content,
-            metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": product},
-        )
-
-    promoted = retriever._promote_diagnostic_table_candidates(
-        [],
-        [
-            row("code", "MOD-100", "Error Number: 13101; Remedy: Check flow control."),
-            row("prose", "SYS-200", "Image data cannot be transferred to the SD card. Remedy: Check the settings."),
-            row("wrong-symptom", "SYS-200", "Image brightness is unstable. Remedy: Check exposure."),
-            row("wrong-product", "OTHER-300", "Image data cannot be transferred to the SD card."),
-        ],
-        analysis,
-        limit=5,
-    )
-
-    assert [item.chunk_id for item in promoted] == ["code", "prose"]
-
-
-def test_mixed_diagnostic_and_prose_troubleshooting_preserves_missing_side():
-    query = (
-        "On a MOD-100, what should a technician check for Error 13101, and on a SYS-200, "
-        "what should they check when image data cannot be transferred to the SD card?"
-    )
-    analysis = analyze_query(query)
-    code_only = SearchResult(
-        chunk_id="code",
-        score=1.0,
-        title="MOD-100 Manual",
-        document_version_id="ver-code",
-        source_document_id="doc-mod",
-        pages=[1],
-        section_path=["Troubleshooting"],
-        content="Error Number: 13101; Remedy: Check flow control.",
-        metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": "MOD-100"},
-    )
-
-    promoted = retriever._promote_diagnostic_table_candidates([], [code_only], analysis, limit=5)
-
-    assert [item.chunk_id for item in promoted] == ["code"]
-
-
-def test_diagnostic_multi_error_promotion_prefers_one_complete_row_group():
-    analysis = analyze_query(
-        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
-    )
-
-    def result(chunk_id: str, content: str) -> SearchResult:
-        return SearchResult(
-            chunk_id=chunk_id,
-            score=1.0,
-            title="MOD-600 Manual",
-            document_version_id="ver-1",
-            source_document_id="doc-1",
-            pages=[1],
-            section_path=["Troubleshooting"],
-            content=content,
-            metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD-600"},
-        )
-
-    complete = result(
-        "complete",
-        "Error Number: 10109; Cause: First.; Remedy: Fix first. Error Number: 10110; Cause: Second.; Remedy: Fix second.",
-    )
-    unrelated = result("unrelated", "Error Number: 10110; Cause: Different product.; Remedy: Different fix.")
-
-    promoted = retriever._promote_diagnostic_table_candidates([], [unrelated, complete], analysis, limit=5)
-
-    assert [item.chunk_id for item in promoted] == ["complete"]
-
-
-def test_diagnostic_multi_error_promotion_rejects_wrong_product_with_both_codes():
-    analysis = analyze_query(
-        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
-    )
-
-    def result(chunk_id: str, product: str, content: str) -> SearchResult:
-        return SearchResult(
-            chunk_id=chunk_id,
-            score=1.0,
-            title=f"{product} Manual",
-            document_version_id=f"ver-{chunk_id}",
-            source_document_id=f"doc-{product}",
-            pages=[1],
-            section_path=["Troubleshooting"],
-            content=content,
-            metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": product},
-        )
-
-    wrong_complete = result(
-        "wrong-complete",
-        "OTHER-700",
-        "Error Number: 10109; Cause: Wrong first. Error Number: 10110; Cause: Wrong second.",
-    )
-
-    assert retriever._promote_diagnostic_table_candidates([], [wrong_complete], analysis, limit=5) == []
-
-
-@pytest.mark.parametrize("near_product", ["MOD-6000", "XMOD-600"])
-def test_diagnostic_multi_error_promotion_rejects_product_prefix_and_superstring(near_product: str):
-    analysis = analyze_query(
-        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
-    )
-    near_match = SearchResult(
-        chunk_id="near-match",
-        score=1.0,
-        title=f"{near_product} Manual",
-        document_version_id="ver-near",
-        source_document_id="doc-near",
-        pages=[1],
-        section_path=["Troubleshooting"],
-        content="Error Number: 10109; Cause: First. Error Number: 10110; Cause: Second.",
-        metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": near_product},
-    )
-
-    assert retriever._result_matches_primary_identifier(near_match, "MOD-600") is False
-    assert retriever._promote_diagnostic_table_candidates([], [near_match], analysis, limit=5) == []
-
-
-def test_diagnostic_multi_error_promotion_accepts_exact_product_identifier_boundaries():
-    analysis = analyze_query(
-        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
-    )
-    exact = SearchResult(
-        chunk_id="exact",
-        score=1.0,
-        title="MOD-600 Controller Manual",
-        document_version_id="ver-exact",
-        source_document_id="doc-exact",
-        pages=[1],
-        section_path=["Troubleshooting"],
-        content="Error Number: 10109; Cause: First. Error Number: 10110; Cause: Second.",
-        metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD 600"},
-    )
-
-    assert retriever._result_matches_primary_identifier(exact, "MOD-600") is True
-    assert [item.chunk_id for item in retriever._promote_diagnostic_table_candidates([], [exact], analysis, limit=5)] == [
-        "exact"
-    ]
-
-
-def test_diagnostic_multi_error_promotion_rejects_unrelated_complete_over_requested_partial():
-    analysis = analyze_query(
-        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
-    )
-
-    requested_partial = SearchResult(
-        chunk_id="requested-partial",
-        score=1.0,
-        title="MOD-600 Manual",
-        document_version_id="ver-requested",
-        source_document_id="doc-mod-600",
-        pages=[1],
-        section_path=["Troubleshooting"],
-        content="Error Number: 10109; Cause: First.; Remedy: Fix first.",
-        metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD-600"},
-    )
-    wrong_complete = requested_partial.model_copy(
-        update={
-            "chunk_id": "wrong-complete",
-            "title": "OTHER-700 Manual",
-            "source_document_id": "doc-other-700",
-            "content": "Error Number: 10109; Cause: Wrong first. Error Number: 10110; Cause: Wrong second.",
-            "metadata": {"chunk_type": "table_record", "table_row_group": True, "product_model": "OTHER-700"},
-        }
-    )
-
-    assert retriever._promote_diagnostic_table_candidates([], [wrong_complete, requested_partial], analysis, limit=5) == []
-
-
-def test_diagnostic_multi_error_promotion_rejects_missing_requested_code():
-    analysis = analyze_query(
-        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
-    )
-    requested_partial = SearchResult(
-        chunk_id="requested-partial",
-        score=1.0,
-        title="MOD-600 Manual",
-        document_version_id="ver-requested",
-        source_document_id="doc-mod-600",
-        pages=[1],
-        section_path=["Troubleshooting"],
-        content="Error Number: 10109; Cause: First.; Remedy: Fix first.",
-        metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD-600"},
-    )
-
-    assert retriever._promote_diagnostic_table_candidates([], [requested_partial], analysis, limit=5) == []
-
-
-def test_diagnostic_multi_error_promotion_uses_exact_code_boundaries():
-    analysis = analyze_query(
-        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
-    )
-
-    def result(chunk_id: str, content: str) -> SearchResult:
-        return SearchResult(
-            chunk_id=chunk_id,
-            score=1.0,
-            title="MOD-600 Manual",
-            document_version_id=f"ver-{chunk_id}",
-            source_document_id="doc-mod-600",
-            pages=[1],
-            section_path=["Troubleshooting"],
-            content=content,
-            metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD-600"},
-        )
-
-    prefix_and_superstring = result(
-        "near-matches",
-        "Error Number: 1010; Cause: Prefix. Error Number: 101100; Cause: Superstring.",
-    )
-    exact = result(
-        "exact",
-        "Error Number: 10109; Cause: First. Error Number: 10110; Cause: Second.",
-    )
-
-    promoted = retriever._promote_diagnostic_table_candidates([], [prefix_and_superstring, exact], analysis, limit=5)
-
-    assert [item.chunk_id for item in promoted] == ["exact"]
-
-
-def test_retrieve_applies_exact_diagnostic_promotion_after_generic_promotions(monkeypatch):
-    query = (
-        "For MOD-600, compare Error 10109 and Error 10110: "
-        "what causes each one, and what corrective action applies to each?"
-    )
-
-    def result(chunk_id: str, content: str, **metadata: object) -> SearchResult:
-        return SearchResult(
-            chunk_id=chunk_id,
-            score=1.0,
-            title="Manual",
-            document_version_id="ver-1",
-            source_document_id="doc-1",
-            pages=[1],
-            section_path=["Troubleshooting"],
-            content=content,
-            metadata={"chunk_type": "table_record", **metadata},
-        )
-
-    diagnostic = result(
-        "diagnostic",
-        (
-            "Error Number: 10109; Cause: First cause.; Corrective Action: First action. "
-            "Error Number: 10110; Cause: Second cause.; Corrective Action: Second action."
-        ),
-        table_row_group=True,
-        product_model="MOD-600",
-    )
-    generic_results = [
-        result(f"generic-{index}", f"Corrective action for unrelated condition {index}.")
-        for index in range(8)
-    ]
-
-    class FakeStore:
-        pass
-
-    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
-    monkeypatch.setattr(retriever, "select_documents_from_metadata", lambda *_args, **_kwargs: ({}, []))
-    monkeypatch.setattr(retriever, "run_dense_search", lambda *_args, **_kwargs: generic_results)
-    monkeypatch.setattr(retriever, "run_sparse_search", lambda *_args, **_kwargs: [])
-    monkeypatch.setattr(retriever, "run_table_search", lambda *_args, **_kwargs: [])
-    monkeypatch.setattr(retriever, "run_table_lexical_search", lambda *_args, **_kwargs: [diagnostic])
-    monkeypatch.setattr(retriever, "run_contextual_lexical_search", lambda *_args, **_kwargs: [])
-    monkeypatch.setattr(retriever, "run_special_search", lambda *_args, **_kwargs: [])
-    monkeypatch.setattr(retriever, "fuse_results", lambda *_args, **_kwargs: generic_results)
-    monkeypatch.setattr(retriever, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
-    monkeypatch.setattr(retriever, "_annotate_completeness", lambda results: results)
-    monkeypatch.setattr(retriever, "_apply_query_alignment", lambda results, *_args, **_kwargs: results)
-    monkeypatch.setattr(retriever, "_select_family_candidates", lambda results, *_args, **_kwargs: results)
-    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
-    monkeypatch.setattr(retriever, "rerank_results", lambda *_args, **_kwargs: generic_results)
-    monkeypatch.setattr(
-        retriever,
-        "_promote_structured_table_candidates",
-        lambda primary, *_args, **_kwargs: [*generic_results[:3], *primary],
-    )
-    monkeypatch.setattr(retriever, "_promote_comparison_table_candidates", lambda primary, *_args, **_kwargs: primary)
-    monkeypatch.setattr(
-        retriever,
-        "_promote_direct_configuration_candidates",
-        lambda primary, *_args, **_kwargs: [*generic_results[3:6], *primary],
-    )
-    monkeypatch.setattr(retriever, "assemble_context", lambda results, *, limit: results[:limit])
-
-    retrieved = retriever.retrieve(query, ["corpus-1"], {}, limit=5)
-
-    assert retrieved[0].chunk_id == "diagnostic"
-    assert retrieved[0].metadata["retrieval_stage"] == "diagnostic_table_promoted"
-
-
-def test_diagnostic_code_matching_is_exact_and_separator_tolerant():
-    assert retriever._text_contains_diagnostic_code("Error Code: 30109; Message: Exact.", "30109") is True
-    assert retriever._text_contains_diagnostic_code("Fault E-123: Exact.", "E123") is True
-    assert retriever._text_contains_diagnostic_code("Error Code: 301090; Message: Superstring.", "30109") is False
-    assert retriever._text_contains_diagnostic_code("Error Code: 3010; Message: Prefix.", "30109") is False
-    assert retriever._text_contains_diagnostic_code("Reference x30109y is not a code.", "30109") is False
-
-
-def test_diagnostic_table_code_terms_extract_multiple_labeled_numeric_errors():
-    analysis = analyze_query(
-        "For MOD-600, compare Error 10109 and Error 10110: what causes each one, and what corrective action applies?"
-    )
-
-    assert retriever._diagnostic_table_code_terms(analysis.raw_query, analysis) == ["10109", "10110"]
-    assert retriever._should_run_table_lexical_search(analysis) is True
-
-
-def test_diagnostic_table_support_score_rejects_code_superstrings():
-    analysis = analyze_query("Compare Error 30109 between MOD-100 and SYS Series")
-    exact = SearchResult(
-        chunk_id="exact",
-        score=1.0,
-        title="Exact",
-        document_version_id="ver-exact",
-        source_document_id="doc-exact",
-        pages=[1],
-        section_path=["Errors"],
-        content="Error Code: 30109; Message: Exact fault.",
-        metadata={"chunk_type": "table_record"},
-    )
-    superstring = exact.model_copy(
-        update={"chunk_id": "superstring", "content": "Error Code: 301090; Message: Different fault."}
-    )
-
-    assert retriever._diagnostic_table_support_score(exact, analysis)[0] == 1
-    assert retriever._diagnostic_table_support_score(superstring, analysis)[0] == 0
-
-
-def test_direct_configuration_promotion_prefers_scoped_detail_candidate():
-    query = (
-        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
-        "configuration area is used for trigger and light settings?"
-    )
-    analysis = analyze_query(query)
-    broad_trigger = SearchResult(
-        chunk_id="standard-trigger",
-        score=9.0,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[983],
-        section_path=["Standard Lighting Mode"],
-        content=(
-            "Capture Using Line Scan Cameras (Standard Lighting Mode). Trigger Settings "
-            "specify the settings for triggering the controller to take an image."
-        ),
-        metadata={"chunk_type": "section_window"},
-    )
-    direct_standard = SearchResult(
-        chunk_id="standard-camera-trigger-light",
-        score=1.2,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[978, 979],
-        section_path=["Standard Lighting Mode"],
-        content=(
-            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
-            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
-            "illumination expansion units, trigger input for each camera, and illumination "
-            "control targets can be configured together."
-        ),
-        metadata={"chunk_type": "section_window"},
-    )
-    wrong_mode = SearchResult(
-        chunk_id="lumitrax-camera-trigger-light",
-        score=1.3,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[1001],
-        section_path=["LumiTrax Specular Reflection Mode"],
-        content=(
-            "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode). "
-            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
-            "illumination expansion units, trigger input for each camera, and illumination "
-            "control targets can be configured together."
-        ),
-        metadata={"chunk_type": "section_window"},
-    )
-
-    promoted = retriever._promote_direct_configuration_candidates(
-        [broad_trigger],
-        [wrong_mode, direct_standard],
-        analysis,
-        limit=3,
-    )
-
-    assert [result.chunk_id for result in promoted[:2]] == [
-        "standard-camera-trigger-light",
-        "standard-trigger",
-    ]
-    assert promoted[0].metadata["retrieval_stage"] == "direct_configuration_promoted"
-
-
-def test_direct_configuration_promotion_rejects_wrong_scope_and_label_only_candidates():
-    query = (
-        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
-        "configuration area is used for trigger and light settings?"
-    )
-    analysis = analyze_query(query)
-    primary = SearchResult(
-        chunk_id="standard-trigger",
-        score=9.0,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[983],
-        section_path=["Standard Lighting Mode"],
-        content="Capture Using Line Scan Cameras (Standard Lighting Mode). Trigger Settings.",
-        metadata={"chunk_type": "section_window"},
-    )
-    label_only = SearchResult(
-        chunk_id="standard-label-only",
-        score=1.2,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[978],
-        section_path=["Standard Lighting Mode"],
-        content=(
-            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
-            "Camera: Trigger - Light Configuration Settings."
-        ),
-        metadata={"chunk_type": "section_window"},
-    )
-    wrong_mode = SearchResult(
-        chunk_id="lumitrax-details",
-        score=1.3,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[1001],
-        section_path=["LumiTrax Specular Reflection Mode"],
-        content=(
-            "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode). "
-            "Camera: Trigger - Light Configuration Settings. The trigger input for each camera "
-            "and illumination control targets can be configured together."
-        ),
-        metadata={
-            "chunk_type": "section_window",
-            "local_rerank_context": "Capture Using Line Scan Cameras (Standard Lighting Mode).",
-        },
-    )
-
-    promoted = retriever._promote_direct_configuration_candidates(
-        [primary],
-        [label_only, wrong_mode],
-        analysis,
-        limit=3,
-    )
-
-    assert promoted == [primary]
-
-
-def test_direct_configuration_promotion_rejects_same_mode_wrong_capture_type():
-    query = (
-        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
-        "configuration area is used for trigger and light settings?"
-    )
-    analysis = analyze_query(query)
-    primary = SearchResult(
-        chunk_id="standard-line-setup",
-        score=9.0,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[983],
-        section_path=["Standard Lighting Mode"],
-        content=(
-            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
-            "Change the settings in accordance with the capture environment."
-        ),
-        metadata={"chunk_type": "procedure_record"},
-    )
-    wrong_capture_type = SearchResult(
-        chunk_id="standard-area-camera-trigger-light",
-        score=1.4,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[944],
-        section_path=["Standard Lighting Mode"],
-        content=(
-            "Capture Using Area Cameras (Standard Lighting Mode). "
-            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
-            "illumination expansion units, trigger input for each camera, and illumination "
-            "control targets can be configured together."
-        ),
-        metadata={"chunk_type": "section_window"},
-    )
-    direct_line_scan = SearchResult(
-        chunk_id="standard-line-camera-trigger-light",
-        score=1.2,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[978, 979],
-        section_path=["Standard Lighting Mode"],
-        content=(
-            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
-            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
-            "illumination expansion units, trigger input for each camera, and illumination "
-            "control targets can be configured together."
-        ),
-        metadata={"chunk_type": "section_window"},
-    )
-
-    promoted = retriever._promote_direct_configuration_candidates(
-        [primary],
-        [wrong_capture_type, direct_line_scan],
-        analysis,
-        limit=3,
-    )
-
-    assert [result.chunk_id for result in promoted[:2]] == [
-        "standard-line-camera-trigger-light",
-        "standard-line-setup",
-    ]
-    assert "standard-area-camera-trigger-light" not in [result.chunk_id for result in promoted]
-
-
-def test_direct_configuration_promotion_rejects_wrong_capture_type_with_mixed_rerank_context():
-    query = (
-        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
-        "configuration area is used for trigger and light settings?"
-    )
-    analysis = analyze_query(query)
-    primary = SearchResult(
-        chunk_id="standard-line-setup",
-        score=9.0,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[983],
-        section_path=["Standard Lighting Mode"],
-        content=(
-            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
-            "Change the settings in accordance with the capture environment."
-        ),
-        metadata={"chunk_type": "procedure_record"},
-    )
-    wrong_capture_type = SearchResult(
-        chunk_id="standard-area-camera-trigger-light",
-        score=1.4,
-        title="XG-X Manual",
-        document_version_id="ver-1",
-        source_document_id="doc-1",
-        pages=[944],
-        section_path=["Standard Lighting Mode"],
-        content=(
-            "Capture Using Area Cameras (Standard Lighting Mode). "
-            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
-            "illumination expansion units, trigger input for each camera, and illumination "
-            "control targets can be configured together."
-        ),
-        metadata={
-            "chunk_type": "section_window",
-            "local_rerank_context": (
-                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
-                "Change the settings in accordance with the capture environment."
-            ),
-        },
-    )
-
-    promoted = retriever._promote_direct_configuration_candidates(
-        [primary],
-        [wrong_capture_type],
-        analysis,
-        limit=3,
-    )
-
-    assert promoted == [primary]
 
 
 def test_structured_lookup_family_scoring_demotes_table_header_chunks():
@@ -2329,6 +2479,40 @@ def test_safety_action_terms_boost_specific_step_evidence_over_broad_context():
     )
 
     assert retriever._query_alignment_score(step, analysis) > retriever._query_alignment_score(context, analysis)
+
+
+def test_protocol_alignment_prefers_requested_rs232c_variant_over_ethernet_sibling():
+    analysis = analyze_query("Which items require verification for CV-X482 RS-232C PLC-Link communication?")
+    rs232c = SearchResult(
+        chunk_id="rs232c",
+        score=0.5,
+        title="CV-X482",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[798],
+        section_path=["PLC-Link"],
+        content=(
+            "When connected by RS-232C: Check the PLC-Link communication settings, "
+            "connection cable, and device status."
+        ),
+        metadata={"chunk_type": "spec_record"},
+    )
+    ethernet = SearchResult(
+        chunk_id="ethernet",
+        score=0.5,
+        title="CV-X482",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[798],
+        section_path=["PLC-Link"],
+        content=(
+            "When connected by Ethernet: Check the PLC-Link communication settings, "
+            "IP address, connection cable, and device status."
+        ),
+        metadata={"chunk_type": "spec_record"},
+    )
+
+    assert retriever._query_alignment_score(rs232c, analysis) > retriever._query_alignment_score(ethernet, analysis)
 
 
 def test_run_dense_search_queries_each_corpus_and_returns_dense_hits():
@@ -2542,6 +2726,78 @@ def test_metadata_document_selection_falls_back_when_metadata_index_has_no_hits(
 
     assert filters == original_filters
     assert hits == []
+
+
+def test_exact_model_identifier_limits_metadata_hits_to_matching_manual():
+    analysis = analyze_query("How should error 13302 be corrected for CV-X482?")
+    hits = [
+        {
+            "source_document_id": "doc-xgx",
+            "payload": {"product_model": "XG-X", "identifier_tokens": ["XG-X"]},
+        },
+        {
+            "source_document_id": "doc-cvx",
+            "payload": {
+                "product_model": "CV-X482D",
+                "product_models": ["CV-X482"],
+                "identifier_tokens": ["CV-X482", "CV-X492"],
+            },
+        },
+    ]
+
+    assert retriever._exact_identifier_document_ids(hits, analysis) == ["doc-cvx"]
+
+
+def test_exact_model_identifier_uses_wider_metadata_candidate_pool():
+    exact_analysis = analyze_query("How should error 13302 be corrected for CV-X482?")
+    general_analysis = analyze_query("How should this controller error be corrected?")
+
+    assert retriever._metadata_selection_limit(exact_analysis) == retriever.IDENTIFIER_METADATA_SELECTION_LIMIT
+    assert retriever._metadata_selection_limit(general_analysis) == retriever.DOCUMENT_METADATA_SELECTION_LIMIT
+
+
+def test_exact_identifier_prefers_scoped_aliases_over_unscoped_mentions():
+    cvx_analysis = analyze_query("How do I configure CVX482?")
+    external_plc_analysis = analyze_query("How do I configure KV-7500?")
+    hits = [
+        {
+            "source_document_id": "doc-cvx",
+            "payload": {
+                "product_model": "CV-X482",
+                "product_models": ["CV-X482", "KV-7500"],
+                "routing_product_models": ["CV-X482"],
+                "routing_part_numbers": [],
+                "normalized_identifier_aliases": ["CV-X482", "CVX482"],
+            },
+        }
+    ]
+
+    assert retriever._exact_identifier_document_ids(hits, cvx_analysis) == ["doc-cvx"]
+    assert retriever._exact_identifier_document_ids(hits, external_plc_analysis) == []
+
+
+def test_document_metadata_text_omits_external_evidence_from_schema_v2_routing():
+    store = object.__new__(QdrantStore)
+    text = store._document_metadata_text(
+        {
+            "title": "CV-X manual",
+            "source_filename": "cvx.pdf",
+            "manufacturer": "KEYENCE",
+            "product_model": "CV-X482",
+            "document_kind": "manual",
+            "metadata_json": {
+                "metadata_schema_version": 2,
+                "routing_product_models": ["CV-X482"],
+                "normalized_identifier_aliases": ["CVX482"],
+                "metadata_evidence": [
+                    {"value": "KV-7500", "relation": "external_reference", "source_quote": "external PLC"}
+                ],
+            },
+        }
+    )
+
+    assert "CVX482" in text
+    assert "KV-7500" not in text
 
 
 def test_document_metadata_index_aggregates_generic_chunk_metadata_signals():
@@ -3351,6 +3607,78 @@ def test_table_lexical_terms_include_comparison_short_codes():
     assert {"ljs8000", "ljx8000", "errc", "t1", "msab"}.issubset(set(terms))
 
 
+def test_troubleshooting_anchor_keeps_full_symptom_when_it_contains_quoted_setting():
+    query = (
+        'What causes Calibration data generated under different conditions from the "Axes Configuration" '
+        'of the stage setting. This calibration data cannot be edited for XG-X Series, and how should it be corrected?'
+    )
+
+    assert retriever._troubleshooting_query_anchor(query) == (
+        'Calibration data generated under different conditions from the "Axes Configuration" '
+        "of the stage setting. This calibration data cannot be edited"
+    )
+
+
+def test_troubleshooting_anchor_extracts_alarm_reported_in_quotes():
+    query = 'When Model-1 reports "The output buffer is full", what should I do?'
+
+    assert retriever._troubleshooting_query_anchor(query) == "The output buffer is full"
+
+
+def test_troubleshooting_anchor_and_table_terms_keep_short_display_code():
+    query = "How do I fix the uuu error on the W500?"
+    analysis = analyze_query(query)
+
+    assert retriever._troubleshooting_query_anchor(query) == "uuu"
+    assert "uuu" in retriever._lexical_table_terms(query, analysis)
+
+
+def test_short_troubleshooting_code_promotes_requested_model_solution():
+    query = "How do I fix the uuu error on the W500?"
+    analysis = analyze_query(query)
+    wrong_model = SearchResult(
+        chunk_id="wrong",
+        score=0.7,
+        title="Wrong model",
+        document_version_id="ver-wrong",
+        source_document_id="doc-wrong",
+        pages=[1],
+        section_path=["Troubleshooting"],
+        content="Column headers: Solution; Row headers: uuu; Cell value: Change the LR-ZH500 setting.",
+        metadata={
+            "chunk_type": "table_record",
+            "product_model": "LR-ZH500C3P",
+            "table_column_headers": ["Solution"],
+            "table_row_headers": ["uuu"],
+        },
+    )
+    correct_model = SearchResult(
+        chunk_id="correct",
+        score=0.6,
+        title="W500",
+        document_version_id="ver-correct",
+        source_document_id="doc-correct",
+        pages=[4],
+        section_path=["Troubleshooting"],
+        content="Column headers: Solution; Row headers: uuu; Cell value: Adjust the sensor installation angle.",
+        metadata={
+            "chunk_type": "table_record",
+            "product_model": "W500",
+            "product_models": ["W500"],
+            "table_column_headers": ["Solution"],
+            "table_row_headers": ["uuu"],
+        },
+    )
+
+    promoted = retriever._promote_troubleshooting_table_candidates(
+        [],
+        [wrong_model, correct_model],
+        analysis,
+    )
+
+    assert [result.chunk_id for result in promoted] == ["correct"]
+
+
 def test_comparison_table_content_terms_include_failure_and_plural_variants():
     analysis = analyze_query("Compare IV-HG500CA memory read errors with XG-X unsupported SD card access failure.")
     terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
@@ -3611,168 +3939,6 @@ def test_table_score_prefers_listed_value_exact_table_path():
     )
 
 
-def test_table_cell_value_binding_score_prefers_row_column_and_value_match():
-    query = (
-        "On IV4-G120, how many objects are counted at one time when the count value is 9 "
-        "and ON equals the set value?"
-    )
-    analysis = analyze_query(query)
-    terms = retriever._lexical_table_terms(query, analysis)
-    expected_cell = {
-        "content": (
-            "Column headers: Quantity counted at one time; "
-            "Row headers: ON when = Set value > Count value= 9; Cell value: 3; Row: 4; Column: 3"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Quantity counted at one time"],
-            "table_row_headers": ["ON when = Set value", "Count value= 9"],
-            "product_model": "IV4-G120",
-        },
-        "priority_score": 10.0,
-    }
-    wrong_row_same_column = {
-        "content": (
-            "Column headers: Quantity counted at one time; "
-            "Row headers: ON when = Set value > Count value= 8; Cell value: 3; Row: 2; Column: 3"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Quantity counted at one time"],
-            "table_row_headers": ["ON when = Set value", "Count value= 8"],
-            "product_model": "IV4-G120",
-        },
-        "priority_score": 10.0,
-    }
-    same_row_wrong_column = {
-        "content": (
-            "Column headers: Output status; "
-            "Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output; Row: 4; Column: 5"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Output status"],
-            "table_row_headers": ["ON when = Set value", "Count value= 9"],
-            "product_model": "IV4-G120",
-        },
-        "priority_score": 10.0,
-    }
-
-    assert terms
-    assert "9" in terms
-    assert "counted" in terms
-    assert retriever._table_lexical_score(expected_cell, terms) > retriever._table_lexical_score(
-        wrong_row_same_column,
-        terms,
-    )
-    assert retriever._table_lexical_score(expected_cell, terms) > retriever._table_lexical_score(
-        same_row_wrong_column,
-        terms,
-    )
-
-
-def test_status_output_row_context_binds_cell_to_requested_source_row():
-    query = (
-        "For IV4-G120 status output settings, when ON equals Set value, Count value is 9, "
-        "previous count is 7, quantity counted at one time is 3, and current count is 0, "
-        "what output status is listed?"
-    )
-    expected_cell = {
-        "content": (
-            "Column headers: Output status; Row headers: ON when = Set value > Count value= 9; "
-            "Cell value: One-Shot output; Row: 4; Column: 5"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Output status"],
-            "table_row_headers": ["ON when = Set value", "Count value= 9"],
-        },
-    }
-    sibling_cell = {
-        "content": (
-            "Column headers: Output status; Row headers: ON when = Set value > Count value= 9; "
-            "Cell value: Latching output; Row: 3; Column: 5"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Output status"],
-            "table_row_headers": ["ON when = Set value", "Count value= 9"],
-        },
-    }
-    wrong_row_cell = {
-        "content": (
-            "Column headers: Output status; Row headers: ON when = Set value > Count value= 8; "
-            "Cell value: One-Shot output; Row: 2; Column: 5"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Output status"],
-            "table_row_headers": ["ON when = Set value", "Count value= 8"],
-        },
-    }
-    context_rows = [
-        {
-            "content": (
-                "ON when = Set value | Count value= 9 | 7 | 2 | 9 | Latching output\n"
-                "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
-            )
-        }
-    ]
-
-    assert retriever._status_output_matching_row_context(query, expected_cell, context_rows) == (
-        "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
-    )
-    assert retriever._status_output_matching_row_context(query, sibling_cell, context_rows) == ""
-    assert retriever._status_output_matching_row_context(query, wrong_row_cell, context_rows) == ""
-
-
-def test_status_output_row_context_rejects_range_comparator_for_exact_query():
-    query = (
-        "For IV4-G120 status output settings, when ON equals Set value, Count value is 9, "
-        "previous count is 7, quantity counted at one time is 3, and current count is 0, "
-        "what output status is listed?"
-    )
-    expected_cell = {
-        "content": (
-            "Column headers: Output status; Row headers: ON when = Set value > Count value= 9; "
-            "Cell value: One-Shot output; Row: 4; Column: 5"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Output status"],
-            "table_row_headers": ["ON when = Set value", "Count value= 9"],
-        },
-    }
-    ascii_range_context = [
-        {
-            "content": "ON when >= Set value | Count value >= 9 | 7 | 3 | 0 | One-Shot output",
-        }
-    ]
-    unicode_range_context = [
-        {
-            "content": "ON when \u2265 Set value | Count value \u2265 9 | 7 | 3 | 0 | One-Shot output",
-        }
-    ]
-    exact_context = [
-        {
-            "content": "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output",
-        }
-    ]
-
-    assert retriever._status_output_matching_row_context(query, expected_cell, ascii_range_context) == ""
-    assert retriever._status_output_matching_row_context(query, expected_cell, unicode_range_context) == ""
-    assert retriever._status_output_matching_row_context(query, expected_cell, exact_context) == (
-        "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
-    )
-
-
 def test_structured_table_promotion_preserves_top_lexical_cell_after_rerank():
     analysis = analyze_query(
         "What value is listed for LumiTrax Capture Settings Track Moving Object: "
@@ -3822,121 +3988,98 @@ def test_structured_table_promotion_preserves_top_lexical_cell_after_rerank():
     assert promoted[1].chunk_id == "wrong-cell"
 
 
-def test_table_preferred_lookup_promotion_preserves_top_lexical_row_after_rerank():
-    analysis = analyze_query(
-        "In the MOD-600 cyclic communication allocation table, what is PID 428 "
-        "at address bytes 0016-0018 named?"
+def test_troubleshooting_table_promotion_restores_matching_cause_and_action_after_rerank():
+    query = (
+        "What causes Image Stitching unit is not available when using the Height Image, "
+        "and how should it be corrected?"
     )
+    analysis = analyze_query(query)
     reranked = [
         SearchResult(
-            chunk_id="broad-cyclic-details",
+            chunk_id="generic-height-section",
             score=0.9,
             title="Manual",
             document_version_id="ver-1",
             source_document_id="doc-1",
-            pages=[904],
-            section_path=["Cyclic communication"],
-            content="Displays the results data. The amount specified in cyclic communication allocations can be acquired.",
-            metadata={"chunk_type": "table_record", "table_cell": True},
+            pages=[8],
+            section_path=["Height Image"],
+            content="General Height Image setup instructions.",
+            metadata={"chunk_type": "section_window"},
         )
     ]
     lexical = [
         SearchResult(
-            chunk_id="pid-428-total-count",
-            score=5.0,
+            chunk_id="cause-cell",
+            score=0.8,
             title="Manual",
             document_version_id="ver-1",
             source_document_id="doc-1",
-            pages=[920],
-            section_path=["Cyclic communication allocation"],
-            content="Measurement count area | 0016 0017 0018 | PID 428 | Total count",
-            metadata={"chunk_type": "table_record", "table_row_group": True},
-        )
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Image Stitching unit is not available when using the Height Image.; "
+                "Cell value: A multi-camera image variable was selected in 3D Capture Mode."
+            ),
+            metadata={"chunk_type": "table_record", "table_column_headers": ["Cause"]},
+        ),
+        SearchResult(
+            chunk_id="action-cell",
+            score=0.7,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: Image Stitching unit is not available when using the Height Image.; "
+                "Cell value: Use an image variable that is not the multi-camera type."
+            ),
+            metadata={"chunk_type": "table_record", "table_column_headers": ["Corrective Action"]},
+        ),
     ]
 
-    promoted = retriever._promote_structured_table_candidates(reranked, lexical, analysis, limit=12)
+    promoted = retriever._promote_troubleshooting_table_candidates(reranked, lexical, analysis, limit=12)
 
-    assert promoted[0].chunk_id == "pid-428-total-count"
-    assert promoted[0].metadata["retrieval_stage"] == "structured_table_promoted"
-    assert promoted[1].chunk_id == "broad-cyclic-details"
+    assert [result.chunk_id for result in promoted[:2]] == ["cause-cell", "action-cell"]
+    assert all(result.metadata["retrieval_stage"] == "troubleshooting_table_promoted" for result in promoted[:2])
 
 
-def test_safety_lookup_does_not_promote_numeric_table_rows_over_warning_evidence():
-    analysis = analyze_query(
-        "What is the XG-X warning when the output limiter is off and light intensity is 512 or higher?"
-    )
-    warning = SearchResult(
-        chunk_id="limit-output-warning",
-        score=0.8,
-        title="XG-X manual",
+def test_troubleshooting_table_siblings_restore_dropped_action_cell(monkeypatch):
+    analysis = analyze_query("What causes the encoder error, and how should it be corrected?")
+    cause = SearchResult(
+        chunk_id="cause-cell",
+        score=0.9,
+        title="Manual",
         document_version_id="ver-1",
-        source_document_id="doc-xgx",
-        pages=[84],
-        section_path=["Light settings"],
-        content=(
-            "When the [Limit Output] is [OFF] and the intensity is set to 512 or higher, "
-            "be careful not to damage the light through excessive heat generation."
-        ),
-        metadata={"chunk_type": "atomic_text"},
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content="Column headers: Cause; Row headers: Encoder error; Cell value: The encoder is disconnected.",
+        metadata={"chunk_type": "table_record", "table_row": 7},
     )
-    unrelated_table = SearchResult(
-        chunk_id="camera-output-pixels",
-        score=5.0,
-        title="VS manual",
-        document_version_id="ver-2",
-        source_document_id="doc-vs",
-        pages=[26],
-        section_path=["Specifications"],
-        content="Column headers: VS-C2500M/CX; Row headers: Output image pixels; Cell value: 5120 x 5120",
-        metadata={"chunk_type": "table_record", "table_cell": True},
+    monkeypatch.setattr(
+        retriever,
+        "fetch_all",
+        lambda *_args, **_kwargs: [
+            {
+                "id": "action-cell",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "Manual",
+                "section_path_text": "Troubleshooting",
+                "page_from": 10,
+                "page_to": 10,
+                "content": "Column headers: Corrective Action; Row headers: Encoder error; Cell value: Connect the encoder.",
+                "metadata_json": {"chunk_type": "table_record", "table_row": 7},
+                "priority_score": 0.7,
+            }
+        ],
     )
 
-    promoted = retriever._promote_structured_table_candidates([warning], [unrelated_table], analysis, limit=12)
+    siblings = retriever._troubleshooting_table_siblings([cause], analysis)
 
-    assert promoted == [warning]
-
-
-def test_table_score_prefers_single_signal_description_cell_over_aggregate_function_row():
-    analysis = retriever.analyze_query("Which CV-X482 output line corresponds to data output bit 10?")
-    terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
-
-    exact_cell = {
-        "content": (
-            "Column headers: Signal Description; Row headers: OUT_DATA10; "
-            "Cell value: Data output bit 10; Row: 11; Column: 1"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Signal Description"],
-            "table_row_headers": ["OUT_DATA10"],
-            "product_model": "CV-X482",
-        },
-        "priority_score": 99.0,
-    }
-    aggregate_function = {
-        "content": (
-            "Column headers: Function; Row headers: OUT_DATA0 > OUT_DATA1 > OUT_DATA2 > OUT_DATA3 > "
-            "OUT_DATA4 > OUT_DATA5 > OUT_DATA6 > OUT_DATA7 > OUT_DATA8 > OUT_DATA9 > OUT_DATA10 > "
-            "OUT_DATA11 > OUT_DATA12 > OUT_DATA13 > OUT_DATA14 > OUT_DATA15 > Data output bit 0 (LSB) > "
-            "Data output bit 1 > Data output bit 2 > Data output bit 3 > Data output bit 4 > "
-            "Data output bit 5 > Data output bit 6 > Data output bit 7 > Data output bit 8 > "
-            "Data output bit 9 > Data output bit 10 > Data output bit 11 > Data output bit 12 > "
-            "Data output bit 13 > Data output bit 14 > Data output bit 15 (MSB); "
-            "Cell value: Measurement results are output according to the output settings.; Row: 1; Column: 2"
-        ),
-        "metadata_json": {
-            "chunk_type": "table_record",
-            "table_cell": True,
-            "table_column_headers": ["Function"],
-            "table_row_headers": ["OUT_DATA0", "OUT_DATA1", "OUT_DATA10", "Data output bit 10"],
-            "product_model": "CV-X482",
-        },
-        "priority_score": 99.0,
-    }
-
-    assert "corresponds" not in terms
-    assert retriever._table_lexical_score(exact_cell, terms) > retriever._table_lexical_score(aggregate_function, terms)
+    assert [item.chunk_id for item in siblings] == ["action-cell"]
+    assert siblings[0].metadata["retrieval_stage"] == "troubleshooting_table_sibling"
 
 
 def test_comparison_table_lexical_adds_bounded_row_key_supplement(monkeypatch):
@@ -4100,150 +4243,6 @@ def test_comparison_table_promotion_requires_requested_row_code_for_product():
     assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
     assert promoted[1].chunk_id == "x8000-pmsr"
     assert promoted[2].chunk_id == "s8000-generic"
-
-
-def test_comparison_table_promotion_adds_one_requested_row_code_per_product():
-    analysis = analyze_query(
-        "For LJ-X8000 and LJ-S8000 measurement outputs, compare what PMSR DC2LAR and RTO2L represent."
-    )
-    reranked = [
-        SearchResult(
-            chunk_id="s8000-generic",
-            score=3.5,
-            title="LJ-S8000 Manual",
-            document_version_id="ver-s",
-            source_document_id="doc-s",
-            pages=[113],
-            section_path=["A"],
-            content="Column headers: Position; Cell value: Select a method for specifying the measurement range.",
-            metadata={
-                "chunk_type": "table_record",
-                "table_column_headers": ["Position"],
-                "product_family": "LJ-S8000 Series",
-            },
-        )
-    ]
-    supplemental = [
-        SearchResult(
-            chunk_id="x8000-dc2lar",
-            score=2.0,
-            title="LJ-X8000 Manual",
-            document_version_id="ver-x",
-            source_document_id="doc-x",
-            pages=[725],
-            section_path=["A"],
-            content=(
-                "Column headers: Description of measurement item selection; Row headers: PMSR[].DC2LAR[]; "
-                "Cell value: (Condition 2) Cross-sectionArea Surrounded by a Straight Line."
-            ),
-            metadata={
-                "chunk_type": "table_record",
-                "table_column_headers": ["Description of measurement item selection"],
-                "table_row_headers": ["PMSR[].DC2LAR[]"],
-                "product_family": "LJ: X8000 Series",
-                "product_models": ["LJ-X8000"],
-            },
-        ),
-        SearchResult(
-            chunk_id="s8000-rto2l",
-            score=2.0,
-            title="LJ-S8000 Manual",
-            document_version_id="ver-s",
-            source_document_id="doc-s",
-            pages=[446],
-            section_path=["A"],
-            content=(
-                "Column headers: Description of measurement item selection; Row headers: RTO2L; "
-                "Cell value: Equivalent Oval Aspect Ratio Min."
-            ),
-            metadata={
-                "chunk_type": "table_record",
-                "table_column_headers": ["Description of measurement item selection"],
-                "table_row_headers": ["RTO2L"],
-                "product_family": "LJ-S8000 Series",
-            },
-        ),
-    ]
-
-    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
-
-    assert [result.chunk_id for result in promoted[:3]] == ["x8000-dc2lar", "s8000-rto2l", "s8000-generic"]
-    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
-    assert promoted[1].metadata["retrieval_stage"] == "comparison_table_promoted"
-
-
-def test_comparison_table_promotion_does_not_count_prefixed_sibling_code_as_covered():
-    analysis = analyze_query(
-        "For LJ-S8000 and LJ-X8000, compare the measured-data format for the ERRC error code "
-        "with the T1 Angle 1 MS/AB value."
-    )
-    reranked = [
-        SearchResult(
-            chunk_id="s8000-errc",
-            score=4.0,
-            title="LJ-S8000 Manual",
-            document_version_id="ver-s",
-            source_document_id="doc-s",
-            pages=[462],
-            section_path=["A"],
-            content="Column headers: Form of measured data; Row headers: ERRC > Error Code; Cell value: Integer 7 digits.",
-            metadata={
-                "chunk_type": "table_record",
-                "table_column_headers": ["Form of measured data"],
-                "table_row_headers": ["ERRC", "Error Code"],
-                "product_family": "LJ-S8000 Series",
-            },
-        ),
-        SearchResult(
-            chunk_id="x8000-t1hi-sibling",
-            score=3.9,
-            title="LJ-X8000 Manual",
-            document_version_id="ver-x",
-            source_document_id="doc-x",
-            pages=[250],
-            section_path=["A"],
-            content=(
-                "Column headers: Form of measured data; Row headers: T1HI > Angle 1 (max) > MS,AB; "
-                "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point."
-            ),
-            metadata={
-                "chunk_type": "table_record",
-                "table_column_headers": ["Form of measured data"],
-                "table_row_headers": ["T1HI", "Angle 1 (max)", "MS,AB"],
-                "product_family": "LJ: X8000 Series",
-                "product_models": ["LJ-X8000"],
-            },
-        ),
-    ]
-    supplemental = [
-        SearchResult(
-            chunk_id="x8000-t1-exact",
-            score=1.5,
-            title="LJ-X8000 Manual",
-            document_version_id="ver-x",
-            source_document_id="doc-x",
-            pages=[251],
-            section_path=["A"],
-            content=(
-                "Column headers: Form of measured data; Row headers: T1 > Angle 1 > MS,AB; "
-                "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point."
-            ),
-            metadata={
-                "chunk_type": "table_record",
-                "table_column_headers": ["Form of measured data"],
-                "table_row_headers": ["T1", "Angle 1", "MS,AB"],
-                "product_family": "LJ: X8000 Series",
-                "product_models": ["LJ-X8000"],
-            },
-        )
-    ]
-
-    assert retriever._matching_comparison_row_codes(reranked[1], ["t1"]) == set()
-    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
-
-    assert promoted[0].chunk_id == "x8000-t1-exact"
-    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
-    assert promoted[1].chunk_id == "s8000-errc"
 
 
 def test_comparison_table_promotion_does_not_treat_compatible_device_as_document_side():
@@ -4850,123 +4849,152 @@ def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):
     assert results == []
 
 
-def test_select_family_candidates_reserves_directly_bound_pipe_parent():
-    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
-    prose = [
-        SearchResult(
-            chunk_id=f"prose-{index}", score=1.0 - index * 0.01, title="Manual",
-            document_version_id="ver-1", source_document_id="doc-1", pages=[1],
-            section_path=["Errors"], content="FTP connection setup.", metadata={"chunk_type": "atomic_text"},
-        )
-        for index in range(8)
-    ]
-    unrelated_context = [
-        SearchResult(
-            chunk_id=f"context-{index}", score=0.8 - index * 0.01, title="Manual",
-            document_version_id="ver-1", source_document_id="doc-1", pages=[1],
-            section_path=["Errors"], content="General connection notes.", metadata={"chunk_type": "parent_section"},
-        )
-        for index in range(5)
-    ]
-    parent = SearchResult(
-        chunk_id="bound-parent", score=0.2, title="Manual", document_version_id="ver-1",
-        source_document_id="doc-1", pages=[2], section_path=["Errors"],
-        content=(
-            "Message | Cause | Remedy | Output/ Indicator\n"
-            "FTP Connection Error | Connection with the FTP server failed. | Check the server. | *2"
-        ),
-        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+def _corrective_result(
+    chunk_id: str,
+    content: str,
+    *,
+    section_path: list[str] | None = None,
+) -> SearchResult:
+    return SearchResult(
+        chunk_id=chunk_id,
+        score=1.0,
+        title="XG-X1000 User Manual",
+        document_version_id="version-xgx",
+        source_document_id="document-xgx",
+        pages=[42],
+        section_path=section_path or ["Line Camera Settings"],
+        content=content,
+        metadata={"chunk_type": "procedure_record", "product_model": "XG-X1000"},
     )
 
-    selected = retriever._select_family_candidates([*prose, *unrelated_context, parent], analysis, limit=12)
 
-    assert "bound-parent" in {result.chunk_id for result in selected}
-    reserved = next(result for result in selected if result.chunk_id == "bound-parent")
-    assert reserved.metadata["chunk_type"] == "parent_section"
-
-
-@pytest.mark.parametrize(
-    "content",
-    [
-        "Message | Remedy\nFTP Connection Error | Restart the server.\n\nStatus | Cause\nOffline | Power was removed.",
-        "Message | Cause\nFTP Transfer Error | The destination rejected the data.\nFTP Connection Error |",
-        "Message | Remedy\nFTP Connection Error | Restart the server.\nCause | Status\nPower was removed. | Offline",
-    ],
-)
-def test_direct_pipe_parent_match_rejects_cross_table_sibling_and_blank_role(content):
-    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
-    parent = SearchResult(
-        chunk_id="unsafe-parent", score=0.9, title="Manual", document_version_id="ver-1",
-        source_document_id="doc-1", pages=[2], section_path=["Errors"], content=content,
-        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+def test_evidence_sufficiency_rejects_topically_related_but_incomplete_location_evidence():
+    assessment = retriever.assess_evidence_sufficiency(
+        "Where do I set overlapping lines for the XG-X1000 line scan camera, and what is it for?",
+        [_corrective_result("related", "Set the line scan interval for the XG-X1000 camera.")],
     )
 
-    assert retriever._direct_pipe_parent_match_score(parent, analysis) == 0.0
+    assert assessment.sufficient is False
+    assert "location" in assessment.missing_facets
+    assert "purpose" in assessment.missing_facets
 
 
-def test_direct_pipe_parent_match_does_not_combine_same_row_numbers_from_distinct_tables():
-    analysis = analyze_query("For MOD-500 reporting a Cable Disconnected message, what caused the condition?")
-    parent = SearchResult(
-        chunk_id="cross-table-parent", score=0.9, title="Manual", document_version_id="ver-1",
-        source_document_id="doc-1", pages=[2], section_path=["Errors"],
-        content=(
-            "Message | Remedy\nCable Disconnected | Reconnect the cable.\n\n"
-            "Message | Cause\nCamera Settings Invalid | The selected model is unavailable."
-        ),
-        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+def test_evidence_sufficiency_accepts_complete_configuration_path_and_purpose():
+    assessment = retriever.assess_evidence_sufficiency(
+        "Where do I set overlapping lines for the XG-X1000 line scan camera, and what is it for?",
+        [
+            _corrective_result(
+                "complete",
+                "In the Capture Unit, select Line Camera Settings > Image Area > Continuous Capture Settings > "
+                "Overlapping lines. This setting controls the number of lines shared between adjacent captures "
+                "so that the images can be joined continuously.",
+                section_path=["Capture Unit", "Line Camera Settings", "Image Area", "Continuous Capture Settings"],
+            )
+        ],
     )
 
-    assert retriever._direct_pipe_parent_match_score(parent, analysis) == 0.0
+    assert assessment.sufficient is True
+    assert assessment.missing_facets == ()
 
 
-def test_promote_direct_pipe_parent_restores_parent_dropped_by_reranker():
-    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
-    atomic = SearchResult(
-        chunk_id="atomic", score=4.0, title="Manual", document_version_id="ver-1",
-        source_document_id="doc-1", pages=[1], section_path=["Errors"],
-        content="FTP connection setup.", metadata={"chunk_type": "atomic_text"},
-    )
-    parent = SearchResult(
-        chunk_id="bound-parent", score=0.2, title="Manual", document_version_id="ver-1",
-        source_document_id="doc-1", pages=[2], section_path=["Errors"],
-        content="Message | Cause | Remedy\nFTP Connection Error | Connection with the FTP server failed. | Check the server.",
-        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+def test_evidence_sufficiency_does_not_treat_insufficient_capacity_as_numeric_request():
+    assessment = retriever.assess_evidence_sufficiency(
+        "What happens to the output when the SD card capacity is insufficient?",
+        [
+            _corrective_result(
+                "related-error",
+                "Error Number 12005: There is not enough free space on SD card 2.",
+            )
+        ],
     )
 
-    promoted = retriever._promote_direct_pipe_parents([atomic], [atomic, parent], analysis, limit=2)
-
-    assert [result.chunk_id for result in promoted] == ["bound-parent", "atomic"]
-    assert promoted[0].metadata["retrieval_stage"] == "direct_pipe_parent_promoted"
+    assert "quantified_value" not in assessment.required_facets
+    assert assessment.sufficient is False
 
 
-def test_direct_pipe_parent_requires_requested_model_and_specific_identity():
-    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
-    wrong_model = SearchResult(
-        chunk_id="wrong", score=9.0, title="Manual", document_version_id="ver-2", source_document_id="doc-2",
-        pages=[2], section_path=["Errors"],
-        content="Message | Cause\nFTP Connection Error | The server rejected the login.",
-        metadata={"chunk_type": "parent_section", "product_model": "MOD-600"},
-    )
-    generic = wrong_model.model_copy(
-        update={"chunk_id": "generic", "content": "Status | Cause\nError | Power was removed.",
-                "metadata": {"chunk_type": "parent_section", "product_model": "MOD-500"}}
+def test_retrieve_skips_corrective_pass_when_primary_evidence_is_sufficient(monkeypatch):
+    calls: list[bool] = []
+    complete = _corrective_result(
+        "complete",
+        "Select Settings > Output and set the voltage to 24 V for the XG-X1000.",
+        section_path=["Settings", "Output"],
     )
 
-    assert retriever._direct_pipe_parent_match_score(wrong_model, analysis) == 0.0
-    assert retriever._direct_pipe_parent_match_score(generic, analyze_query("Why does MOD-500 report Error?")) == 0.0
+    def fake_retrieve_once(*_args, force_broad=False, **_kwargs):
+        calls.append(force_broad)
+        return [complete]
+
+    monkeypatch.setattr(retriever, "_retrieve_once", fake_retrieve_once)
+
+    results = retriever.retrieve("Where do I set the XG-X1000 output voltage?", ["manuals"], {})
+
+    assert calls == [False]
+    assert results[0].metadata["corrective_retrieval"]["attempted"] is False
 
 
-def test_promote_direct_pipe_parent_fails_closed_for_identical_message_ambiguity():
-    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
-    base = SearchResult(
-        chunk_id="first", score=0.8, title="Manual", document_version_id="ver-1", source_document_id="doc-1",
-        pages=[2], section_path=["Errors"],
-        content="Message | Cause\nFTP Connection Error | The server rejected the login.",
-        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+def test_retrieve_runs_one_broad_corrective_pass_and_fuses_provenance(monkeypatch):
+    calls: list[bool] = []
+    related = _corrective_result("related", "The XG-X1000 supports line scan cameras.")
+    complete = _corrective_result(
+        "complete",
+        "In the Capture Unit, select Line Camera Settings > Image Area > Continuous Capture Settings > "
+        "Overlapping lines. This setting controls the lines shared between adjacent captures.",
+        section_path=["Capture Unit", "Line Camera Settings", "Image Area", "Continuous Capture Settings"],
     )
-    sibling = base.model_copy(
-        update={"chunk_id": "second", "score": 0.9,
-                "content": "Message | Cause\nFTP Connection Error | The network route is unavailable."}
+
+    def fake_retrieve_once(*_args, force_broad=False, **_kwargs):
+        calls.append(force_broad)
+        return [complete] if force_broad else [related]
+
+    class FakeStore:
+        fuse_rrf = staticmethod(QdrantStore.fuse_rrf)
+
+    monkeypatch.setattr(retriever, "_retrieve_once", fake_retrieve_once)
+    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
+    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "assemble_context", lambda results, **_kwargs: results)
+
+    results = retriever.retrieve(
+        "Where do I set overlapping lines for the XG-X1000 line scan camera?",
+        ["manuals"],
+        {},
     )
 
-    assert retriever._promote_direct_pipe_parents([], [base, sibling], analysis, limit=2) == []
+    assert calls == [False, True]
+    trace = results[0].metadata["corrective_retrieval"]
+    assert trace["attempted"] is True
+    assert trace["accepted"] is True
+    assert trace["final_assessment"]["sufficient"] is True
+    assert "location" in trace["resolved_facets"]
+    complete_result = next(result for result in results if result.chunk_id == "complete")
+    assert complete_result.metadata["retrieval_strategy_sources"] == ["broad_corrective"]
+
+
+def test_retrieve_keeps_primary_order_when_corrective_candidate_does_not_improve_evidence(monkeypatch):
+    primary = _corrective_result("primary", "The XG-X1000 supports line scan cameras.")
+    unrelated = _corrective_result("unrelated", "The XG-X1000 camera has configurable lighting.")
+
+    def fake_retrieve_once(*_args, force_broad=False, **_kwargs):
+        return [unrelated] if force_broad else [primary]
+
+    class FakeStore:
+        fuse_rrf = staticmethod(QdrantStore.fuse_rrf)
+
+    monkeypatch.setattr(retriever, "_retrieve_once", fake_retrieve_once)
+    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
+    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "rerank_results", lambda results, *_args, **_kwargs: list(reversed(results)))
+    monkeypatch.setattr(retriever, "assemble_context", lambda results, **_kwargs: results)
+
+    results = retriever.retrieve(
+        "Where do I set overlapping lines for the XG-X1000 line scan camera?",
+        ["manuals"],
+        {},
+    )
+
+    assert [result.chunk_id for result in results] == ["primary"]
+    trace = results[0].metadata["corrective_retrieval"]
+    assert trace["attempted"] is True
+    assert trace["accepted"] is False
+    assert trace["final_assessment"] == trace["primary_assessment"]

@@ -11,6 +11,7 @@ from manuals_rag_evals.retrieval_quality import summarize_result_quality
 from manuals_rag_retrieval.query_analysis import analyze_query
 from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval.retriever import (
+    DOCUMENT_METADATA_SELECTION_LIMIT,
     LEXICAL_TABLE_SCAN_LIMIT,
     _annotate_completeness,
     _annotate_stage_metadata,
@@ -19,13 +20,19 @@ from manuals_rag_retrieval.retriever import (
     _chunk_search_filters,
     _comparison_table_content_terms,
     _dedupe_results,
+    _exact_identifier_document_ids,
+    _has_explicit_document_scope,
     _lexical_table_content_terms,
     _lexical_table_symbol_terms,
     _lexical_table_terms,
+    _metadata_selection_limit,
     _promote_comparison_table_candidates,
+    _promote_structured_table_candidates,
+    _promote_troubleshooting_table_candidates,
     _result_matches_identifier,
     _select_family_candidates,
     _table_lexical_score,
+    _troubleshooting_table_siblings,
     assemble_context,
     build_filters,
     enrich_candidates_for_rerank,
@@ -892,8 +899,24 @@ def debug_retrieval_query(
     analysis = analyze_query(query)
     filters = build_filters(query, request_filters)
     store = QdrantStore()
-    search_filters, metadata_document_hits = select_documents_from_metadata(store, query, corpus_ids, filters)
+    metadata_limit = _metadata_selection_limit(analysis)
+    if metadata_limit > DOCUMENT_METADATA_SELECTION_LIMIT:
+        search_filters, metadata_document_hits = select_documents_from_metadata(
+            store,
+            query,
+            corpus_ids,
+            filters,
+            limit=metadata_limit,
+        )
+    else:
+        search_filters, metadata_document_hits = select_documents_from_metadata(store, query, corpus_ids, filters)
+    exact_document_ids: list[str] = []
+    if not _has_explicit_document_scope(filters):
+        exact_document_ids = _exact_identifier_document_ids(metadata_document_hits, analysis)
+        if exact_document_ids:
+            search_filters = {**filters, "source_document_id": exact_document_ids}
     chunk_search_filters = _chunk_search_filters(filters, search_filters, analysis)
+    supplemental_filters = chunk_search_filters if exact_document_ids else filters
     stage_limit = max(stage_candidate_limit or max(top_k * 2, 10), top_k)
     fused_limit = max(stage_limit * 2, top_k * 4, 20)
 
@@ -920,12 +943,15 @@ def debug_retrieval_query(
     )
     table_lexical = timed_stage(
         "table_lexical",
-        lambda: _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis, limit=stage_limit), "table_lexical"),
+        lambda: _annotate_stage_metadata(
+            run_table_lexical_search(query, corpus_ids, supplemental_filters, analysis, limit=stage_limit),
+            "table_lexical",
+        ),
     )
     contextual_lexical = timed_stage(
         "contextual_lexical",
         lambda: _annotate_stage_metadata(
-            run_contextual_lexical_search(query, corpus_ids, filters, analysis, limit=stage_limit),
+            run_contextual_lexical_search(query, corpus_ids, supplemental_filters, analysis, limit=stage_limit),
             "contextual_lexical",
         ),
     )
@@ -967,16 +993,42 @@ def debug_retrieval_query(
         "reranked",
         lambda: _annotate_stage_metadata(rerank_results(enriched, query, limit=stage_limit), "reranked"),
     )
+    troubleshooting_siblings = timed_stage(
+        "troubleshooting_table_siblings",
+        lambda: _annotate_stage_metadata(
+            _troubleshooting_table_siblings(reranked, analysis, limit=max(stage_limit * 4, 40)),
+            "troubleshooting_table_siblings",
+        ),
+    )
+    structured_promoted = timed_stage(
+        "structured_table_promoted",
+        lambda: _annotate_stage_metadata(
+            _promote_structured_table_candidates(reranked, table_lexical, analysis, limit=stage_limit),
+            "structured_table_promoted",
+        ),
+    )
     comparison_promoted = timed_stage(
         "comparison_table_promoted",
         lambda: _annotate_stage_metadata(
-            _promote_comparison_table_candidates(reranked, table_lexical, analysis, limit=stage_limit),
+            _promote_comparison_table_candidates(structured_promoted, table_lexical, analysis, limit=stage_limit),
             "comparison_table_promoted",
+        ),
+    )
+    troubleshooting_promoted = timed_stage(
+        "troubleshooting_table_promoted",
+        lambda: _annotate_stage_metadata(
+            _promote_troubleshooting_table_candidates(
+                comparison_promoted,
+                [*table_lexical, *troubleshooting_siblings],
+                analysis,
+                limit=stage_limit,
+            ),
+            "troubleshooting_table_promoted",
         ),
     )
     deduped = timed_stage(
         "deduped",
-        lambda: _annotate_stage_metadata(_dedupe_results(comparison_promoted, analysis), "deduped"),
+        lambda: _annotate_stage_metadata(_dedupe_results(troubleshooting_promoted, analysis), "deduped"),
     )
     assembled = timed_stage(
         "assembled",
@@ -995,7 +1047,10 @@ def debug_retrieval_query(
         "query_aligned": query_aligned,
         "family_selected": family_selected,
         "reranked": reranked,
+        "troubleshooting_table_siblings": troubleshooting_siblings,
+        "structured_table_promoted": structured_promoted,
         "comparison_table_promoted": comparison_promoted,
+        "troubleshooting_table_promoted": troubleshooting_promoted,
         "deduped": deduped,
         "assembled": assembled,
     }
@@ -1013,7 +1068,10 @@ def debug_retrieval_query(
         _stage("query_aligned", query_aligned, top_k=top_k),
         _stage("family_selected", family_selected, top_k=top_k),
         _stage("reranked", reranked, top_k=top_k),
+        _stage("troubleshooting_table_siblings", troubleshooting_siblings, top_k=top_k),
+        _stage("structured_table_promoted", structured_promoted, top_k=top_k),
         _stage("comparison_table_promoted", comparison_promoted, top_k=top_k),
+        _stage("troubleshooting_table_promoted", troubleshooting_promoted, top_k=top_k),
         _stage("deduped", deduped, top_k=top_k),
         _stage("assembled", assembled, top_k=top_k),
     ]

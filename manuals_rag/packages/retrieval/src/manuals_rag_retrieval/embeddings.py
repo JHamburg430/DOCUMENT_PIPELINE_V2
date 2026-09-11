@@ -125,7 +125,7 @@ def _embed_one_with_fallbacks(client: httpx.Client, text: str) -> list[float]:
 
 
 def embed_dense(texts: list[str]) -> list[list[float]]:
-    with httpx.Client(base_url=settings.ollama_url, timeout=60.0) as client:
+    with httpx.Client(base_url=settings.ollama_embed_url, timeout=60.0) as client:
         vectors: list[list[float]] = []
         normalized_texts = [
             normalize_for_embedding(text) or "content unavailable"

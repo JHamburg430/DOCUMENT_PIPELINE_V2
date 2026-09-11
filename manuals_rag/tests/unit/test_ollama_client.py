@@ -1,4 +1,12 @@
-from manuals_rag_common.ollama import build_chat_payload, chat_json, extract_chat_content, model_family, supports_thinking_control
+from manuals_rag_common.ollama import (
+    build_chat_payload,
+    capture_ollama_usage,
+    chat_json,
+    extract_chat_content,
+    model_family,
+    summarize_ollama_usage,
+    supports_thinking_control,
+)
 
 
 def test_model_family_detects_qwen_and_gpt_oss():
@@ -14,12 +22,14 @@ def test_qwen_payload_disables_thinking_and_uses_json_schema():
         json_schema={"type": "object"},
         think=False,
         num_predict=-1,
+        num_ctx=8192,
     )
     assert payload["think"] is False
     assert payload["format"] == {"type": "object"}
     assert payload["messages"][0]["content"].endswith("/no_think")
     assert payload["options"]["presence_penalty"] == 1.5
     assert payload["options"]["num_predict"] == -1
+    assert payload["options"]["num_ctx"] == 8192
 
 
 def test_gpt_oss_payload_omits_think_control():
@@ -156,3 +166,57 @@ def test_chat_json_reloads_and_retries_after_chat_failure(monkeypatch):
     assert parsed == {"ok": True}
     assert [entry[1] for entry in calls].count("/api/generate") == 2
     assert [entry[1] for entry in calls].count("/api/chat") == 2
+
+
+def test_usage_capture_reports_actual_ollama_token_and_duration_counts(monkeypatch):
+    class FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, path):
+            return FakeResponse({"models": [{"name": "gpt-oss:20b"}]})
+
+        def post(self, path, json):
+            assert path == "/api/chat"
+            return FakeResponse(
+                {
+                    "model": "gpt-oss:20b",
+                    "message": {"content": '{"ok": true}'},
+                    "prompt_eval_count": 120,
+                    "eval_count": 15,
+                    "total_duration": 250_000_000,
+                }
+            )
+
+    monkeypatch.setattr("manuals_rag_common.ollama.httpx.Client", FakeClient)
+    with capture_ollama_usage() as events:
+        chat_json(
+            model="gpt-oss:20b",
+            messages=[{"role": "user", "content": "Hi"}],
+            json_schema={"type": "object"},
+            purpose="unit_usage",
+        )
+
+    usage = summarize_ollama_usage(events)
+    assert usage["model_calls"] == 1
+    assert usage["prompt_tokens"] == 120
+    assert usage["completion_tokens"] == 15
+    assert usage["total_tokens"] == 135
+    assert usage["total_duration_ms"] == 250.0
+    assert usage["by_purpose"]["unit_usage"]["model_calls"] == 1

@@ -38,17 +38,25 @@ def analyze_query(query: str) -> QueryAnalysis:
     if any(word in lowered for word in ["warning", "danger", "safety", "hazard", "caution"]):
         types.append("safety")
         preferred_chunk_types.append("warning_record")
-    if any(word in lowered for word in ["how", "steps", "configure", "setup", "install"]):
+    location_configuration = bool(
+        re.search(
+            r"\bwhere\b.{0,80}\b(?:set|adjust|change|configure|find|locate|select|enable|disable)\b"
+            r"|\bwhere\s+(?:is|are)\b.{0,80}\b(?:setting|option|parameter|control|field)\b"
+            r"|\b(?:which|what)\s+(?:menu|screen|tab|section|page)\b",
+            lowered,
+        )
+    )
+    if any(word in lowered for word in ["how", "steps", "configure", "setup", "install"]) or location_configuration:
         types.append("how_to")
         preferred_chunk_types.append("procedure_record")
-    if any(word in lowered for word in ["configure", "configuration", "setting", "parameter", "menu"]):
+    if any(word in lowered for word in ["configure", "configuration", "setting", "parameter", "menu"]) or location_configuration:
         types.append("configuration")
         preferred_chunk_types.extend(["procedure_record", "section_window", "table_record"])
     if any(word in lowered for word in ["command", "timing", "flow", "handshake", "flag", "procedure"]):
         types.append("operational_flow")
         preferred_chunk_types.extend(["section_window", "procedure_record"])
     structured_lookup_field = re.search(
-        r"\b(?:address|values?|items?|setting\s+(?:item|range)|word\s+device|number\s+of\s+image\s+pixels|cause|error\s+code|message|symbol|description|detection|index|sub\s+index|stored\s+data|error\s+message|summary|data\s*\d+)\b",
+        r"\b(?:address|values?|items?|setting\s+(?:item|range)|word\s+device|number\s+of\s+image\s+pixels|causes?|error\s+code|message|symbol|description|detection|index|sub\s+index|stored\s+data|error\s+message|summary|data\s*\d+)\b",
         lowered,
     )
     structured_lookup_shape = re.search(r"\b(?:appl(?:y|ies)\s+to|appl(?:y|ies)\s+for)\b", lowered)
@@ -72,12 +80,22 @@ def analyze_query(query: str) -> QueryAnalysis:
         r"row|column|cell\s+value)\b",
         lowered,
     )
+    named_choice_lookup_shape = re.search(
+        r"\bhow\s+does\b.{0,100}\b(?:mode|method|option|setting|type)\b.{0,40}"
+        r"\b(?:select|choose|determine)\b"
+        r"|\b(?:which|what)\b.{0,100}\b(?:modes|methods|options|settings|types)\b.{0,80}"
+        r"\b(?:select|choose|use)(?:s|d)?\b.{0,30}\bbetween\b",
+        lowered,
+    )
     if structured_lookup_field and (structured_lookup_shape or structured_reverse_lookup_shape):
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
     if structured_value_lookup_shape and structured_table_field:
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
+    if named_choice_lookup_shape:
+        types.append("structured_lookup")
+        preferred_chunk_types.extend(["table_record", "section_window"])
     requested_doc_kind = None
     if "datasheet" in lowered:
         requested_doc_kind = "datasheet"
@@ -109,8 +127,16 @@ def analyze_query(query: str) -> QueryAnalysis:
         "vibration",
         "humidity",
         "temperature",
+        "length",
+        "weight",
+        "capacity",
+        "connector",
     }
-    explicit_spec_lookup = "specification" in lowered or re.search(r"\bspecs?\b", lowered) is not None
+    explicit_spec_lookup = (
+        "specification" in lowered
+        or re.search(r"\bspecs?\b", lowered) is not None
+        or re.search(r"\bhow\s+(?:long|heavy|wide|tall|fast)\b", lowered) is not None
+    )
     if requested_doc_kind in {None, "manual"} and (
         explicit_spec_lookup
         or any(word in lowered for word in spec_terms)
@@ -120,13 +146,22 @@ def analyze_query(query: str) -> QueryAnalysis:
         preferred_chunk_types.extend(["datasheet_record", "spec_record", "table_record"])
     if any(word in lowered for word in ["error", "alarm", "troubleshoot", "fault"]):
         types.append("troubleshooting")
-    if "troubleshooting" in types and re.search(r"\bcheck\s*points?\b|\bcheckpoints?\b", lowered):
-        preferred_chunk_types.append("table_record")
-    if re.search(r"\bwhat\s+causes?\b", lowered) and re.search(r"\b(correct(?:ed|ive|ion)?|check(?:ed)?|remed(?:y|ied)|fix(?:ed)?)\b", lowered):
+    if (
+        re.search(
+            r"\bwhat\s+(?:causes?|caused|(?:is|are)\s+the\s+(?:likely\s+)?(?:cause|reason))\b",
+            lowered,
+        )
+        or re.search(r"\bhow\s+should\b.+\b(?:corrected|fixed|resolved)\b", lowered)
+        or re.search(r"\bwhy\s+(?:does|is)\b.+\b(?:show|shows|report|reporting)\b", lowered)
+        or re.search(r"\bwhat should i do when\b.+\b(?:show|shows|report|reports)\b", lowered)
+        or re.search(r"\bhow can i resolve\b", lowered)
+        or re.search(r"\bhow do i\s+(?:fix|resolve|correct)\b", lowered)
+        or re.search(r"\bhow do i stop\b.+\bfrom\b", lowered)
+    ):
         types.append("troubleshooting")
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "section_window"])
-    if re.search(r"\b(?:compare|difference|differ(?:s|ed|ing)?|versus)\b", lowered) or re.search(r"\bvs\.?\b", lowered) and not re.search(
+    if re.search(r"\b(?:compare|difference|versus)\b", lowered) or re.search(r"\bvs\.?\b", lowered) and not re.search(
         r"\bvs\.?\s+series\b", lowered
     ):
         types.append("comparison")
@@ -153,26 +188,38 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("general")
     model_match_spans: list[tuple[int, int]] = []
     model_matches: list[tuple[int, str]] = []
-    for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query):
+    for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:[-:][A-Z0-9]{1,8})+\b", query):
         if not any(char.isdigit() for char in match.group(0)):
             continue
         model_matches.append((match.start(), match.group(0)))
         model_match_spans.append(match.span())
-    explicit_model_check_comparison = re.search(
-        r"\bon\s+(?:an?\s+)?[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b.+"
-        r"\band\s+on\s+(?:an?\s+)?[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b",
+    compact_protocols = {"RS232", "RS232C", "RS485", "TCPIP", "UDPV4", "IPV4", "IPV6"}
+    for match in re.finditer(r"\b[A-Z]{2,5}\d{3,8}[A-Z]?\b", query):
+        identifier = match.group(0)
+        if identifier in compact_protocols:
+            continue
+        model_matches.append((match.start(), identifier))
+        model_match_spans.append(match.span())
+    for match in re.finditer(
+        r"\b(?:on|for|with|using)\s+(?:the\s+)?(?P<model>[A-Z]{1,5}\d{2,8})\b"
+        r"|\bthe\s+(?P<article_model>[A-Z]{1,5}\d{2,8})\b(?!\s+(?:alarm|error|fault|code)\b)",
         query,
-        flags=re.IGNORECASE | re.DOTALL,
-    )
+        flags=re.IGNORECASE,
+    ):
+        group_name = "model" if match.group("model") else "article_model"
+        model = match.group(group_name).upper()
+        start = match.start(group_name)
+        span = (start, match.end(group_name))
+        if not any(existing_start == start for existing_start, _value in model_matches):
+            model_matches.append((start, model))
+            model_match_spans.append(span)
+    model_matches.sort(key=lambda item: item[0])
     if (
         len(model_matches) >= 2
         and re.search(r"\b(?:and|with)\b", lowered)
-        and (
-            explicit_model_check_comparison
-            or re.search(
-                r"\b(?:listed|value|rating|resistance|format|cause|remedy|corrective|setting|specifications?|specs?)\b",
-                lowered,
-            )
+        and re.search(
+            r"\b(?:listed|value|rating|resistance|format|cause|remedy|corrective|setting|specifications?|specs?)\b",
+            lowered,
         )
     ):
         types.append("comparison")
@@ -182,7 +229,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         comparison_identifier_matches = [
             (match.start(), match.group(0))
             for match in re.finditer(
-                r"\b(?:[A-Z]{2,5}\d{1,5}|[A-Z]{1,5}-[A-Z]{1,8})\b",
+                r"\b(?:[A-Z]{2,5}\d{1,5}|[A-Z]{1,5}[-:][A-Z0-9]{1,8})\b",
                 query,
             )
             if not re.fullmatch(r"[A-Z]\d{1,5}", match.group(0))
@@ -191,97 +238,64 @@ def analyze_query(query: str) -> QueryAnalysis:
                 for start, end in model_match_spans
             )
         ]
-    model_match = re.search(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query)
-    if model_match and not any(char.isdigit() for char in model_match.group(0)):
-        model_match = None
+    model_value = model_matches[0][1] if model_matches else None
+    model_span = (
+        (model_matches[0][0], model_matches[0][0] + len(model_matches[0][1]))
+        if model_matches
+        else None
+    )
     family_matches = [
         (match.start(1), match.group(1).upper())
         for match in re.finditer(
-            r"\b([A-Z]{1,5}-[A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
+            r"\b([A-Z]{1,5}[-:][A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
             query,
             flags=re.IGNORECASE,
         )
     ]
     family_match = re.search(
-        r"\b([A-Z]{1,5}-[A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
+        r"\b([A-Z]{1,5}[-:][A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
         query,
         flags=re.IGNORECASE,
     )
+    if (
+        family_match
+        and model_span
+        and model_span == family_match.span(1)
+        and "-" not in family_match.group(1)
+    ):
+        # An identifier explicitly qualified as a Series/Family is a family,
+        # even when it also matches the compact model-shaped pattern.
+        model_value = None
+        model_span = None
     part_match = re.search(r"\b(?:OP|CA|SZ|GL|SR|IV|LJ|LR|KV|XG|VS|WM|VJ)-[A-Z0-9]{2,12}[A-Z0-9-]*\b", query)
-    error_match = re.search(
-        r"\b[A-Z]\d{2,4}\b(?!\s+(?:series|family))"
-        r"|\b(?:error|fault|alarm)\s+(?:code\s+|number\s+|no\.?\s*)?(\d{2,6})\b",
-        query,
-        flags=re.IGNORECASE,
-    )
-    if error_match and model_match:
-        model_span = model_match.span()
+    error_match = re.search(r"\b[A-Z]\d{2,4}\b(?!\s+(?:series|family))", query, flags=re.IGNORECASE)
+    if error_match and model_span:
         if model_span[0] <= error_match.start() and error_match.end() <= model_span[1]:
             error_match = None
-    if error_match and "troubleshooting" in types:
-        types.append("structured_lookup")
-        preferred_chunk_types.extend(["table_record", "section_window"])
-    explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
-    filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
-    product_identifiers: list[str] = []
-    identifier_matches = sorted(
-        [*model_matches, *family_matches, *comparison_identifier_matches],
-        key=lambda item: item[0],
-    )
-    for _start, identifier in identifier_matches:
-        if identifier and identifier not in product_identifiers:
-            product_identifiers.append(identifier)
-    side_clause_matches: list[tuple[int, int, str]] = []
-    seen_side_identifiers: set[str] = set()
-    for start, identifier in identifier_matches:
-        if identifier in seen_side_identifiers:
-            continue
-        end = start + len(identifier)
-        prefix = query[max(0, start - 24) : start]
-        marker = re.search(r"\b(on|for|with)\s+(?:an?\s+|the\s+)?$", prefix, flags=re.IGNORECASE)
-        if marker:
-            side_clause_matches.append((start, end, marker.group(1).lower()))
-            seen_side_identifiers.add(identifier)
-    repeated_side_clause_comparison = any(
-        first_marker == second_marker
-        and re.search(r"\band\b", query[first_end:second_start], flags=re.IGNORECASE)
-        for (first_start, first_end, first_marker), (second_start, _second_end, second_marker) in zip(
-            side_clause_matches,
-            side_clause_matches[1:],
-            strict=False,
-        )
-    )
-    if len(product_identifiers) >= 2 and repeated_side_clause_comparison:
-        types.append("comparison")
-        preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])
-    compound_field_side = re.search(
-        r"\b(?:and|while|whereas)\s+(?:what|which|how)\b[^?]{0,100}"
-        r"\b(?:caus(?:e|es|ed)|remed(?:y|ies)|correct(?:ed|ive|ion)?|"
-        r"settings?|specifications?|specs?|values?|ratings?)\b",
-        query,
-        flags=re.IGNORECASE,
-    )
-    compound_product_identifiers = [
-        identifier
-        for start, identifier in identifier_matches
-        if not re.search(
-            r"\b(?:error|alarm|fault)\s*(?:code\s+|number\s+|no\.?\s*)?$",
-            query[max(0, start - 24) : start],
+    error_value = error_match.group(0) if error_match else None
+    if not error_value:
+        numeric_error_match = re.search(
+            r"\berror(?:\s+(?:number|code))?\s*[:#]?\s*(?P<code>\d{3,6})\b",
+            query,
             flags=re.IGNORECASE,
         )
-    ]
-    if len(set(compound_product_identifiers)) >= 2 and compound_field_side:
-        types.append("comparison")
-        preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])
+        if numeric_error_match:
+            error_value = numeric_error_match.group("code")
+    explicit_identifier_count = int(bool(model_value)) + int(bool(error_value))
+    filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
+    product_identifiers: list[str] = []
+    for _start, identifier in sorted([*model_matches, *family_matches, *comparison_identifier_matches], key=lambda item: item[0]):
+        if identifier and identifier not in product_identifiers:
+            product_identifiers.append(identifier)
     return QueryAnalysis(
         raw_query=query,
         query_types=sorted(set(types)),
         normalized_terms=normalized_terms,
-        product_family=family_match.group(1).upper() if family_match and not model_match else None,
-        product_model=model_match.group(0) if model_match else None,
+        product_family=family_match.group(1).upper() if family_match and not model_value else None,
+        product_model=model_value,
         product_identifiers=product_identifiers,
         part_number=part_match.group(0) if part_match else None,
-        error_code=(error_match.group(1) or error_match.group(0)) if error_match and not part_match else None,
+        error_code=error_value,
         requested_doc_kind=requested_doc_kind,
         safety_intent="safety" in types,
         latest_only=any(term in lowered for term in ["latest", "newest", "current revision", "most recent"]),

@@ -5,10 +5,675 @@ from apps.api.main import app
 from apps.api import main
 from apps.api import debug as api_debug
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase
+from manuals_rag_schemas.documents import AnswerResponse, SearchResult
 
 
 client = TestClient(app)
 ADMIN_HEADERS = {"Authorization": "Bearer admin-token"}
+
+
+def test_stream_table_summary_uses_direct_evidence_without_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="cause-cell",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content="Column headers: Cause; Cell value: The output buffer is full.",
+        metadata={"chunk_type": "table_record"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model summary should not run")),
+    )
+
+    summary = api_debug._stream_summarize_chunk("What causes the output error?", result, emit=lambda _event: None)
+
+    assert summary["summary_source"] == "direct_evidence"
+    assert "output buffer is full" in summary["summary"].lower()
+
+
+def test_stream_answer_validation_receives_query(monkeypatch):
+    query = "How many lines and overlap lines does the example use?"
+    result = SearchResult(
+        chunk_id="chunk-1",
+        score=0.9,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[7],
+        section_path=["Example"],
+        content="The example uses 10 lines and two overlap lines.",
+        metadata={"chunk_type": "procedure_record"},
+    )
+    generated = AnswerResponse(
+        answer="The example uses 10 lines and two overlap lines.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    seen_queries = []
+
+    monkeypatch.setattr(api_debug, "_stream_llm_json", lambda **_kwargs: (generated.model_dump(), "{}"))
+
+    def fake_validate(answer, results, query=""):
+        seen_queries.append(query)
+        return answer
+
+    monkeypatch.setattr(api_debug, "validate_answer", fake_validate)
+
+    answer, _trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": "chunk-1", "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer == generated.answer
+    assert seen_queries == [query]
+
+
+def test_stream_conditioned_measurement_uses_exact_limit_without_model(monkeypatch):
+    query = "What case temperature limit applies to the IV4-G120 if ambient exceeds 40°C?"
+    result = SearchResult(
+        chunk_id="temperature-limit",
+        score=0.9,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[447],
+        section_path=["Specifications"],
+        content=(
+            "If the operating ambient temperature exceeds 40°C, confirm that the case "
+            "temperature does not exceed the rated 65°C."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "IV4-G120"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert "40°C" in answer.answer
+    assert "65°C" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "deterministic_conditioned_measurement"
+
+
+def test_stream_how_to_uses_exact_instruction_without_model(monkeypatch):
+    query = "How do I set the CA-EN100U switch for the image processing system?"
+    result = SearchResult(
+        chunk_id="vision-system-switch",
+        score=0.9,
+        title="CA-EN100U",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[3],
+        section_path=["Settings"],
+        content=(
+            '1 Set the switch on the RS-232C connector to "VISION SYSTEM" '
+            '(this is the factory default setting), and connect the CA-EN100U to the image '
+            'processing system controller.'
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "CA-EN100U"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer.startswith('Set the switch on the RS-232C connector to "VISION SYSTEM"')
+    assert trace["final_answer"]["answer_source"] == "deterministic_instruction"
+
+
+def test_stream_temporal_effect_uses_exact_sentence_without_model(monkeypatch):
+    query = "When does a new master calibration set value take effect on the LR-W70(C)?"
+    result = SearchResult(
+        chunk_id="calibration-effect",
+        score=0.9,
+        title="LR-W Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[5],
+        section_path=["Calibration"],
+        content=(
+            "Changing the master calibration set value after calibration does not affect the "
+            "current setting value, only subsequent calibrations."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "LR-W70"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert "only subsequent calibrations" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "deterministic_temporal_effect"
+
+
+def test_stream_required_setting_uses_only_alignment_instruction_without_model(monkeypatch):
+    query = "Which voltage setting must match the illumination unit for the CA-DC40E?"
+    result = SearchResult(
+        chunk_id="voltage-caution",
+        score=0.9,
+        title="CA-DC40E",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[719],
+        section_path=["CAUTION"],
+        content=(
+            "Table summary: CAUTION | Make sure to set the setting voltage for the illumination unit "
+            "of the CA-DC40E light controller correctly. Connecting a 12 V unit at 24 V may cause "
+            "damage. The voltage will not be output from light 1 and light 2."
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer == (
+        "Make sure to set the setting voltage for the illumination unit of the CA-DC40E light "
+        "controller correctly."
+    )
+    assert "light 1" not in answer.answer
+    assert trace["final_answer"]["answer_source"] == "deterministic_required_setting"
+
+
+def test_stream_enumerated_options_uses_complete_list_without_model(monkeypatch):
+    query = "What thickness options are included in the OP-51612 close-up ring set?"
+    result = SearchResult(
+        chunk_id="ring-options",
+        score=0.9,
+        title="Camera manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[36],
+        section_path=["OP-51612"],
+        content=(
+            'The set contains rings with five different thicknesses: 0.5 mm 0.02", 1 mm 0.04", '
+            '5 mm 0.20", 10 mm 0.39", and 22 mm 0.87".'
+        ),
+        metadata={"chunk_type": "atomic_text"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert "0.5 mm" in answer.answer and "22 mm" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "deterministic_enumerated_options"
+
+
+def test_stream_physical_location_uses_spatial_sentence_without_model(monkeypatch):
+    query = "Where is the close-up ring installed on a KV-CA1H camera setup?"
+    result = SearchResult(
+        chunk_id="ring-location",
+        score=0.9,
+        title="Camera manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[36],
+        section_path=["Close-up ring"],
+        content="The close-up ring is installed between the camera and the lens.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer == "The close-up ring is installed between the camera and the lens."
+    assert trace["final_answer"]["answer_source"] == "deterministic_physical_location"
+
+
+def test_stream_alignment_components_excludes_neighboring_torque(monkeypatch):
+    query = "What components should be aligned when attaching the IV4-G600CA lighting cable?"
+    result = SearchResult(
+        chunk_id="lighting-cable-alignment",
+        score=0.9,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[43],
+        section_path=["AI Lighting unit cable"],
+        content="Tightening torque: 0.6 to 0.8 N·m Align the pins and pin connection\nNext section",
+        metadata={"chunk_type": "section_window", "product_model": "IV4-G600CA"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer == "Align the pins and the pin connection."
+    assert trace["final_answer"]["answer_source"] == "deterministic_alignment_components"
+
+
+def test_stream_troubleshooting_answer_uses_structured_evidence_without_model(monkeypatch):
+    query = "What causes the encoder timeout error, and how should it be corrected?"
+    result = SearchResult(
+        chunk_id="timeout-row",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content=(
+            "Error Message: Encoder timeout error.; Cause: Encoder input stopped.; "
+            "Corrective Action: Check the encoder connection."
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model answer should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert "Check the encoder connection" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "structured_evidence"
+    assert trace["final_answer"]["used_fallback"] is False
+
+
+def test_stream_troubleshooting_prioritization_does_not_call_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="timeout-row",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content="Error Message: Encoder timeout error.; Corrective Action: Check the encoder connection.",
+        metadata={"chunk_type": "table_record"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model relevance review should not run")),
+    )
+
+    prioritized = api_debug._stream_prioritize_results_for_answer(
+        "How should the encoder timeout error be corrected?",
+        [result],
+        emit=lambda _event: None,
+    )
+
+    assert prioritized["prioritized_results"] == [result]
+    assert prioritized["selection_source"] == "structured_troubleshooting"
+
+
+def test_stream_answer_uses_direct_structured_fact_before_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="username",
+        score=0.9,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[283],
+        section_path=["SFTP"],
+        content=(
+            "Input the user name (max: 48 characters) to log in to the FTP/SFTP server. "
+            "(Default: Not set (blank))"
+        ),
+        metadata={"chunk_type": "spec_record", "product_model": "IV4-G600CA"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model answer should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        "How do I configure the login name for the IV4-G600CA FTP server?",
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert "Default: Not set (blank)" in answer.answer
+    assert answer.citations[0]["chunk_id"] == "username"
+    assert trace["final_answer"]["prompt_kind"] == "structured_fact"
+
+
+def test_stream_structured_fact_repairs_queried_model_split_by_source_colon(monkeypatch):
+    result = SearchResult(
+        chunk_id="display-cable-limit",
+        score=1.0,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="doc-iv4",
+        pages=[7],
+        section_path=["General precautions"],
+        content=(
+            "When using the display expansion unit (IV4: DU10), make sure the length of "
+            "the cable used for connecting to the external device is less than 30 meters long."
+        ),
+        metadata={"chunk_type": "spec_record", "product_model": "IV4-G600CA"},
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        "How long can the connection cable be when using the IV4-DU10?",
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[],
+        emit=lambda *_args, **_kwargs: None,
+    )
+
+    assert "IV4-DU10" in answer.answer
+    assert "IV4: DU10" not in answer.answer
+    assert "less than 30 meters" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "deterministic_structured_fact"
+
+
+def test_stream_answer_uses_exact_input_terminal_table_cell_before_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="input-count",
+        score=0.9,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[446],
+        section_path=["Specifications"],
+        content=(
+            "Column headers: IV4-G120 > Standard Mode, Sorting Mode, AI Through Count Mode; "
+            "Row headers: Number of inputs; Cell value: 8 (IN1 to IN8); Row: 17; Column: 2"
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "IV4-G120"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model answer should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        "How many input terminals does the IV4-G120 provide?",
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer == "The IV4-G120 provides 8 input terminals (IN1 to IN8)."
+    assert answer.citations[0]["chunk_id"] == "input-count"
+    assert trace["final_answer"]["prompt_kind"] == "structured_table"
+
+
+def test_stream_answer_uses_exact_first_input_function_before_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="input-function",
+        score=0.9,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[446],
+        section_path=["Specifications"],
+        content=(
+            "Column headers: IV4-G120; Row headers: Function; Cell value: "
+            "IN1: External trigger, IN2 to IN8: Enable by assigning the optional functions; "
+            "Row: 18; Column: 2"
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "IV4-G120"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model answer should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        "What function is assigned to the first input on the IV4-G120?",
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer == "The first input (IN1) is assigned to External trigger."
+    assert answer.citations[0]["chunk_id"] == "input-function"
+    assert trace["final_answer"]["prompt_kind"] == "structured_table"
+
+
+def test_stream_answer_uses_numbered_mode_requirement_before_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="large-area-search",
+        score=0.9,
+        title="LJ-S8000 manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[132],
+        section_path=["Pattern settings"],
+        content=(
+            "Setting item: Large Area Search Mode; Settings: Select this option when the pattern "
+            "region is set to wide. • Mode 1: If the region size exceeds a width of 2,432 pixels "
+            "and/or a height of 2,050 pixels, this mode must be selected. • Mode 2: If the region "
+            "size exceeds 4096 pixels, this mode must be selected."
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "LJ-S8000 Series"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model answer should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        "When must I enable Large Area Search Mode 1 on the LJ-S8000 Series?",
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert "2,432 pixels" in answer.answer
+    assert "2,050 pixels" in answer.answer
+    assert "4096" not in answer.answer
+    assert trace["final_answer"]["prompt_kind"] == "named_mode_requirement"
+
+
+def test_stream_answer_uses_troubleshooting_cause_before_display_cell(monkeypatch):
+    display_cell = SearchResult(
+        chunk_id="display-cell",
+        score=1.0,
+        title="W500 manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[4],
+        section_path=["Troubleshooting"],
+        content=(
+            "Column headers: Display; Row headers: Loc - (The bar pulses across the display.); "
+            "Cell value: - (The bar pulses across the display.); Row: 7; Column: 0"
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "W500"},
+    )
+    cause_row = SearchResult(
+        chunk_id="pulsing-bar",
+        score=0.9,
+        title="W500 manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[4],
+        section_path=["Troubleshooting"],
+        content=(
+            "Display: - (The bar pulses across the display.); "
+            "Cause: The display selection is set to OFF.; "
+            "Solution: Set the display selection to ON."
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "W500"},
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        "Why does the W500 display a pulsing bar?",
+        [display_cell, cause_row],
+        prioritized_results=[cause_row, display_cell],
+        summarized_evidence=[],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer == "Cause: The display selection is set to OFF."
+    assert answer.citations[0]["chunk_id"] == "pulsing-bar"
+    assert trace["final_answer"]["prompt_kind"] == "structured_troubleshooting"
+
+
+def test_stream_response_light_action_uses_prioritized_atomic_evidence(monkeypatch):
+    neighboring_result = SearchResult(
+        chunk_id="neighboring-light-adjustment",
+        score=1.0,
+        title="LR-W70(C) manual",
+        document_version_id="v1",
+        source_document_id="doc-lrw70",
+        pages=[6],
+        section_path=["RUN"],
+        content=(
+            "In this situation, it may be possible to increase stability by adjusting "
+            "the light intensity to the optimal value using the steps below."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "LR-W70(C) Edition"},
+    )
+    exact_result = neighboring_result.model_copy(
+        update={
+            "chunk_id": "response-light-condition",
+            "pages": [7],
+            "section_path": ["SET"],
+            "content": (
+                "When using the product with the [500 μ s] or [2.1 ms] response time, "
+                "the indicators may be displayed if the light intensity is saturated or "
+                "insufficient, respectively. It is beneficial to recalibrate the sensor, "
+                "since the light intensity is automatically adjusted during calibration."
+            ),
+        }
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        "What corrective action does the LR-W70(C) manual recommend when the "
+        "saturation/insufficient-light indicators appear at 500 µs or 2.1 ms response time?",
+        [neighboring_result],
+        prioritized_results=[exact_result, neighboring_result],
+        summarized_evidence=[],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer == (
+        "Recalibrate the LR-W70(C); calibration automatically adjusts the light intensity."
+    )
+    assert answer.citations[0]["chunk_id"] == "response-light-condition"
+    assert trace["final_answer"]["answer_source"] == "deterministic_structured_fact"
+
+
+def test_stream_event_action_uses_condition_leading_prioritized_evidence():
+    release = SearchResult(
+        chunk_id="release-too-early",
+        score=1.0,
+        title="W500 manual",
+        document_version_id="v1",
+        source_document_id="doc-w500",
+        pages=[2],
+        section_path=["SET"],
+        content="Release the button when ' SEt ' flashes.",
+        metadata={"chunk_type": "atomic_text", "product_model": "W500"},
+    )
+    exact = release.model_copy(
+        update={
+            "chunk_id": "continue-holding",
+            "content": (
+                "When ' SEt ' flashes, continue holding the [SET] button and pass the "
+                "workpiece in front of the sensor."
+            ),
+        }
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        "What should I do when the SET indicator flashes on the W500?",
+        [release],
+        prioritized_results=[release, exact],
+        summarized_evidence=[],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer.startswith("Continue holding the [SET] button")
+    assert answer.citations[0]["chunk_id"] == "continue-holding"
+    assert trace["final_answer"]["answer_source"] == "deterministic_event_action"
 
 
 def _fake_eval_case() -> RetrievalEvalCase:
@@ -63,6 +728,67 @@ def test_stream_step_payload_includes_retrieval_samples():
     assert payload["count"] == 1
     assert payload["samples"][0]["chunk_id"] == "chunk-1"
     assert payload["samples"][0]["content_preview"] == "Use 24 VDC power and verify the status LED."
+
+
+def test_explain_retrieval_exposes_corrective_trace(monkeypatch):
+    trace = {
+        "attempted": True,
+        "accepted": True,
+        "resolved_facets": ["location", "purpose"],
+    }
+    result = SearchResult(
+        chunk_id="overlap-setting",
+        score=0.93,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[42],
+        section_path=["Capture Unit", "Line Camera Settings"],
+        content="Set Overlapping lines under Continuous Capture Settings.",
+        metadata={"corrective_retrieval": trace},
+    )
+    monkeypatch.setattr(main, "build_filters", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(main, "retrieve", lambda *_args, **_kwargs: [result])
+
+    response = client.post(
+        "/explain-retrieval",
+        headers=ADMIN_HEADERS,
+        json={"query": "Where do I set overlapping lines?", "corpus_ids": ["manuals"]},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["corrective_retrieval"] == trace
+    assert payload["reranked_top_results"][0]["chunk_id"] == "overlap-setting"
+
+
+def test_assemble_stream_payload_preserves_complete_evidence_for_eval_scoring():
+    content = "A" * 300 + " expected answer-bearing evidence"
+    state = {
+        "retrieval_results": [
+            {
+                "chunk_id": "chunk-1",
+                "score": 0.91,
+                "title": "Sensor Manual",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "pages": [4],
+                "section_path": ["Setup"],
+                "content": content,
+                "metadata": {
+                    "chunk_type": "procedure_record",
+                    "context_window": "neighboring evidence",
+                    "parent_context": "setup procedure",
+                },
+            }
+        ]
+    }
+
+    payload = api_debug._stream_step_payload("assemble_context", state)
+
+    assert payload["samples"][0]["content"] == content
+    assert payload["samples"][0]["context_window"] == "neighboring evidence"
+    assert payload["samples"][0]["metadata"]["chunk_type"] == "procedure_record"
 
 
 def test_stream_step_payload_includes_answer_step_details():

@@ -1,0 +1,398 @@
+{
+  "summary": {
+    "model": "qwen3.5:9b",
+    "ollama_url": "http://127.0.0.1:11435",
+    "started_at": "2026-09-10T22:43:22.629845+00:00",
+    "finished_at": "2026-09-10T22:44:52.011890+00:00",
+    "documents": 1,
+    "completed": 1,
+    "failed": 0,
+    "audit_passed": 1,
+    "elapsed_seconds": 89.382,
+    "applied": false
+  },
+  "results": [
+    {
+      "document_id": "8d83cb71-55d2-42db-9630-bc16f0d6877c",
+      "version_id": "2ff1e7ad-0b2e-4381-9a64-b988891d612c",
+      "source_filename": "VJ-H500CX_Datasheet.pdf",
+      "status": "ok",
+      "elapsed_seconds": 89.357,
+      "segment_count": 19,
+      "page_count": 2,
+      "metadata": {
+        "manufacturer": "KEYENCE AMERICA",
+        "companies": [
+          "KEYENCE AMERICA"
+        ],
+        "product_family": null,
+        "product_model": "VJ-H500CX",
+        "product_families": [],
+        "product_models": [
+          "VJ-H500CX"
+        ],
+        "devices": [
+          "VJ-H500CX",
+          "5 Megapixel Color",
+          "Color CMOS",
+          "C-mount"
+        ],
+        "part_numbers": [],
+        "protocol_terms": [],
+        "settings": [],
+        "parameters": [],
+        "menu_labels": [],
+        "document_topics": [
+          "cad file",
+          "dimensions",
+          "electronic shutter",
+          "environmental resistance",
+          "image sensor",
+          "lens mount",
+          "product manual",
+          "specifications",
+          "transfer system",
+          "weight"
+        ],
+        "title": "VJ-H500CX",
+        "document_kind": "datasheet",
+        "revision_date": "2025-04-22",
+        "effective_date": "2025-04-22",
+        "metadata_schema_version": 2,
+        "metadata_evidence": [
+          {
+            "value": "VJ-H500CX",
+            "normalized_value": "VJH500CX",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Model | | VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "KEYENCE AMERICA",
+            "normalized_value": "keyence america",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "KEYENCE AMERICA",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "KEYENCE AMERICA"
+            ],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "2025/04/22",
+            "normalized_value": "2025/04/22",
+            "kind": "document_revision",
+            "relation": "document_revision",
+            "subject": null,
+            "source_quote": "2025/04/22",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "2025/04/22"
+            ],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "Color CMOS",
+            "normalized_value": "color cmos",
+            "kind": "device",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Image sensor | | Color CMOS, square lattice",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "C-mount",
+            "normalized_value": "c-mount",
+            "kind": "device",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Lens mount | | C-mount",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "VJ-H500CX",
+            "normalized_value": "VJH500CX",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "source_method": "upload_identity_page_grounded",
+            "verification_status": "rejected",
+            "confidence": 0.0,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "KEYENCE AMERICA",
+            "kind": "company",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "KEYENCE AMERICA",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "KEYENCE AMERICA"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "VJ-H500CX",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "5 Megapixel Color",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "5 Megapixel Color",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "5 Megapixel Color"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "VJ-H500CX",
+            "kind": "document_title",
+            "relation": "printed_title",
+            "subject": null,
+            "source_quote": "VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "opening_page_title"
+          }
+        ],
+        "normalized_identifier_aliases": [
+          "VJ-H500CX",
+          "VJH500CX"
+        ],
+        "routing_product_models": [
+          "VJ-H500CX"
+        ],
+        "routing_part_numbers": [],
+        "routing_protocol_terms": [],
+        "firmware_applicability": [],
+        "software_applicability": [],
+        "metadata_claims": [
+          {
+            "value": "VJ-H500CX",
+            "normalized_value": "VJH500CX",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Model | | VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "KEYENCE AMERICA",
+            "normalized_value": "keyence america",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "KEYENCE AMERICA",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "KEYENCE AMERICA"
+            ],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "2025/04/22",
+            "normalized_value": "2025/04/22",
+            "kind": "document_revision",
+            "relation": "document_revision",
+            "subject": null,
+            "source_quote": "2025/04/22",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "2025/04/22"
+            ],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "Color CMOS",
+            "normalized_value": "color cmos",
+            "kind": "device",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Image sensor | | Color CMOS, square lattice",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "C-mount",
+            "normalized_value": "c-mount",
+            "kind": "device",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Lens mount | | C-mount",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "source_method": "page_aware_model_extraction",
+            "verification_status": "confirmed",
+            "confidence": 0.8500000000000001,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          },
+          {
+            "value": "VJ-H500CX",
+            "normalized_value": "VJH500CX",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "source_method": "upload_identity_page_grounded",
+            "verification_status": "rejected",
+            "confidence": 0.0,
+            "grounded": true,
+            "support_pages": [
+              1
+            ]
+          }
+        ],
+        "metadata_pipeline_version": "evidence_map_reduce_verify_v1"
+      },
+      "audit": {
+        "passed": true,
+        "checks": {
+          "schema_v2": true,
+          "map_reduce_verify_pipeline": true,
+          "has_independently_confirmed_claims": true,
+          "all_evidence_grounded": true,
+          "all_routing_values_evidence_gated": true,
+          "no_conflicting_claim_controls_routing": true,
+          "all_applicability_scoped": true,
+          "title_grounded_on_opening_pages": true
+        },
+        "evidence_count": 10,
+        "claim_count": 6,
+        "claim_status_counts": {
+          "confirmed": 5,
+          "probable": 0,
+          "unresolved": 0,
+          "conflicting": 0,
+          "rejected": 1
+        },
+        "ungrounded_evidence": [],
+        "routing_without_evidence": {
+          "product_models": [],
+          "part_numbers": [],
+          "protocols": []
+        },
+        "malformed_applicability": [],
+        "routing_product_models": [
+          "VJ-H500CX"
+        ],
+        "routing_part_numbers": [],
+        "routing_protocol_terms": [],
+        "firmware_applicability_count": 0,
+        "software_applicability_count": 0
+      },
+      "error": null
+    }
+  ]
+}

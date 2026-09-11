@@ -1,3 +1,8 @@
+import json
+from types import SimpleNamespace
+
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from apps.api import main
@@ -6,6 +11,282 @@ from apps.api.main import app
 
 client = TestClient(app)
 USER_HEADERS = {"Authorization": "Bearer user-token"}
+
+
+@pytest.mark.parametrize(
+    ("orchestrator", "attribute"),
+    [
+        ("langgraph_agent", "langgraph_agentic_retriever"),
+        ("llamaindex_agent", "llamaindex_agentic_retriever"),
+    ],
+)
+def test_query_routes_to_selected_agentic_retriever(monkeypatch, orchestrator, attribute):
+    calls = []
+
+    class FakeAgenticRetriever:
+        def invoke(self, payload):
+            calls.append(payload)
+            return {
+                "retrieval_results": [
+                    {
+                        "chunk_id": "chunk-1",
+                        "score": 0.9,
+                        "title": "Manual",
+                        "document_version_id": "ver-1",
+                        "source_document_id": "doc-1",
+                        "pages": [2],
+                        "section_path": ["Serial cables"],
+                        "content": "OP-26487 is a straight serial cable.",
+                        "metadata": {},
+                    }
+                ],
+                "retrieval_trace": {"completed_hops": ["identify", "orientation"]},
+            }
+
+    class FakeAnswer:
+        def model_dump(self):
+            return {
+                "answer": "OP-26487 is straight.",
+                "confidence": "high",
+                "used_documents": [],
+                "citations": [],
+                "warnings": [],
+                "followup_questions": [],
+                "insufficient_evidence": False,
+            }
+
+    monkeypatch.setattr(main, attribute, FakeAgenticRetriever())
+    monkeypatch.setattr(main, "generate_answer", lambda _query, _results: FakeAnswer())
+
+    response = client.post(
+        "/query",
+        headers=USER_HEADERS,
+        json={
+            "query": "Which cable connects the port, then what is its orientation?",
+            "corpus_ids": ["manuals_vendor_keyence"],
+            "retrieval_orchestrator": orchestrator,
+            "max_retrieval_hops": 3,
+            "max_retrieval_seconds": 12,
+        },
+    )
+
+    assert response.status_code == 200
+    assert calls[0]["max_hops"] == 3
+    assert calls[0]["max_seconds"] == 12.0
+    assert response.json()["retrieval_orchestrator"] == orchestrator
+    assert response.json()["retrieval_trace"]["completed_hops"] == ["identify", "orientation"]
+
+
+def test_agentic_retrieval_kill_switch_does_not_block_baseline(monkeypatch):
+    monkeypatch.setattr(main, "settings", SimpleNamespace(agentic_retrieval_enabled=False))
+
+    main._require_agentic_retrieval_enabled(
+        main.QueryRequest(query="ordinary lookup", corpus_ids=["manuals"], retrieval_orchestrator="baseline")
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        main._require_agentic_retrieval_enabled(
+            main.QueryRequest(
+                query="multi-step lookup",
+                corpus_ids=["manuals"],
+                retrieval_orchestrator="langgraph_agent",
+            )
+        )
+
+    assert exc_info.value.status_code == 503
+
+
+def test_agentic_runtime_budget_is_api_bounded():
+    with pytest.raises(ValueError):
+        main.QueryRequest(query="lookup", corpus_ids=["manuals"], max_retrieval_seconds=4)
+    with pytest.raises(ValueError):
+        main.QueryRequest(query="lookup", corpus_ids=["manuals"], max_retrieval_seconds=301)
+
+
+def test_agentic_runtime_budget_clamps_invalid_environment_value(monkeypatch):
+    monkeypatch.setattr(main, "settings", SimpleNamespace(agentic_retrieval_max_seconds=-10))
+    request = main.QueryRequest(query="lookup", corpus_ids=["manuals"])
+
+    assert main._agentic_max_seconds(request) == 5.0
+
+    monkeypatch.setattr(main, "settings", SimpleNamespace(agentic_retrieval_max_seconds=999))
+    assert main._agentic_max_seconds(request) == 300.0
+
+
+def test_agentic_query_stream_emits_live_trace_and_final_answer(monkeypatch):
+    class FakeAgenticRetriever:
+        def __init__(self, event_callback):
+            self.event_callback = event_callback
+
+        def invoke(self, _payload):
+            self.event_callback(
+                {
+                    "event": "plan_completed",
+                    "plan": {"mode": "dependent", "rationale": "Two hops", "hops": []},
+                    "max_hops": 3,
+                }
+            )
+            self.event_callback(
+                {
+                    "event": "hop_completed",
+                    "hop_id": "identify",
+                    "sufficient": True,
+                    "assessment": {"query_term_coverage": 1.0},
+                    "results": [],
+                    "ledger_entry": {},
+                }
+            )
+            return {
+                "retrieval_results": [
+                    {
+                        "chunk_id": "chunk-1",
+                        "score": 0.9,
+                        "title": "Manual",
+                        "document_version_id": "ver-1",
+                        "source_document_id": "doc-1",
+                        "pages": [2],
+                        "section_path": ["Serial cables"],
+                        "content": "OP-26487 is a straight serial cable.",
+                        "metadata": {},
+                    }
+                ],
+                "retrieval_trace": {"completed_hops": ["identify"], "sufficient": True},
+            }
+
+    class FakeAnswer:
+        def model_dump(self):
+            return {
+                "answer": "OP-26487 is straight.",
+                "confidence": "high",
+                "used_documents": [],
+                "citations": [],
+                "warnings": [],
+                "followup_questions": [],
+                "insufficient_evidence": False,
+            }
+
+    monkeypatch.setattr(
+        main,
+        "build_langgraph_agentic_retriever",
+        lambda *, event_callback: FakeAgenticRetriever(event_callback),
+    )
+    monkeypatch.setattr(main, "generate_answer", lambda _query, _results: FakeAnswer())
+
+    response = client.post(
+        "/query/stream",
+        headers=USER_HEADERS,
+        json={
+            "query": "Which cable, then what orientation?",
+            "corpus_ids": ["manuals_vendor_keyence"],
+            "retrieval_orchestrator": "langgraph_agent",
+            "max_retrieval_hops": 3,
+        },
+    )
+
+    assert response.status_code == 200
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert [event["event"] for event in events] == [
+        "run_started",
+        "plan_completed",
+        "hop_completed",
+        "answer_started",
+        "answer_completed",
+        "run_completed",
+    ]
+    assert events[-1]["result"]["answer"] == "OP-26487 is straight."
+
+
+def test_agentic_query_stream_rejects_baseline():
+    response = client.post(
+        "/query/stream",
+        headers=USER_HEADERS,
+        json={
+            "query": "What product is this?",
+            "corpus_ids": ["manuals_vendor_keyence"],
+            "retrieval_orchestrator": "baseline",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_agentic_answer_reduces_each_confirmed_required_claim(monkeypatch):
+    results = [
+        main.SearchResult(
+            chunk_id="weight",
+            score=1.0,
+            title="Camera",
+            document_version_id="camera-v1",
+            source_document_id="camera-doc",
+            pages=[1],
+            section_path=["Specifications"],
+            content="Weight: 280 g",
+            metadata={},
+        ),
+        main.SearchResult(
+            chunk_id="direction",
+            score=1.0,
+            title="Display",
+            document_version_id="display-v1",
+            source_document_id="display-doc",
+            pages=[12],
+            section_path=["Display"],
+            content="Slide to the right to increase grayscale.",
+            metadata={},
+        ),
+    ]
+    calls = []
+
+    class FakeAnswer:
+        def __init__(self, answer, result):
+            self.answer = answer
+            self.confidence = "high"
+            self.used_documents = [
+                {
+                    "document_id": result.source_document_id,
+                    "title": result.title,
+                    "version": result.document_version_id,
+                    "pages": result.pages,
+                    "section_path": result.section_path,
+                }
+            ]
+            self.citations = [
+                {
+                    "chunk_id": result.chunk_id,
+                    "document_id": result.source_document_id,
+                    "pages": result.pages,
+                    "quote_span": None,
+                }
+            ]
+            self.warnings = []
+            self.followup_questions = []
+            self.insufficient_evidence = False
+
+    def fake_reduce(objective, branch_results, _rationale):
+        calls.append((objective, [result.chunk_id for result in branch_results]))
+        return FakeAnswer(
+            "280 g" if branch_results[0].chunk_id == "weight" else "Slide right",
+            branch_results[0],
+        )
+
+    monkeypatch.setattr(main, "_answer_confirmed_claim", fake_reduce)
+    answer = main._generate_agentic_answer(
+        "Compare the camera weight and display direction.",
+        results,
+        {
+            "required_claim_support": {"weight_claim": ["weight"], "direction_claim": ["direction"]},
+            "evidence_ledger": {
+                "weight_claim": {"objective": "Find the camera weight"},
+                "direction_claim": {"objective": "Find the display direction"},
+            },
+        },
+    )
+
+    assert calls == [
+        ("Find the camera weight", ["weight"]),
+        ("Find the display direction", ["direction"]),
+    ]
+    assert answer.answer == "280 g\n\nSlide right"
+    assert {citation["chunk_id"] for citation in answer.citations} == {"weight", "direction"}
 
 
 def _fake_query_result():

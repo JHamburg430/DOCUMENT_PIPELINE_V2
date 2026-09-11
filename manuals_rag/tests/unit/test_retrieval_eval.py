@@ -1,17 +1,249 @@
+import json
+
 import pytest
 
 from manuals_rag_evals.retrieval_eval import (
     RetrievalEvalCase,
     USER_STYLE_QUERY_FEW_SHOT_EXAMPLES,
+    USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT,
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
+    generated_query_source_rejection_reason,
+    multi_step_case_quality_rejection_reason,
     score_answer_response,
     score_document_selection,
     score_search_results,
     validate_eval_case,
     _parse_generated_queries,
+    _parse_query_review,
+    _query_aligned_expected_snippet,
+    _answer_scoring_terms,
+    _configuration_location_answer_completeness,
+    _question_generation_trace_fields,
+    _safe_query_label,
+    _short_answer_anchor,
+    _structured_eval_input,
+    _troubleshooting_query_qualifier,
+    _troubleshooting_row_identifier,
 )
+
+
+def test_query_aligned_expected_snippet_separates_multiple_rows_in_one_chunk():
+    content = (
+        "Status: Small defects can no longer be detected if the Intensity Threshold Level is increased.; "
+        "Corrective action: Decrease the Segment Size.; "
+        "Status: The Segment Size cannot be set to under 4.; "
+        "Corrective action: Uncheck High Speed Mode and then decrease the Segment Size."
+    )
+
+    defects = _query_aligned_expected_snippet(
+        "How do I restore detection of small defects after raising the Intensity Threshold Level?",
+        content,
+    )
+    below_four = _query_aligned_expected_snippet(
+        "What must I disable to set the Segment Size below 4?",
+        content,
+    )
+
+    assert "Small defects" in defects
+    assert "Intensity Threshold Level" in defects
+    assert "Uncheck High Speed Mode" not in defects
+    assert below_four.startswith("Corrective action: Uncheck High Speed Mode")
+    assert "set to under 4" in below_four
+    assert "Small defects" not in below_four
+
+
+@pytest.mark.parametrize(
+    ("query", "content", "expected_reason"),
+    [
+        (
+            "What precautions must I follow to reduce noise?",
+            "Install the unit following the precautions below. Otherwise, a malfunction may occur.",
+            "not_answerable_from_snippet",
+        ),
+        (
+            "How do I configure the screen updating method?",
+            "Procedure step 2: Typical operations at trigger input (Run Screen Update Mode is Live Image)",
+            "asks_for_steps_not_present",
+        ),
+        (
+            "What happens if I select Live Image?",
+            "Procedure step 2: Typical operations at trigger input (Run Screen Update Mode is Live Image)",
+            "not_answerable_from_snippet",
+        ),
+        (
+            "What output type does the IV4-400CA provide?",
+            "IV4-400CA: Output; IV4-400MA: Open collector output, NPN/PNP is switchable.",
+            "wrong_product_or_context",
+        ),
+        (
+            "What happens to the output when SD card capacity is insufficient?",
+            "The output turns ON for an SD card access error.",
+            "invented_fact",
+        ),
+    ],
+)
+def test_generated_query_requires_the_requested_instruction_or_outcome_in_source(
+    query: str,
+    content: str,
+    expected_reason: str,
+):
+    assert generated_query_source_rejection_reason(query, content) == expected_reason
+
+
+def test_generated_query_source_gate_accepts_concrete_directives_and_outcomes():
+    assert generated_query_source_rejection_reason(
+        "What precautions must I follow to reduce noise?",
+        "Follow these precautions: Separate the unit from strong magnetic fields. Ground the frame ground terminal.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "What happens when the Error output is selected?",
+        "The output turns ON when a system error occurs.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "What happens if I ignore the installation precautions?",
+        "Install the unit following the precautions below. Otherwise, a malfunction may occur.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "How do I configure the screen update mode?",
+        "Open Run Settings, select Screen Update Mode, and choose Live Image.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "What output type does the IV4-400MA provide?",
+        "IV4-400CA: Output; IV4-400MA: Open collector output, NPN/PNP is switchable.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "What happens when the registration capacity is full?",
+        "When the registration capacity is full, the indicator turns red.",
+    ) is None
+
+
+def test_answer_scoring_uses_the_query_relevant_source_clause():
+    case = RetrievalEvalCase(
+        case_id="case-relevant-clause",
+        query="Is the sensor safe for use in explosive atmospheres?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="warning_record",
+        section_path="Safety",
+        page_from=1,
+        page_to=1,
+        expected_terms=["danger", "purpose", "protect"],
+        expected_snippet=(
+            "DANGER: Do not use this product to protect a human body. "
+            "This product is not intended as explosion-proof. Do not use it in a hazardous location."
+        ),
+        generation_method="reviewed_llm:safety",
+        source_metadata={},
+    )
+
+    terms, source = _answer_scoring_terms(case)
+
+    assert source == "query_relevant_expected_snippet_terms"
+    assert "explosion-proof" in terms
+    assert not {"danger", "purpose", "protect"}.intersection(terms)
+
+
+def test_answer_scoring_requires_the_complete_named_alternative_phrase():
+    case = RetrievalEvalCase(
+        case_id="case-auto-mode",
+        query="Which detection modes does the W500 Auto setting choose between?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="table_record",
+        section_path="Detection mode",
+        page_from=1,
+        page_to=1,
+        expected_terms=["detection", "default", "explanation"],
+        expected_snippet=(
+            "Detection mode: Auto (default); Explanation: When adjusting the sensitivity, "
+            "the optimal mode is automatically selected between C+I or C."
+        ),
+        generation_method="reviewed_llm:named choice",
+        source_metadata={},
+    )
+    base_answer = {
+        "confidence": "high",
+        "used_documents": [{"document_id": "doc-1"}],
+        "citations": [{"chunk_id": "chunk-1", "document_id": "doc-1"}],
+        "warnings": [],
+        "followup_questions": [],
+        "insufficient_evidence": False,
+    }
+
+    incomplete = score_answer_response(
+        case,
+        {**base_answer, "answer": "Auto uses C+I mode."},
+        use_llm_required_info_judge=False,
+    )
+    complete = score_answer_response(
+        case,
+        {
+            **base_answer,
+            "answer": (
+                "Detection mode: Auto (default). Explanation: the optimal mode is selected between C+I or C."
+            ),
+        },
+        use_llm_required_info_judge=False,
+    )
+
+    assert not incomplete["passed"]
+    assert incomplete["term_check"]["material_term_source"] == "named_alternative_terms"
+    assert incomplete["term_check"]["material_expected_terms"] == ["C+I or C"]
+    assert complete["passed"]
+
+
+def test_answer_scoring_requires_required_setting_alignment_not_only_a_hazard_example():
+    case = RetrievalEvalCase(
+        case_id="case-voltage-setting",
+        query="Which voltage setting must match the illumination unit for the CA-DC40E?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="warning_record",
+        section_path="CAUTION",
+        page_from=1,
+        page_to=1,
+        expected_terms=["set", "voltage", "illumination", "ca-dc40e"],
+        expected_snippet=(
+            "Make sure to set the Voltage Output for the illumination unit of the CA-DC40E light "
+            "controller correctly. Connecting a 12 V unit at 24 V may cause damage."
+        ),
+        generation_method="reviewed_llm:setting alignment",
+        source_metadata={"product_model": "CA-DC40E"},
+    )
+    base_answer = {
+        "confidence": "high",
+        "used_documents": [{"document_id": "doc-1"}],
+        "citations": [{"chunk_id": "chunk-1", "document_id": "doc-1"}],
+        "warnings": [],
+        "followup_questions": [],
+        "insufficient_evidence": False,
+    }
+
+    hazard_only = score_answer_response(
+        case,
+        {**base_answer, "answer": "A 12 V illumination unit at 24 V may be damaged."},
+        use_llm_required_info_judge=False,
+    )
+    aligned = score_answer_response(
+        case,
+        {**base_answer, "answer": "Set Voltage Output correctly to match the illumination unit."},
+        use_llm_required_info_judge=False,
+    )
+
+    assert not hazard_only["passed"]
+    assert hazard_only["term_check"]["material_term_source"] == "required_setting_alignment_terms"
+    assert aligned["passed"]
 
 
 def test_large_retrieval_eval_loads_saved_dataset(tmp_path):
@@ -58,6 +290,336 @@ def test_large_retrieval_eval_loads_saved_dataset(tmp_path):
     assert len(cases) == 1
     assert cases[0]["case_id"] == "case-1"
     assert cases[0]["retrieval_task"] == "single_step_retrieval"
+
+
+def test_large_retrieval_eval_fetch_chunks_merges_document_metadata(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.setattr(
+        module,
+        "_query_postgres_rows",
+        lambda _sql: [
+            {
+                "id": "chunk-1",
+                "source_document_id": "doc-1",
+                "document_version_id": "ver-1",
+                "chunk_type": "procedure_record",
+                "chunk_level": 1,
+                "title": "Setting OK range",
+                "section_path_text": "Inspection settings > Height",
+                "page_from": 32,
+                "page_to": 33,
+                "content": "Set the OK range for average height.",
+                "metadata_json": "{}",
+                "document_title": "CV-X Series User Manual",
+                "document_kind": "manual",
+                "manufacturer": "KEYENCE",
+                "product_family": "CV-X Series",
+                "source_filename": "cvx.pdf",
+                "product_model": "CV-X482",
+            }
+        ],
+    )
+
+    rows = module.fetch_chunk_rows(["doc-1"])
+
+    assert rows[0]["document_title"] == "CV-X Series User Manual"
+    assert rows[0]["metadata_json"]["document_title"] == "CV-X Series User Manual"
+    assert rows[0]["metadata_json"]["manufacturer"] == "KEYENCE"
+    assert rows[0]["metadata_json"]["product_family"] == "CV-X Series"
+    assert rows[0]["metadata_json"]["product_model"] == "CV-X482"
+
+
+def test_large_retrieval_eval_selects_stable_document_holdout():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    documents = [
+        {"document_id": f"doc-{index}", "filename": f"manual-{index}.pdf"}
+        for index in range(6)
+    ]
+
+    selected = module.select_held_out_documents(documents, count=2, seed=42)
+    reordered = module.select_held_out_documents(list(reversed(documents)), count=2, seed=42)
+
+    assert len(selected) == 2
+    assert [item["document_id"] for item in selected] == [item["document_id"] for item in reordered]
+    assert module.select_held_out_documents(documents, count=0, seed=42) == documents
+
+
+def test_large_retrieval_eval_rejects_oversized_document_holdout():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    with pytest.raises(ValueError, match="exceeds"):
+        module.select_held_out_documents([{"document_id": "doc-1"}], count=2, seed=42)
+
+
+def test_large_retrieval_eval_fetch_chunks_adds_fallback_context_window(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.setattr(
+        module,
+        "_query_postgres_rows",
+        lambda _sql: [
+            {
+                "id": "chunk-1",
+                "source_document_id": "doc-1",
+                "document_version_id": "ver-1",
+                "chunk_type": "procedure_record",
+                "chunk_level": 1,
+                "title": "Disconnect devices",
+                "section_path_text": "PLC > EtherNet/IP setup",
+                "page_from": 3,
+                "page_to": 3,
+                "content": "Disconnect all other devices before connecting the LJ-X8000 controller.",
+                "previous_chunk_content": "Turn off controller power before wiring the Ethernet cable.",
+                "next_chunk_content": "Reconnect the PLC after the communication check is complete.",
+                "metadata_json": "{}",
+                "document_title": "LJ-X8000 Setup Guide",
+                "document_kind": "manual",
+                "manufacturer": "KEYENCE",
+                "product_family": "LJ-X8000",
+                "source_filename": "ljx.pdf",
+                "product_model": "LJ-X8000",
+            }
+        ],
+    )
+
+    row = module.fetch_chunk_rows(["doc-1"])[0]
+    context_window = row["metadata_json"]["context_window"]
+    structured = _structured_eval_input(row, ["disconnect", "devices"])
+
+    assert "Previous chunk: Turn off controller power" in context_window
+    assert "Current chunk: Disconnect all other devices" in context_window
+    assert "Next chunk: Reconnect the PLC" in context_window
+    assert row["metadata_json"]["parent_context"] == "Section path: PLC > EtherNet/IP setup"
+    assert "Turn off controller power" in structured["document_context"]["context_window_excerpt"]
+    assert "Reconnect the PLC" in structured["section_context_excerpt"]
+
+
+def test_large_retrieval_eval_prepares_ranked_queryworthy_generation_chunks():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    weak_format_cell = {
+        "id": "weak-format",
+        "chunk_type": "table_record",
+        "title": "Table",
+        "section_path_text": "Results",
+        "content": "Column headers: Number Format > Integer Digits; Row headers: Position Y Maximum; Cell value: 5; Row: 19; Column: 3",
+        "metadata_json": {
+            "table_cell": True,
+            "table_row_headers": ["Position Y Maximum"],
+            "table_column_headers": ["Number Format", "Integer Digits"],
+        },
+    }
+    procedure = {
+        "id": "procedure",
+        "chunk_type": "procedure_record",
+        "title": "Register image",
+        "section_path_text": "Setup",
+        "content": "Select Register reference image when no reference image is available for CV-X inspection setup.",
+        "metadata_json": {"procedure_flag": True, "product_model": "CV-X482"},
+    }
+    spec = {
+        "id": "spec",
+        "chunk_type": "spec_record",
+        "title": "Power",
+        "section_path_text": "Specifications",
+        "content": "Power supply voltage: 24 VDC for the LJ-X8080 controller.",
+        "metadata_json": {"spec_flag": True, "unit_tokens": ["24 VDC"], "product_model": "LJ-X8080"},
+    }
+
+    ranked = module.prepare_question_generation_chunks([weak_format_cell, procedure, spec])
+
+    assert [chunk["id"] for chunk in ranked] == ["procedure", "spec"]
+
+
+def test_large_retrieval_eval_generation_windows_continue_until_target(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    chunks = [{"id": "empty"}, {"id": "accepted-1"}, {"id": "accepted-2"}]
+    calls = []
+
+    def fake_build_eval_cases_from_chunks(window_chunks, **kwargs):
+        calls.append([chunk["id"] for chunk in window_chunks])
+        if window_chunks[0]["id"] == "empty":
+            return []
+        index = len(calls)
+        query = {
+            "accepted-1": "What voltage does MODEL-1 require?",
+            "accepted-2": "Which cable connects MODEL-2 to the controller?",
+        }[window_chunks[0]["id"]]
+        return [
+            RetrievalEvalCase(
+                case_id=f"case-{index}",
+                query=query,
+                source_document_id="doc-1",
+                document_version_id="ver-1",
+                source_chunk_id=window_chunks[0]["id"],
+                source_title="Manual",
+                source_filename="manual.pdf",
+                chunk_type="spec_record",
+                section_path="Specs",
+                page_from=1,
+                page_to=1,
+                expected_terms=["accepted"],
+                expected_snippet="Accepted source.",
+                generation_method="reviewed_llm:test",
+                source_metadata={},
+                benchmark_quality="model_reviewed",
+            )
+        ]
+
+    monkeypatch.setattr(module, "build_eval_cases_from_chunks", fake_build_eval_cases_from_chunks)
+
+    cases = module.build_single_step_generation_cases_until_target(
+        chunks,
+        max_cases=2,
+        chunk_window=1,
+        per_chunk_limit=1,
+        use_llm_generation=True,
+        previous_questions_by_chunk_id={},
+        previous_questions_by_section_key={},
+        prompt_guidance=None,
+        num_ctx=None,
+        timeout_seconds=None,
+    )
+
+    assert [case.source_chunk_id for case in cases] == ["accepted-1", "accepted-2"]
+    assert calls == [["empty"], ["accepted-1"], ["accepted-2"]]
+
+
+def test_large_retrieval_eval_generation_deduplicates_across_chunks(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    chunks = [{"id": "first"}, {"id": "duplicate"}, {"id": "distinct"}]
+
+    def fake_build_eval_cases_from_chunks(window_chunks, **kwargs):
+        chunk_id = window_chunks[0]["id"]
+        query = {
+            "first": "What output format does the CV-X482 use for Program Time?",
+            "duplicate": "What is the Program Time output format on the CV-X482?",
+            "distinct": "What unit does the CV-X482 use for Program Time?",
+        }[chunk_id]
+        return [
+            RetrievalEvalCase(
+                case_id=f"case-{chunk_id}",
+                query=query,
+                source_document_id="doc-1",
+                document_version_id="ver-1",
+                source_chunk_id=chunk_id,
+                source_title="Manual",
+                source_filename="manual.pdf",
+                chunk_type="spec_record",
+                section_path=f"Specs/{chunk_id}",
+                page_from=1,
+                page_to=1,
+                expected_terms=["program", "time"],
+                expected_snippet="Program Time output specification.",
+                generation_method="reviewed_llm:test",
+                source_metadata={},
+                benchmark_quality="model_reviewed",
+            )
+        ]
+
+    monkeypatch.setattr(module, "build_eval_cases_from_chunks", fake_build_eval_cases_from_chunks)
+
+    cases = module.build_single_step_generation_cases_until_target(
+        chunks,
+        max_cases=2,
+        chunk_window=1,
+        per_chunk_limit=1,
+        use_llm_generation=True,
+        previous_questions_by_chunk_id={},
+        previous_questions_by_section_key={},
+        prompt_guidance=None,
+        num_ctx=None,
+        timeout_seconds=None,
+    )
+
+    assert [case.source_chunk_id for case in cases] == ["first", "distinct"]
+
+
+def test_large_retrieval_eval_generation_skips_chunks_at_question_limit(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    calls = []
+
+    def fake_build_eval_cases_from_chunks(window_chunks, **kwargs):
+        calls.append([chunk["id"] for chunk in window_chunks])
+        return []
+
+    monkeypatch.setattr(module, "build_eval_cases_from_chunks", fake_build_eval_cases_from_chunks)
+
+    cases = module.build_single_step_generation_cases_until_target(
+        [{"id": "covered"}, {"id": "new"}],
+        max_cases=1,
+        chunk_window=2,
+        per_chunk_limit=1,
+        use_llm_generation=True,
+        previous_questions_by_chunk_id={"covered": ["What voltage is required?"]},
+        previous_questions_by_section_key={},
+        prompt_guidance=None,
+        num_ctx=None,
+        timeout_seconds=None,
+    )
+
+    assert cases == []
+    assert calls == [["new"]]
 
 
 def test_large_retrieval_eval_offsets_saved_dataset_after_validation(tmp_path):
@@ -244,32 +806,6 @@ def test_large_retrieval_eval_recognizes_wrapped_query_timeouts():
     assert not module.is_query_timeout_exception(RuntimeError("qdrant collection unavailable"))
 
 
-def test_large_retrieval_eval_persists_cited_evidence_beyond_top_five():
-    import importlib.util
-    from pathlib import Path
-
-    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
-    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    results = [{"chunk_id": f"chunk-{index}", "content": f"content {index}"} for index in range(1, 8)]
-    persisted = module.results_for_persisted_evidence(
-        results,
-        {"citations": [{"chunk_id": "chunk-7", "quote_span": None}]},
-    )
-
-    assert [result["chunk_id"] for result in persisted] == [
-        "chunk-1",
-        "chunk-2",
-        "chunk-3",
-        "chunk-4",
-        "chunk-5",
-        "chunk-7",
-    ]
-
-
 def test_large_retrieval_eval_enforces_elapsed_timeout_after_swallowed_signal(monkeypatch):
     import importlib.util
     from pathlib import Path
@@ -395,6 +931,264 @@ def test_answer_response_scoring_requires_terms_and_expected_document():
     assert scored["term_check"]["matched_terms"] == ["24", "vdc"]
 
 
+def test_answer_response_scoring_accepts_strong_cited_duplicate_manual_evidence():
+    case = RetrievalEvalCase(
+        case_id="case-duplicate-device-warning",
+        query="What happens if I connect a 12V light to the CA-DC40E set for 24V?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="chunk-cvx",
+        source_title="CV-X Manual",
+        source_filename="cvx.pdf",
+        chunk_type="warning_record",
+        section_path="CAUTION",
+        page_from=4,
+        page_to=4,
+        expected_terms=["set", "voltage"],
+        expected_snippet=(
+            "Connecting a 12 V DC illumination unit to a CA-DC40E whose voltage output is set "
+            "to 24 V DC may cause fire, electric shock, or damage."
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_family": "CV-X Series"},
+    )
+    duplicate = {
+        "chunk_id": "chunk-xgx",
+        "source_document_id": "doc-xgx",
+        "section_path": ["CAUTION"],
+        "content": (
+            "Connecting a 12 V DC illumination unit when the CA-DC40E Voltage Output is set at "
+            "24 V DC may cause fire, electric shock, or damage."
+        ),
+        "metadata": {"product_family": "XG-X Series", "chunk_type": "warning_record"},
+    }
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "A 12 V light connected while voltage output is set to 24 V may cause fire or damage.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-xgx", "pages": [4]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [duplicate],
+    )
+
+    assert scored["passed"] is True
+    assert scored["missing_document_ids"] == []
+    assert scored["equivalent_citation_support"]["chunk_ids"] == ["chunk-xgx"]
+
+
+def test_answer_scoring_accepts_exact_duplicate_prose_from_another_indexed_copy():
+    evidence = (
+        "With conventional AI systems, users have to select the images to use for learning "
+        "manually, requiring a certain level of experience and a lot of time. With AI Auto "
+        "Image Selector, the software automatically selects the images for learning, "
+        "eliminating the need for specialized skills and reducing learning time."
+    )
+    case = RetrievalEvalCase(
+        case_id="case-duplicate-ai-selector",
+        query="Does the VS Series AI Auto Image Selector require specialized skills to use?",
+        source_document_id="doc-new",
+        document_version_id="ver-new",
+        source_chunk_id="chunk-new",
+        source_title="VS Series",
+        source_filename="vs-new.pdf",
+        chunk_type="atomic_text",
+        section_path="KEYENCE AI",
+        page_from=11,
+        page_to=11,
+        expected_terms=["automatically selects", "specialized skills"],
+        expected_snippet=evidence,
+        generation_method="unit_test",
+        source_metadata={"product_family": "VS Series"},
+    )
+    duplicate = {
+        "chunk_id": "chunk-old",
+        "source_document_id": "doc-old",
+        "content": evidence,
+        "metadata": {"chunk_type": "atomic_text", "product_family": "A"},
+    }
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "No. The software automatically selects learning images, eliminating the "
+                "need for specialized skills."
+            ),
+            "citations": [{"document_id": "doc-old", "chunk_id": "chunk-old", "pages": [11]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [duplicate],
+    )
+
+    assert scored["passed"] is True
+    assert scored["missing_document_ids"] == []
+    assert scored["equivalent_citation_support"]["chunk_ids"] == ["chunk-old"]
+
+
+def test_answer_scoring_accepts_duplicate_input_terminal_table_row():
+    case = RetrievalEvalCase(
+        case_id="case-input-count",
+        query="How many input terminals does the IV4-G120 provide?",
+        source_document_id="doc-new",
+        document_version_id="ver-new",
+        source_chunk_id="chunk-new",
+        source_title="IV4 Manual",
+        source_filename="iv4-new.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=484,
+        page_to=484,
+        expected_terms=["8", "IN1", "IN8"],
+        expected_snippet="Model: Number of inputs; IV4-G120: 8 (IN1 to IN8)",
+        generation_method="unit_test",
+        source_metadata={"product_model": "IV4-G600CA"},
+    )
+    duplicate = {
+        "chunk_id": "chunk-old",
+        "source_document_id": "doc-old",
+        "content": (
+            "Column headers: IV4-G120; Row headers: Number of inputs; "
+            "Cell value: 8 (IN1 to IN8); Row: 17; Column: 2"
+        ),
+        "metadata": {"product_model": "IV4-G120", "chunk_type": "table_record"},
+    }
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The IV4-G120 provides 8 input terminals (IN1 to IN8).",
+            "citations": [{"document_id": "doc-old", "chunk_id": "chunk-old", "pages": [446]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [duplicate],
+    )
+
+    assert scored["passed"] is True
+    assert scored["missing_document_ids"] == []
+    assert scored["equivalent_citation_support"]["chunk_ids"] == ["chunk-old"]
+
+
+def test_answer_response_scoring_uses_quantity_from_single_step_expected_snippet():
+    case = RetrievalEvalCase(
+        case_id="case-ca-en100u-voltage",
+        query="What voltage must I supply to the CA-EN100U?",
+        source_document_id="doc-ca",
+        document_version_id="ver-ca",
+        source_chunk_id="chunk-warning",
+        source_title="CA-EN100U",
+        source_filename="ca-en100u.pdf",
+        chunk_type="warning_record",
+        section_path="Safety",
+        page_from=1,
+        page_to=1,
+        expected_terms=["en100u", "voltage", "other", "cause"],
+        expected_snippet="Do not use the CA-EN100U with a voltage other than 24 VDC.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "CA-EN100U"},
+    )
+    result = {
+        "chunk_id": "chunk-voltage",
+        "source_document_id": "doc-ca",
+        "content": "Power-supply voltage: 24 VDC +/-10%.",
+    }
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Supply the CA-EN100U with 24 VDC.",
+            "citations": [{"document_id": "doc-ca", "chunk_id": "chunk-voltage"}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [result],
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["term_source"] == "case_expected_snippet_quantity_terms"
+    assert "24" in scored["term_check"]["matched_terms"]
+
+
+def test_quantity_scoring_requires_numeric_condition_stated_in_question():
+    case = RetrievalEvalCase(
+        case_id="case-temperature-condition",
+        query="What case temperature limit applies to the IV4-G120 if ambient exceeds 40°C?",
+        source_document_id="doc-iv4",
+        document_version_id="ver-iv4",
+        source_chunk_id="chunk-temperature",
+        source_title="IV4 Manual",
+        source_filename="iv4.pdf",
+        chunk_type="atomic_text",
+        section_path="Specifications",
+        page_from=447,
+        page_to=447,
+        expected_terms=["operating", "ambient", "temperature", "exceeds"],
+        expected_snippet=(
+            "If the operating ambient temperature exceeds 40°C, confirm that the case "
+            "temperature does not exceed the rated 65°C."
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_model": "IV4-G120"},
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The IV4-G120 operating ambient temperature is 0 to 50°C.",
+            "citations": [{"document_id": "doc-iv4", "chunk_id": "chunk-temperature"}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is False
+    assert scored["term_check"]["material_term_source"] == "quantity_query_terms"
+    assert "40" in scored["term_check"]["material_expected_terms"]
+
+
+def test_answer_text_claiming_missing_evidence_cannot_pass_by_term_overlap():
+    case = RetrievalEvalCase(
+        case_id="case-calibration-effect",
+        query="When does a new master calibration set value take effect?",
+        source_document_id="doc-lrw",
+        document_version_id="ver-lrw",
+        source_chunk_id="chunk-calibration",
+        source_title="LR-W Manual",
+        source_filename="lr-w.pdf",
+        chunk_type="atomic_text",
+        section_path="Calibration",
+        page_from=5,
+        page_to=5,
+        expected_terms=["master", "calibration", "set", "subsequent"],
+        expected_snippet="The changed value affects only subsequent calibrations.",
+        generation_method="unit_test",
+        source_metadata={},
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The provided evidence does not contain when the master calibration set value applies.",
+            "citations": [{"document_id": "doc-lrw", "chunk_id": "chunk-calibration"}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is False
+    assert "answer_claims_insufficient_evidence" in scored["failure_reasons"]
+
+
 def test_answer_response_scoring_rejects_cases_without_scorable_answer_terms():
     case = RetrievalEvalCase(
         case_id="case-command-error-flag",
@@ -485,6 +1279,613 @@ def test_answer_response_scoring_can_use_llm_required_information_judge(monkeypa
     assert scored["llm_required_information"]["passed"] is True
 
 
+def test_single_step_llm_judge_uses_complete_retrieved_source_chunk(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-unsupported-firmware",
+        query="What should I do if the controller boots with unsupported firmware?",
+        source_document_id="doc-ljx",
+        document_version_id="ver-ljx",
+        source_chunk_id="chunk-firmware",
+        source_title="LJ-X8000",
+        source_filename="ljx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=791,
+        page_to=791,
+        expected_terms=["error", "14301", "messages"],
+        expected_snippet=(
+            "Error Number: 14301; Error Messages: The controller was booted using unsupported "
+            "firmware.; Cause: The controller was started with firmware that"
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_model": "LJ-X8000"},
+    )
+    seen_payload = {}
+
+    def fake_chat_json(**kwargs):
+        seen_payload.update(json.loads(kwargs["messages"][1]["content"]))
+        return (
+            {
+                "contains_required_information": True,
+                "missing_information": [],
+                "reason": "The requested remedy is complete.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.chat_json", fake_chat_json)
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Update the firmware to one supported by the controller.",
+            "citations": [{"document_id": "doc-ljx", "chunk_id": "chunk-firmware", "pages": [791]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "chunk-firmware",
+                "source_document_id": "doc-ljx",
+                "content": (
+                    "Error Number: 14301; Error Messages: The controller booted using unsupported firmware.; "
+                    "Cause: The firmware is unsupported.; Remedy: Update the firmware to one supported by the controller."
+                ),
+            }
+        ],
+        use_llm_required_info_judge=True,
+    )
+
+    assert "Remedy: Update the firmware" in seen_payload["expected_evidence"]
+    assert scored["passed"] is True
+
+
+def test_answer_response_scoring_accepts_explicit_llm_judge_boolean_alias(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-fan-replacement",
+        query="How should a failed fan unit be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-fan",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["replace", "CA-F100"],
+        expected_snippet="Replace the fan unit with CA-F100.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+    )
+
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: ({"is_correct": True}, '{"is_correct":true}'),
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Replace the failed fan unit with CA-F100.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-fan", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert scored["llm_required_information"]["passed"] is True
+    assert scored["llm_required_information"]["verdict_field"] == "is_correct"
+
+
+def test_malformed_llm_judge_response_does_not_override_term_score(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-fan-replacement",
+        query="How should a failed fan unit be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-fan",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["replace", "CA-F100"],
+        expected_snippet="Replace the fan unit with CA-F100.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+    )
+
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: ({}, "{}"),
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Replace the failed fan unit with CA-F100.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-fan", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["passed"] is True
+    assert scored["llm_required_information"]["checked"] is False
+    assert "omitted a boolean verdict" in scored["llm_required_information"]["error"]
+
+
+def test_unexplained_negative_llm_judge_is_unchecked_for_supported_term_score(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-width-mode",
+        query="Which width extraction mode compares against the master image?",
+        source_document_id="doc-iv",
+        document_version_id="ver-iv",
+        source_chunk_id="chunk-width",
+        source_title="IV-HG",
+        source_filename="iv-hg.pdf",
+        chunk_type="table_record",
+        section_path="Width Extraction",
+        page_from=167,
+        page_to=167,
+        expected_terms=["items", "width", "extraction"],
+        expected_snippet="Width Extraction: Master Width compares against the master image.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "IV-HG500CA"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: (
+            {"contains_required_information": False, "missing_information": [], "reason": ""},
+            '{"contains_required_information":false,"missing_information":[],"reason":""}',
+        ),
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The width extraction mode is Master Width.",
+            "citations": [{"document_id": "doc-iv", "chunk_id": "chunk-width", "pages": [167]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["passed"] is True
+    assert scored["llm_required_information"]["checked"] is False
+    assert "without identifying missing information" in scored["llm_required_information"]["error"]
+
+
+def test_why_answer_requires_causal_terms_from_expected_snippet():
+    case = RetrievalEvalCase(
+        case_id="relay-output-cause",
+        query="Why should I avoid using relay output with the IV-500C sensor input?",
+        source_document_id="doc-iv",
+        document_version_id="v1",
+        source_chunk_id="relay-row",
+        source_title="IV-500C",
+        source_filename="iv-500c.pdf",
+        chunk_type="atomic_text",
+        section_path="Input cables",
+        page_from=6,
+        page_to=6,
+        expected_terms=["cables", "sensor", "connect", "non-contact"],
+        expected_snippet=(
+            "Connect with non-contact output. For relay output, incorrect input may operate due to "
+            "contact bouncing in the system."
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_model": "IV-500C"},
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Connect the sensor input to a non-contact transistor output.",
+            "citations": [{"document_id": "doc-iv", "chunk_id": "relay-row", "pages": [6]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is False
+    assert scored["term_check"]["material_expected_terms"] == ["contact", "bouncing"]
+    assert "expected_terms_missing" in scored["failure_reasons"]
+
+
+def test_llm_judge_uses_aligned_retrieved_evidence_when_generated_snippet_is_truncated(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="match-degree-calculation",
+        query="How is the match degree percentage calculated for the CV-X482?",
+        source_document_id="doc-cvx",
+        document_version_id="v1",
+        source_chunk_id="missing-generated-source",
+        source_title="CV-X",
+        source_filename="cv-x.pdf",
+        chunk_type="atomic_text",
+        section_path="Match Degree",
+        page_from=1116,
+        page_to=1116,
+        expected_terms=["match", "degree", "range"],
+        expected_snippet=(
+            "Match Degree is the proportion of parts which match the set outlines. It "
+        ),
+        generation_method="reviewed_llm",
+        source_metadata={"product_model": "CV-X482"},
+    )
+    seen_payload: dict[str, object] = {}
+
+    def fake_chat_json(**kwargs):
+        seen_payload.update(json.loads(kwargs["messages"][1]["content"]))
+        return (
+            {
+                "contains_required_information": True,
+                "missing_information": [],
+                "reason": "The ratio is present.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.chat_json", fake_chat_json)
+    retrieved = [
+        {
+            "chunk_id": "observed-value",
+            "source_document_id": "doc-cvx",
+            "content": "Match Degree (%): 87.445",
+        },
+        {
+            "chunk_id": "definition-row",
+            "source_document_id": "doc-cvx",
+            "content": (
+                "Match Degree is the proportion of parts which match the set outlines. It is "
+                "calculated from the number of detected outlines and registered outlines."
+            ),
+        },
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "It is the proportion of matched parts, calculated from detected outlines "
+                "and registered outlines."
+            ),
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "definition-row", "pages": [1116]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved_results=retrieved,
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert "registered outlines" in str(seen_payload["expected_evidence"])
+    assert "87.445" not in str(seen_payload["expected_evidence"])
+
+
+def test_grounded_calculation_formula_overrides_unexplained_negative_judge(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="match-degree-formula",
+        query="How is the match degree percentage calculated for the CV-X482?",
+        source_document_id="doc-cvx",
+        document_version_id="v1",
+        source_chunk_id="source-row",
+        source_title="CV-X",
+        source_filename="cv-x.pdf",
+        chunk_type="atomic_text",
+        section_path="Match Degree",
+        page_from=1116,
+        page_to=1116,
+        expected_terms=["Upper Limit", "Lower Limit"],
+        expected_snippet="Match Degree is the proportion of matching parts. It ",
+        generation_method="reviewed_llm",
+        source_metadata={
+            "product_model": "CV-X482",
+            "context_window": (
+                "Current chunk: Match Degree is the proportion of parts that match the set outlines. "
+                "It is calculated from the number of detected outlines and the number of registered outlines."
+            ),
+        },
+    )
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: (
+            {"contains_required_information": False, "missing_information": [], "reason": ""},
+            "{}",
+        ),
+    )
+    retrieved = [
+        {
+            "chunk_id": "source-row",
+            "source_document_id": "doc-cvx",
+            "content": (
+                "Match Degree is calculated from the number of detected outlines and the number "
+                "of registered outlines."
+            ),
+        }
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "Match degree is the proportion of matching parts, calculated from the ratio of "
+                "detected outlines to registered outlines."
+            ),
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "source-row", "pages": [1116]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved_results=retrieved,
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert scored["calculation_answer_support"]["passed"] is True
+    assert scored["term_check"]["llm_negative_overridden_by_calculation_support"] is True
+
+
+def test_structural_table_labels_do_not_mask_missing_answer_content(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-uuu",
+        query="What causes the W500 to display uuu?",
+        source_document_id="doc-w500",
+        document_version_id="ver-w500",
+        source_chunk_id="chunk-uuu",
+        source_title="LR-W500",
+        source_filename="w500.pdf",
+        chunk_type="table_record",
+        section_path="",
+        page_from=4,
+        page_to=4,
+        expected_terms=["display", "cause", "excessive"],
+        expected_snippet="Display: uuu; Cause: Displayed when excessive light is received by the sensor.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "W500"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: (
+            {"contains_required_information": False, "missing_information": [], "reason": ""},
+            '{"contains_required_information":false}',
+        ),
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Cause: The display selection is set to OFF.",
+            "citations": [{"document_id": "doc-w500", "chunk_id": "wrong-row", "pages": [4]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is False
+    assert scored["term_check"]["expected_terms"] == ["excessive"]
+    assert scored["failure_reasons"] == ["expected_terms_missing"]
+
+
+def test_exact_expected_cell_overrides_false_llm_judge_and_prompt_uses_resolved_chunk(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-fan-replacement",
+        query="How should the fan error be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-fan-action",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["replace", "CA-F100"],
+        expected_snippet="Column headers: Corrective Action; Row headers: Fan error",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "chunk-fan-action",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["replace", "CA-F100"],
+                "snippet": "Column headers: Corrective Action; Row headers: Fan error",
+            }
+        ],
+    )
+    seen_payload = {}
+
+    def fake_chat_json(**kwargs):
+        seen_payload.update(json.loads(kwargs["messages"][1]["content"]))
+        return (
+            {
+                "contains_required_information": False,
+                "missing_information": ["The corrective action is missing."],
+                "reason": "The answer does not provide the required corrective action.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.chat_json", fake_chat_json)
+    retrieved = [
+        {
+            "chunk_id": "chunk-fan-action",
+            "source_document_id": "doc-xgx",
+            "content": (
+                "Column headers: Corrective Action; Row headers: Fan error; "
+                "Cell value: Replace the fan unit with CA-F100.; Row: 1; Column: 2"
+            ),
+        },
+        {
+            "chunk_id": "consolidated-fan-row",
+            "source_document_id": "doc-xgx",
+            "content": (
+                "Error Message: Fan error.; Cause: The fan unit failed.; "
+                "Corrective Action: Replace the fan unit with CA-F100.; Error Code: 10"
+            ),
+        },
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Corrective action: Replace the fan unit with CA-F100.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "consolidated-fan-row", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved,
+        use_llm_required_info_judge=True,
+    )
+
+    assert "Cell value: Replace the fan unit with CA-F100" in seen_payload["expected_evidence"]
+    assert scored["passed"] is True
+    assert scored["exact_evidence_answer_support"]["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+    assert scored["term_check"]["llm_negative_overridden_by_exact_expected_evidence"] is True
+
+
+def test_exact_expected_cell_overrides_lossy_term_check_without_llm_judge():
+    case = RetrievalEvalCase(
+        case_id="case-short-action",
+        query="How should the image variable error be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-action",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["parserartifact", "truncatedtoken"],
+        expected_snippet="Column headers: Corrective Action; Row headers: Image variable error",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "chunk-action",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["parserartifact", "truncatedtoken"],
+                "snippet": "Column headers: Corrective Action; Row headers: Image variable error",
+            }
+        ],
+    )
+    retrieved = [
+        {
+            "chunk_id": "chunk-action",
+            "source_document_id": "doc-xgx",
+            "content": (
+                "Column headers: Corrective Action; Row headers: Image variable error; "
+                "Cell value: Change to a single-camera image variable.; Row: 1; Column: 2"
+            ),
+        }
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Corrective action: Change to a single-camera image variable.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-action", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved,
+        use_llm_required_info_judge=False,
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["exact_expected_evidence_matched"] is True
+
+
+def test_exact_expected_cell_does_not_protect_wrong_neighboring_row(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-light-mode",
+        query="What causes the light head does not support LumiTrax error?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-lumitrax",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["light", "support", "LumiTrax", "set"],
+        expected_snippet="The light head does not support LumiTrax.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "chunk-lumitrax",
+                "source_document_id": "doc-xgx",
+                "field": "cause",
+                "expected_terms": ["light", "support", "LumiTrax", "set"],
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: (
+            {
+                "contains_required_information": False,
+                "missing_information": ["The answer describes MultiSpectrum instead of LumiTrax."],
+                "reason": "Wrong troubleshooting row.",
+            },
+            "{}",
+        ),
+    )
+    retrieved = [
+        {
+            "chunk_id": "chunk-lumitrax",
+            "source_document_id": "doc-xgx",
+            "content": (
+                "Column headers: Cause; Row headers: The light head does not support LumiTrax.; "
+                "Cell value: A light head that does not support LumiTrax is set as the LumiTrax light."
+            ),
+        }
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "A light head that does not support MultiSpectrum Mode is set as the MultiSpectrum light.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-lumitrax", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved,
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is False
+    assert scored["exact_evidence_answer_support"]["passed"] is False
+    assert scored["term_check"]["passed"] is False
+
+
 def test_answer_response_scoring_requires_all_multi_step_documents():
     case = RetrievalEvalCase(
         case_id="case-1",
@@ -523,286 +1924,6 @@ def test_answer_response_scoring_requires_all_multi_step_documents():
     assert scored["passed"] is False
     assert scored["missing_document_ids"] == ["doc-2"]
     assert "expected_document_not_cited_or_used" in scored["failure_reasons"]
-
-
-def test_answer_response_scoring_rejects_sibling_table_cell_bindings():
-    case = RetrievalEvalCase(
-        case_id="case-table-binding",
-        query="Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="chunk-table",
-        source_title="CV-X Manual",
-        source_filename="cvx.pdf",
-        chunk_type="table_record",
-        section_path="6-180",
-        page_from=920,
-        page_to=920,
-        expected_terms=["allocation", "possible", "0016", "428"],
-        expected_snippet="Row headers: 0016 PID 428 > status Bit area; Cell value: Allocation possible; Row: 10; Column: 14",
-        generation_method="unit_test",
-        source_metadata={"product_model": "CV-X482", "table_cell": True},
-    )
-    answer = {
-        "answer": (
-            "Relevant retrieved table rows:\n"
-            "- Mea- surement count area | 0016 0017 0018 | PID 428 | Total count\n"
-            "- 0004 | PIB256 bit No. 7 | Allocation possible\n"
-            "- 0005 | PIB257 bit No. 7 | Allocation possible"
-        ),
-        "citations": [{"document_id": "doc-cvx", "chunk_id": "chunk-table", "pages": [920]}],
-        "used_documents": [],
-        "insufficient_evidence": False,
-    }
-
-    scored = score_answer_response(case, answer, {"passed": True})
-
-    assert scored["passed"] is False
-    assert "expected_table_cell_binding_missing" in scored["failure_reasons"]
-    assert scored["table_cell_binding"]["missing_bindings"][0]["reason"] == "row_header_and_cell_value_not_bound_in_answer_segment"
-
-
-def test_answer_response_scoring_accepts_same_row_table_cell_binding():
-    case = RetrievalEvalCase(
-        case_id="case-table-binding",
-        query="Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="chunk-table",
-        source_title="CV-X Manual",
-        source_filename="cvx.pdf",
-        chunk_type="table_record",
-        section_path="6-180",
-        page_from=920,
-        page_to=920,
-        expected_terms=["allocation", "possible", "0016", "428"],
-        expected_snippet="Row headers: 0016 PID 428 > status Bit area; Cell value: Allocation possible; Row: 10; Column: 14",
-        generation_method="unit_test",
-        source_metadata={"product_model": "CV-X482", "table_cell": True},
-    )
-    answer = {
-        "answer": "status Bit area | 0016 | PID 428 command | Allocation possible",
-        "citations": [{"document_id": "doc-cvx", "chunk_id": "chunk-table", "pages": [920]}],
-        "used_documents": [],
-        "insufficient_evidence": False,
-    }
-
-    scored = score_answer_response(case, answer, {"passed": True})
-
-    assert scored["passed"] is True
-    assert scored["table_cell_binding"]["passed"] is True
-
-
-def test_answer_response_scoring_rejects_sibling_quantity_table_row():
-    case = RetrievalEvalCase(
-        case_id="case-quantity-binding",
-        query=(
-            "On IV4-G120, when ON equals Set value, Count value is 9, Output status is "
-            "One-Shot output, and the current count is 0, how many objects are counted at one time?"
-        ),
-        source_document_id="doc-iv4",
-        document_version_id="ver-iv4",
-        source_chunk_id="quantity-row",
-        source_title="IV4 Manual",
-        source_filename="iv4.pdf",
-        chunk_type="table_record",
-        section_path="4-78",
-        page_from=168,
-        page_to=168,
-        expected_terms=["set", "count", "quantity", "counted", "3", "one-shot", "0"],
-        expected_snippet=(
-            "Status output settings | Previous count value (Display value) | Quantity counted at one time | "
-            "Current count value (Display value) | Output status; "
-            "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
-        ),
-        generation_method="unit_test",
-        source_metadata={"product_model": "IV4-G120", "table_cell": True},
-        expected_evidence=[
-            {
-                "chunk_id": "quantity-row",
-                "source_document_id": "doc-iv4",
-                "expected_terms": [
-                    "on",
-                    "set",
-                    "value",
-                    "count",
-                    "9",
-                    "quantity",
-                    "counted",
-                    "one",
-                    "time",
-                    "3",
-                    "current",
-                    "0",
-                    "one-shot",
-                    "output",
-                ],
-                "snippet": (
-                    "Status output settings | Previous count value (Display value) | "
-                    "Quantity counted at one time | Current count value (Display value) | Output status; "
-                    "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
-                ),
-            }
-        ],
-    )
-    answer = {
-        "answer": "ON when = Set value | Count value= 9 | 7 | 2 | 9 | Latching output",
-        "citations": [{"document_id": "doc-iv4", "chunk_id": "sibling-row", "pages": [168]}],
-        "used_documents": [],
-        "insufficient_evidence": False,
-    }
-    retrieved_results = [
-        {
-            "chunk_id": "sibling-row",
-            "source_document_id": "doc-iv4",
-            "content": "ON when = Set value | Count value= 9 | 7 | 2 | 9 | Latching output",
-        }
-    ]
-
-    scored = score_answer_response(case, answer, {"passed": True}, retrieved_results)
-
-    assert scored["passed"] is False
-    assert "expected_terms_missing" in scored["failure_reasons"]
-    assert "expected_evidence_not_cited" in scored["failure_reasons"]
-
-
-def test_answer_response_scoring_accepts_structured_table_cell_fallback_line():
-    case = RetrievalEvalCase(
-        case_id="case-command-result",
-        query="On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?",
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="chunk-command-result",
-        source_title="CV-X Manual",
-        source_filename="cvx.pdf",
-        chunk_type="table_record",
-        section_path="6-210",
-        page_from=952,
-        page_to=952,
-        expected_terms=["command", "result", "0028", "65.0"],
-        expected_snippet=(
-            "Column headers: 6bit > 5bit > 4bit > 3bit > 2bit > 1bit > 0bit; "
-            "Row headers: 0028 65.0 > Command output area; Cell value: Command Result; "
-            "Row: 15; Column: 3"
-        ),
-        generation_method="unit_test",
-        source_metadata={"product_model": "CV-X482", "table_cell": True},
-    )
-    answer = {
-        "answer": (
-            "Column headers: 6bit > 5bit > 4bit > 3bit > 2bit > 1bit > 0bit; "
-            "Row headers: 0028 65.0 > Command output area; Cell value: Command Result; "
-            "Row: 15; Column: 3\n\nContext: broad neighboring status output text"
-        ),
-        "citations": [{"document_id": "doc-cvx", "chunk_id": "chunk-command-result", "pages": [952]}],
-        "used_documents": [],
-        "insufficient_evidence": False,
-    }
-
-    scored = score_answer_response(case, answer, {"passed": True})
-
-    assert scored["passed"] is True
-    assert scored["table_cell_binding"]["passed"] is True
-
-
-def test_answer_response_scoring_rejects_scattered_signal_description_binding():
-    case = RetrievalEvalCase(
-        case_id="case-signal-binding",
-        query="Which CV-X482 output line corresponds to data output bit 10?",
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="signal-row",
-        source_title="CV-X Manual",
-        source_filename="cvx.pdf",
-        chunk_type="table_record",
-        section_path="6-78",
-        page_from=819,
-        page_to=819,
-        expected_terms=["out_data10", "data", "output", "bit"],
-        expected_snippet="Column headers: Signal Description; Row headers: OUT_DATA10; Cell value: Data output bit 10; Row: 11; Column: 1",
-        generation_method="unit_test",
-        source_metadata={"product_model": "CV-X482", "table_cell": True},
-    )
-    answer = {
-        "answer": (
-            "Column headers: Function; Row headers: OUT_DATA0 > OUT_DATA1 > OUT_DATA2 > OUT_DATA3 > "
-            "OUT_DATA4 > OUT_DATA5 > OUT_DATA6 > OUT_DATA7 > OUT_DATA8 > OUT_DATA9 > OUT_DATA10 > "
-            "OUT_DATA11 > OUT_DATA12 > OUT_DATA13 > OUT_DATA14 > OUT_DATA15 > Data output bit 0 > "
-            "Data output bit 1 > Data output bit 2 > Data output bit 3 > Data output bit 4 > "
-            "Data output bit 5 > Data output bit 6 > Data output bit 7 > Data output bit 8 > "
-            "Data output bit 9 > Data output bit 10."
-        ),
-        "citations": [{"document_id": "doc-cvx", "chunk_id": "aggregate-table", "pages": [803]}],
-        "used_documents": [],
-        "insufficient_evidence": False,
-    }
-
-    scored = score_answer_response(case, answer, {"passed": True})
-
-    assert scored["passed"] is False
-    assert "expected_table_cell_binding_missing" in scored["failure_reasons"]
-
-
-def test_answer_response_scoring_accepts_direct_signal_description_binding():
-    case = RetrievalEvalCase(
-        case_id="case-signal-binding",
-        query="Which CV-X482 output line corresponds to data output bit 10?",
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="signal-row",
-        source_title="CV-X Manual",
-        source_filename="cvx.pdf",
-        chunk_type="table_record",
-        section_path="6-78",
-        page_from=819,
-        page_to=819,
-        expected_terms=["out_data10", "data", "output", "bit"],
-        expected_snippet="Column headers: Signal Description; Row headers: OUT_DATA10; Cell value: Data output bit 10; Row: 11; Column: 1",
-        generation_method="unit_test",
-        source_metadata={"product_model": "CV-X482", "table_cell": True},
-    )
-    answer = {
-        "answer": "OUT_DATA10 corresponds to Data output bit 10.",
-        "citations": [{"document_id": "doc-cvx", "chunk_id": "signal-row", "pages": [819]}],
-        "used_documents": [],
-        "insufficient_evidence": False,
-    }
-
-    scored = score_answer_response(case, answer, {"passed": True})
-
-    assert scored["passed"] is True
-    assert scored["table_cell_binding"]["passed"] is True
-
-
-def test_answer_response_scoring_rejects_negated_table_cell_binding():
-    case = RetrievalEvalCase(
-        case_id="case-table-binding",
-        query="Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="chunk-table",
-        source_title="CV-X Manual",
-        source_filename="cvx.pdf",
-        chunk_type="table_record",
-        section_path="6-180",
-        page_from=920,
-        page_to=920,
-        expected_terms=["allocation", "possible", "0016", "428"],
-        expected_snippet="Row headers: 0016 PID 428 > status Bit area; Cell value: Allocation possible; Row: 10; Column: 14",
-        generation_method="unit_test",
-        source_metadata={"product_model": "CV-X482", "table_cell": True},
-    )
-    answer = {
-        "answer": "status Bit area | 0016 | PID 428 command | Allocation not possible",
-        "citations": [{"document_id": "doc-cvx", "chunk_id": "chunk-table", "pages": [920]}],
-        "used_documents": [],
-        "insufficient_evidence": False,
-    }
-
-    scored = score_answer_response(case, answer, {"passed": True})
-
-    assert scored["passed"] is False
-    assert "expected_table_cell_binding_missing" in scored["failure_reasons"]
 
 
 def test_cross_document_retrieval_scoring_requires_expected_evidence_documents():
@@ -869,123 +1990,6 @@ def test_cross_document_retrieval_scoring_requires_expected_evidence_documents()
 
     assert scored["passed"] is False
     assert scored["missing_evidence"] == [{"chunk_id": "chunk-2", "matched": False, "rank": None, "overlap_terms": 2}]
-
-
-def test_single_step_retrieval_scoring_rejects_same_document_without_expected_evidence():
-    case = RetrievalEvalCase(
-        case_id="external-trigger-polarity",
-        query="In MOD-600 troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
-        source_document_id="doc-iv4",
-        document_version_id="ver-iv4",
-        source_chunk_id="polarity-cell",
-        source_title="IV4 Manual",
-        source_filename="iv4.pdf",
-        chunk_type="table_record",
-        section_path="12-38",
-        page_from=526,
-        page_to=526,
-        expected_terms=["polarity", "correctly", "set", "external", "trigger"],
-        expected_snippet=(
-            "Column headers: Check point; Row headers: An external trigger cannot be input.; "
-            "Cell value: Is the Polarity correctly set?; Row: 11; Column: 1"
-        ),
-        generation_method="unit_test",
-        source_metadata={
-            "product_model": "MOD-600",
-            "table_cell": True,
-            "table_row_headers": ["An external trigger cannot be input."],
-            "table_column_headers": ["Check point"],
-        },
-        anchor_terms=["polarity", "correctly", "set", "external", "trigger"],
-        expected_evidence=[
-            {
-                "chunk_id": "polarity-cell",
-                "source_document_id": "doc-iv4",
-                "field": "external_trigger_polarity_checkpoint",
-                "expected_terms": ["polarity", "correctly", "set", "external", "trigger"],
-                "snippet": "An external trigger cannot be input. Check point: Is the Polarity correctly set?",
-            }
-        ],
-    )
-
-    scored = score_search_results(
-        case,
-        [
-            {
-                "chunk_id": "internal-trigger-workaround",
-                "source_document_id": "doc-iv4",
-                "title": "IV4 Manual",
-                "section_path": ["Take an OK image and an NG image"],
-                "content": (
-                    "In the following cases, input an external trigger: When [External Trigger] is set in "
-                    "Trigger Options. If a trigger cannot be input, press [Trigger ON] to take an image "
-                    "temporarily using the internal trigger."
-                ),
-                "metadata": {"chunk_type": "section_window", "product_model": "MOD-600"},
-            }
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert scored["failure_category"] == "ranking_or_context_loss"
-
-
-def test_single_step_retrieval_scoring_accepts_same_document_supported_expected_evidence():
-    case = RetrievalEvalCase(
-        case_id="external-trigger-polarity",
-        query="In MOD-600 troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
-        source_document_id="doc-iv4",
-        document_version_id="ver-iv4",
-        source_chunk_id="polarity-cell",
-        source_title="IV4 Manual",
-        source_filename="iv4.pdf",
-        chunk_type="table_record",
-        section_path="12-38",
-        page_from=526,
-        page_to=526,
-        expected_terms=["polarity", "correctly", "set", "external", "trigger"],
-        expected_snippet=(
-            "Column headers: Check point; Row headers: An external trigger cannot be input.; "
-            "Cell value: Is the Polarity correctly set?; Row: 11; Column: 1"
-        ),
-        generation_method="unit_test",
-        source_metadata={
-            "product_model": "MOD-600",
-            "table_cell": True,
-            "table_row_headers": ["An external trigger cannot be input."],
-            "table_column_headers": ["Check point"],
-        },
-        anchor_terms=["polarity", "correctly", "set", "external", "trigger"],
-        expected_evidence=[
-            {
-                "chunk_id": "polarity-cell",
-                "source_document_id": "doc-iv4",
-                "field": "external_trigger_polarity_checkpoint",
-                "expected_terms": ["polarity", "correctly", "set", "external", "trigger"],
-                "snippet": "An external trigger cannot be input. Check point: Is the Polarity correctly set?",
-            }
-        ],
-    )
-
-    scored = score_search_results(
-        case,
-        [
-            {
-                "chunk_id": "same-source-section-window",
-                "source_document_id": "doc-iv4",
-                "title": "IV4 Manual",
-                "section_path": ["12-38"],
-                "content": (
-                    "Troubleshooting table. An external trigger cannot be input. "
-                    "Check point: Is the Polarity correctly set?"
-                ),
-                "metadata": {"chunk_type": "section_window", "product_model": "MOD-600"},
-            }
-        ],
-    )
-
-    assert scored["passed"] is True
-    assert scored["match_reason"] == "same_section_term_overlap"
 
 
 def test_answer_response_scoring_prefers_multi_step_evidence_terms():
@@ -1648,75 +2652,6 @@ def test_answer_response_scoring_rejects_unsupported_citation_quote_spans():
     assert scored["citation_fidelity"]["unsupported_quotes"][0]["chunk_id"] == "settings-page"
 
 
-def test_answer_response_scoring_rejects_null_quote_citations_missing_from_results():
-    case = RetrievalEvalCase(
-        case_id="case-missing-cited-context",
-        query=(
-            "For CV-X Multi-Capture trigger input timing, what operation does the section "
-            "describe and which control/data I/O timing chart should I use?"
-        ),
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="multi-capture-step",
-        source_title="CV-X",
-        source_filename="cvx.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing",
-        page_from=853,
-        page_to=853,
-        expected_terms=["multi-capture", "trigger", "timing"],
-        expected_snippet="Typical operations at trigger input",
-        generation_method="contextual_procedure_plus_section_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "multi-capture-step",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["multi-capture", "multiple", "captures", "single", "measurement"],
-                "snippet": (
-                    "Performs multiple image captures at the same location and processes "
-                    "them as a single measurement."
-                ),
-            },
-            {
-                "chunk_id": "timing-chart",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
-                "snippet": "Timing chart Control/data output via I/O terminals.",
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "The section describes Multi-Capture performing multiple image captures "
-                "at one location as a single measurement. Use the control/data I/O "
-                "terminal timing chart."
-            ),
-            "citations": [
-                {"document_id": "doc-cvx", "chunk_id": "multi-capture-step", "quote_span": None}
-            ],
-            "used_documents": [],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "nearby-trigger-section",
-                "content": "Asynchronous Trigger timing for another procedure section.",
-            }
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert "unsupported_citation_quote" in scored["failure_reasons"]
-    assert "expected_evidence_not_cited" in scored["failure_reasons"]
-    assert scored["citation_fidelity"]["missing_cited_chunks"] == ["multi-capture-step"]
-
-
 def test_answer_response_scoring_requires_cited_chunk_to_support_expected_evidence_role():
     case = RetrievalEvalCase(
         case_id="case-cross-document-spec-role",
@@ -1830,6 +2765,59 @@ def test_answer_response_scoring_requires_cited_chunk_to_support_expected_eviden
 
     assert cited_role["passed"] is True
     assert cited_role["evidence_citation_support"]["passed"] is True
+
+
+def test_answer_scoring_accepts_cited_table_row_context_as_expected_evidence():
+    case = RetrievalEvalCase(
+        case_id="usb-format-action",
+        query="How should the USB HDD format error be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["execute", "format", "function", "erased"],
+        expected_snippet="Execute the Format function; all data will be erased.",
+        generation_method="table_sibling_error_action",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "action-cell",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["execute", "format", "function", "erased"],
+                "snippet": "Corrective Action: Execute the Format function; all data will be erased.",
+            }
+        ],
+    )
+    answer = {
+        "answer": "Execute the Format function; note that all USB HDD data will be erased.",
+        "citations": [{"document_id": "doc-xgx", "chunk_id": "error-code-cell", "pages": [1]}],
+        "used_documents": [{"document_id": "doc-xgx"}],
+        "insufficient_evidence": False,
+    }
+    results = [
+        {
+            "chunk_id": "error-code-cell",
+            "source_document_id": "doc-xgx",
+            "content": "Error Code: 328",
+            "metadata": {
+                "table_row_group_context": (
+                    "Error Message: The USB HDD format is incorrect.; "
+                    "Corrective Action: Execute the Format function; all data will be erased."
+                )
+            },
+        }
+    ]
+
+    scored = score_answer_response(case, answer, {"passed": True}, results)
+
+    assert scored["passed"] is True
 
 
 def test_answer_response_scoring_requires_exact_cited_chunk_to_be_returned():
@@ -2053,14 +3041,12 @@ def test_answer_response_scoring_accepts_cited_composite_chunk_with_source_evide
             {
                 "chunk_id": "procedure-step",
                 "source_document_id": "doc-cvx",
-                "allow_equivalent_citation": True,
                 "expected_terms": ["procedure", "typical", "operations", "trigger"],
                 "snippet": "Procedure step 2: Typical operations at trigger input (Capture Type: Asynchronous Trigger)",
             },
             {
                 "chunk_id": "detail-atomic",
                 "source_document_id": "doc-cvx",
-                "allow_equivalent_citation": True,
                 "expected_terms": ["inputting", "trigger", "signal", "having"],
                 "snippet": (
                     "By inputting the trigger signal having the same number as the camera number "
@@ -2097,1127 +3083,6 @@ def test_answer_response_scoring_accepts_cited_composite_chunk_with_source_evide
 
     assert scored["passed"] is True
     assert scored["evidence_citation_support"]["passed"] is True
-
-
-def test_answer_response_scoring_rejects_equivalent_citation_without_source_identity():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-citation-no-source",
-        query="Which timing chart applies to the operation?",
-        source_document_id="doc-controller",
-        document_version_id="ver-controller",
-        source_chunk_id="timing-heading",
-        source_title="Timing chart",
-        source_filename="Manual.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing",
-        page_from=12,
-        page_to=12,
-        expected_terms=["timing", "chart", "terminals"],
-        expected_snippet="Timing chart Control/data output via I/O terminals",
-        generation_method="unit_test",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "timing-heading",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
-                "snippet": "Timing chart Control/data output via I/O terminals",
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": "Use the control/data output via I/O terminals timing chart.",
-            "citations": [{"chunk_id": "section-window", "quote_span": None}],
-            "used_documents": [],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "section-window",
-                "content": "Timing chart Control/data output via I/O terminals.",
-            }
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert "expected_evidence_not_cited" in scored["failure_reasons"]
-
-
-def test_answer_response_scoring_accepts_same_document_equivalent_citation():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-citation-same-source",
-        query="Which timing chart applies to the operation?",
-        source_document_id="doc-controller",
-        document_version_id="ver-controller",
-        source_chunk_id="timing-heading",
-        source_title="Timing chart",
-        source_filename="Manual.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing",
-        page_from=12,
-        page_to=12,
-        expected_terms=["timing", "chart", "terminals"],
-        expected_snippet="Timing chart Control/data output via I/O terminals",
-        generation_method="unit_test",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "timing-heading",
-                "source_document_id": "doc-controller",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
-                "snippet": "Timing chart Control/data output via I/O terminals",
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": "Use the control/data output via I/O terminals timing chart.",
-            "citations": [{"document_id": "doc-controller", "chunk_id": "section-window", "quote_span": None}],
-            "used_documents": [{"document_id": "doc-controller"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "section-window",
-                "source_document_id": "doc-controller",
-                "content": "Timing chart Control/data output via I/O terminals.",
-            }
-        ],
-    )
-
-    assert scored["passed"] is True
-    assert scored["evidence_citation_support"]["passed"] is True
-
-
-def test_answer_response_scoring_accepts_source_reviewed_equivalent_citation_snippet():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-citation-source-reviewed-snippet",
-        query=(
-            "For IV-HG500CA, what cause is listed when the sensor program is damaged, "
-            "and how does that differ from the IV4-G600CA startup memory read error cause?"
-        ),
-        source_document_id="doc-ivh",
-        document_version_id="ver-ivh",
-        source_chunk_id="ivh-cause",
-        source_title="IV-H",
-        source_filename="ivh.pdf",
-        chunk_type="table_record",
-        section_path="Troubleshooting",
-        page_from=406,
-        page_to=532,
-        expected_terms=["memory", "error", "sensor", "startup"],
-        expected_snippet=(
-            "Column headers: Cause; Row headers: Sensor program damaged. Initialization necessary. "
-            "Cell value: A memory read error occurred when the sensor started. | "
-            "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
-            "A data abnormality occurred due to noise or because the power switched OFF while writing"
-        ),
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "ivh-cause",
-                "source_document_id": "doc-ivh",
-                "expected_terms": ["memory", "error", "sensor"],
-                "snippet": (
-                    "Column headers: Cause; Row headers: Sensor program damaged. Initialization necessary. "
-                    "Cell value: A memory read error occurred when the sensor started."
-                ),
-            },
-            {
-                "chunk_id": "iv4-atomic-cause",
-                "source_document_id": "doc-iv4",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["startup", "memory", "error", "occurred"],
-                "snippet": (
-                    "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
-                    "A data abnormality occurred due to noise or because the power switched OFF while writing"
-                ),
-                "equivalent_snippet": (
-                    "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
-                    "Cell value: A memory read error occurred when the sensor started. "
-                    "A data error occurred. It is possible that the power was switched OFF during writing, "
-                    "or noise was picked up."
-                ),
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "Retrieved evidence:\n"
-                "- IV-H, page 406: Column headers: Cause; Row headers: Sensor program damaged. "
-                "Initialization necessary.; Cell value: A memory read error occurred when the sensor started.\n"
-                "- IV4, page 532: Column headers: Cause; Row headers: Failed to read nonvolatile memory "
-                "at sensor startup.; Cell value: A memory read error occurred when the sensor started. "
-                "A data error occurred. It is possible that the power was switched OFF during writing, "
-                "or noise was picked up."
-            ),
-            "citations": [
-                {"document_id": "doc-ivh", "chunk_id": "ivh-cause", "quote_span": None},
-                {"document_id": "doc-iv4", "chunk_id": "iv4-row-group", "quote_span": None},
-            ],
-            "used_documents": [{"document_id": "doc-ivh"}, {"document_id": "doc-iv4"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "ivh-cause",
-                "source_document_id": "doc-ivh",
-                "content": (
-                    "Column headers: Cause; Row headers: Sensor program damaged. Initialization necessary. "
-                    "Cell value: A memory read error occurred when the sensor started."
-                ),
-            },
-            {
-                "chunk_id": "iv4-row-group",
-                "source_document_id": "doc-iv4",
-                "content": (
-                    "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
-                    "Cell value: A memory read error occurred when the sensor started. "
-                    "A data error occurred. It is possible that the power was switched OFF during writing, "
-                    "or noise was picked up."
-                ),
-            },
-        ],
-    )
-
-    assert scored["passed"] is True
-    assert scored["evidence_citation_support"]["passed"] is True
-    assert scored["table_cell_binding"]["passed"] is True
-
-
-def test_answer_response_scoring_accepts_source_reviewed_equivalent_table_cell_label():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-table-cell-label",
-        query="For MODEL-A and MODEL-B measurement outputs, compare what ALPHA and BETA represent.",
-        source_document_id="doc-a",
-        document_version_id="ver-a",
-        source_chunk_id="alpha-cell",
-        source_title="A",
-        source_filename="a.pdf",
-        chunk_type="table_record",
-        section_path="Output items",
-        page_from=10,
-        page_to=10,
-        expected_terms=["surrounded", "straight", "equivalent", "aspect"],
-        expected_snippet=(
-            "Column headers: Description of measurement item selection; Row headers: ALPHA; "
-            "Cell value: Area Surrounded by a Straight Line | "
-            "Column headers: Description of measurement item selection; Row headers: BETA; "
-            "Cell value: Equivalent Oval Aspect Ratio Min."
-        ),
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "alpha-cell",
-                "source_document_id": "doc-a",
-                "expected_terms": ["surrounded", "straight"],
-                "snippet": (
-                    "Column headers: Description of measurement item selection; Row headers: ALPHA; "
-                    "Cell value: Area Surrounded by a Straight Line"
-                ),
-            },
-            {
-                "chunk_id": "beta-cell-old-label",
-                "source_document_id": "doc-b",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["equivalent", "aspect", "ratio"],
-                "snippet": (
-                    "Column headers: Description of measurement item selection; Row headers: BETA; "
-                    "Cell value: Equivalent Oval Aspect Ratio Min."
-                ),
-                "equivalent_snippet": (
-                    "Column headers: Description of measurement item selection; Row headers: BETA; "
-                    "Cell value: Oval Aspect ratio (Min.)"
-                ),
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "Retrieved evidence:\n"
-                "- B, page 20: Column headers: Description of measurement item selection; Row headers: BETA; "
-                "Cell value: Oval Aspect ratio (Min.)\n"
-                "- A, page 10: Column headers: Description of measurement item selection; Row headers: ALPHA; "
-                "Cell value: Area Surrounded by a Straight Line"
-            ),
-            "citations": [
-                {"document_id": "doc-b", "chunk_id": "beta-visible-equivalent", "quote_span": None},
-                {"document_id": "doc-a", "chunk_id": "alpha-cell", "quote_span": None},
-            ],
-            "used_documents": [{"document_id": "doc-a"}, {"document_id": "doc-b"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "alpha-cell",
-                "source_document_id": "doc-a",
-                "content": (
-                    "Column headers: Description of measurement item selection; Row headers: ALPHA; "
-                    "Cell value: Area Surrounded by a Straight Line"
-                ),
-            },
-            {
-                "chunk_id": "beta-visible-equivalent",
-                "source_document_id": "doc-b",
-                "content": (
-                    "Column headers: Description of measurement item selection; Row headers: BETA; "
-                    "Cell value: Oval Aspect ratio (Min.)"
-                ),
-            },
-        ],
-    )
-
-    assert scored["passed"] is True
-    assert scored["evidence_citation_support"]["passed"] is True
-    assert scored["table_cell_binding"]["passed"] is True
-
-
-def test_answer_response_scoring_uses_equivalent_snippet_for_unstructured_visible_binding():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-unstructured-visible-table-binding",
-        query=(
-            "Compare the corrective action for unstable gray-binary inspection on MODEL-A "
-            "with MODEL-B guidance for an unsupported SD card access failure."
-        ),
-        source_document_id="doc-a",
-        document_version_id="ver-a",
-        source_chunk_id="color-binary-cell",
-        source_title="A",
-        source_filename="a.pdf",
-        chunk_type="table_record",
-        section_path="Troubleshooting",
-        page_from=10,
-        page_to=10,
-        expected_terms=["color", "binary", "keyence", "guarantee", "commercially"],
-        expected_snippet=(
-            "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
-            "Cell value: Select Color to Binary in Extract Colors. | "
-            "Column headers: Corrective Action; Row headers: Failed to access SD Card 1. > "
-            "An unsupported SD card is being used.; Cell value: KEYENCE does not guarantee operation "
-            "with commercially available cards."
-        ),
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "color-binary-cell",
-                "source_document_id": "doc-a",
-                "expected_terms": ["color", "binary", "extract"],
-                "snippet": (
-                    "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
-                    "Cell value: Select Color to Binary in Extract Colors."
-                ),
-            },
-            {
-                "chunk_id": "unsupported-card-atomic",
-                "source_document_id": "doc-b",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["keyence", "guarantee", "operation", "commercially"],
-                "snippet": (
-                    "Column headers: Corrective Action; Row headers: Failed to access SD Card 1. > "
-                    "An unsupported SD card is being used.; Cell value: KEYENCE does not guarantee "
-                    "operation with commercially available cards."
-                ),
-                "equivalent_snippet": (
-                    "Column headers: Corrective Action; Row headers: An unsupported SD card is being used.; "
-                    "Cell value: KEYENCE does not guarantee operation with commercially available "
-                    "(non-industrial rated) SD cards."
-                ),
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "Retrieved evidence:\n"
-                "- MODEL-A: Column headers: Corrective action; Row headers: Inspection is not stable "
-                "in gray binary.; Cell value: Select Color to Binary in Extract Colors.\n"
-                "- MODEL-B: An unsupported SD card is being used. | KEYENCE does not guarantee operation "
-                "with commercially available (non-industrial rated) SD cards."
-            ),
-            "citations": [
-                {"document_id": "doc-a", "chunk_id": "color-binary-cell", "quote_span": None},
-                {"document_id": "doc-b", "chunk_id": "unsupported-card-row-group", "quote_span": None},
-            ],
-            "used_documents": [{"document_id": "doc-a"}, {"document_id": "doc-b"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "color-binary-cell",
-                "source_document_id": "doc-a",
-                "content": (
-                    "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
-                    "Cell value: Select Color to Binary in Extract Colors."
-                ),
-            },
-            {
-                "chunk_id": "unsupported-card-row-group",
-                "source_document_id": "doc-b",
-                "content": (
-                    "Corrective Action: An unsupported SD card is being used. | "
-                    "KEYENCE does not guarantee operation "
-                    "with commercially available (non-industrial rated) SD cards."
-                ),
-            },
-        ],
-    )
-
-    assert scored["passed"] is True
-    assert scored["evidence_citation_support"]["passed"] is True
-    assert scored["table_cell_binding"]["passed"] is True
-
-
-def test_answer_response_scoring_rejects_equivalent_citation_without_direct_source_support():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-citation-source-reviewed-snippet-negative",
-        query="What startup memory read error cause is listed for IV4-G600CA?",
-        source_document_id="doc-iv4",
-        document_version_id="ver-iv4",
-        source_chunk_id="iv4-atomic-cause",
-        source_title="IV4",
-        source_filename="iv4.pdf",
-        chunk_type="table_record",
-        section_path="Troubleshooting",
-        page_from=532,
-        page_to=532,
-        expected_terms=["startup", "memory", "error", "occurred"],
-        expected_snippet=(
-            "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
-            "A data abnormality occurred due to noise or because the power switched OFF while writing"
-        ),
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "iv4-atomic-cause",
-                "source_document_id": "doc-iv4",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["startup", "memory", "error", "occurred"],
-                "snippet": (
-                    "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
-                    "A data abnormality occurred due to noise or because the power switched OFF while writing"
-                ),
-                "equivalent_snippet": (
-                    "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
-                    "Cell value: A memory read error occurred when the sensor started. "
-                    "A data error occurred. It is possible that the power was switched OFF during writing, "
-                    "or noise was picked up."
-                ),
-            }
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": "The cause is a memory read error when the sensor started.",
-            "citations": [{"document_id": "doc-iv4", "chunk_id": "iv4-remedy-only", "quote_span": None}],
-            "used_documents": [{"document_id": "doc-iv4"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "iv4-remedy-only",
-                "source_document_id": "doc-iv4",
-                "content": "Column headers: Remedy; Row headers: Startup error. Turn the sensor power on again.",
-            }
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert "expected_evidence_not_cited" in scored["failure_reasons"]
-
-
-def test_answer_response_scoring_rejects_equivalent_citation_supported_only_by_metadata_content():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-citation-hidden-metadata-negative",
-        query="What startup memory read error cause is listed for IV4-G600CA?",
-        source_document_id="doc-iv4",
-        document_version_id="ver-iv4",
-        source_chunk_id="iv4-atomic-cause",
-        source_title="IV4",
-        source_filename="iv4.pdf",
-        chunk_type="table_record",
-        section_path="Troubleshooting",
-        page_from=532,
-        page_to=532,
-        expected_terms=["startup", "memory", "error", "occurred"],
-        expected_snippet=(
-            "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
-            "A data abnormality occurred due to noise or because the power switched OFF while writing"
-        ),
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "iv4-atomic-cause",
-                "source_document_id": "doc-iv4",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["startup", "memory", "error", "occurred"],
-                "snippet": (
-                    "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
-                    "A data abnormality occurred due to noise or because the power switched OFF while writing"
-                ),
-                "equivalent_snippet": (
-                    "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
-                    "Cell value: A memory read error occurred when the sensor started. "
-                    "A data error occurred. It is possible that the power was switched OFF during writing, "
-                    "or noise was picked up."
-                ),
-            }
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "A memory read error occurred when the sensor started. A data error occurred; "
-                "the power may have switched OFF during writing, or noise was picked up."
-            ),
-            "citations": [{"document_id": "doc-iv4", "chunk_id": "iv4-overview", "quote_span": None}],
-            "used_documents": [{"document_id": "doc-iv4"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "iv4-overview",
-                "source_document_id": "doc-iv4",
-                "content": "Troubleshooting overview. Check the displayed error and follow the listed corrective action.",
-                "metadata": {
-                    "content": (
-                        "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
-                        "Cell value: A memory read error occurred when the sensor started. "
-                        "A data error occurred. It is possible that the power was switched OFF during writing, "
-                        "or noise was picked up."
-                    )
-                },
-            }
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert scored["citation_fidelity"]["passed"] is True
-    assert scored["evidence_citation_support"]["passed"] is False
-    assert "expected_evidence_not_cited" in scored["failure_reasons"]
-
-
-def test_answer_response_scoring_accepts_equivalent_warning_with_conjoined_setting_state():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-warning-conjoined-state",
-        query="What warning applies when the output limiter is off and light intensity is 512 or higher?",
-        source_document_id="doc-xgx",
-        document_version_id="ver-xgx",
-        source_chunk_id="atomic-warning",
-        source_title="XG-X",
-        source_filename="xgx.pdf",
-        chunk_type="atomic_text",
-        section_path="Light settings",
-        page_from=84,
-        page_to=84,
-        expected_terms=["512", "damage", "light", "heat"],
-        expected_snippet=(
-            "When the [Limit Output] is [OFF] and the intensity is set to 512 or higher, "
-            "be careful not to damage the light through excessive heat generation."
-        ),
-        generation_method="unit_test",
-        source_metadata={"product_family": "XG-X Series"},
-        retrieval_task="single_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "atomic-warning",
-                "source_document_id": "doc-xgx",
-                "allow_equivalent_citation": True,
-                "expected_terms": [
-                    "limit output",
-                    "off",
-                    "intensity",
-                    "512",
-                    "damage",
-                    "light",
-                    "excessive heat generation",
-                ],
-                "snippet": (
-                    "When the [Limit Output] is [OFF] and the intensity is set to 512 or higher, "
-                    "be careful not to damage the light through excessive heat generation."
-                ),
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "When Limit Output is OFF and intensity is set to 512 or higher, "
-                "be careful not to damage the light through excessive heat generation."
-            ),
-            "citations": [{"document_id": "doc-xgx", "chunk_id": "section-window", "quote_span": None}],
-            "used_documents": [{"document_id": "doc-xgx"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "section-window",
-                "source_document_id": "doc-xgx",
-                "content": (
-                    "When the [Limit Output] is [OFF] and the intensity is set to 512 or higher, "
-                    "be careful not to damage the light through excessive heat generation."
-                ),
-            }
-        ],
-    )
-
-    assert scored["passed"] is True
-    assert scored["evidence_citation_support"]["passed"] is True
-
-
-def test_answer_response_scoring_accepts_same_document_section_window_for_atomic_roles():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-section-window",
-        query="For LJ-X8000 image capture timing, what does the setup chapter cover before configuration?",
-        source_document_id="doc-ljx",
-        document_version_id="ver-ljx",
-        source_chunk_id="procedure-heading",
-        source_title="LJ-X8000 EtherNet/IP",
-        source_filename="ljx.pdf",
-        chunk_type="procedure_record",
-        section_path="1.2 Checking the Connection",
-        page_from=15,
-        page_to=15,
-        expected_terms=["controlling", "image", "capture", "inspection"],
-        expected_snippet="Controlling the Image Capture Timing. This chapter explains how to output inspection results.",
-        generation_method="contextual_procedure_plus_section_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "procedure-heading",
-                "source_document_id": "doc-ljx",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["procedure", "controlling", "image", "capture"],
-                "snippet": "Procedure step 2: 2. Controlling the Image Capture Timing",
-            },
-            {
-                "chunk_id": "chapter-detail",
-                "source_document_id": "doc-ljx",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["chapter", "explains", "inspection", "results"],
-                "snippet": "This chapter explains how to output data such as inspection results.",
-            },
-        ],
-    )
-
-    answer = {
-        "answer": (
-            "The setup chapter covers controlling image capture timing and explains how to "
-            "output inspection results and measured values to the PLC."
-        ),
-        "citations": [{"document_id": "doc-ljx", "chunk_id": "section-window", "quote_span": None}],
-        "used_documents": [{"document_id": "doc-ljx"}],
-        "insufficient_evidence": False,
-    }
-
-    scored = score_answer_response(
-        case,
-        answer,
-        {"passed": True},
-        [
-            {
-                "chunk_id": "section-window",
-                "source_document_id": "doc-ljx",
-                "content": (
-                    "1.2 Checking the Connection. 2. Controlling the Image Capture Timing. "
-                    "This chapter explains how to output data such as inspection results "
-                    "and measured values from the LJ-X8000 to the PLC over EtherNet/IP."
-                ),
-            }
-        ],
-    )
-
-    assert scored["passed"] is True
-    assert scored["evidence_citation_support"]["passed"] is True
-
-    missing_role = score_answer_response(
-        case,
-        answer,
-        {"passed": True},
-        [
-            {
-                "chunk_id": "section-window",
-                "source_document_id": "doc-ljx",
-                "content": "1.2 Checking the Connection. Use the EtherNet/IP memory monitor.",
-            }
-        ],
-    )
-
-    assert missing_role["passed"] is False
-    assert "expected_evidence_not_cited" in missing_role["failure_reasons"]
-
-
-def test_answer_response_scoring_rejects_cross_document_equivalent_citation():
-    case = RetrievalEvalCase(
-        case_id="answer-equivalent-citation-cross-source",
-        query="Which timing chart applies to the operation?",
-        source_document_id="doc-controller",
-        document_version_id="ver-controller",
-        source_chunk_id="timing-heading",
-        source_title="Timing chart",
-        source_filename="Manual.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing",
-        page_from=12,
-        page_to=12,
-        expected_terms=["timing", "chart", "terminals"],
-        expected_snippet="Timing chart Control/data output via I/O terminals",
-        generation_method="unit_test",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "timing-heading",
-                "source_document_id": "doc-controller",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
-                "snippet": "Timing chart Control/data output via I/O terminals",
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": "Use the control/data output via I/O terminals timing chart.",
-            "citations": [{"document_id": "doc-other", "chunk_id": "section-window", "quote_span": None}],
-            "used_documents": [{"document_id": "doc-other"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "section-window",
-                "source_document_id": "doc-other",
-                "content": "Timing chart Control/data output via I/O terminals.",
-            }
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert "expected_document_not_cited_or_used" in scored["failure_reasons"]
-    assert "expected_evidence_not_cited" in scored["failure_reasons"]
-
-
-def test_answer_response_scoring_requires_operation_fact_terms_from_source_evidence():
-    case = RetrievalEvalCase(
-        case_id="answer-operation-source-fact",
-        query=(
-            "For CV-X Multi-Capture trigger input timing, what operation does the section describe "
-            "and which control/data I/O timing chart should I use?"
-        ),
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="multi-capture-step",
-        source_title="Timing chart",
-        source_filename="Manual.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing chart",
-        page_from=114,
-        page_to=114,
-        expected_terms=["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
-        expected_snippet=(
-            "Timing chart Control/data output via I/O terminals; "
-            "Typical operations at trigger input (Capture Type: Multi-Capture); "
-            "Performs multiple image captures at the same location and processes them as a single measurement."
-        ),
-        generation_method="contextual_procedure_plus_section_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "multi-capture-step",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
-                "snippet": (
-                    "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture). "
-                    "Performs multiple image captures at the same location and processes them as a single measurement."
-                ),
-            },
-            {
-                "chunk_id": "timing-chart",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
-                "snippet": "Timing chart Control/data output via I/O terminals",
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "Use the Multi-Capture trigger input timing section and the control/data I/O timing chart."
-            ),
-            "citations": [
-                {"document_id": "doc-cvx", "chunk_id": "multi-capture-step", "quote_span": None},
-                {"document_id": "doc-cvx", "chunk_id": "timing-chart", "quote_span": None},
-            ],
-            "used_documents": [{"document_id": "doc-cvx"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "multi-capture-step",
-                "source_document_id": "doc-cvx",
-                "content": (
-                    "Typical operations at trigger input (Capture Type: Multi-Capture). "
-                    "Performs multiple image captures at the same location and processes them as a single measurement."
-                ),
-            },
-            {
-                "chunk_id": "timing-chart",
-                "source_document_id": "doc-cvx",
-                "content": "Timing chart Control/data output via I/O terminals",
-            },
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert "expected_terms_missing" in scored["failure_reasons"]
-    assert scored["term_check"]["material_expected_terms"] == ["performs", "multiple", "image", "captures"]
-
-
-def test_answer_response_scoring_accepts_operation_fact_terms_from_source_evidence():
-    case = RetrievalEvalCase(
-        case_id="answer-operation-source-fact-clean",
-        query=(
-            "For CV-X Multi-Capture trigger input timing, what operation does the section describe "
-            "and which control/data I/O timing chart should I use?"
-        ),
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="multi-capture-step",
-        source_title="Timing chart",
-        source_filename="Manual.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing chart",
-        page_from=114,
-        page_to=114,
-        expected_terms=["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
-        expected_snippet=(
-            "Timing chart Control/data output via I/O terminals; "
-            "Typical operations at trigger input (Capture Type: Multi-Capture); "
-            "Performs multiple image captures at the same location and processes them as a single measurement."
-        ),
-        generation_method="contextual_procedure_plus_section_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "multi-capture-step",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
-                "snippet": (
-                    "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture). "
-                    "Performs multiple image captures at the same location and processes them as a single measurement."
-                ),
-            },
-            {
-                "chunk_id": "timing-chart",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
-                "snippet": "Timing chart Control/data output via I/O terminals",
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "The section says Multi-Capture performs multiple image captures at the same location "
-                "and processes them as a single measurement; use the control/data I/O timing chart."
-            ),
-            "citations": [
-                {"document_id": "doc-cvx", "chunk_id": "multi-capture-step", "quote_span": None},
-                {"document_id": "doc-cvx", "chunk_id": "timing-chart", "quote_span": None},
-            ],
-            "used_documents": [{"document_id": "doc-cvx"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "multi-capture-step",
-                "source_document_id": "doc-cvx",
-                "content": (
-                    "Typical operations at trigger input (Capture Type: Multi-Capture). "
-                    "Performs multiple image captures at the same location and processes them as a single measurement."
-                ),
-            },
-            {
-                "chunk_id": "timing-chart",
-                "source_document_id": "doc-cvx",
-                "content": "Timing chart Control/data output via I/O terminals",
-            },
-        ],
-    )
-
-    assert scored["passed"] is True
-    assert scored["term_check"]["material_matched_terms"] == ["performs", "multiple", "image", "captures"]
-
-
-def test_answer_response_scoring_rejects_expected_role_only_from_cited_local_context():
-    case = RetrievalEvalCase(
-        case_id="answer-operation-source-context-clean",
-        query=(
-            "For CV-X Multi-Capture trigger input timing, what operation does the section describe "
-            "and which control/data I/O timing chart should I use?"
-        ),
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="multi-capture-step",
-        source_title="Timing chart",
-        source_filename="Manual.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing chart",
-        page_from=114,
-        page_to=114,
-        expected_terms=["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
-        expected_snippet=(
-            "Timing chart Control/data output via I/O terminals; "
-            "Typical operations at trigger input (Capture Type: Multi-Capture); "
-            "Performs multiple image captures at the same location and processes them as a single measurement."
-        ),
-        generation_method="contextual_procedure_plus_section_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "multi-capture-step",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
-                "snippet": (
-                    "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture). "
-                    "Performs multiple image captures at the same location and processes them as a single measurement."
-                ),
-            },
-            {
-                "chunk_id": "timing-chart",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
-                "snippet": "Timing chart Control/data output via I/O terminals",
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "The section says Multi-Capture performs multiple image captures at the same location "
-                "and processes them as a single measurement; use the control/data I/O timing chart."
-            ),
-            "citations": [{"document_id": "doc-cvx", "chunk_id": "multi-capture-step", "quote_span": None}],
-            "used_documents": [{"document_id": "doc-cvx"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "multi-capture-step",
-                "source_document_id": "doc-cvx",
-                "content": "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture).",
-                "metadata": {
-                    "local_rerank_context": (
-                        "Timing chart Control/data output via I/O terminals. "
-                        "2. Typical operations at trigger input (Capture Type: Multi-Capture). "
-                        "Performs multiple image captures at the same location and processes them as a single measurement."
-                    )
-                },
-            }
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert "expected_evidence_not_cited" in scored["failure_reasons"]
-    assert scored["evidence_citation_support"]["missing_evidence"] == [
-        {
-            "chunk_id": "timing-chart",
-            "source_document_id": "doc-cvx",
-            "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
-            "reason": "expected_evidence_not_supported_by_citations",
-        }
-    ]
-
-
-def test_answer_response_scoring_rejects_scattered_persisted_citation_context_terms():
-    case = RetrievalEvalCase(
-        case_id="answer-consolidated-scattered-context",
-        query=(
-            "For CV-X Multi-Capture trigger input timing, what operation does the section describe "
-            "and which control/data I/O timing chart should I use?"
-        ),
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="multi-capture-step",
-        source_title="Timing chart",
-        source_filename="Manual.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing chart",
-        page_from=114,
-        page_to=114,
-        expected_terms=["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
-        expected_snippet=(
-            "Timing chart Control/data output via I/O terminals; "
-            "Typical operations at trigger input (Capture Type: Multi-Capture); "
-            "Performs multiple image captures at the same location and processes them as a single measurement."
-        ),
-        generation_method="contextual_procedure_plus_section_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "timing-chart",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
-                "snippet": "Timing chart Control/data output via I/O terminals",
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "The section says Multi-Capture performs multiple image captures at the same location "
-                "and processes them as a single measurement; use the control/data I/O timing chart."
-            ),
-            "citations": [{"document_id": "doc-cvx", "chunk_id": "multi-capture-step", "quote_span": None}],
-            "used_documents": [{"document_id": "doc-cvx"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "multi-capture-step",
-                "source_document_id": "doc-cvx",
-                "content": "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture).",
-                "metadata": {
-                    "content": (
-                        "Timing setup overview. The diagnostic chart is listed elsewhere. "
-                        "Control output is configured separately. Data export uses I/O mapping. "
-                        "Terminal labels are shown on the next page."
-                    )
-                },
-            }
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert "expected_evidence_not_cited" in scored["failure_reasons"]
-
-
-def test_answer_response_scoring_rejects_wrong_operation_in_persisted_citation_context():
-    case = RetrievalEvalCase(
-        case_id="answer-consolidated-wrong-operation",
-        query=(
-            "For CV-X Multi-Capture trigger input timing, what operation does the section describe "
-            "and which control/data I/O timing chart should I use?"
-        ),
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="multi-capture-step",
-        source_title="Timing chart",
-        source_filename="Manual.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing chart",
-        page_from=114,
-        page_to=114,
-        expected_terms=["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
-        expected_snippet=(
-            "Timing chart Control/data output via I/O terminals; "
-            "Typical operations at trigger input (Capture Type: Multi-Capture); "
-            "Performs multiple image captures at the same location and processes them as a single measurement."
-        ),
-        generation_method="contextual_procedure_plus_section_evidence",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "multi-capture-step",
-                "source_document_id": "doc-cvx",
-                "expected_terms": ["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
-                "snippet": (
-                    "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture). "
-                    "Performs multiple image captures at the same location and processes them as a single measurement."
-                ),
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": (
-                "The section says Multi-Capture performs multiple image captures at the same location "
-                "and processes them as a single measurement."
-            ),
-            "citations": [{"document_id": "doc-cvx", "chunk_id": "section-window", "quote_span": None}],
-            "used_documents": [{"document_id": "doc-cvx"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "section-window",
-                "source_document_id": "doc-cvx",
-                "content": "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture).",
-                "metadata": {
-                    "content": (
-                        "Timing chart Control/data output via I/O terminals. "
-                        "Typical operations at trigger input (Capture Type: Multi-Capture). "
-                        "For asynchronous trigger operation, one image is captured for one measurement."
-                    )
-                },
-            }
-        ],
-    )
-
-    assert scored["passed"] is False
-    assert "expected_evidence_not_cited" in scored["failure_reasons"]
 
 
 def test_answer_response_scoring_rejects_composite_chunk_without_source_role_terms():
@@ -3329,6 +3194,80 @@ def test_answer_response_scoring_rejects_composite_chunk_with_sibling_identifier
     assert "expected_evidence_not_cited" in scored["failure_reasons"]
 
 
+def test_answer_response_scoring_accepts_equivalent_duplicate_troubleshooting_table_row():
+    case = RetrievalEvalCase(
+        case_id="duplicate-troubleshooting-row",
+        query=(
+            'For error 13302, what should I do when CV-X482 shows '
+            '"Unable to output to the PLC-Link due to a full output buffer"?'
+        ),
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="expected-remedy",
+        source_title="CV-X Manual",
+        source_filename="CV-X.pdf",
+        chunk_type="table_record",
+        section_path="Errors",
+        page_from=1281,
+        page_to=1281,
+        expected_terms=["reduce", "amount", "measurement", "slower"],
+        expected_snippet=(
+            "Column headers: Remedy; Row headers: 13302 Unable Link; "
+            "Cell value: Reduce the amount of data so each measurement is output at a slower rate."
+        ),
+        generation_method="table_sibling_error_cause_action_user_variant_10",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "expected-remedy",
+                "source_document_id": "doc-cvx",
+                "field": "remedy",
+                "expected_terms": ["reduce", "amount", "measurement", "slower"],
+                "snippet": "Reduce the amount of data so each measurement is output at a slower rate.",
+            }
+        ],
+    )
+    cited_value = (
+        "Reduce the amount of data to be output so the data is output via PLC-Link at a faster rate "
+        "than it builds up. Or, extend the time between triggers to allow for data to be output."
+    )
+    scored = score_answer_response(
+        case,
+        {
+            "answer": f"Corrective action: {cited_value}",
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "duplicate-action", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-cvx"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "duplicate-action",
+                "source_document_id": "doc-cvx",
+                "content": (
+                    "Column headers: Corrective Action; Row headers: Unable to output to the PLC-Link "
+                    f"due to a full output buffer; Cell value: {cited_value}; Row: 2; Column: 2"
+                ),
+            }
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["equivalent_cited_evidence_matched"] is True
+    assert scored["evidence_citation_support"]["coverage"][0]["match_type"] == "equivalent_table_row"
+
+
+def test_safe_query_label_trims_descriptive_text_after_series_name():
+    chunk = {
+        "title": "VS Series Vision System with Built-in AI",
+        "source_filename": "manual.pdf",
+        "metadata_json": {"product_family": "VS Series Vision System with Built: in AI"},
+    }
+
+    assert _safe_query_label(chunk) == "VS Series"
+
+
 def test_answer_response_scoring_rejects_composite_chunk_with_swapped_numeric_bindings():
     case = RetrievalEvalCase(
         case_id="answer-composite-swapped-quantity",
@@ -3351,7 +3290,6 @@ def test_answer_response_scoring_rejects_composite_chunk_with_swapped_numeric_bi
             {
                 "chunk_id": "setup-values",
                 "source_document_id": "doc-controller",
-                "allow_equivalent_citation": True,
                 "expected_terms": ["voltage", "5", "current", "10"],
                 "snippet": "Set voltage to 5 volts and current to 10 amps.",
             },
@@ -3402,7 +3340,6 @@ def test_answer_response_scoring_accepts_composite_chunk_with_correct_numeric_bi
             {
                 "chunk_id": "setup-values",
                 "source_document_id": "doc-controller",
-                "allow_equivalent_citation": True,
                 "expected_terms": ["voltage", "5", "current", "10"],
                 "snippet": "Set voltage to 5 volts and current to 10 amps.",
             },
@@ -3423,60 +3360,6 @@ def test_answer_response_scoring_accepts_composite_chunk_with_correct_numeric_bi
                 "chunk_id": "combined-values",
                 "source_document_id": "doc-controller",
                 "content": "Set voltage to 5 volts and current to 10 amps.",
-            }
-        ],
-    )
-
-    assert scored["passed"] is True
-    assert scored["evidence_citation_support"]["passed"] is True
-
-
-def test_answer_response_scoring_binds_number_of_lines_relation():
-    case = RetrievalEvalCase(
-        case_id="answer-composite-number-of-lines",
-        query="What camera line settings are shown for line count and line scan interval?",
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="line-settings",
-        source_title="Timing chart",
-        source_filename="Manual.pdf",
-        chunk_type="procedure_record",
-        section_path="Timing chart",
-        page_from=123,
-        page_to=123,
-        expected_terms=["camera", "lines", "interval", "specify"],
-        expected_snippet="Camera settings Number of Lines 10 Line Scan Interval Specify Encoder 1 pulse/line Sampling mode",
-        generation_method="unit_test",
-        source_metadata={},
-        retrieval_task="multi_step_retrieval",
-        expected_evidence=[
-            {
-                "chunk_id": "line-settings",
-                "source_document_id": "doc-cvx",
-                "allow_equivalent_citation": True,
-                "expected_terms": ["camera", "lines", "interval", "specify"],
-                "snippet": "Camera settings Number of Lines 10 Line Scan Interval Specify Encoder 1 pulse/line Sampling mode",
-            },
-        ],
-    )
-
-    scored = score_answer_response(
-        case,
-        {
-            "answer": "Number of Lines is 10, and Line Scan Interval is Specify Encoder 1 pulse/line.",
-            "citations": [{"document_id": "doc-cvx", "chunk_id": "section-window", "quote_span": None}],
-            "used_documents": [{"document_id": "doc-cvx"}],
-            "insufficient_evidence": False,
-        },
-        {"passed": True},
-        [
-            {
-                "chunk_id": "section-window",
-                "source_document_id": "doc-cvx",
-                "content": (
-                    "When the LJ-V series head is used and Sheet-fed is set. "
-                    "Camera settings Number of Lines 10 Line Scan Interval Specify Encoder 1 pulse/line Sampling mode."
-                ),
             }
         ],
     )
@@ -3602,7 +3485,7 @@ def test_large_retrieval_eval_summarizes_answer_metrics():
                     "chunk_type": "spec_record",
                     "retrieval_task": "single_step_retrieval",
                     "source_filename": "manual.pdf",
-                    "benchmark_quality": "validated",
+                    "benchmark_quality": "model_reviewed",
                 },
                 "evaluation": {"passed": True, "rank": 1, "candidate_recall": True},
                 "answer": {
@@ -3639,6 +3522,10 @@ def test_large_retrieval_eval_summarizes_answer_metrics():
         "Generated answer was replaced by retrieval-grounded fallback during validation.": 1
     }
     assert summary["answer_mean_summary_count"] == 3.0
+    assert summary["benchmark_validity_rate"] == 1.0
+    assert summary["by_question_family"] == {"general": 1}
+    assert summary["representative_question_coverage"] is False
+    assert "must not be treated as representative" in summary["question_coverage_warning"]
 
 
 def test_large_retrieval_eval_scores_api_answer_payload_for_http_answer_mode(monkeypatch):
@@ -3856,7 +3743,7 @@ def test_large_retrieval_eval_scores_answer_against_current_search_results(monke
     assert calls == [search_payload["top_results"]]
 
 
-def test_build_eval_cases_from_chunks_creates_queries():
+def test_build_eval_cases_from_chunks_requires_llm_generation():
     chunks = [
         {
             "id": "chunk-1",
@@ -3874,16 +3761,7 @@ def test_build_eval_cases_from_chunks_creates_queries():
         }
     ]
     cases = build_eval_cases_from_chunks(chunks, max_cases=3, use_llm_generation=False)
-    assert cases
-    assert all(case.benchmark_quality == "validated" for case in cases)
-    assert all("this document" not in case.query.lower() for case in cases)
-    assert all(case.query.endswith("?") for case in cases)
-    assert any(
-        "ca-en100u" in case.query.lower()
-        and ("power" in case.query.lower() or "voltage" in case.query.lower())
-        for case in cases
-    )
-    assert all(case.retrieval_task == "single_step_retrieval" for case in cases)
+    assert cases == []
 
 
 def test_table_eval_queries_use_row_column_and_cell_context():
@@ -3912,13 +3790,7 @@ def test_table_eval_queries_use_row_column_and_cell_context():
     ]
 
     cases = build_eval_cases_from_chunks(chunks, max_cases=3, use_llm_generation=False)
-    queries = [case.query.lower() for case in cases]
-
-    assert cases
-    assert all("measurement range" in query for query in queries)
-    assert any("lj-x8200" in query for query in queries)
-    assert all(query not in {"lj-x8000 column", "column headers lj-x8000"} for query in queries)
-    assert any("2.83" in case.expected_terms or "2.83" in (case.anchor_terms or []) for case in cases)
+    assert cases == []
 
 
 def test_eval_queries_avoid_unwieldy_product_list_labels():
@@ -3943,10 +3815,7 @@ def test_eval_queries_avoid_unwieldy_product_list_labels():
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
 
-    assert cases
-    assert all("vs-l160mx/" not in case.query.lower() for case in cases)
-    assert any("capture settings" in case.query.lower() for case in cases)
-    assert any("88ms" in case.expected_terms or "88ms" in (case.anchor_terms or []) for case in cases)
+    assert cases == []
 
 
 def test_eval_queries_fall_back_to_product_family_for_long_model_lists():
@@ -3976,9 +3845,7 @@ def test_eval_queries_fall_back_to_product_family_for_long_model_lists():
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
 
-    assert cases
-    assert all("vs-l160mx/" not in case.query.lower() for case in cases)
-    assert all("vs series vision system" in case.query.lower() for case in cases)
+    assert cases == []
 
 
 def test_table_key_value_queries_include_disambiguating_adjacent_value():
@@ -4001,11 +3868,7 @@ def test_table_key_value_queries_include_disambiguating_adjacent_value():
     }
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
-    queries = [case.query.lower() for case in cases]
-
-    assert cases
-    assert all("1041" in query for query in queries)
-    assert all("address" in query for query in queries)
+    assert cases == []
 
 
 def test_table_cell_without_row_context_is_not_single_step_queryworthy():
@@ -4173,13 +4036,126 @@ def test_build_multi_step_eval_cases_from_sibling_error_rows():
         },
     ]
 
-    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5)
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=20)
 
-    assert len(cases) == 1
+    assert len(cases) == 11
     assert cases[0].retrieval_task == "multi_step_retrieval"
     assert "what causes timeout error" in cases[0].query.lower()
-    assert cases[0].expected_source_chunk_ids == ["error-cell", "cause-cell", "action-cell"]
-    assert len(cases[0].expected_evidence or []) == 3
+    assert cases[0].expected_source_chunk_ids == ["cause-cell", "action-cell"]
+    cause_cases = [case for case in cases if case.generation_method == "table_sibling_error_cause" or case.generation_method.startswith("table_sibling_error_cause_user_")]
+    action_cases = [case for case in cases if case.generation_method == "table_sibling_error_action" or case.generation_method.startswith("table_sibling_error_action_user_")]
+    assert len(cause_cases) == 3
+    assert all(case.expected_source_chunk_ids == ["cause-cell"] for case in cause_cases)
+    assert len(action_cases) == 3
+    assert all(case.expected_source_chunk_ids == ["action-cell"] for case in action_cases)
+    assert len(cases[0].expected_evidence or []) == 2
+    assert all(multi_step_case_quality_rejection_reason(case) is None for case in cases)
+    assert multi_step_case_quality_rejection_reason(
+        cases[0].__class__(**{**cases[0].to_dict(), "query": f"Which chunk id is {cases[0].source_chunk_id}?"})
+    ) == "internal_metadata_cue"
+
+
+def test_troubleshooting_question_anchor_is_not_cut_midword_or_reduced_to_generic_sentence():
+    long_error = (
+        "Updating the registered image information at every process is not possible due to the "
+        "maximum image capture area being greater than 26.21 million pixels."
+    )
+    generic_prefix_error = (
+        "The following error occurred. - Three or more LJ-S heads are connected. "
+        "Turn off the controller and check."
+    )
+
+    assert _short_answer_anchor(long_error) == long_error
+    assert _short_answer_anchor(generic_prefix_error) == generic_prefix_error
+
+
+def test_troubleshooting_question_qualifier_keeps_mode_specific_context_without_causal_answer():
+    qualifier = _troubleshooting_query_qualifier(
+        (
+            "In the LumiTrax mode's mobile tracking for 21-megapixel cameras, "
+            "the pattern region was set to a width of 2432 pixels or more."
+        ),
+        "Pattern region must be less than 2432 pixels in width and 2050 pixels in height.",
+    )
+
+    assert qualifier == "In the LumiTrax mode's mobile tracking for 21-megapixel cameras"
+    assert "pattern region was set" not in qualifier
+    assert _troubleshooting_query_qualifier(
+        "The controller output buffer is full. (Handshake OFF)",
+        "Unable to output to PLC-Link due to a full output buffer.",
+    ) == "With Handshake OFF"
+    assert _troubleshooting_row_identifier(
+        {"metadata_json": {"table_row_headers": ["13302 Unable Link"]}}
+    ) == "For error 13302"
+
+
+def test_sibling_error_rows_do_not_cross_tables_that_reuse_row_numbers():
+    base = {
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "table_record",
+        "title": "XG-X",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "Troubleshooting",
+        "page_from": 10,
+        "page_to": 10,
+    }
+    chunks = [
+        {
+            **base,
+            "id": "error-cell",
+            "content": "Column headers: Error Message; Cell value: Internal command error occurred.; Row: 7; Column: 0",
+            "metadata_json": {"table_cell": True, "table_row": 7, "table_column_headers": ["Error Message"]},
+        },
+        {
+            **base,
+            "id": "unrelated-cause",
+            "content": "Column headers: Cause; Cell value: No illumination unit is connected.; Row: 7; Column: 1",
+            "metadata_json": {
+                "table_cell": True,
+                "table_row": 7,
+                "table_column_headers": ["Cause"],
+                "table_row_headers": ["Illumination expansion error"],
+            },
+        },
+        {
+            **base,
+            "id": "unrelated-action",
+            "content": "Column headers: Corrective Action; Cell value: Connect the illumination unit.; Row: 7; Column: 2",
+            "metadata_json": {
+                "table_cell": True,
+                "table_row": 7,
+                "table_column_headers": ["Corrective Action"],
+                "table_row_headers": ["Illumination expansion error"],
+            },
+        },
+    ]
+
+    assert build_multi_step_eval_cases_from_chunks(chunks, max_cases=5) == []
+
+
+def test_sibling_error_rows_reject_parser_notation_as_the_question_anchor():
+    base = {
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "table_record",
+        "title": "XG-X",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "Troubleshooting",
+        "page_from": 10,
+        "page_to": 10,
+    }
+    anchor = "*n : Expansion Unit No. (1 to 8) m: Light Head No. (1 to 2)"
+    chunks = [
+        {
+            **base,
+            "id": "error-cell",
+            "content": f"Column headers: Error Message; Cell value: {anchor}; Row: 7; Column: 0",
+            "metadata_json": {"table_cell": True, "table_row": 7, "table_column_headers": ["Error Message"]},
+        }
+    ]
+
+    assert build_multi_step_eval_cases_from_chunks(chunks, max_cases=5) == []
 
 
 def test_build_multi_step_eval_cases_from_contextual_procedure_section():
@@ -4458,6 +4434,36 @@ def test_build_multi_step_eval_cases_from_cross_document_same_field_values():
     assert cases[0].expected_evidence[0]["source_document_id"] == "doc-iv"
     assert cases[0].expected_evidence[1]["source_document_id"] == "doc-lj"
     assert "iv4g120" in cases[0].expected_evidence[0]["product_identifiers"]
+
+
+def test_build_cross_document_cases_skip_unrelated_noncomparable_fields():
+    chunks = []
+    for index, (model, value) in enumerate((("LJ-X8000", "Reset the PLC link."), ("CA-DRM10X", "Reduce light intensity."))):
+        chunks.append(
+            {
+                "id": f"action-{index}",
+                "source_document_id": f"doc-{index}",
+                "document_version_id": f"ver-{index}",
+                "chunk_type": "table_record",
+                "chunk_level": 1,
+                "title": model,
+                "source_filename": f"{model}.pdf",
+                "section_path_text": "Troubleshooting",
+                "page_from": 1,
+                "page_to": 1,
+                "content": f"Row headers: Communication; Column headers: Corrective Action; Cell value: {value}",
+                "metadata_json": {
+                    "product_model": model,
+                    "table_cell": True,
+                    "table_column_headers": ["Corrective Action"],
+                    "table_row_headers": ["Communication"],
+                },
+            }
+        )
+
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="cross_document")
+
+    assert cases == []
 
 
 def test_build_cross_document_cases_skip_generic_item_fields():
@@ -4745,7 +4751,7 @@ def test_validate_eval_case_rejects_mechanical_source_dump_query():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "table_artifact_syntax_query"}
 
 
 def test_validate_eval_case_rejects_toc_and_file_list_questions():
@@ -4782,7 +4788,32 @@ def test_validate_eval_case_rejects_toc_and_file_list_questions():
     assert not toc_valid
     assert toc_reason == "mechanical_query"
     assert not file_valid
-    assert file_reason == "mechanical_query"
+    assert file_reason in {"mechanical_query", "source_address_syntax_query"}
+
+
+def test_validate_eval_case_requires_named_condition_scope():
+    chunk = {
+        "chunk_type": "spec_record",
+        "content": 'Refer to Vision Dashboard Cell: Archiving is performed when the cell selected in [Target] is "TRUE".',
+        "section_path_text": "Archive Condition Settings",
+        "title": "User Manual",
+        "metadata_json": {
+            "product_family": "VS Series Vision System",
+            "product_model": "VS-L160MX",
+        },
+    }
+    anchors = ["refer", "vision", "dashboard", "archiving"]
+
+    assert validate_eval_case(
+        "When does archiving start for the VS Series Vision System?",
+        chunk,
+        anchors,
+    ) == (False, "missing_condition_discriminator")
+    assert validate_eval_case(
+        "How must a vision target change before the dashboard begins its archive?",
+        chunk,
+        anchors,
+    ) == (True, "validated")
 
 
 def test_validate_eval_case_rejects_generic_short_item_queries():
@@ -4812,7 +4843,7 @@ def test_validate_eval_case_rejects_generic_short_item_queries():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "copied_source_phrase"}
 
 
 def test_validate_eval_case_rejects_source_shaped_table_coordinate_queries():
@@ -4842,7 +4873,7 @@ def test_validate_eval_case_rejects_source_shaped_table_coordinate_queries():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "copied_source_phrase"}
 
 
 def test_validate_eval_case_rejects_toc_like_described_queries():
@@ -4867,7 +4898,7 @@ def test_validate_eval_case_rejects_toc_like_described_queries():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "copied_source_phrase"}
 
 
 def test_validate_eval_case_rejects_generic_applies_phrasing():
@@ -4897,7 +4928,7 @@ def test_validate_eval_case_rejects_generic_applies_phrasing():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "copied_source_phrase"}
 
 
 def test_numbered_click_step_fragments_are_not_single_step_queryworthy():
@@ -4918,7 +4949,7 @@ def test_numbered_click_step_fragments_are_not_single_step_queryworthy():
     assert not chunk_is_queryworthy(chunk, ["10after", "completing", "left-click", "11restart"])
 
 
-def test_table_fallback_queries_are_user_style_not_table_coordinate_dumps():
+def test_table_query_generation_disabled_does_not_create_template_questions():
     chunk = {
         "id": "chunk-table",
         "source_document_id": "doc-1",
@@ -4940,28 +4971,26 @@ def test_table_fallback_queries_are_user_style_not_table_coordinate_dumps():
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
 
-    assert cases
-    assert all(" value applies " not in case.query.lower() for case in cases)
-    assert any("symbol identifier" in case.query.lower() for case in cases)
-    assert all("output symbol identifier" not in case.query.lower() for case in cases)
+    assert cases == []
 
 
 def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
     call_count = 0
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"},'
+                '{"query":"What voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"alternate phrasing"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"},'
-                    '{"query":"What voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"alternate phrasing"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -4975,6 +5004,11 @@ def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
 
         def post(self, *args, **kwargs):
             nonlocal call_count
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                if "What power supply voltage is required for CA-EN100U?" in prompt:
+                    return FakeResponse('{"approved":true,"feedback":""}')
+                return FakeResponse('{"approved":false,"feedback":"Too close to an existing accepted question."}')
             call_count += 1
             return FakeResponse()
 
@@ -5007,17 +5041,18 @@ def test_build_eval_cases_allows_repeated_content_but_dedupes_questions(monkeypa
     call_count = 0
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -5031,6 +5066,8 @@ def test_build_eval_cases_allows_repeated_content_but_dedupes_questions(monkeypa
 
         def post(self, *args, **kwargs):
             nonlocal call_count
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             call_count += 1
             return FakeResponse()
 
@@ -5064,12 +5101,12 @@ def test_build_eval_cases_allows_repeated_content_but_dedupes_questions(monkeypa
     cases = build_eval_cases_from_chunks([base_chunk, duplicate_chunk], max_cases=4)
 
     assert [case.source_chunk_id for case in cases] == ["chunk-llm-1", "chunk-llm-2"]
+    assert cases[0].source_metadata["generation_document_context"]["product_model"] == "CA-EN100U"
+    assert "page_range" not in cases[0].source_metadata["generation_document_context"]
     assert call_count == 2
 
 
-def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypatch):
-    prompts = []
-
+def test_build_eval_cases_global_previous_questions_block_cross_chunk_acceptance(monkeypatch):
     class FakeResponse:
         def raise_for_status(self):
             return None
@@ -5077,9 +5114,8 @@ def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypat
         def json(self):
             return {
                 "response": (
-                    '{"queries":['
-                    '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
-                    ']}'
+                    '{"queries":[{"query":"Which cable connects the XG-X Series to VisionDataStorage?",'
+                    '"intent":"cable_lookup","reason":"direct lookup"}]}'
                 )
             }
 
@@ -5094,6 +5130,63 @@ def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypat
             return False
 
         def post(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+    chunk = {
+        "id": "duplicate-source-chunk",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "spec_record",
+        "title": "XG-X Manual",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "VisionDataStorage",
+        "page_from": 10,
+        "page_to": 10,
+        "content": "VisionDataStorage uses the dedicated USB cable OP-88263.",
+        "metadata_json": {"product_family": "XG-X Series", "spec_flag": True},
+        "product_family": "XG-X Series",
+    }
+
+    cases = build_eval_cases_from_chunks(
+        [chunk],
+        max_cases=1,
+        previous_questions_global=["Which cable connects the XG-X Series to VisionDataStorage?"],
+    )
+
+    assert cases == []
+
+
+def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypatch):
+    prompts = []
+
+    class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
+                ']}'
+            )
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"response": self.response}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             prompts.append(kwargs["json"]["prompt"])
             return FakeResponse()
 
@@ -5131,17 +5224,18 @@ def test_build_eval_cases_passes_previous_section_questions_to_generator(monkeyp
     prompts = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -5154,6 +5248,8 @@ def test_build_eval_cases_passes_previous_section_questions_to_generator(monkeyp
             return False
 
         def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             prompts.append(kwargs["json"]["prompt"])
             return FakeResponse()
 
@@ -5191,20 +5287,14 @@ def test_build_eval_cases_tracks_questions_generated_for_same_section(monkeypatc
     prompts = []
 
     class FakeResponse:
-        def __init__(self, query):
-            self.query = query
+        def __init__(self, response):
+            self.response = response
 
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    f'{{"query":"{self.query}","intent":"spec_lookup","reason":"new facet"}}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         calls = 0
@@ -5219,14 +5309,21 @@ def test_build_eval_cases_tracks_questions_generated_for_same_section(monkeypatc
             return False
 
         def post(self, *args, **kwargs):
-            prompts.append(kwargs["json"]["prompt"])
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                return FakeResponse('{"approved":true,"feedback":""}')
+            prompts.append(prompt)
             self.__class__.calls += 1
             query = (
                 "What current draw is specified for CA-EN100U?"
                 if self.__class__.calls == 1
                 else "What operating temperature applies to CA-EN100U?"
             )
-            return FakeResponse(query)
+            return FakeResponse(
+                '{"queries":['
+                f'{{"query":"{query}","intent":"spec_lookup","reason":"new facet"}}'
+                ']}'
+            )
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
 
@@ -5283,6 +5380,8 @@ def test_build_eval_cases_honors_none_from_llm_generation(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse()
             return FakeResponse()
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
@@ -5313,17 +5412,18 @@ def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
     request_bodies = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What voltage does CA-EN100U need for power?","intent":"spec_lookup","reason":"natural user wording"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What voltage does CA-EN100U need for power?","intent":"spec_lookup","reason":"natural user wording"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -5336,6 +5436,8 @@ def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             request_bodies.append(kwargs["json"])
             prompts.append(kwargs["json"]["prompt"])
             return FakeResponse()
@@ -5368,6 +5470,10 @@ def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
     assert "Good query: What voltage does MODEL-A need for power?" in prompts[0]
     assert "Bad query: Which disconnect all other devices detail is needed?" in prompts[0]
     assert "section_context_excerpt" in prompts[0]
+    assert "Before writing queries, identify for yourself" in prompts[0]
+    assert "document_context" in prompts[0]
+    assert "return exactly NONE" in prompts[0]
+    assert "review_feedback_for_rejected_questions" in prompts[0]
     assert "current draw and operating temperature" in prompts[0]
     assert request_bodies[0]["think"] is False
     assert request_bodies[0]["model"] == "qwen3.5:27b"
@@ -5411,6 +5517,134 @@ def test_parse_generated_queries_accepts_top_level_query_arrays():
 def test_parse_generated_queries_rejects_empty_model_response():
     with pytest.raises(ValueError, match="empty generated-query response"):
         _parse_generated_queries("")
+
+
+def test_parse_query_review_accepts_structured_categories():
+    review = _parse_query_review(
+        '{"approved":false,"category":"too_vague","feedback":"Name the concrete setting.","answer_in_snippet":true,'
+        '"false_rejection_check":{"synonym_or_smoother_wording_only":false}}'
+    )
+
+    assert review.approved is False
+    assert review.category == "too_vague"
+    assert review.feedback == "Name the concrete setting."
+    assert review.answer_in_snippet is True
+    assert review.false_rejection_check == {"synonym_or_smoother_wording_only": False}
+
+
+def test_parse_query_review_keeps_old_reviewer_responses_compatible():
+    accepted = _parse_query_review('{"approved":true,"feedback":""}')
+    rejected = _parse_query_review('{"approved":false,"feedback":"Needs a concrete source target."}')
+
+    assert accepted.approved is True
+    assert accepted.category == "approved"
+    assert rejected.approved is False
+    assert rejected.category == "reviewer_rejected"
+
+
+def test_review_prompt_requires_category_and_false_rejection_self_check():
+    assert '"category":"too_vague"' in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "Allowed rejection categories" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "wrong_product_or_context" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "mechanical_source_copy" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "false_rejection_check" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "synonym_or_smoother_wording_only" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "valid_context_anchor_only" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "single_step_or_setting_how_question" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "valid_yes_no_restriction_question" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "If answer_in_snippet is true and any false_rejection_check value is true, approve" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "What should I check when LJ-X8000 connects via RS-232C?" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "How do I select a lighting color for the VIEW bar?" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "Can I register only grayscale images with an LJ-V series head?" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "How do I verify the cable status?" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "asks_for_steps_not_present" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+
+
+def test_structured_eval_input_includes_document_context_metadata():
+    chunk = {
+        "id": "chunk-1",
+        "chunk_type": "procedure_record",
+        "title": "Setting OK range",
+        "document_title": "CV-X Series User Manual",
+        "document_kind": "manual",
+        "manufacturer": "KEYENCE",
+        "product_family": "CV-X Series",
+        "product_model": "CV-X482",
+        "source_filename": "cvx.pdf",
+        "section_path_text": "Inspection settings > Height",
+        "page_from": 32,
+        "page_to": 33,
+        "content": "KEYENCE setup note: Set the OK range for average height using the upper and lower limits.",
+        "metadata_json": {
+            "parent_context": "This article explains height inspection settings for the CV-X Series.",
+            "context_window": "The surrounding section covers average height measurement setup.",
+            "devices": ["CV-X482"],
+        },
+    }
+    structured = _structured_eval_input(chunk, ["average", "height", "limits"])
+
+    context = structured["document_context"]
+    assert context["document_title"] == "CV-X Series User Manual"
+    assert context["chunk_title"] == "Setting OK range"
+    assert "source_filename" not in context
+    assert context["manufacturer"] == "KEYENCE"
+    assert context["product_family"] == "CV-X Series"
+    assert context["product_model"] == "CV-X482"
+    assert context["document_kind"] == "manual"
+    assert context["section_path"] == "Inspection settings > Height"
+    assert "page_range" not in context
+    assert context["devices"] == ["CV-X482"]
+    assert "height inspection settings" in context["parent_context_excerpt"]
+    assert structured["product_model"] == "CV-X482"
+    trace_fields = _question_generation_trace_fields(chunk)
+    assert trace_fields["snippet_chars"] > 0
+    assert trace_fields["parent_context_chars"] > 0
+    assert trace_fields["context_window_chars"] > 0
+    assert trace_fields["section_context_chars"] > 0
+
+
+def test_structured_eval_input_omits_filename_derived_document_titles():
+    structured = _structured_eval_input(
+        {
+            "id": "chunk-1",
+            "chunk_type": "table_record",
+            "title": "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf",
+            "document_title": "AS 149551 IV4 UM K80GB WW GB 2124 1",
+            "source_filename": "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf",
+            "section_path_text": "9-68",
+            "page_from": 354,
+            "page_to": 354,
+            "content": "Items: Tool upper threshold; Data content: 0 to 9999.",
+            "metadata_json": {"product_model": "IV4-G600CA"},
+            "product_model": "IV4-G600CA",
+        },
+        ["tool", "upper", "threshold"],
+    )
+
+    context = structured["document_context"]
+    assert "document_title" not in context
+    assert "chunk_title" not in context
+    assert "parent_article" not in context
+
+    placeholder_title = _structured_eval_input(
+        {
+            "id": "chunk-2",
+            "chunk_type": "table_record",
+            "title": "Classify Title",
+            "document_title": "Classify Title",
+            "source_filename": "xgx.pdf",
+            "section_path_text": "Settings",
+            "page_from": 1,
+            "page_to": 1,
+            "content": "Setting: Grouping Range; Value: 0 to 255 pixels.",
+            "metadata_json": {"parent_article": "Classify Title"},
+        },
+        ["grouping", "range", "pixels"],
+    )
+    placeholder_context = placeholder_title["document_context"]
+    assert "document_title" not in placeholder_context
+    assert "chunk_title" not in placeholder_context
+    assert "parent_article" not in placeholder_context
 
 
 def test_validate_eval_case_rejects_source_address_syntax_queries():
@@ -5494,7 +5728,7 @@ def test_validate_eval_case_rejects_table_artifact_queries():
     assert validate_eval_case("What XYT measurement does CV-X482 report?", chunk, anchors) == (True, "validated")
 
 
-def test_build_eval_cases_falls_back_when_llm_generation_fails(monkeypatch):
+def test_build_eval_cases_returns_no_questions_when_llm_generation_fails(monkeypatch):
     class FakeClient:
         def __init__(self, *args, **kwargs):
             pass
@@ -5529,28 +5763,24 @@ def test_build_eval_cases_falls_back_when_llm_generation_fails(monkeypatch):
 
     cases = build_eval_cases_from_chunks(chunks, max_cases=2)
 
-    assert cases
-    assert any(
-        "ca-en100u" in case.query.lower()
-        and ("power" in case.query.lower() or "voltage" in case.query.lower())
-        for case in cases
-    )
+    assert cases == []
 
 
 def test_build_eval_cases_filters_meta_llm_queries(monkeypatch):
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What specification does LJ-X8000 give for laser?","intent":"spec_lookup","reason":"bad meta phrasing"},'
+                '{"query":"What laser wavelength applies to LJ-X8000?","intent":"spec_lookup","reason":"good question phrasing"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What specification does LJ-X8000 give for laser?","intent":"spec_lookup","reason":"bad meta phrasing"},'
-                    '{"query":"What laser wavelength applies to LJ-X8000?","intent":"spec_lookup","reason":"good question phrasing"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -5563,6 +5793,11 @@ def test_build_eval_cases_filters_meta_llm_queries(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                if "What specification does LJ-X8000 give for laser?" in prompt:
+                    return FakeResponse('{"approved":false,"feedback":"Meta phrasing; ask for the concrete laser value."}')
+                return FakeResponse('{"approved":true,"feedback":""}')
             return FakeResponse()
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
@@ -5592,6 +5827,100 @@ def test_build_eval_cases_filters_meta_llm_queries(monkeypatch):
     assert all(query.endswith("?") for query in queries)
 
 
+def test_eval_generation_uses_reviewer_feedback_for_vague_llm_queries(monkeypatch):
+    prompts = []
+    generation_calls = 0
+
+    class FakeResponse:
+        def __init__(self, response):
+            self.response = response
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"response": self.response}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            nonlocal generation_calls
+            prompt = kwargs["json"]["prompt"]
+            prompts.append(prompt)
+            if "Review input:" in prompt:
+                if "Which controllers work with XG-X2702?" in prompt:
+                    return FakeResponse('{"approved":true,"category":"approved","feedback":"","answer_in_snippet":true}')
+                return FakeResponse(
+                    '{"approved":false,"category":"too_vague","feedback":"The question is too vague; say what compatibility or setting the user needs to identify.","answer_in_snippet":true}'
+                )
+            generation_calls += 1
+            if generation_calls == 1:
+                return FakeResponse(
+                    '{"queries":['
+                    '{"query":"What xg-x2702 controlled applies?","intent":"bad_vague","reason":"underspecified"}'
+                    ']}'
+                )
+            return FakeResponse(
+                '{"queries":['
+                '{"query":"Which controllers work with XG-X2702?","intent":"fair_user_question","reason":"clear target"}'
+                ']}'
+            )
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    chunk = {
+        "id": "chunk-xgx-compatible",
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "table_record",
+        "title": "XG-X Series",
+        "source_filename": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf",
+        "section_path_text": "Controller compatibility",
+        "page_from": 4,
+        "page_to": 4,
+        "content": "Row headers: XG-X2702; Column headers: Controller compatibility; Cell value: XG-X2702 is compatible with XG-X controllers.",
+        "metadata_json": {
+            "product_model": "XG-X Series",
+            "table_cell": True,
+            "table_row_headers": ["XG-X2702"],
+            "table_column_headers": ["Controller compatibility"],
+        },
+        "product_model": "XG-X Series",
+    }
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=1)
+
+    assert cases
+    assert cases[0].query == "Which controllers work with XG-X2702?"
+    assert cases[0].generation_method == "reviewed_llm:fair_user_question"
+    assert cases[0].benchmark_quality == "model_reviewed"
+    assert any("Review input:" in prompt for prompt in prompts)
+    assert any("Targets a concrete source-backed answer" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("Does not ask \"how\" or \"why\"" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("unless that text actually appears in the question" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("never mention removing or changing a word" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("single-step instruction snippets" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("How do I prevent X?" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("multiple values for the same metric" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("What torque is required for the bracket?" in prompt for prompt in prompts if "Review input:" in prompt)
+    retry_prompts = [
+        prompt
+        for prompt in prompts
+        if "review_feedback_for_rejected_questions" in prompt and "What xg-x2702 controlled applies?" in prompt
+    ]
+    assert retry_prompts
+    assert "too vague" in retry_prompts[0]
+    assert '"category": "too_vague"' in retry_prompts[0]
+
+
 def test_validate_eval_case_rejects_query_not_specific_to_source_context():
     chunk = {
         "chunk_type": "spec_record",
@@ -5607,7 +5936,36 @@ def test_validate_eval_case_rejects_query_not_specific_to_source_context():
     valid, reason = validate_eval_case("What detail applies to New LJ-X8000 Series?", chunk, anchors)
     assert valid is False
     assert reason in {"mechanical_query", "low_specificity", "weak_source_affinity", "weak_source_discriminator"}
-    assert validate_eval_case("What 3200 points/profile applies to LJ-X8000?", chunk, anchors) == (True, "validated")
+    assert validate_eval_case("What 3200 points/profile applies to LJ-X8000?", chunk, anchors) == (
+        False,
+        "mechanical_query",
+    )
+
+
+def test_validate_eval_case_rejects_recent_mechanical_fallback_queries():
+    chunk = {
+        "chunk_type": "spec_record",
+        "title": "CV-X482",
+        "source_filename": "cv-x482.pdf",
+        "section_path_text": "Output item settings",
+        "content": "Program Time: The measurement time is output in the form of integer 7 digits + decimal number 1 digit (Unit: ms).",
+        "metadata_json": {"product_model": "CV-X482"},
+        "product_model": "CV-X482",
+    }
+
+    bad_queries = [
+        "What program measurement is specified for CV-X482?",
+        "What measured select is specified for CV-X482?",
+        "What current displays is specified for VS Series Vision System with Built: in AI?",
+        "What point set applies to CV-X482?",
+        "How do you procedure for CV-X482?",
+    ]
+
+    for query in bad_queries:
+        assert validate_eval_case(query, chunk, ["program", "measurement", "integer", "digits"]) == (
+            False,
+            "mechanical_query",
+        )
 
 
 def test_table_header_chunks_are_not_queryworthy_as_standalone_questions():
@@ -5638,7 +5996,38 @@ def test_table_header_chunks_are_not_queryworthy_as_standalone_questions():
     assert build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False) == []
 
 
-def test_fallback_eval_queries_include_context_anchors_for_compact_specs():
+def test_ambiguous_signed_table_cells_are_not_queryworthy_without_metric_header():
+    chunk = {
+        "id": "ambiguous-signed-cell",
+        "source_document_id": "doc-lrt",
+        "document_version_id": "ver-lrt",
+        "chunk_type": "table_record",
+        "title": "LR-T table",
+        "section_path_text": "16.4'",
+        "page_from": 16,
+        "page_to": 16,
+        "content": (
+            'Column headers: LR-TB5000/TB5000C (Class 2 laser) Unit: mm inch > '
+            'White Paper (Reflectivity: 90%) > Response Time [ms] > 100; '
+            'Row headers: 200 7.87"; Cell value: ±3 ±0.12"; Row: 5; Column: 5'
+        ),
+        "metadata_json": {
+            "table_cell": True,
+            "table_row_headers": ['200 7.87"'],
+            "table_column_headers": [
+                "LR-TB5000/TB5000C (Class 2 laser) Unit: mm inch",
+                "White Paper (Reflectivity: 90%)",
+                "Response Time [ms]",
+                "100",
+            ],
+        },
+    }
+
+    assert chunk_is_queryworthy(chunk, ["lr-tb5000", "200", "0.12"]) is False
+    assert build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False) == []
+
+
+def test_generation_disabled_does_not_create_compact_spec_template_questions():
     chunks = [
         {
             "id": "chunk-specific",
@@ -5658,10 +6047,7 @@ def test_fallback_eval_queries_include_context_anchors_for_compact_specs():
 
     cases = build_eval_cases_from_chunks(chunks, max_cases=3, use_llm_generation=False)
 
-    assert cases
-    assert all("points/profile" in case.query.lower() or "capture" in case.query.lower() for case in cases)
-    assert all(case.query != "New LJ-X8000 Series 3200" for case in cases)
-    assert all(case.query.endswith("?") for case in cases)
+    assert cases == []
 
 
 def test_eval_queries_reject_ambiguous_storage_only_phrasing():
@@ -5685,14 +6071,7 @@ def test_eval_queries_reject_ambiguous_storage_only_phrasing():
     assert reason == "filename_artifact_query"
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
-    queries = [case.query.lower() for case in cases]
-
-    assert cases
-    assert all(query != "d48gb stores number" for query in queries)
-    assert all(query.endswith("?") for query in queries)
-    assert all("d48gb" not in query for query in queries)
-    assert all("command" in query for query in queries)
-    assert any("specified-command" in query for query in queries)
+    assert cases == []
 
 
 def test_eval_queries_create_question_form_for_disconnect_guidance():
@@ -5719,29 +6098,25 @@ def test_eval_queries_create_question_form_for_disconnect_guidance():
     assert reason == "not_question_form"
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
-    queries = [case.query for case in cases]
-
-    assert queries
-    assert "Which other devices should be disconnected?" in queries
-    assert "Which devices should be disconnected before checking the EtherNet/IP connection?" in queries
-    assert all("D48GB" not in query for query in queries)
+    assert cases == []
 
 
 def test_eval_generation_does_not_prompt_with_source_filename_artifacts(monkeypatch):
     prompts = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What specified-command number does the PLC store?","intent":"spec_lookup","reason":"snippet-grounded"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What specified-command number does the PLC store?","intent":"spec_lookup","reason":"snippet-grounded"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -5754,6 +6129,8 @@ def test_eval_generation_does_not_prompt_with_source_filename_artifacts(monkeypa
             return False
 
         def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             prompts.append(kwargs["json"]["prompt"])
             return FakeResponse()
 
@@ -5788,18 +6165,19 @@ def test_eval_generation_rejects_copied_source_phrasing(monkeypatch):
     prompts = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What obtained authentication is specified for XG-X Series?","intent":"bad_copy","reason":"copied"},'
+                '{"query":"Which controller combination has CSA approval for XG-X Series?","intent":"fair_user_question","reason":"paraphrased"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What obtained authentication is specified for XG-X Series?","intent":"bad_copy","reason":"copied"},'
-                    '{"query":"Which controller combination has CSA approval for XG-X Series?","intent":"fair_user_question","reason":"paraphrased"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -5812,7 +6190,12 @@ def test_eval_generation_rejects_copied_source_phrasing(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
-            prompts.append(kwargs["json"]["prompt"])
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                if "What obtained authentication is specified for XG-X Series?" in prompt:
+                    return FakeResponse('{"approved":false,"feedback":"Copied source phrasing; ask for the controller combination instead."}')
+                return FakeResponse('{"approved":true,"feedback":""}')
+            prompts.append(prompt)
             return FakeResponse()
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
@@ -5853,18 +6236,19 @@ def test_eval_generation_rejects_bracketed_source_label_queries(monkeypatch):
     prompts = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What is [Luminance Output Type] for VS Series?","intent":"bad_brackets","reason":"copied label"},'
+                '{"query":"Which luminance signal should the VS Series output?","intent":"fair_user_question","reason":"natural phrasing"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What is [Luminance Output Type] for VS Series?","intent":"bad_brackets","reason":"copied label"},'
-                    '{"query":"Which luminance signal should the VS Series output?","intent":"fair_user_question","reason":"natural phrasing"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -5877,7 +6261,12 @@ def test_eval_generation_rejects_bracketed_source_label_queries(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
-            prompts.append(kwargs["json"]["prompt"])
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                if "What is [Luminance Output Type] for VS Series?" in prompt:
+                    return FakeResponse('{"approved":false,"feedback":"Do not include bracketed source labels."}')
+                return FakeResponse('{"approved":true,"feedback":""}')
+            prompts.append(prompt)
             return FakeResponse()
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
@@ -5913,7 +6302,7 @@ def test_eval_generation_rejects_bracketed_source_label_queries(monkeypatch):
     cases = build_eval_cases_from_chunks([chunk], max_cases=1)
 
     assert cases
-    assert cases[0].query == "Which analog signal voltage should VS Series output?"
+    assert cases[0].query == "Which luminance signal should the VS Series output?"
     assert prompts
     assert "[Luminance Output Type]" not in prompts[0]
     assert "Do not include square brackets" in prompts[0]
@@ -5940,6 +6329,113 @@ def test_validate_eval_case_accepts_access_control_user_question():
     )
 
     assert (valid, reason) == (True, "validated")
+
+
+def test_score_search_results_replays_preview_only_matrix_evidence():
+    case = RetrievalEvalCase(
+        case_id="preview-case",
+        query="What is the default grouping range in pixels?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="expected-chunk",
+        source_title="XG-X Manual",
+        source_filename="xgx.pdf",
+        chunk_type="spec_record",
+        section_path="Grouping",
+        page_from=111,
+        page_to=111,
+        expected_terms=["grouping", "range", "pixel", "pixels"],
+        expected_snippet="Grouping Range (Pixel), default setting: 20",
+        generation_method="unit",
+        source_metadata={"product_family": "XG-X Series"},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "equivalent-chunk",
+                "source_document_id": "doc-1",
+                "section_path": ["Grouping"],
+                "content_preview": "Grouping Range (Pixel): range in pixels; default setting: 20.",
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["rank"] == 1
+
+
+def test_score_search_results_uses_material_snippet_evidence_when_anchor_terms_are_generic():
+    case = RetrievalEvalCase(
+        case_id="snippet-case",
+        query="When should I cut power before connecting cables?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="expected-chunk",
+        source_title="Controller Manual",
+        source_filename="controller.pdf",
+        chunk_type="table_record",
+        section_path="Safety",
+        page_from=1,
+        page_to=1,
+        expected_terms=["notice", "power", "supply"],
+        expected_snippet="Turn the main power supply off when performing cable connection or maintenance work.",
+        generation_method="unit",
+        source_metadata={},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "answer-chunk",
+                "source_document_id": "doc-1",
+                "section_path": ["Cable connection"],
+                "content": "Make sure there is no power to the controller before connecting the cables.",
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "same_document_snippet_evidence"
+    assert evaluation["snippet_overlap_terms"] >= 2
+
+
+def test_score_search_results_accepts_strong_duplicate_manual_evidence_for_unscoped_query():
+    case = RetrievalEvalCase(
+        case_id="duplicate-manual-case",
+        query="How do I set the message for an unexecuted Judged Value?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="expected-chunk",
+        source_title="CV-X Manual",
+        source_filename="cvx.pdf",
+        chunk_type="spec_record",
+        section_path="Output Condition",
+        page_from=1,
+        page_to=1,
+        expected_terms=["unexecuted", "specify", "string", "selected"],
+        expected_snippet="Unexecuted: Specify the string displayed when the selected Judged Value is unexecuted.",
+        generation_method="unit",
+        source_metadata={"product_family": "CV-X Series"},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "duplicate-answer",
+                "source_document_id": "doc-xgx",
+                "section_path": ["Output Condition"],
+                "content": "Unexecuted: Specify the string displayed when the selected Judged Value is unexecuted.",
+                "metadata": {"product_family": "XG-X Series", "chunk_type": "section_window"},
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "cross_document_semantic_evidence"
 
 
 def test_score_search_results_passes_on_same_document_term_overlap():
@@ -5975,114 +6471,43 @@ def test_score_search_results_passes_on_same_document_term_overlap():
     assert evaluation["metadata_document_selection"]["attempted"] is False
 
 
-def test_score_search_results_requires_code_anchors_for_same_document_overlap():
+def test_score_search_results_rejects_related_but_different_archive_condition():
     case = RetrievalEvalCase(
-        case_id="c-code-anchors",
-        query="In the CV-X482 cyclic communication allocation table, what is PID 428 at address bytes 0016-0018 named?",
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="expected-pid-row",
-        source_title="CV-X Manual",
-        source_filename="cv-x.pdf",
-        chunk_type="atomic_text",
-        section_path="Cyclic communication",
-        page_from=919,
-        page_to=919,
-        expected_terms=["pid", "428", "0016", "0018", "total", "count"],
-        expected_snippet="Measurement count area | 0016 0017 0018 | PID 428 | Total count",
-        generation_method="manual_guardrail_curated_single_step_replacement",
-        source_metadata={"product_model": "CV-X482"},
-    )
-    wrong_same_document = [
-        {
-            "chunk_id": "wrong-inspection-result-row",
-            "source_document_id": "doc-cvx",
-            "section_path": ["Cyclic communication"],
-            "content": "The inspection result area uses address bytes 0016 through 0018 and displays the total measurement count.",
-        }
-    ]
-    correct_same_document = [
-        {
-            "chunk_id": "equivalent-pid-row",
-            "source_document_id": "doc-cvx",
-            "section_path": ["Cyclic communication"],
-            "content": "Measurement count area | 0016 0017 0018 | PID 428 | Total count.",
-        }
-    ]
-
-    wrong = score_search_results(case, wrong_same_document)
-    correct = score_search_results(case, correct_same_document)
-
-    assert wrong["passed"] is False
-    assert wrong["failure_category"] == "ranking_or_context_loss"
-    assert wrong["match_reason"] == "no_match"
-    assert correct["passed"] is True
-    assert correct["match_reason"] == "same_section_term_overlap"
-
-
-def test_score_search_results_requires_compound_code_prefix_binding():
-    case = RetrievalEvalCase(
-        case_id="c-code-prefix-binding",
-        query="In the CV-X482 cyclic communication allocation table, what is PID 428 at address bytes 0016-0018 named?",
-        source_document_id="doc-cvx",
-        document_version_id="ver-cvx",
-        source_chunk_id="expected-pid-row",
-        source_title="CV-X Manual",
-        source_filename="cv-x.pdf",
-        chunk_type="atomic_text",
-        section_path="Cyclic communication",
-        page_from=919,
-        page_to=919,
-        expected_terms=["pid", "428", "0016", "0018", "total", "count"],
-        expected_snippet="Measurement count area | 0016 0017 0018 | PID 428 | Total count",
-        generation_method="manual_guardrail_curated_single_step_replacement",
-        source_metadata={"product_model": "CV-X482"},
+        case_id="archive-trigger",
+        query="When does archiving start for the VS Series Vision System?",
+        source_document_id="doc-vs",
+        document_version_id="ver-vs",
+        source_chunk_id="chunk-target-true",
+        source_title="VS Manual",
+        source_filename="vs.pdf",
+        chunk_type="spec_record",
+        section_path="#J005",
+        page_from=1277,
+        page_to=1277,
+        expected_terms=["refer", "vision", "dashboard", "archiving"],
+        expected_snippet='Refer to Vision Dashboard Cell: Archiving is performed when the selected Target is "TRUE".',
+        generation_method="unit_test",
+        source_metadata={"product_family": "VS Series Vision System"},
     )
 
-    adverse_results = [
-        (
-            "wrong-prefix",
-            "Measurement count area | 0016 0017 0018 | PQD428 | Total count.",
-        ),
-        (
-            "missing-prefix",
-            "Measurement count area | 0016 0017 0018 | 428 | Total count.",
-        ),
-        (
-            "wrong-number",
-            "Measurement count area | 0016 0017 0018 | PID 429 | Total count.",
-        ),
-    ]
-
-    for chunk_id, content in adverse_results:
-        scored = score_search_results(
-            case,
-            [
-                {
-                    "chunk_id": chunk_id,
-                    "source_document_id": "doc-cvx",
-                    "section_path": ["Cyclic communication"],
-                    "content": content,
-                }
-            ],
-        )
-        assert scored["passed"] is False
-        assert scored["failure_category"] == "ranking_or_context_loss"
-        assert scored["match_reason"] == "no_match"
-
-    correct = score_search_results(
+    evaluation = score_search_results(
         case,
         [
             {
-                "chunk_id": "correct-prefix",
-                "source_document_id": "doc-cvx",
-                "section_path": ["Cyclic communication"],
-                "content": "Measurement count area | 0016 0017 0018 | PID 428 | Total count.",
+                "chunk_id": "chunk-no-condition",
+                "source_document_id": "doc-vs",
+                "section_path": ["#J002"],
+                "content": (
+                    'If no archive condition is enabled, the message "There is no archive condition enabled" '
+                    "is displayed and archiving is disabled."
+                ),
+                "metadata": {"product_family": "VS Series Vision System", "chunk_type": "atomic_text"},
             }
         ],
     )
-    assert correct["passed"] is True
-    assert correct["match_reason"] == "same_section_term_overlap"
+
+    assert evaluation["passed"] is False
+    assert evaluation["failure_category"] == "ranking_or_context_loss"
 
 
 def test_score_search_results_rejects_same_page_without_source_terms():
@@ -6420,316 +6845,6 @@ def test_score_search_results_counts_table_row_group_context_as_multi_step_evide
     assert evaluation["match_reason"] == "multi_step_expected_evidence"
 
 
-def test_multi_step_retrieval_scoring_rejects_expected_context_role_mixing_without_row_group_context():
-    case = RetrievalEvalCase(
-        case_id="c-row-context-role-mixing",
-        query="What causes the measured-data error, and which T1 value should be checked?",
-        source_document_id="doc-ljx",
-        document_version_id="ver-ljx",
-        source_chunk_id="cause-cell",
-        source_title="LJ-X",
-        source_filename="ljx.pdf",
-        chunk_type="table_record",
-        section_path="Measured data",
-        page_from=10,
-        page_to=10,
-        expected_terms=["measured", "data", "t1", "angle"],
-        expected_snippet="Cause and T1 measured-data value",
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={"product_family": "LJ-X8000"},
-        retrieval_task="multi_step_retrieval",
-        expected_source_chunk_ids=["cause-cell", "t1-angle-cell"],
-        expected_evidence=[
-            {
-                "chunk_id": "cause-cell",
-                "source_document_id": "doc-ljx",
-                "field": "cause",
-                "expected_terms": ["measured", "data"],
-            },
-            {
-                "chunk_id": "t1-angle-cell",
-                "source_document_id": "doc-ljx",
-                "field": "form of measured data",
-                "expected_terms": ["integer", "digits", "decimal"],
-            },
-        ],
-    )
-    results = [
-        {
-            "chunk_id": "cause-cell",
-            "source_document_id": "doc-ljx",
-            "content": (
-                "Cause: measured data settings were reviewed near integer digits and decimal "
-                "configuration notes, but this row does not state the T1 Angle 1 MS/AB value."
-            ),
-            "metadata": {"chunk_type": "table_record", "table_column_headers": ["Cause"]},
-        }
-    ]
-
-    evaluation = score_search_results(case, results)
-
-    assert evaluation["passed"] is False
-    assert evaluation["failure_category"] == "ranking_or_context_loss"
-    assert evaluation["missing_evidence"] == [
-        {"chunk_id": "t1-angle-cell", "matched": False, "rank": None, "overlap_terms": 3}
-    ]
-
-
-def test_multi_step_retrieval_scoring_rejects_sibling_row_code_context_substitution():
-    case = RetrievalEvalCase(
-        case_id="c-row-context-sibling-code",
-        query="For LJ-S8000 and LJ-X8000, compare ERRC with the T1 Angle 1 MS/AB value.",
-        source_document_id="doc-ljs",
-        document_version_id="ver-ljs",
-        source_chunk_id="ljs-errc",
-        source_title="LJ-S",
-        source_filename="ljs.pdf",
-        chunk_type="table_record",
-        section_path="Measured data",
-        page_from=1,
-        page_to=1,
-        expected_terms=["integer", "digits", "decimal"],
-        expected_snippet="Measured data rows from both manuals",
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={"product_family": "LJ-S8000"},
-        retrieval_task="multi_step_retrieval",
-        expected_source_chunk_ids=["ljs-errc", "cause-cell", "ljx-t1"],
-        expected_evidence=[
-            {
-                "chunk_id": "ljs-errc",
-                "source_document_id": "doc-ljs",
-                "field": "form of measured data",
-                "product_identifiers": ["ljs8000"],
-                "expected_terms": ["integer", "digits"],
-                "snippet": "Row headers: ERRC > Error Code; Column headers: Form of measured data; Cell value: Integer 7 digits",
-            },
-            {
-                "chunk_id": "ljx-t1",
-                "source_document_id": "doc-ljx",
-                "field": "form of measured data",
-                "product_identifiers": ["ljx8000"],
-                "expected_terms": ["integer", "digits", "decimal"],
-                "snippet": "Row headers: T1 > Angle 1 > MS,AB; Column headers: Form of measured data; Cell value: Sign, Integer 3 digits, 3 digits after the decimal point",
-            },
-        ],
-    )
-    results = [
-        {
-            "chunk_id": "ljs-errc",
-            "source_document_id": "doc-ljs",
-            "content": "Column headers: Form of measured data; Row headers: ERRC > Error Code; Cell value: Integer 7 digits",
-            "metadata": {"chunk_type": "table_record", "product_family": "LJ-S8000"},
-        },
-        {
-            "chunk_id": "cause-cell",
-            "source_document_id": "doc-ljx",
-            "content": "Cause: measured-data table needs review.",
-            "metadata": {
-                "chunk_type": "table_record",
-                "product_family": "LJ-X8000",
-                "table_row_group_context": (
-                    "Column headers: Form of measured data; Row headers: T1HI > Angle 1 (max) > MS,AB; "
-                    "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point"
-                ),
-            },
-        },
-    ]
-
-    evaluation = score_search_results(case, results)
-
-    assert evaluation["passed"] is False
-    assert evaluation["missing_evidence"] == [
-        {"chunk_id": "ljx-t1", "matched": False, "rank": None, "overlap_terms": 3}
-    ]
-
-
-def test_multi_step_retrieval_scoring_rejects_wrong_model_side_context_substitution():
-    case = RetrievalEvalCase(
-        case_id="c-row-context-wrong-side",
-        query="For MOD1-A and MOD2-B, compare the Alpha Mode and Beta Mode rows.",
-        source_document_id="doc-mod1",
-        document_version_id="ver-mod1",
-        source_chunk_id="mod1-alpha",
-        source_title="Settings",
-        source_filename="settings.pdf",
-        chunk_type="table_record",
-        section_path="Settings",
-        page_from=4,
-        page_to=4,
-        expected_terms=["enable", "output"],
-        expected_snippet="Two model setting rows",
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={"product_model": "MOD1-A"},
-        retrieval_task="multi_step_retrieval",
-        expected_source_chunk_ids=["mod1-alpha", "mod2-beta"],
-        expected_evidence=[
-            {
-                "chunk_id": "mod1-alpha",
-                "source_document_id": "doc-mod1",
-                "field": "setting control",
-                "product_identifiers": ["mod1a"],
-                "expected_terms": ["enable", "output"],
-                "snippet": "Row headers: Alpha Mode; Column headers: Setting control; Cell value: Enable output",
-            },
-            {
-                "chunk_id": "mod2-beta",
-                "source_document_id": "doc-mod2",
-                "field": "setting control",
-                "product_identifiers": ["mod2b"],
-                "expected_terms": ["enable", "output"],
-                "snippet": "Row headers: Beta Mode; Column headers: Setting control; Cell value: Enable output",
-            },
-        ],
-    )
-    results = [
-        {
-            "chunk_id": "mod1-alpha",
-            "source_document_id": "doc-mod1",
-            "content": "Row headers: Alpha Mode; Column headers: Setting control; Cell value: Enable output",
-            "metadata": {"chunk_type": "table_record", "product_model": "MOD1-A"},
-        },
-        {
-            "chunk_id": "mod1-context",
-            "source_document_id": "doc-mod2",
-            "content": "Related settings context.",
-            "metadata": {
-                "chunk_type": "table_record",
-                "product_model": "MOD1-A",
-                "table_row_group_context": (
-                    "Model: MOD1-A; Row headers: Beta Mode; Column headers: Setting control; Cell value: Enable output"
-                ),
-            },
-        },
-    ]
-
-    evaluation = score_search_results(case, results)
-
-    assert evaluation["passed"] is False
-    assert evaluation["missing_evidence"] == [
-        {"chunk_id": "mod2-beta", "matched": False, "rank": None, "overlap_terms": 2}
-    ]
-
-
-def test_multi_step_retrieval_scoring_rejects_cross_chunk_context_role_aggregation():
-    case = RetrievalEvalCase(
-        case_id="c-row-context-cross-chunk",
-        query="What causes link error and which action should be taken?",
-        source_document_id="doc-xgx",
-        document_version_id="ver-xgx",
-        source_chunk_id="error-cell",
-        source_title="XG-X",
-        source_filename="xgx.pdf",
-        chunk_type="table_record",
-        section_path="Troubleshooting",
-        page_from=10,
-        page_to=10,
-        expected_terms=["link", "cable", "check"],
-        expected_snippet="Error, cause, and corrective action",
-        generation_method="table_sibling_error_cause_action",
-        source_metadata={"product_family": "XG-X Series"},
-        retrieval_task="multi_step_retrieval",
-        expected_source_chunk_ids=["error-cell", "cause-cell", "action-cell"],
-        expected_evidence=[
-            {"chunk_id": "error-cell", "expected_terms": ["link", "error"], "snippet": "Row headers: Link error"},
-            {"chunk_id": "cause-cell", "field": "cause", "expected_terms": ["cable", "disconnected"], "snippet": "Row headers: Link error; Column headers: Cause; Cell value: Cable disconnected"},
-            {"chunk_id": "action-cell", "field": "corrective action", "expected_terms": ["check", "cable"], "snippet": "Row headers: Link error; Column headers: Corrective Action; Cell value: Check the cable"},
-        ],
-    )
-    results = [
-        {
-            "chunk_id": "error-cell",
-            "source_document_id": "doc-xgx",
-            "content": "Column headers: Error Message; Cell value: Link error.",
-            "metadata": {
-                "chunk_type": "table_record",
-                "context_window": "Row headers: Link error; Cause: Cable disconnected.",
-            },
-        },
-        {
-            "chunk_id": "cause-cell",
-            "source_document_id": "doc-xgx",
-            "content": "Cause: Cable disconnected.",
-            "metadata": {
-                "chunk_type": "table_record",
-                "context_window": "Row headers: Different error; Corrective Action: Check the cable.",
-            },
-        },
-    ]
-
-    evaluation = score_search_results(case, results)
-
-    assert evaluation["passed"] is False
-    assert evaluation["missing_evidence"] == [
-        {"chunk_id": "action-cell", "matched": False, "rank": None, "overlap_terms": 2}
-    ]
-
-
-def test_multi_step_retrieval_scoring_accepts_exact_requested_row_group_context():
-    case = RetrievalEvalCase(
-        case_id="c-row-context-exact-code",
-        query="For LJ-S8000 and LJ-X8000, compare ERRC with the T1 Angle 1 MS/AB value.",
-        source_document_id="doc-ljs",
-        document_version_id="ver-ljs",
-        source_chunk_id="ljs-errc",
-        source_title="LJ-S",
-        source_filename="ljs.pdf",
-        chunk_type="table_record",
-        section_path="Measured data",
-        page_from=1,
-        page_to=1,
-        expected_terms=["integer", "digits", "decimal"],
-        expected_snippet="Measured data rows from both manuals",
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={"product_family": "LJ-S8000"},
-        retrieval_task="multi_step_retrieval",
-        expected_source_chunk_ids=["ljs-errc", "ljx-context", "ljx-t1"],
-        expected_evidence=[
-            {
-                "chunk_id": "ljs-errc",
-                "source_document_id": "doc-ljs",
-                "field": "form of measured data",
-                "product_identifiers": ["ljs8000"],
-                "expected_terms": ["integer", "digits"],
-                "snippet": "Row headers: ERRC > Error Code; Column headers: Form of measured data; Cell value: Integer 7 digits",
-            },
-            {
-                "chunk_id": "ljx-t1",
-                "source_document_id": "doc-ljx",
-                "field": "form of measured data",
-                "product_identifiers": ["ljx8000"],
-                "expected_terms": ["integer", "digits", "decimal"],
-                "snippet": "Row headers: T1 > Angle 1 > MS,AB; Column headers: Form of measured data; Cell value: Sign, Integer 3 digits, 3 digits after the decimal point",
-            },
-        ],
-    )
-    results = [
-        {
-            "chunk_id": "ljs-errc",
-            "source_document_id": "doc-ljs",
-            "content": "Column headers: Form of measured data; Row headers: ERRC > Error Code; Cell value: Integer 7 digits",
-            "metadata": {"chunk_type": "table_record", "product_family": "LJ-S8000"},
-        },
-        {
-            "chunk_id": "ljx-context",
-            "source_document_id": "doc-ljx",
-            "content": "Measured-data table context.",
-            "metadata": {
-                "chunk_type": "table_record",
-                "product_family": "LJ-X8000",
-                "table_row_group_context": (
-                    "Column headers: Form of measured data; Row headers: T1 > Angle 1 > MS,AB; "
-                    "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point"
-                ),
-            },
-        },
-    ]
-
-    evaluation = score_search_results(case, results)
-
-    assert evaluation["passed"] is True
-    assert evaluation["match_reason"] == "multi_step_expected_evidence"
-
-
 def test_score_search_results_accepts_cross_document_same_field_equivalent_evidence():
     case = RetrievalEvalCase(
         case_id="c-cross-equivalent",
@@ -6762,7 +6877,6 @@ def test_score_search_results_accepts_cross_document_same_field_equivalent_evide
                 "field": "power supply voltage",
                 "product_identifiers": ["ljx8000"],
                 "expected_terms": ["24", "vdc"],
-                "allow_equivalent_citation": True,
             },
         ],
     )
@@ -6787,66 +6901,6 @@ def test_score_search_results_accepts_cross_document_same_field_equivalent_evide
     assert evaluation["matched_evidence"][1]["chunk_id"] == "lj-voltage"
 
 
-def test_multi_step_retrieval_scoring_rejects_same_document_sibling_without_equivalence_opt_in():
-    case = RetrievalEvalCase(
-        case_id="c-cross-sibling",
-        query="For LJ-S8000 and LJ-X8000, compare ERRC with the T1 Angle 1 MS/AB value.",
-        source_document_id="doc-ljs",
-        document_version_id="ver-ljs",
-        source_chunk_id="ljs-errc",
-        source_title="LJ-S",
-        source_filename="ljs.pdf",
-        chunk_type="table_record",
-        section_path="Measured data",
-        page_from=1,
-        page_to=1,
-        expected_terms=["integer", "digits", "decimal"],
-        expected_snippet="Measured data rows from both manuals",
-        generation_method="cross_document_same_field_evidence",
-        source_metadata={"product_family": "LJ-S8000"},
-        retrieval_task="multi_step_retrieval",
-        expected_source_chunk_ids=["ljs-errc", "ljx-t1"],
-        expected_evidence=[
-            {
-                "chunk_id": "ljs-errc",
-                "source_document_id": "doc-ljs",
-                "field": "form of measured data",
-                "product_identifiers": ["ljs8000"],
-                "expected_terms": ["integer", "digits"],
-            },
-            {
-                "chunk_id": "ljx-t1",
-                "source_document_id": "doc-ljx",
-                "field": "form of measured data",
-                "product_identifiers": ["ljx8000"],
-                "expected_terms": ["integer", "digits", "decimal"],
-            },
-        ],
-    )
-    results = [
-        {
-            "chunk_id": "ljs-errc",
-            "source_document_id": "doc-ljs",
-            "content": "Column headers: Form of measured data; Row headers: ERRC > Error Code; Cell value: Integer 7 digits",
-            "metadata": {"chunk_type": "table_record", "table_column_headers": ["Form of measured data"], "product_family": "LJ-S8000"},
-        },
-        {
-            "chunk_id": "ljx-t1hi",
-            "source_document_id": "doc-ljx",
-            "content": "Column headers: Form of measured data; Row headers: T1HI > Angle 1 (max) > MS,AB; Cell value: Sign, Integer 3 digits, 3 digits after the decimal point",
-            "metadata": {"chunk_type": "table_record", "table_column_headers": ["Form of measured data"], "product_family": "LJ-X8000"},
-        },
-    ]
-
-    evaluation = score_search_results(case, results)
-
-    assert evaluation["passed"] is False
-    assert evaluation["failure_category"] == "ranking_or_context_loss"
-    assert evaluation["missing_evidence"] == [
-        {"chunk_id": "ljx-t1", "matched": False, "rank": None, "overlap_terms": 3}
-    ]
-
-
 def test_score_search_results_categorizes_candidate_miss():
     case = RetrievalEvalCase(
         case_id="c3",
@@ -6869,3 +6923,75 @@ def test_score_search_results_categorizes_candidate_miss():
     evaluation = score_search_results(case, results)
     assert evaluation["passed"] is False
     assert evaluation["failure_category"] == "candidate_miss"
+
+
+def test_configuration_location_completeness_rejects_raw_context_and_requires_purpose():
+    case = RetrievalEvalCase(
+        case_id="location-1",
+        query="Where do I set overlap distance for the scanner?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="section_window",
+        section_path="Capture settings",
+        page_from=3,
+        page_to=3,
+        expected_terms=["overlap", "distance"],
+        expected_snippet="Overlap distance: Specifies how much of the previous scan is retained.",
+        generation_method="configuration_location",
+        source_metadata={"parent_context": "Capture Unit > Scanner Settings > Continuous Settings"},
+    )
+
+    raw = _configuration_location_answer_completeness(
+        case,
+        "manual.pdf | Capture settings Overlap distance: 12 pixels",
+    )
+    raw_without_filename = _configuration_location_answer_completeness(
+        case,
+        "Capture settings\n\nOverlap distance: Specifies how much of the previous scan is retained.",
+    )
+    missing_purpose = _configuration_location_answer_completeness(
+        case,
+        "Location: Capture Unit > Scanner Settings > Overlap distance.",
+    )
+    complete = _configuration_location_answer_completeness(
+        case,
+        "Location: Capture Unit > Scanner Settings > Overlap distance. Purpose: It controls how much of the previous scan is retained.",
+    )
+
+    assert raw["passed"] is False
+    assert "raw_context_answer" in raw["failure_reasons"]
+    assert raw_without_filename["passed"] is False
+    assert "configuration_location_missing" in raw_without_filename["failure_reasons"]
+    assert missing_purpose["passed"] is False
+    assert "configuration_purpose_missing" in missing_purpose["failure_reasons"]
+    assert complete["passed"] is True
+
+
+def test_screen_resolution_is_not_scored_as_configuration_location():
+    case = RetrievalEvalCase(
+        case_id="screen-resolution",
+        query="What screen resolution does the WM-6025 display have?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="table_record",
+        section_path="Display",
+        page_from=1,
+        page_to=1,
+        expected_terms=["320", "240"],
+        expected_snippet="Model: Resolution; WM-6025: 320 × 240 pixels",
+        generation_method="reviewed_llm",
+        source_metadata={},
+    )
+
+    result = _configuration_location_answer_completeness(
+        case,
+        "Display resolution — WM-6025: 320 × 240 pixels",
+    )
+
+    assert result == {"checked": False, "passed": True, "failure_reasons": []}

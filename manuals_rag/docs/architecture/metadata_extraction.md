@@ -1,8 +1,15 @@
 # Metadata Extraction
 
-Document-level metadata is extracted by a small local Ollama model, not by filename or text-pattern heuristics. The current default model is `tinyllama:1.1b`, configured with `OLLAMA_METADATA_MODEL`.
+Document-level metadata is extracted by a local Ollama model, not by filename or text-pattern heuristics. The current default model is `qwen3.5:9b`, configured with `OLLAMA_METADATA_MODEL`.
 
-The extraction implementation lives in `packages/parsers/src/manuals_rag_parsers/metadata.py`. It uses Pydantic models to constrain the response shape and then applies source-grounding and validation before the values are persisted or copied onto chunk metadata.
+The extraction implementation lives in `packages/parsers/src/manuals_rag_parsers/metadata.py`. Framework-neutral stage functions are orchestrated by a LangGraph Map–Reduce–Verify workflow:
+
+1. **Map:** process every page-aware batch with bounded parallelism, supplying a deterministic high-recall candidate list to Qwen.
+2. **Normalize/reduce:** merge grounded observations into a document-level `MetadataClaim` ledger and detect contradictory scope.
+3. **Verify:** give an independent model call only the proposed typed claims and bounded local evidence windows.
+4. **Publish:** materialize the existing schema-v2 fields according to claim trust status.
+
+Ingestion and the standalone backfill invoke the same compiled graph. The harvester, reducer, verifier, and publisher remain ordinary Python functions so they can be tested or rerun independently. Ingestion processes the complete normalized document in page-aware batches; it no longer limits document metadata to the first 20 logical nodes.
 
 ## Extracted Fields
 
@@ -15,8 +22,33 @@ The extractor produces document-level fields for:
 - Protocol terms
 - Settings, parameters, menu labels, and document topics
 - Title, document kind, revision date, and effective date
+- Normalized punctuation-insensitive identifier aliases
+- Grounded firmware and software applicability records
+- A page/section/quote evidence ledger with entity relationship and subject scope
+- A claim ledger with normalized values, source method, independent-verification status, and evidence-derived confidence
 
-TinyLlama is intentionally treated as unreliable output infrastructure. Invalid JSON or invalid list-field responses are non-fatal and are downgraded to empty values for that field. Grounding and validation then remove common hallucinations, copied filenames, protocol mistakes, and generic non-entity terms.
+The stored schema is versioned with `metadata_schema_version`. Version 2 retains the original flat fields for compatibility and adds:
+
+- `metadata_evidence`: exact source quote, page range, section path, relation, subject, confidence, and grounding status
+- `routing_product_models`, `routing_part_numbers`, and `routing_protocol_terms`: scoped values suitable for routing
+- `normalized_identifier_aliases`: canonical and punctuation-insensitive forms such as `CV-X482` and `CVX482`
+- `firmware_applicability` and `software_applicability`: subject-bound records; external PLC/controller examples are retained in evidence but excluded from applicability
+- `metadata_claims`: the source-of-truth intermediate claim ledger
+- `metadata_pipeline_version`: identifies the orchestration and trust-policy version independently of the materialized schema version
+
+Claim trust states control retrieval use:
+
+- `confirmed`: eligible for exact routing and applicability checks
+- `probable`: searchable/ranking-only evidence
+- `unresolved`: retained for audit and lexical discovery, but never filtering
+- `conflicting`: retained with neutral retrieval treatment and an applicability warning path
+- `rejected`: retained for audit only
+
+Model output is intentionally treated as unreliable infrastructure. Common response-shape, enum, null, and date variants are normalized, then malformed/truncated calls are retried. Scoped extraction uses a 16K context window, a bounded output budget, and schema-level item/string limits. Large batches that repeatedly truncate are bisected and retried recursively. If a scoped batch still cannot be recovered, the extraction fails and the backfill reports the document as failed instead of persisting partial routing metadata.
+
+Version-bearing batches have two completeness gates. If the general scoped pass misses explicit firmware or software-version signals, a focused applicability pass runs; a batch that still lacks grounded version evidence fails safely. After independent verification, the document also fails safely if every grounded claim for a detected version kind was rejected or remained unresolved. Scoped values are accepted only when the model supplies an exact quote found in the same page-aware source batch, version records require an explicit subject, and external PLC/controller versions remain evidence rather than product applicability.
+
+Schema-v2 routing keys require a `confirmed` claim, grounded scoped evidence, and evidence-derived confidence of at least `0.8`. Model self-confidence is not used for publication. Corpus-general structural signals reject repeated short lines, compound code strings, footer/document codes, underscored identifiers, and filename-like values; production logic contains no product- or vendor-name exceptions. A filename identifier may create only an unresolved `mentioned` claim when the exact identifier is independently present on an opening page; filename prefixes and substring matches cannot establish identity. Legacy flat fields remain searchable for compatibility but are not promoted into schema-v2 hard-routing keys without independent verification.
 
 ## Storage
 
@@ -45,16 +77,29 @@ PYTHONPATH=manuals_rag/packages/parsers/src:manuals_rag/packages/schemas/src:man
 POSTGRES_DSN=postgresql://manuals:manuals@127.0.0.1:5433/manuals_rag \
 REDIS_URL=redis://127.0.0.1:6379/0 \
 OLLAMA_URL=http://127.0.0.1:11434 \
-OLLAMA_METADATA_MODEL=tinyllama:1.1b \
+OLLAMA_METADATA_MODEL=qwen3.5:9b \
 /home/john/Desktop/Programming/Document_Pipeline/.venv/bin/python \
-manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply
+manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply --all
 ```
+
+Production rollout should stage persistence with `--no-enqueue-embed`, run the
+persisted metadata audit, then promote only current metadata with
+`--enqueue-current`. Mutating runs require explicit document scope, a limit, or
+`--all`; current document/pipeline pairs resume by skipping unless `--force` is
+used. See the [production rollout runbook](../runbooks/metadata_mrv_production_rollout.md).
 
 Useful options:
 
 - `--limit N` restricts the number of documents processed.
-- `--node-limit N` controls how many leading logical nodes are sent to the metadata model.
+- Repeat `--document-id UUID` to target a pilot set or repair individual documents without scanning the corpus.
+- The default processes every logical node in page-aware batches.
+- `--segment-chars N` controls the maximum source characters in each scoped extraction call (default `3000`, matching ingestion).
+- `--node-limit N` is a diagnostic-only cap and reduces metadata recall.
 - `--no-enqueue-embed` updates Postgres without queueing embedding refresh jobs.
+- `--enqueue-current` promotes already-persisted current metadata to embedding refresh without re-extraction.
+- `--max-failures N` bounds document failures before abort (default `3`; zero disables the limit).
+- `--checkpoint-every N` controls durable report checkpoints (default `1`).
+- `--force` deliberately repeats current-pipeline extraction and should not be used during normal resume.
 
 Backfill reports are written to `manuals_rag/test_reports/document_metadata_backfill_*.json`.
 

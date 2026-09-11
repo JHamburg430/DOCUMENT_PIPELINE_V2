@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260827-ingestion-width-1" />
+    <link rel="stylesheet" href="/styles.css?v=20260908-agent-sync" />
   </head>
   <body>
     <main class="app-shell">
@@ -14,93 +14,15 @@
           <p id="connection-status">Connecting to API...</p>
         </div>
         <nav class="tabs" aria-label="Views">
-          <button class="tab active" data-tab="eval">End-to-End Eval</button>
-          <button class="tab" data-tab="matrix">Eval Matrix</button>
+          <button class="tab active" data-tab="matrix">Eval Matrix</button>
           <button class="tab" data-tab="search">Search</button>
+          <button class="tab" data-tab="agent-lab">Agent Lab</button>
           <button class="tab" data-tab="ingestion">Ingestion</button>
           <button class="tab" data-tab="history">Run History</button>
         </nav>
       </header>
 
-      <section id="eval" class="tab-panel active">
-        <aside class="sidebar">
-          <section class="panel">
-            <h2>Current Run</h2>
-            <div id="latest-run" class="muted">Loading...</div>
-            <button id="load-latest" type="button">Open Run</button>
-          </section>
-
-          <section class="panel">
-            <h2>Run Evaluation</h2>
-            <label>
-              Scope
-              <select id="eval-scope">
-                <option value="corpus">All indexed docs in corpora</option>
-                <option value="document">Single document</option>
-              </select>
-            </label>
-            <label>
-              Corpus IDs
-              <input id="eval-corpus" value="manuals_vendor_keyence" />
-            </label>
-            <label>
-              Document
-              <select id="eval-document"></select>
-            </label>
-            <label>
-              Max questions
-              <input id="eval-max-questions" type="number" min="1" max="50" value="8" />
-            </label>
-            <label class="check-row">
-              <input id="eval-llm-generation" type="checkbox" checked />
-              Use LLM question generation
-            </label>
-            <label>
-              Samples per stage
-              <input id="sample-limit" type="number" min="3" max="100" value="10" />
-            </label>
-            <button id="run-eval" type="button">Run End-to-End Eval</button>
-          </section>
-        </aside>
-
-        <section class="workspace">
-          <section class="panel">
-            <div class="section-heading">
-              <h2>Progress</h2>
-              <span id="eval-status" class="status-pill">Idle</span>
-            </div>
-            <div id="progress-list" class="progress-list"></div>
-            <details open>
-              <summary>Run debug</summary>
-              <div id="run-debug-summary" class="debug-summary empty-state">No active run.</div>
-              <pre id="run-debug-log" class="debug-log"></pre>
-            </details>
-            <details>
-              <summary>Streaming model output</summary>
-              <div id="model-output" class="model-output"></div>
-            </details>
-            <section class="live-trace-panel">
-              <div class="section-heading">
-                <h2>Question Trace</h2>
-                <span id="trace-status" class="muted">No active trace.</span>
-              </div>
-              <div id="question-trace" class="question-trace empty-state">Run or resume an eval to inspect each question.</div>
-            </section>
-          </section>
-
-          <section class="panel">
-            <div class="section-heading">
-              <h2>Results</h2>
-              <span id="result-run-id" class="muted"></span>
-            </div>
-            <div id="eval-summary" class="metrics empty-state">No evaluation loaded.</div>
-            <div id="eval-table"></div>
-            <div id="eval-detail"></div>
-          </section>
-        </section>
-      </section>
-
-      <section id="matrix" class="tab-panel">
+      <section id="matrix" class="tab-panel active">
         <section class="panel">
           <div class="section-heading">
             <h2>Eval Matrix</h2>
@@ -117,10 +39,73 @@
               <input id="matrix-use-model-judge" type="checkbox" />
               <span>Use diagnostic model judge for answer information</span>
             </label>
+            <label class="inline-check">
+              <input id="matrix-stop-on-answer-failure" type="checkbox" checked />
+              <span>Stop on first answer failure</span>
+            </label>
             <button id="matrix-refresh" type="button">Refresh</button>
             <button id="matrix-clear-results" type="button">Clear Results</button>
             <button id="matrix-stop" type="button" disabled>Stop</button>
           </div>
+          <details class="matrix-generation-controls" open>
+            <summary>Question generation</summary>
+            <div class="matrix-generation-grid">
+              <label data-generation-field="always">
+                Type
+                <select id="matrix-generation-task">
+                  <option value="single_step_retrieval">Single-step</option>
+                  <option value="multi_step_retrieval">Multi-step</option>
+                </select>
+              </label>
+              <label data-generation-field="multi">
+                Multi-step family
+                <select id="matrix-generation-family">
+                  <option value="all">All</option>
+                  <option value="contextual_section">Contextual section</option>
+                  <option value="warning_step">Warning + step</option>
+                  <option value="cross_document">Cross-document</option>
+                  <option value="sibling_table_rows">Sibling table rows</option>
+                </select>
+              </label>
+              <label data-generation-field="always">
+                Questions
+                <input id="matrix-generation-count" type="number" min="1" max="10000" value="20" />
+              </label>
+              <label data-generation-field="always">
+                Chunk offset
+                <input id="matrix-generation-offset" type="number" min="0" value="0" />
+              </label>
+              <label data-generation-field="always">
+                Attempt window
+                <input id="matrix-generation-window" type="number" min="0" value="0" />
+              </label>
+              <label data-generation-field="single">
+                Questions per window
+                <input id="matrix-generation-per-window" type="number" min="1" max="20" value="1" />
+              </label>
+              <label data-generation-field="single-llm">
+                Model context
+                <input id="matrix-generation-num-ctx" type="number" min="0" max="262144" value="4096" />
+              </label>
+              <label data-generation-field="always">
+                Query timeout
+                <input id="matrix-generation-timeout" type="number" min="1" max="3600" value="60" />
+              </label>
+              <label class="inline-check" data-generation-field="single">
+                <input id="matrix-generation-resume" type="checkbox" checked />
+                <span>Use prior questions as generation history</span>
+              </label>
+              <label class="matrix-generation-prompt" data-generation-field="single-llm">
+                Prompt guidance
+                <textarea id="matrix-generation-prompt" rows="3">Generate realistic engineer, technician, sales, support, or manager questions that are specific to the supplied source content. First use the document context to identify the product/device, parent article, feature area, and source-backed answer. Prefer concrete procedures, specs, limits, warnings, settings, table row subjects, units, symptoms, and user-visible product anchors when the source supports them. Optimize for useful retrieval questions, not exhaustive coverage of every parseable cell. Avoid vague questions, filename/document artifacts, and questions about storage format, display precision, parser coordinates, or internal representation unless clearly user-facing. If the source window cannot support a specific non-duplicative user-style question, return NONE.</textarea>
+              </label>
+              <div class="matrix-generation-buttons">
+                <button id="matrix-generate-questions" type="button">Generate Questions</button>
+                <button id="matrix-clear-questions" type="button">Clear Questions</button>
+                <button id="matrix-reset-bank" type="button">Reset Bank</button>
+              </div>
+            </div>
+          </details>
           <div id="matrix-action-status" class="empty-state">No matrix job running.</div>
           <div class="matrix-view-controls">
             <label>
@@ -161,6 +146,65 @@
         </section>
       </section>
 
+      <section id="agent-lab" class="tab-panel">
+        <section class="panel agent-lab-controls">
+          <div class="section-heading">
+            <div>
+              <h2>Live Agent Retrieval Lab</h2>
+              <p class="muted">Watch planning, strategy selection, dependent-query refinement, evidence sufficiency, recovery, and answer generation as they happen.</p>
+            </div>
+            <span id="agent-lab-status" class="status-pill">Ready</span>
+          </div>
+          <div class="agent-control-grid">
+            <label class="agent-query-field">
+              Multi-hop question
+              <textarea id="agent-query" rows="4">Which cable model connects the LJ-X8000 RS-232C port, then what is that cable's connector orientation?</textarea>
+            </label>
+            <label>
+              Corpus IDs
+              <input id="agent-corpus" value="manuals_vendor_keyence" />
+            </label>
+            <label>
+              Backend
+              <select id="agent-backend">
+                <option value="compare">Compare both</option>
+                <option value="langgraph_agent">LangGraph</option>
+                <option value="llamaindex_agent">LlamaIndex</option>
+              </select>
+            </label>
+            <label>
+              Maximum hops
+              <input id="agent-max-hops" type="number" min="1" max="8" value="4" />
+            </label>
+            <button id="run-agent-test" type="button">Run Live Test</button>
+          </div>
+        </section>
+        <section id="agent-results" class="agent-results" aria-live="polite">
+          <div class="empty-state">Run a question to compare the agent backends and inspect every retrieval hop.</div>
+        </section>
+        <section class="panel agent-matrix-panel">
+          <div class="section-heading">
+            <div>
+              <h2>Agent Evaluation Matrix</h2>
+              <p class="muted">Each row is a test question. Columns isolate tool routing, retrieval coverage, reasoning dependencies, evidence sufficiency, grounded synthesis, and operating cost.</p>
+            </div>
+            <span id="agent-matrix-status" class="status-pill">Not run</span>
+          </div>
+          <div class="matrix-actions">
+            <label>Dataset <input id="agent-matrix-dataset" value="tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl" /></label>
+            <label>Questions <input id="agent-matrix-limit" type="number" min="1" max="1000" value="48" /></label>
+            <label>Max hops <input id="agent-matrix-hops" type="number" min="1" max="8" value="6" /></label>
+            <label>Corpus <input id="agent-matrix-corpus" value="manuals_vendor_keyence" /></label>
+            <label class="inline-check"><input id="agent-matrix-no-llm" type="checkbox" /><span>Deterministic planners</span></label>
+            <button id="run-agent-matrix" type="button">Run Agent Matrix</button>
+            <button id="refresh-agent-matrix" type="button">Refresh</button>
+          </div>
+          <div id="agent-matrix-summary" class="matrix-summary empty-state">No agent evaluation loaded.</div>
+          <div id="agent-matrix-table"></div>
+          <div id="agent-matrix-detail"></div>
+        </section>
+      </section>
+
       <section id="search" class="tab-panel">
         <section class="split">
           <div class="panel">
@@ -196,23 +240,70 @@
       <section id="ingestion" class="tab-panel">
         <section class="panel">
           <div class="section-heading">
-            <h2>Ingestion Monitor</h2>
+            <div>
+              <h2>Document Ingestion</h2>
+              <p class="muted">Upload one or more manuals, choose which documents to process, and inspect every pipeline step.</p>
+            </div>
             <button id="refresh-ingestion" type="button">Refresh</button>
           </div>
+          <section class="ingestion-upload" aria-labelledby="ingestion-upload-heading">
+            <h3 id="ingestion-upload-heading">Add documents</h3>
+            <div class="ingestion-upload-controls">
+              <label>
+                Corpus ID
+                <input id="ingestion-corpus" value="manuals_vendor_keyence" />
+              </label>
+              <label class="ingestion-file-field">
+                PDF documents
+                <input id="ingestion-files" type="file" accept="application/pdf,.pdf" multiple />
+              </label>
+              <button id="ingestion-upload" type="button">Upload documents</button>
+            </div>
+            <div id="ingestion-action-status" class="empty-state">Choose one or more PDF files to add.</div>
+          </section>
           <div id="ingestion-summary" class="metrics empty-state">Loading ingestion status...</div>
-          <div class="split">
-            <section>
-              <h3>Recent Runs</h3>
-              <div id="ingestion-runs"></div>
-            </section>
-            <section>
-              <h3>Recent Documents</h3>
-              <div id="ingestion-documents"></div>
-            </section>
+          <div class="ingestion-filters">
+            <label>
+              Document
+              <select id="ingestion-filter-document"><option value="">All documents</option></select>
+            </label>
+            <label>
+              Find
+              <input id="ingestion-filter-text" placeholder="Filename, corpus, document ID..." />
+            </label>
+            <label>
+              Status
+              <select id="ingestion-filter-status">
+                <option value="">All statuses</option>
+                <option value="uploaded">Uploaded</option>
+                <option value="queued">Queued</option>
+                <option value="running">Running</option>
+                <option value="parsed">Parsed</option>
+                <option value="indexed">Indexed</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </label>
+            <button id="ingestion-clear-filters" type="button">Clear filters</button>
           </div>
+          <section>
+            <div class="section-heading">
+              <h3>Documents</h3>
+              <div class="ingestion-document-actions">
+                <button id="ingestion-select-visible" type="button">Select visible</button>
+                <button id="ingestion-ingest-selected" type="button" disabled>Ingest selected</button>
+              </div>
+            </div>
+            <div id="ingestion-documents"></div>
+          </section>
+          <section>
+            <h3>Ingestion runs and steps</h3>
+            <div id="ingestion-runs"></div>
+            <div id="ingestion-step-detail" class="ingestion-step-detail empty-state">Select a run and then a step to inspect its details.</div>
+          </section>
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260827-ingestion-width-1"></script>
+    <script src="/app.js?v=20260908-agent-sync"></script>
   </body>
 </html>

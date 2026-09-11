@@ -76,6 +76,8 @@ create table if not exists logical_nodes (
     token_count integer not null default 0
 );
 
+create extension if not exists pg_trgm;
+
 create table if not exists retrieval_chunks (
     id text primary key,
     document_version_id uuid not null references document_versions(id) on delete cascade,
@@ -96,6 +98,10 @@ create table if not exists retrieval_chunks (
     priority_score double precision not null default 0
 );
 
+create index if not exists retrieval_chunks_active_table_content_trgm_idx
+    on retrieval_chunks using gin ((regexp_replace(lower(content), '[^a-z0-9]+', '', 'g')) gin_trgm_ops)
+    where is_active = true and chunk_type = 'table_record';
+
 create table if not exists document_metadata_extractions (
     source_document_id uuid primary key references source_documents(id) on delete cascade,
     document_version_id uuid not null references document_versions(id) on delete cascade,
@@ -113,6 +119,20 @@ create table if not exists ingestion_runs (
     failure_reason text,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
+);
+
+create table if not exists ingestion_run_steps (
+    run_id uuid not null references ingestion_runs(id) on delete cascade,
+    step_key text not null,
+    sequence integer not null,
+    label text not null,
+    status text not null default 'queued',
+    started_at timestamptz,
+    completed_at timestamptz,
+    duration_ms double precision,
+    detail_json jsonb not null default '{}'::jsonb,
+    error text,
+    primary key (run_id, step_key)
 );
 
 create table if not exists feedback (

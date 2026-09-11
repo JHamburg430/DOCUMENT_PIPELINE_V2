@@ -50,6 +50,23 @@ def test_query_analysis_does_not_attach_single_vendor_manufacturer_filters():
     assert analysis.filter_strictness == "loose"
 
 
+def test_query_analysis_treats_contextual_compact_identifier_as_model_not_error_code():
+    analysis = analyze_query("How do I fix the uuu error on the W500?")
+
+    assert analysis.product_model == "W500"
+    assert analysis.product_identifiers == ["W500"]
+    assert analysis.error_code is None
+    assert {"how_to", "structured_lookup", "troubleshooting"}.issubset(analysis.query_types)
+    assert "table_record" in analysis.preferred_chunk_types
+
+
+def test_query_analysis_treats_stop_symptom_wording_as_troubleshooting():
+    analysis = analyze_query("How do I stop the W500 display from pulsing?")
+
+    assert {"how_to", "structured_lookup", "troubleshooting"}.issubset(analysis.query_types)
+    assert "table_record" in analysis.preferred_chunk_types
+
+
 def test_build_filters_does_not_add_family_or_part_number_filters_from_query():
     family_filters = build_filters("Show the LJ-X series communication setup", {})
     assert family_filters == {"is_active": True}
@@ -61,3 +78,16 @@ def test_build_filters_does_not_add_family_or_part_number_filters_from_query():
 def test_build_filters_does_not_add_menu_label_filters_from_query():
     filters = build_filters("When Change the trigger settings, what related [Step 2/3 Trigger Settings] detail should be used?", {})
     assert filters == {"is_active": True}
+
+
+def test_query_analysis_routes_named_mode_alternatives_to_structured_tables():
+    for query in (
+        "How does the W500 Auto detection mode select the optimal setting?",
+        "Which detection modes does the W500 Auto setting choose between?",
+    ):
+        analysis = analyze_query(query)
+
+        assert "structured_lookup" in analysis.query_types
+        assert "table_record" in analysis.preferred_chunk_types
+        assert analysis.product_model == "W500"
+        assert analysis.error_code is None

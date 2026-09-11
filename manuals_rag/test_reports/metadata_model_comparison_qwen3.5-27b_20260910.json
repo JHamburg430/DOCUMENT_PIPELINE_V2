@@ -1,0 +1,3756 @@
+{
+  "summary": {
+    "model": "qwen3.5:27b",
+    "ollama_url": "http://172.17.0.1:11438",
+    "started_at": "2026-09-10T11:41:08.273501+00:00",
+    "finished_at": "2026-09-10T12:12:49.088173+00:00",
+    "documents": 5,
+    "completed": 4,
+    "failed": 1,
+    "audit_passed": 3,
+    "elapsed_seconds": 1900.815,
+    "applied": false
+  },
+  "results": [
+    {
+      "document_id": "8d83cb71-55d2-42db-9630-bc16f0d6877c",
+      "version_id": "2ff1e7ad-0b2e-4381-9a64-b988891d612c",
+      "source_filename": "VJ-H500CX_Datasheet.pdf",
+      "status": "ok",
+      "elapsed_seconds": 91.817,
+      "segment_count": 19,
+      "page_count": 2,
+      "metadata": {
+        "manufacturer": "KEYENCE AMERICA",
+        "companies": [
+          "KEYENCE AMERICA"
+        ],
+        "product_family": "VJ-H500CX",
+        "product_model": "VJ-H500CX",
+        "product_families": [
+          "VJ-H500CX"
+        ],
+        "product_models": [
+          "VJ-H500CX"
+        ],
+        "devices": [
+          "VJ-H500CX"
+        ],
+        "part_numbers": [],
+        "protocol_terms": [],
+        "settings": [],
+        "parameters": [],
+        "menu_labels": [],
+        "document_topics": [
+          "cad file",
+          "data sheet",
+          "dimensions",
+          "environmental resistance",
+          "image sensor",
+          "lens mount",
+          "pixel count",
+          "specifications",
+          "transfer time",
+          "weight"
+        ],
+        "title": "VJ-H500CX",
+        "document_kind": "datasheet",
+        "revision_date": "2025-04-22",
+        "effective_date": "2025-04-22",
+        "metadata_schema_version": 2,
+        "metadata_evidence": [
+          {
+            "value": "VJ-H500CX",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Model | | VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 1.0,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "KEYENCE AMERICA",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "KEYENCE AMERICA",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "KEYENCE AMERICA"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "2025/04/22",
+            "kind": "document_revision",
+            "relation": "document_revision",
+            "subject": null,
+            "source_quote": "2025/04/22",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "2025/04/22"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "KEYENCE AMERICA",
+            "kind": "company",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "KEYENCE AMERICA",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "KEYENCE AMERICA"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "VJ-H500CX",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "VJ-H500CX",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "VJ-H500CX",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "VJ-H500CX",
+            "kind": "document_title",
+            "relation": "printed_title",
+            "subject": null,
+            "source_quote": "VJ-H500CX",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "opening_page_title"
+          }
+        ],
+        "normalized_identifier_aliases": [
+          "VJ-H500CX",
+          "VJH500CX"
+        ],
+        "routing_product_models": [
+          "VJ-H500CX"
+        ],
+        "routing_part_numbers": [],
+        "routing_protocol_terms": [],
+        "firmware_applicability": [],
+        "software_applicability": []
+      },
+      "audit": {
+        "passed": true,
+        "checks": {
+          "schema_v2": true,
+          "all_evidence_grounded": true,
+          "all_routing_values_evidence_gated": true,
+          "all_applicability_scoped": true,
+          "title_grounded_on_opening_pages": true
+        },
+        "evidence_count": 8,
+        "ungrounded_evidence": [],
+        "routing_without_evidence": {
+          "product_models": [],
+          "part_numbers": [],
+          "protocols": []
+        },
+        "malformed_applicability": [],
+        "routing_product_models": [
+          "VJ-H500CX"
+        ],
+        "routing_part_numbers": [],
+        "routing_protocol_terms": [],
+        "firmware_applicability_count": 0,
+        "software_applicability_count": 0
+      },
+      "error": null
+    },
+    {
+      "document_id": "ab20ebe2-6029-4b57-a9af-8fc3b8882512",
+      "version_id": "aa464894-9b91-4d29-8e92-d72875ff5677",
+      "source_filename": "AS_147320_LJ-S8000_SG_K47GB_WW_GB_2094_1.pdf",
+      "status": "ok",
+      "elapsed_seconds": 51.303,
+      "segment_count": 183,
+      "page_count": 12,
+      "metadata": {
+        "manufacturer": "KEYENCE CORPORATION",
+        "companies": [
+          "KEYENCE CORPORATION"
+        ],
+        "product_family": "LJ-S Series",
+        "product_model": "LJ-S8000",
+        "product_families": [
+          "LJ-S Series"
+        ],
+        "product_models": [
+          "LJ-S8000",
+          "LJ-S015",
+          "LJ-S025",
+          "LJ-S040",
+          "LJ-S080"
+        ],
+        "devices": [
+          "LJ-S Series",
+          "LJ: S8000 Series",
+          "Controller Unit",
+          "CA-MP120"
+        ],
+        "part_numbers": [],
+        "protocol_terms": [],
+        "settings": [
+          "Imaging settings",
+          "Capture settings",
+          "Display settings"
+        ],
+        "parameters": [],
+        "menu_labels": [
+          "[PAGE 2]",
+          "[PAGE 1]",
+          "[SECTION K47GB]"
+        ],
+        "document_topics": [
+          "capture settings",
+          "configuration",
+          "display settings",
+          "filtering",
+          "imaging settings",
+          "installation",
+          "measurement range",
+          "specifications"
+        ],
+        "title": "LJ: S8000 Series Easy Configuration Manual",
+        "document_kind": "manual",
+        "revision_date": null,
+        "effective_date": null,
+        "metadata_schema_version": 2,
+        "metadata_evidence": [
+          {
+            "value": "LJ-S Series",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Overview of LJ-S Series",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "LJ-S015",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "LJ-S015",
+            "page_from": 3,
+            "page_to": 3,
+            "section_path": [],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "LJ-S025",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "LJ-S025",
+            "page_from": 3,
+            "page_to": 3,
+            "section_path": [],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "LJ-S040",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "LJ-S040",
+            "page_from": 3,
+            "page_to": 3,
+            "section_path": [],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "LJ-S080",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "LJ-S080",
+            "page_from": 3,
+            "page_to": 3,
+            "section_path": [],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Controller Unit",
+            "kind": "device",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "Controller Unit",
+            "page_from": 3,
+            "page_to": 3,
+            "section_path": [
+              "CA-MP120"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-MP120",
+            "kind": "device",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "CA-MP120",
+            "page_from": 3,
+            "page_to": 3,
+            "section_path": [
+              "CA-MP120"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "K47GB",
+            "kind": "document_revision",
+            "relation": "document_revision",
+            "subject": null,
+            "source_quote": "K47GB",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "K47GB"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Image Optimization Navigation",
+            "kind": "software_name",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Image Optimization Navigation",
+            "page_from": 9,
+            "page_to": 9,
+            "section_path": [
+              "2.1 Capture settings"
+            ],
+            "confidence": 0.88,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "LJ: S8000 Series User's Manual",
+            "kind": "software_name",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "LJ: S8000 Series User's Manual",
+            "page_from": 10,
+            "page_to": 10,
+            "section_path": [
+              "2.2 Filtering (Height Image Filters)"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "LJ-S Series",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "LJ-S Series obtains not only height data but also reflection light intensity.",
+            "page_from": 11,
+            "page_to": 11,
+            "section_path": [
+              "2.3 Display settings"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "KEYENCE CORPORATION",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "Copyright (c) 2024 KEYENCE CORPORATION.",
+            "page_from": 12,
+            "page_to": 12,
+            "section_path": [
+              "2.3 Display settings"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "2094-1",
+            "kind": "document_revision",
+            "relation": "document_revision",
+            "subject": null,
+            "source_quote": "2094-1 K47GB Printed in Japan",
+            "page_from": 12,
+            "page_to": 12,
+            "section_path": [
+              "2.3 Display settings"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "K47GB",
+            "kind": "part_number",
+            "relation": "document_revision",
+            "subject": null,
+            "source_quote": "122287GB 2094-1 K47GB Printed in Japan",
+            "page_from": 12,
+            "page_to": 12,
+            "section_path": [
+              "2.3 Display settings"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "LJ-S8000",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "LJ: S8000 Series Easy Configuration Manual",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "K47GB"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "upload_identity_page_grounded"
+          },
+          {
+            "value": "LJ-S Series",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "LJ-S Series",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "LJ-S Series",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "LJ-S Series",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "LJ: S8000 Series",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "LJ: S8000 Series",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "K47GB"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "LJ: S8000 Series Easy Configuration Manual",
+            "kind": "document_title",
+            "relation": "printed_title",
+            "subject": null,
+            "source_quote": "LJ: S8000 Series Easy Configuration Manual",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "K47GB"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "opening_page_title"
+          }
+        ],
+        "normalized_identifier_aliases": [
+          "LJ-S015",
+          "LJS015",
+          "LJ-S025",
+          "LJS025",
+          "LJ-S040",
+          "LJS040",
+          "LJ-S080",
+          "LJS080",
+          "LJ-S8000",
+          "LJS8000",
+          "LJ-S",
+          "LJS"
+        ],
+        "routing_product_models": [
+          "LJ-S015",
+          "LJ-S025",
+          "LJ-S040",
+          "LJ-S080",
+          "LJ-S8000",
+          "LJ-S"
+        ],
+        "routing_part_numbers": [],
+        "routing_protocol_terms": [],
+        "firmware_applicability": [],
+        "software_applicability": []
+      },
+      "audit": {
+        "passed": false,
+        "checks": {
+          "schema_v2": true,
+          "all_evidence_grounded": true,
+          "all_routing_values_evidence_gated": false,
+          "all_applicability_scoped": true,
+          "title_grounded_on_opening_pages": true
+        },
+        "evidence_count": 19,
+        "ungrounded_evidence": [],
+        "routing_without_evidence": {
+          "product_models": [
+            "LJ-S"
+          ],
+          "part_numbers": [],
+          "protocols": []
+        },
+        "malformed_applicability": [],
+        "routing_product_models": [
+          "LJ-S015",
+          "LJ-S025",
+          "LJ-S040",
+          "LJ-S080",
+          "LJ-S8000",
+          "LJ-S"
+        ],
+        "routing_part_numbers": [],
+        "routing_protocol_terms": [],
+        "firmware_applicability_count": 0,
+        "software_applicability_count": 0
+      },
+      "error": null
+    },
+    {
+      "document_id": "8086e290-7093-48d3-9efc-fcc88f9fb1c1",
+      "version_id": "2d45cab1-d50c-4540-be72-43199ef5b25a",
+      "source_filename": "AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf",
+      "status": "failed",
+      "elapsed_seconds": 886.134,
+      "segment_count": 2529,
+      "page_count": 70,
+      "metadata": null,
+      "audit": null,
+      "error": "MetadataExtractionIncomplete: Scoped metadata extraction exhausted retries for AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf purpose=metadata_extraction.version_applicability: 4 validation errors for ScopedMetadataExtraction\nentities.0.value\n  Field required [type=missing, input_value={'source_quote': 'VT STUD...on': 'software_version'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nentities.0.kind\n  Field required [type=missing, input_value={'source_quote': 'VT STUD...on': 'software_version'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nentities.1.value\n  Field required [type=missing, input_value={'source_quote': 'For VT5...relation': 'applies_to'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nentities.1.kind\n  Field required [type=missing, input_value={'source_quote': 'For VT5...relation': 'applies_to'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing"
+    },
+    {
+      "document_id": "f8e76135-15c5-4fa0-97dc-138a07ee3086",
+      "version_id": "8a56a4a2-6a26-4154-b3a1-6f621d5c68ca",
+      "source_filename": "AS_130681_SR-1000_SR-2000_SR-PN1_CM_D65GB_WW_GB_2122_1.pdf",
+      "status": "ok",
+      "elapsed_seconds": 90.299,
+      "segment_count": 209,
+      "page_count": 9,
+      "metadata": {
+        "manufacturer": "KEYENCE CORPORATION",
+        "companies": [
+          "SIEMENS",
+          "KEYENCE CORPORATION"
+        ],
+        "product_family": "SR-X300",
+        "product_model": "SR-1000",
+        "product_families": [
+          "SR-X300",
+          "SR-2000",
+          "SR-1000",
+          "SR-PN1",
+          "SIEMENS S7-1500",
+          "SR-X300/X100/2000/1000",
+          "SR"
+        ],
+        "product_models": [
+          "SR-X300",
+          "SR-2000",
+          "SR-1000",
+          "SR-PN1",
+          "SIEMENS S7-1500"
+        ],
+        "devices": [
+          "SR-X300",
+          "SR-2000",
+          "SR-1000",
+          "SR-PN1",
+          "SIEMENS S7-1500",
+          "Code Reader",
+          "CPU module",
+          "OP-87230",
+          "OP-88782"
+        ],
+        "part_numbers": [
+          "OP-87230",
+          "OP-88782",
+          "OP-88776",
+          "D65GB"
+        ],
+        "protocol_terms": [
+          "profinet"
+        ],
+        "settings": [
+          "PROFINET settings"
+        ],
+        "parameters": [],
+        "menu_labels": [],
+        "document_topics": [
+          "code reader",
+          "connection methods",
+          "equipment",
+          "monitoring",
+          "profinet",
+          "siemens plc",
+          "sr-pn1"
+        ],
+        "title": "Connection Guide: PROFINET Communication",
+        "document_kind": "manual",
+        "revision_date": null,
+        "effective_date": null,
+        "metadata_schema_version": 2,
+        "metadata_evidence": [
+          {
+            "value": "SR-X300/X100/2000/1000",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-X300/X100/2000/1000",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-X300/X100/2000/1000"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "PROFINET",
+            "kind": "protocol",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Connection Guide: PROFINET Communication",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SIEMENS S7-1500/1200/300 SERIES"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "TIA Portal",
+            "kind": "software_name",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "TIA Portal V.11 or later is required to configure PROFINET settings.",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "CONFIGURING SIEMENS PLC SETTINGS"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "AutoID Network Navigator",
+            "kind": "software_name",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "The GSDML file is in the AutoID Network Navigator installation folder.",
+            "page_from": 3,
+            "page_to": 3,
+            "section_path": [
+              "CONFIGURING SIEMENS PLC SETTINGS"
+            ],
+            "confidence": 0.96,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "OP-87230",
+            "kind": "part_number",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "OP-87230 (2 m)",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "SR-PN1"
+            ],
+            "confidence": 0.94,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "OP-88782",
+            "kind": "part_number",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "OP-88782 (2m)",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "SR-PN1"
+            ],
+            "confidence": 0.94,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "KEYENCE CORPORATION",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "Copyright (c) 2022 KEYENCE CORPORATION. All rights reserved: 193355GB 2122-1 D65GB Printed in Japan",
+            "page_from": 10,
+            "page_to": 10,
+            "section_path": [
+              "KEYENCE"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "SR",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "This chapter explains how to start SR reading through PROFINET and how to check that the reading results are written to the data map.",
+            "page_from": 7,
+            "page_to": 7,
+            "section_path": [
+              "B44"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "PROFINET",
+            "kind": "protocol",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "This chapter explains how to start SR reading through PROFINET and how to check that the reading results are written to the data map.",
+            "page_from": 7,
+            "page_to": 7,
+            "section_path": [
+              "B44"
+            ],
+            "confidence": 0.96,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "PLC",
+            "kind": "device",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "Register this address information to PLC tags.",
+            "page_from": 6,
+            "page_to": 6,
+            "section_path": [
+              "B44"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "barcodereader.com",
+            "kind": "software_name",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "You can download the Tag Description CSV file on the WEB (barcodereader.com).",
+            "page_from": 6,
+            "page_to": 6,
+            "section_path": [
+              "B44"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "2122-1",
+            "kind": "document_revision",
+            "relation": "document_revision",
+            "subject": null,
+            "source_quote": "Copyright (c) 2022 KEYENCE CORPORATION. All rights reserved: 193355GB 2122-1 D65GB Printed in Japan",
+            "page_from": 10,
+            "page_to": 10,
+            "section_path": [
+              "KEYENCE"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "D65GB",
+            "kind": "part_number",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Copyright (c) 2022 KEYENCE CORPORATION. All rights reserved: 193355GB 2122-1 D65GB Printed in Japan",
+            "page_from": 10,
+            "page_to": 10,
+            "section_path": [
+              "KEYENCE"
+            ],
+            "confidence": 0.88,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Main [OB1]",
+            "kind": "software_name",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "Under 'Program blocks,' double-click 'Main [OB1]' to open the programme block, and then enter the following ladder programme.",
+            "page_from": 6,
+            "page_to": 6,
+            "section_path": [
+              "B44"
+            ],
+            "confidence": 0.82,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CPU",
+            "kind": "device",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "Click 'RUN' on the CPU operator panel.",
+            "page_from": 8,
+            "page_to": 8,
+            "section_path": [
+              "B44"
+            ],
+            "confidence": 0.8,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Watch table",
+            "kind": "software_name",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "Register devices to the Watch table.",
+            "page_from": 7,
+            "page_to": 7,
+            "section_path": [
+              "B44"
+            ],
+            "confidence": 0.78,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "SR-1000",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "SR-X300/X100/2000/1000",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-X300/X100/2000/1000"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "upload_identity_page_grounded"
+          },
+          {
+            "value": "SR-2000",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "SR-X300/X100/2000/1000",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-X300/X100/2000/1000"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "upload_identity_page_grounded"
+          },
+          {
+            "value": "SR-PN1",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "SR-PN1",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-PN1"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "upload_identity_page_grounded"
+          },
+          {
+            "value": "SIEMENS",
+            "kind": "company",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SIEMENS",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SIEMENS S7-1500/1200/300 SERIES"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SR-X300",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-X300",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-X300/X100/2000/1000"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SR-2000",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-2000",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "(SR-2000/1000)"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SR-PN1",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-PN1",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-PN1"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SIEMENS S7-1500",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SIEMENS S7-1500",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SIEMENS S7-1500/1200/300 SERIES"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SR-X300",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-X300",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-X300/X100/2000/1000"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SR-2000",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-2000",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "(SR-2000/1000)"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SR-PN1",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-PN1",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-PN1"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SIEMENS S7-1500",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SIEMENS S7-1500",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SIEMENS S7-1500/1200/300 SERIES"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SR-X300",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-X300",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-X300/X100/2000/1000"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SR-2000",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-2000",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "(SR-2000/1000)"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SR-PN1",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SR-PN1",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SR-PN1"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "SIEMENS S7-1500",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "SIEMENS S7-1500",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SIEMENS S7-1500/1200/300 SERIES"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "Code Reader",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Code Reader",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SIEMENS S7-1500/1200/300 SERIES"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "CPU module",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CPU module",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "EQUIPMENT USED"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "OP-87230",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "OP-87230",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "SR-PN1"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "OP-88782",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "OP-88782",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "SR-PN1"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "OP-88776",
+            "kind": "part_number",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "OP-88776",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [
+              "SR-PN1"
+            ],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "Connection Guide: PROFINET Communication",
+            "kind": "document_title",
+            "relation": "printed_title",
+            "subject": null,
+            "source_quote": "Connection Guide: PROFINET Communication",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [
+              "SIEMENS S7-1500/1200/300 SERIES"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "opening_page_title"
+          }
+        ],
+        "normalized_identifier_aliases": [
+          "SR-1000",
+          "SR1000",
+          "SR-2000",
+          "SR2000",
+          "SR-PN1",
+          "SRPN1",
+          "D65GB",
+          "profinet"
+        ],
+        "routing_product_models": [
+          "SR-1000",
+          "SR-2000",
+          "SR-PN1"
+        ],
+        "routing_part_numbers": [
+          "D65GB"
+        ],
+        "routing_protocol_terms": [
+          "profinet"
+        ],
+        "firmware_applicability": [],
+        "software_applicability": []
+      },
+      "audit": {
+        "passed": true,
+        "checks": {
+          "schema_v2": true,
+          "all_evidence_grounded": true,
+          "all_routing_values_evidence_gated": true,
+          "all_applicability_scoped": true,
+          "title_grounded_on_opening_pages": true
+        },
+        "evidence_count": 38,
+        "ungrounded_evidence": [],
+        "routing_without_evidence": {
+          "product_models": [],
+          "part_numbers": [],
+          "protocols": []
+        },
+        "malformed_applicability": [],
+        "routing_product_models": [
+          "SR-1000",
+          "SR-2000",
+          "SR-PN1"
+        ],
+        "routing_part_numbers": [
+          "D65GB"
+        ],
+        "routing_protocol_terms": [
+          "profinet"
+        ],
+        "firmware_applicability_count": 0,
+        "software_applicability_count": 0
+      },
+      "error": null
+    },
+    {
+      "document_id": "6279a874-72ca-46bd-81e5-e5f0a9e7745a",
+      "version_id": "26fc5b9c-dd65-4daa-9a1e-879445834544",
+      "source_filename": "AS_126535_CV-X_C_611S71_KA_US_2124_5.pdf",
+      "status": "ok",
+      "elapsed_seconds": 780.927,
+      "segment_count": 2811,
+      "page_count": 56,
+      "metadata": {
+        "manufacturer": "KEYENCE CORPORATION",
+        "companies": [
+          "KEYENCE",
+          "KEYENCE CORPORATION"
+        ],
+        "product_family": "CV: X Series",
+        "product_model": "CV-X",
+        "product_families": [
+          "CV: X Series",
+          "CV-X Series",
+          "LumiTrax",
+          "CV-X"
+        ],
+        "product_models": [
+          "CV-X402",
+          "CV-X482F",
+          "CV-X302",
+          "CV-H1XA",
+          "CV-X472",
+          "CV-X452",
+          "CV-X422",
+          "CV-X"
+        ],
+        "devices": [
+          "CV: X Series",
+          "CV-X",
+          "CV-X Series",
+          "Area Cameras",
+          "CA-HF6400M",
+          "CA-H500MX",
+          "CA-H048MX",
+          "RB-500",
+          "ultra high-speed camera",
+          "ultra high-speed segmented lighting",
+          "ultra-highspeed CMOS sensor",
+          "Photodiode and correction circuit",
+          "Projector",
+          "Camera",
+          "controller",
+          "touch panel",
+          "CA-E100",
+          "CA-E200T",
+          "CA-H500C"
+        ],
+        "part_numbers": [
+          "CA-U5",
+          "CA-SD16G",
+          "OP-42174",
+          "OP-88835",
+          "OP-88836",
+          "OP-88837",
+          "OP-88838",
+          "CA-HS035MU",
+          "CA-CH3",
+          "CA-CH5",
+          "CA-CH10"
+        ],
+        "protocol_terms": [
+          "ethernet/ip",
+          "profinet",
+          "ethercat"
+        ],
+        "settings": [],
+        "parameters": [],
+        "menu_labels": [],
+        "document_topics": [
+          "algorithms",
+          "area cameras",
+          "image capture",
+          "inspection",
+          "manufacturing",
+          "resolution"
+        ],
+        "title": "Intuitive Vision System CV: X Series",
+        "document_kind": "brochure",
+        "revision_date": null,
+        "effective_date": null,
+        "metadata_schema_version": 2,
+        "metadata_evidence": [
+          {
+            "value": "KEYENCE",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "KEYENCE offers the ideal solution for every inspection application.",
+            "page_from": 4,
+            "page_to": 4,
+            "section_path": [
+              "A VARIETY OF CAMERAS TO MATCH ANY INSPECTION TYPE"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV: X Series",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Intuitive Vision System CV: X Series",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X402",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "CV-X402",
+            "page_from": 5,
+            "page_to": 5,
+            "section_path": [],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X482F",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "CV-X482F",
+            "page_from": 5,
+            "page_to": 5,
+            "section_path": [],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X302",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "CV-X302",
+            "page_from": 5,
+            "page_to": 5,
+            "section_path": [],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HF6400M",
+            "kind": "device",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "CA-HF6400M/CA-HF6400C",
+            "page_from": 4,
+            "page_to": 4,
+            "section_path": [
+              "CA-HF6400M/CA-HF6400C"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H500MX",
+            "kind": "device",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "CA-H500MX/CA-H500CX",
+            "page_from": 4,
+            "page_to": 4,
+            "section_path": [
+              "CA-H500MX/CA-H500CX"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H048MX",
+            "kind": "device",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "CA-H048MX/CA-H048CX",
+            "page_from": 4,
+            "page_to": 4,
+            "section_path": [
+              "CA-H048MX/CA-H048CX"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "RB-500",
+            "kind": "device",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "RB-500",
+            "page_from": 4,
+            "page_to": 4,
+            "section_path": [
+              "RB-500"
+            ],
+            "confidence": 0.97,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "LumiTrax",
+            "kind": "software_name",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "LumiTrax inspection algorithm",
+            "page_from": 3,
+            "page_to": 3,
+            "section_path": [],
+            "confidence": 0.96,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "LumiTrax",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "LumiTrax TM uses our newly developed ultra high-speed camera and ultra high-speed segmented lighting to capture the target workpiece.",
+            "page_from": 10,
+            "page_to": 10,
+            "section_path": [
+              "SOFTWARE UTILITIES TO ENSURE STABLE INSPECTION"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "ultra high-speed camera",
+            "kind": "device",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "LumiTrax TM uses our newly developed ultra high-speed camera and ultra high-speed segmented lighting to capture the target workpiece.",
+            "page_from": 10,
+            "page_to": 10,
+            "section_path": [
+              "SOFTWARE UTILITIES TO ENSURE STABLE INSPECTION"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "ultra high-speed segmented lighting",
+            "kind": "device",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "LumiTrax TM uses our newly developed ultra high-speed camera and ultra high-speed segmented lighting to capture the target workpiece.",
+            "page_from": 10,
+            "page_to": 10,
+            "section_path": [
+              "SOFTWARE UTILITIES TO ENSURE STABLE INSPECTION"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "ultra-highspeed CMOS sensor",
+            "kind": "device",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Multiple stripe patterns are projected at high speed. An ultra-highspeed CMOS sensor and processor analyze the light reflected from the targets in real-time to generate a 3D image.",
+            "page_from": 12,
+            "page_to": 12,
+            "section_path": [
+              "PATTERN PROJECTION"
+            ],
+            "confidence": 0.88,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Photodiode and correction circuit",
+            "kind": "device",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Photodiode and correction circuit within the lighting",
+            "page_from": 9,
+            "page_to": 9,
+            "section_path": [
+              "SOFTWARE UTILITIES TO ENSURE STABLE INSPECTION"
+            ],
+            "confidence": 0.82,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "KEYENCE",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "KEYENCE's original algorithms generate optimal images for inspection",
+            "page_from": 16,
+            "page_to": 16,
+            "section_path": [
+              "IMAGE ENHANCE FILTERS"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X Series",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "With the CV-X Series, measurements & dimensions tools can be performed with an easy point-and-click method",
+            "page_from": 18,
+            "page_to": 18,
+            "section_path": [
+              "MEASUREMENTS & DIMENSIONS"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X connector tools",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "With the CV-X connector tools, this can be done by any user by simply following the guided steps",
+            "page_from": 18,
+            "page_to": 18,
+            "section_path": [
+              "CONNECTOR TOOLS"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "SCRATCH DEFECT EXTRACTION",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "\u25a0 SCRATCH DEFECT EXTRACTION",
+            "page_from": 16,
+            "page_to": 16,
+            "section_path": [
+              "\u25a0 SCRATCH DEFECT EXTRACTION"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CONTRAST EXPANSION",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "\u25a0 CONTRAST EXPANSION",
+            "page_from": 17,
+            "page_to": 17,
+            "section_path": [
+              "\u25a0 CONTRAST EXPANSION"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X Series",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "The CV-X Series communicates directly with a variety of robots",
+            "page_from": 20,
+            "page_to": 20,
+            "section_path": [
+              "VISION-GUIDED ROBOTICS 2D VISION-GUIDED ROBOTICS"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "ShapeTrax TM 3A",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "ShapeTrax TM 3A automatically analyzes noise in images and appropriately extracts profiles as humans visualize them",
+            "page_from": 22,
+            "page_to": 22,
+            "section_path": [
+              "CONVENTIONAL"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "ISO/IEC 15415",
+            "kind": "protocol",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Complies with ISO/IEC 15415, AIM DPM: 1-2006, and SAE AS9132",
+            "page_from": 19,
+            "page_to": 19,
+            "section_path": [
+              "\u25a0 2D CODES"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "AIM DPM: 1-2006",
+            "kind": "protocol",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Complies with ISO/IEC 15415, AIM DPM: 1-2006, and SAE AS9132",
+            "page_from": 19,
+            "page_to": 19,
+            "section_path": [
+              "\u25a0 2D CODES"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "SAE AS9132",
+            "kind": "protocol",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Complies with ISO/IEC 15415, AIM DPM: 1-2006, and SAE AS9132",
+            "page_from": 19,
+            "page_to": 19,
+            "section_path": [
+              "\u25a0 2D CODES"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "KEYENCE",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "WITH KEYENCE'S AUTO-CALIBRATION FUNCTION",
+            "page_from": 20,
+            "page_to": 20,
+            "section_path": [
+              "WITH KEYENCE'S AUTO-CALIBRATION FUNCTION"
+            ],
+            "confidence": 0.88,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "robot controller",
+            "kind": "device",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "Direct communication with the robot controller (Simple connection)",
+            "page_from": 20,
+            "page_to": 20,
+            "section_path": [
+              "CONVENTIONAL PROBLEMS"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Projector",
+            "kind": "device",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Integrated design with four cameras and a single projector",
+            "page_from": 21,
+            "page_to": 21,
+            "section_path": [
+              "3D VISION-GUIDED ROBOTICS"
+            ],
+            "confidence": 0.82,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Camera",
+            "kind": "device",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Integrated design with four cameras and a single projector",
+            "page_from": 21,
+            "page_to": 21,
+            "section_path": [
+              "3D VISION-GUIDED ROBOTICS"
+            ],
+            "confidence": 0.82,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Simulator software",
+            "kind": "software_name",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "The Simulator software can be used to view the collected log data for remote investigation and analysis of any problems on site.",
+            "page_from": 27,
+            "page_to": 27,
+            "section_path": [
+              "NAVIGATION FOR ACCURATE AND OPTIMAL ADJUSTMENT TOOL ADJUSTMENT NAVIGATION"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "User manual auto-generator",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "\u25a0 User manual auto-generator",
+            "page_from": 30,
+            "page_to": 30,
+            "section_path": [
+              "CV-H1XA"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-H1XA",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "CV-H1XA",
+            "page_from": 30,
+            "page_to": 30,
+            "section_path": [
+              "CV-H1XA"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "PC simulator",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "\u25a0 PC simulator",
+            "page_from": 30,
+            "page_to": 30,
+            "section_path": [
+              "CV-H1XA"
+            ],
+            "confidence": 0.88,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Image/data logging",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "\u25a0 Image/data logging",
+            "page_from": 30,
+            "page_to": 30,
+            "section_path": [
+              "CV-H1XA"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Setting file upload/download",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "\u25a0 Setting file upload/download",
+            "page_from": 30,
+            "page_to": 30,
+            "section_path": [
+              "CV-H1XA"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "controller",
+            "kind": "device",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "The Trace Log function provides a timing chart view of the controller's internal processing and I/O data communication.",
+            "page_from": 27,
+            "page_to": 27,
+            "section_path": [
+              "NAVIGATION FOR ACCURATE AND OPTIMAL ADJUSTMENT TOOL ADJUSTMENT NAVIGATION"
+            ],
+            "confidence": 0.82,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "touch panel",
+            "kind": "device",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "A touch panel can now be connected so that you can enhance on-site efficiency.",
+            "page_from": 28,
+            "page_to": 28,
+            "section_path": [
+              "\u25a0 TOUCH PANEL SUPPORT"
+            ],
+            "confidence": 0.8,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Microsoft Corporation",
+            "kind": "company",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "* Microsoft is a registered trademark of Microsoft Corporation in the United States and other countries.",
+            "page_from": 28,
+            "page_to": 28,
+            "section_path": [
+              "\u25a0 TOUCH PANEL SUPPORT"
+            ],
+            "confidence": 0.75,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Trace Log",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "The Trace Log function provides a timing chart view of the controller's internal processing and I/O data communication.",
+            "page_from": 27,
+            "page_to": 27,
+            "section_path": [
+              "NAVIGATION FOR ACCURATE AND OPTIMAL ADJUSTMENT TOOL ADJUSTMENT NAVIGATION"
+            ],
+            "confidence": 0.7,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X Series",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "The CV-X Series is equipped with I/O monitoring and trace log functions",
+            "page_from": 33,
+            "page_to": 33,
+            "section_path": [
+              "\u25a0 COMMUNICATION MONITOR FUNCTION"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "VisionDatabase",
+            "kind": "software_name",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "VisionDatabase allows long: term storage and analysis of inspection data linked directly to machine vision images.",
+            "page_from": 32,
+            "page_to": 32,
+            "section_path": [
+              "MACHINE VISION SYSTEM DATABASE CA-H1DB/CA-AD1"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "EtherNet/IP",
+            "kind": "protocol",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "Supports linking to PLCs made by several manufacturers as well as EtherNet/IP\u2122, PROFINET, and EtherCAT\u00ae",
+            "page_from": 33,
+            "page_to": 33,
+            "section_path": [
+              "COMMUNICATION INTERFACE"
+            ],
+            "confidence": 0.94,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "PROFINET",
+            "kind": "protocol",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "Supports linking to PLCs made by several manufacturers as well as EtherNet/IP\u2122, PROFINET, and EtherCAT\u00ae",
+            "page_from": 33,
+            "page_to": 33,
+            "section_path": [
+              "COMMUNICATION INTERFACE"
+            ],
+            "confidence": 0.94,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "EtherCAT",
+            "kind": "protocol",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "Supports linking to PLCs made by several manufacturers as well as EtherNet/IP\u2122, PROFINET, and EtherCAT\u00ae",
+            "page_from": 33,
+            "page_to": 33,
+            "section_path": [
+              "COMMUNICATION INTERFACE"
+            ],
+            "confidence": 0.94,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "KEYENCE",
+            "kind": "company",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "\u25a0 KEYENCE: KV Series",
+            "page_from": 33,
+            "page_to": 33,
+            "section_path": [
+              "\u25a0 PLC LINK"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Omron",
+            "kind": "company",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "\u25a0 Omron: SYSMAC Series",
+            "page_from": 33,
+            "page_to": 33,
+            "section_path": [
+              "\u25a0 PLC LINK"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "Mitsubishi Electric",
+            "kind": "company",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "\u25a0 Mitsubishi Electric: MELSEC Series",
+            "page_from": 33,
+            "page_to": 33,
+            "section_path": [
+              "\u25a0 PLC LINK"
+            ],
+            "confidence": 0.85,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X Series",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "With the CV-X Series, robust security functions that answer these demands have been prepared and separated by purpose.",
+            "page_from": 34,
+            "page_to": 34,
+            "section_path": [
+              "TOOL EDIT LOCK"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CV-X492 | CV-X482 | CV-X482D",
+            "page_from": 40,
+            "page_to": 40,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X492",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CV-X492",
+            "page_from": 40,
+            "page_to": 40,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X482",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CV-X482",
+            "page_from": 40,
+            "page_to": 40,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X482D",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CV-X482D",
+            "page_from": 40,
+            "page_to": 40,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-E100",
+            "kind": "device",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "CA-E100/E200/E200L area camera input unit",
+            "page_from": 40,
+            "page_to": 40,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-E200T",
+            "kind": "device",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "CA-E200T 3D vision-guided robotics camera input unit",
+            "page_from": 40,
+            "page_to": 40,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H500C",
+            "kind": "device",
+            "relation": "compatible_with",
+            "subject": null,
+            "source_quote": "CA-H500C/H500M",
+            "page_from": 40,
+            "page_to": 40,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X492",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Controller model * 1 | | | CV-X492 CV-X482 | CV-X482D",
+            "page_from": 42,
+            "page_to": 42,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X482",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Controller model * 1 | | | CV-X492 CV-X482 | CV-X482D",
+            "page_from": 42,
+            "page_to": 42,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X482D",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Controller model * 1 | | | CV-X492 CV-X482 | CV-X482D",
+            "page_from": 42,
+            "page_to": 42,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-NEP20E",
+            "kind": "part_number",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Numerical value and control input/output using Ethernet port or optional EtherNet/IP\u2122 unit CA-NEP20E",
+            "page_from": 42,
+            "page_to": 42,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-NPN20E",
+            "kind": "part_number",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Numerical value input and control input/output using Ethernet port or optional PROFINET unit CA-NPN20E",
+            "page_from": 42,
+            "page_to": 42,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-NEC20E",
+            "kind": "part_number",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Numerical value output and control input/output using optional EtherCAT\u00ae unit CA-NEC20E",
+            "page_from": 42,
+            "page_to": 42,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "EtherNet/IP",
+            "kind": "protocol",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "EtherNet/IP\u2122 and PROFINET cannot be used in conjunction with PLC link",
+            "page_from": 42,
+            "page_to": 42,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.97,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "PROFINET",
+            "kind": "protocol",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "EtherNet/IP\u2122 and PROFINET cannot be used in conjunction with PLC link",
+            "page_from": 42,
+            "page_to": 42,
+            "section_path": [
+              "HDD"
+            ],
+            "confidence": 0.97,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "KEYENCE",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "Contact KEYENCE if a hard copy of the CV-X Series Setup Manual or User Manual is required",
+            "page_from": 39,
+            "page_to": 39,
+            "section_path": [
+              "RS-232C"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X Series",
+            "kind": "product_family",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CV-X Series Setup Manual",
+            "page_from": 39,
+            "page_to": 39,
+            "section_path": [
+              "RS-232C"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X472",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Controller model * 1 | | CV-X472 | CV-X452 | CV-X422 | CV-X402",
+            "page_from": 43,
+            "page_to": 43,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X452",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Controller model * 1 | | CV-X472 | CV-X452 | CV-X422 | CV-X402",
+            "page_from": 43,
+            "page_to": 43,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X422",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Controller model * 1 | | CV-X472 | CV-X452 | CV-X422 | CV-X402",
+            "page_from": 43,
+            "page_to": 43,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X402",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "subject": null,
+            "source_quote": "Controller model * 1 | | CV-X472 | CV-X452 | CV-X422 | CV-X402",
+            "page_from": 43,
+            "page_to": 43,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-U5",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "CA-U5 (12.5 Amps)",
+            "page_from": 39,
+            "page_to": 39,
+            "section_path": [
+              "RS-232C"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-E100",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "Up to 4 camera inputs available when connecting a CA-E100 to the main controller",
+            "page_from": 43,
+            "page_to": 43,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.94,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-SD16G",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "SD card (industrial: grade) 16 GB CA-SD16G (SDHC)",
+            "page_from": 39,
+            "page_to": 39,
+            "section_path": [
+              "RS-232C"
+            ],
+            "confidence": 0.93,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X472",
+            "page_from": 45,
+            "page_to": 45,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X472",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X472",
+            "page_from": 45,
+            "page_to": 45,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X452",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X452",
+            "page_from": 45,
+            "page_to": 45,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X402",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X402",
+            "page_from": 45,
+            "page_to": 45,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X352",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X352",
+            "page_from": 46,
+            "page_to": 46,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X322",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X322",
+            "page_from": 46,
+            "page_to": 46,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X302",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X302",
+            "page_from": 46,
+            "page_to": 46,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "EtherNet/IP",
+            "kind": "protocol",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "EtherNet/IP\u2122",
+            "page_from": 45,
+            "page_to": 45,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "PROFINET",
+            "kind": "protocol",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "PROFINET",
+            "page_from": 45,
+            "page_to": 45,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "OP-87506",
+            "kind": "part_number",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "OP-87506",
+            "page_from": 45,
+            "page_to": 45,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X352 | CV-X322 | CV-X302",
+            "page_from": 47,
+            "page_to": 47,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X352",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X352 | CV-X322 | CV-X302",
+            "page_from": 47,
+            "page_to": 47,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X322",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X352 | CV-X322 | CV-X302",
+            "page_from": 47,
+            "page_to": 47,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X302",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X352 | CV-X322 | CV-X302",
+            "page_from": 47,
+            "page_to": 47,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HF6400C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-HF6400C | CA-HF6400M",
+            "page_from": 48,
+            "page_to": 48,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HF6400M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-HF6400C | CA-HF6400M",
+            "page_from": 48,
+            "page_to": 48,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HF2100C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-HF2100C | CA-HF2100M",
+            "page_from": 48,
+            "page_to": 48,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HF2100M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-HF2100C | CA-HF2100M",
+            "page_from": 48,
+            "page_to": 48,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H500CX",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-H500CX | CA-H500MX",
+            "page_from": 48,
+            "page_to": 48,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H500MX",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-H500CX | CA-H500MX",
+            "page_from": 48,
+            "page_to": 48,
+            "section_path": [
+              "SPECIFICATIONS (CONTROLLER)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H500C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-H500C | CA-H500M",
+            "page_from": 49,
+            "page_to": 49,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H500M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-H500C | CA-H500M",
+            "page_from": 49,
+            "page_to": 49,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H200C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-H200C | CA-H200M",
+            "page_from": 50,
+            "page_to": 50,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H200M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-H200C | CA-H200M",
+            "page_from": 50,
+            "page_to": 50,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-200C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-200C | CA-200M",
+            "page_from": 50,
+            "page_to": 50,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-200M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-200C | CA-200M",
+            "page_from": 50,
+            "page_to": 50,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HS200C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-HS200C | CA-HS200M",
+            "page_from": 50,
+            "page_to": 50,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HS200M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-HS200C | CA-HS200M",
+            "page_from": 50,
+            "page_to": 50,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H035C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-H035C | CA-H035M",
+            "page_from": 51,
+            "page_to": 51,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H035M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Model | | CA-H035C | CA-H035M",
+            "page_from": 51,
+            "page_to": 51,
+            "section_path": [
+              "SPECIFICATIONS (CAMERA)"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-E200T",
+            "kind": "device",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "guided robotics camera input unit CA-E200T connected",
+            "page_from": 52,
+            "page_to": 52,
+            "section_path": [
+              "111.8 4.40\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-E200",
+            "kind": "device",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "high: resolution area camera input unit CA-E200",
+            "page_from": 52,
+            "page_to": 52,
+            "section_path": [
+              "0.24\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-DC40E",
+            "kind": "device",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "light control expansion unit CA-DC40E connected",
+            "page_from": 52,
+            "page_to": 52,
+            "section_path": [
+              "0.24\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "HF2100C",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Camera CA: HF2100C/CA-HF2100M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "DIMENSIONS"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HF2100M",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Camera CA: HF2100C/CA-HF2100M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "DIMENSIONS"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HS035MH",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CA-HS035MH/HS035CH",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "CA-HS035MH/HS035CH"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "HS035CH",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CA-HS035MH/HS035CH",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "CA-HS035MH/HS035CH"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HS200M",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CA-HS200M/HS200C",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "CA-HS200M/HS200C"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "HS200C",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CA-HS200M/HS200C",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "CA-HS200M/HS200C"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "HF6400C",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Camera CA: HF6400C/CA-HF6400M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "1.31\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HF6400M",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Camera CA: HF6400C/CA-HF6400M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "1.31\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "OP-42174",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "Front: mounting (using OP-42174)",
+            "page_from": 53,
+            "page_to": 53,
+            "section_path": [
+              "0.20\""
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HS200C",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Cable length: 2 m 6.6' Camera CA-HS200C/CA-HS200M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "0.49\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H500C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H500M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H200C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H200M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-200C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-200M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H035C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H035M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-035C",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-035M",
+            "kind": "product_model",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "11.25 17.5 Camera CA-H500C/CA-H500M/CA-H200C/CA-H200M/CA-200C/CA-200M/CA-H035C/CA-H035M/CA-035C/CA-035M",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "46.8 1.84\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-H048MX",
+            "kind": "product_model",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "Camera CA: H048CX/CA-H048MX",
+            "page_from": 54,
+            "page_to": 54,
+            "section_path": [
+              "0.41\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-CHx",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CA-CHx | 12.5 0.49\" | 43 1.69\" | 7.2 0.28\" | 41 1.61\" | 31 1.22\" | 31.4 1.24\"",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "12.7"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-CHxR",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "CA-CHxR | 14 0.55\" | 54 2.13\" | 7.6 0.30\" | 41 1.61\" | 31 1.22\" | 31.4 1.24\"",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "12.7"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-CHxL",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "L-shaped connector camera cable CA-CHxL | 14 0.55\" | 38 1.50\" | 30 1.18\" | 7.2 0.28\" | 41 1.61\" | 31 1.22\" | 31.4 1.24\"",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "12.7"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "OP-88835",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "Model | OP-88835 | OP-88836 | OP-88837 | OP-88838",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "12.7"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "OP-88836",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "Model | OP-88835 | OP-88836 | OP-88837 | OP-88838",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "12.7"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "OP-88837",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "Model | OP-88835 | OP-88836 | OP-88837 | OP-88838",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "12.7"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "OP-88838",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "Model | OP-88835 | OP-88836 | OP-88837 | OP-88838",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "12.7"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "RB-500",
+            "kind": "product_model",
+            "relation": "external_reference",
+            "subject": null,
+            "source_quote": "3D vision-guided robotics camera RB-500",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "1.34\""
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "KEYENCE CORPORATION",
+            "kind": "company",
+            "relation": "primary_manufacturer",
+            "subject": null,
+            "source_quote": "Copyright \u00a9 2022 KEYENCE CORPORATION. All rights reserved.",
+            "page_from": 56,
+            "page_to": 56,
+            "section_path": [
+              "03KA-2024-2"
+            ],
+            "confidence": 0.98,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "RB-1200",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "3D vision-guided robotics camera RB-1200",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "5.51\""
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "RB-800",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "3D vision-guided robotics camera RB-800",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "CA-CH10L"
+            ],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-HS035MU",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "CA-HS035MU/HS035CU",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "CA-HS035MU/HS035CU"
+            ],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-CH3",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "CA-CH3",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "CA-CH3"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-CH5",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "CA-CH5",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "CA-CH5"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CA-CH10",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": null,
+            "source_quote": "CA-CH10",
+            "page_from": 55,
+            "page_to": 55,
+            "section_path": [
+              "CA-CH10"
+            ],
+            "confidence": 0.9,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "03KA-2024-2",
+            "kind": "document_revision",
+            "relation": "document_revision",
+            "subject": null,
+            "source_quote": "03KA-2024-2",
+            "page_from": 56,
+            "page_to": 56,
+            "section_path": [
+              "03KA-2024-2"
+            ],
+            "confidence": 0.99,
+            "grounded": true,
+            "source": "page_aware_model_extraction"
+          },
+          {
+            "value": "CV-X",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "subject": null,
+            "source_quote": "Power Meets Simplicity CV: X Series",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.92,
+            "grounded": true,
+            "source": "upload_identity_page_grounded"
+          },
+          {
+            "value": "CV: X Series",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV: X Series",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "CV-X Series",
+            "kind": "product_family",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X Series",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "CV: X Series",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV: X Series",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "CV-X",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X",
+            "page_from": 5,
+            "page_to": 5,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "CV-X Series",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "CV-X Series",
+            "page_from": 2,
+            "page_to": 2,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "Area Cameras",
+            "kind": "device",
+            "relation": "mentioned",
+            "subject": null,
+            "source_quote": "Area Cameras",
+            "page_from": 5,
+            "page_to": 5,
+            "section_path": [],
+            "confidence": 0.5,
+            "grounded": true,
+            "source": "legacy_flat_extraction"
+          },
+          {
+            "value": "Intuitive Vision System CV: X Series",
+            "kind": "document_title",
+            "relation": "printed_title",
+            "subject": null,
+            "source_quote": "Intuitive Vision System CV: X Series",
+            "page_from": 1,
+            "page_to": 1,
+            "section_path": [],
+            "confidence": 0.95,
+            "grounded": true,
+            "source": "opening_page_title"
+          }
+        ],
+        "normalized_identifier_aliases": [
+          "CV-X402",
+          "CVX402",
+          "CV-X482F",
+          "CVX482F",
+          "CV-X302",
+          "CVX302",
+          "CV-H1XA",
+          "CVH1XA",
+          "CV-X472",
+          "CVX472",
+          "CV-X452",
+          "CVX452",
+          "CV-X422",
+          "CVX422",
+          "CV-X",
+          "CVX",
+          "CA-U5",
+          "CAU5",
+          "CA-SD16G",
+          "CASD16G",
+          "OP-42174",
+          "OP42174",
+          "OP-88835",
+          "OP88835",
+          "OP-88836",
+          "OP88836",
+          "OP-88837",
+          "OP88837",
+          "OP-88838",
+          "OP88838",
+          "CA-HS035MU",
+          "CAHS035MU",
+          "CA-CH3",
+          "CACH3",
+          "CA-CH5",
+          "CACH5",
+          "CA-CH10",
+          "CACH10",
+          "ethernet/ip",
+          "ETHERNETIP",
+          "profinet",
+          "ethercat"
+        ],
+        "routing_product_models": [
+          "CV-X402",
+          "CV-X482F",
+          "CV-X302",
+          "CV-H1XA",
+          "CV-X472",
+          "CV-X452",
+          "CV-X422",
+          "CV-X"
+        ],
+        "routing_part_numbers": [
+          "CA-U5",
+          "CA-SD16G",
+          "OP-42174",
+          "OP-88835",
+          "OP-88836",
+          "OP-88837",
+          "OP-88838",
+          "CA-HS035MU",
+          "CA-CH3",
+          "CA-CH5",
+          "CA-CH10"
+        ],
+        "routing_protocol_terms": [
+          "ethernet/ip",
+          "profinet",
+          "ethercat"
+        ],
+        "firmware_applicability": [],
+        "software_applicability": []
+      },
+      "audit": {
+        "passed": true,
+        "checks": {
+          "schema_v2": true,
+          "all_evidence_grounded": true,
+          "all_routing_values_evidence_gated": true,
+          "all_applicability_scoped": true,
+          "title_grounded_on_opening_pages": true
+        },
+        "evidence_count": 150,
+        "ungrounded_evidence": [],
+        "routing_without_evidence": {
+          "product_models": [],
+          "part_numbers": [],
+          "protocols": []
+        },
+        "malformed_applicability": [],
+        "routing_product_models": [
+          "CV-X402",
+          "CV-X482F",
+          "CV-X302",
+          "CV-H1XA",
+          "CV-X472",
+          "CV-X452",
+          "CV-X422",
+          "CV-X"
+        ],
+        "routing_part_numbers": [
+          "CA-U5",
+          "CA-SD16G",
+          "OP-42174",
+          "OP-88835",
+          "OP-88836",
+          "OP-88837",
+          "OP-88838",
+          "CA-HS035MU",
+          "CA-CH3",
+          "CA-CH5",
+          "CA-CH10"
+        ],
+        "routing_protocol_terms": [
+          "ethernet/ip",
+          "profinet",
+          "ethercat"
+        ],
+        "firmware_applicability_count": 0,
+        "software_applicability_count": 0
+      },
+      "error": null
+    }
+  ]
+}

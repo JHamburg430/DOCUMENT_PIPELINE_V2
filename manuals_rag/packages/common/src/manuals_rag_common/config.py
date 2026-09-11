@@ -32,10 +32,28 @@ class Settings:
     minio_bucket_originals: str = os.getenv("MINIO_BUCKET_ORIGINALS", "manuals-originals")
     minio_bucket_artifacts: str = os.getenv("MINIO_BUCKET_ARTIFACTS", "manuals-artifacts")
     ollama_url: str = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434")
+    ollama_embed_url: str = os.getenv(
+        "OLLAMA_EMBED_URL",
+        os.getenv("OLLAMA_URL", "http://host.docker.internal:11434"),
+    )
     ollama_embed_model: str = os.getenv("OLLAMA_EMBED_MODEL", "qwen3-embedding:0.6b")
-    ollama_metadata_model: str = os.getenv("OLLAMA_METADATA_MODEL", "tinyllama:1.1b")
+    ollama_metadata_model: str = os.getenv("OLLAMA_METADATA_MODEL", "qwen3.5:9b")
     ollama_fast_model: str = os.getenv("OLLAMA_FAST_MODEL", "qwen3.5:4b")
+    ollama_retrieval_verifier_model: str = os.getenv(
+        "OLLAMA_RETRIEVAL_VERIFIER_MODEL",
+        "qwen3.5:9b",
+    )
     ollama_answer_model: str = os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b")
+    ollama_answer_num_predict: int = int(os.getenv("OLLAMA_ANSWER_NUM_PREDICT", "1024"))
+    agentic_retrieval_enabled: bool = _as_bool(os.getenv("AGENTIC_RETRIEVAL_ENABLED"), True)
+    agentic_retrieval_max_seconds: float = float(os.getenv("AGENTIC_RETRIEVAL_MAX_SECONDS", "180"))
+    agentic_retrieval_planner_timeout_seconds: float = float(
+        os.getenv("AGENTIC_RETRIEVAL_PLANNER_TIMEOUT_SECONDS", "45")
+    )
+    agentic_retrieval_verifier_timeout_seconds: float = float(
+        os.getenv("AGENTIC_RETRIEVAL_VERIFIER_TIMEOUT_SECONDS", "90")
+    )
+    agentic_retrieval_result_limit: int = int(os.getenv("AGENTIC_RETRIEVAL_RESULT_LIMIT", "10"))
     ollama_eval_model: str = os.getenv("OLLAMA_EVAL_MODEL", os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b"))
     ollama_eval_question_model: str = os.getenv("OLLAMA_EVAL_QUESTION_MODEL", "qwen3.5:27b")
     ollama_eval_question_num_ctx: int = int(os.getenv("OLLAMA_EVAL_QUESTION_NUM_CTX", "32768"))

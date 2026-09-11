@@ -9,6 +9,7 @@ qdrant-client==1.15.1
 minio==7.2.18
 prometheus-client==0.22.1
 langgraph==0.4.7
+llama-index-core==0.14.24
 pymupdf==1.26.4
 docling==2.84.0
 python-multipart==0.0.20

@@ -4,6 +4,7 @@ import logging
 
 from manuals_rag_common.db import execute, fetch_all
 from manuals_rag_common.logging import configure_logging
+from manuals_rag_common.ingestion_progress import complete_ingestion_step, fail_ingestion_step, start_ingestion_step
 from manuals_rag_common.queue import dequeue
 from manuals_rag_retrieval.document_metadata import enrich_document_metadata_with_chunk_signals
 from manuals_rag_retrieval.qdrant_store import QdrantStore
@@ -51,46 +52,73 @@ def process_job(job: dict[str, str]) -> None:
         job["document_id"],
         job["version_id"],
     )
-    chunks = fetch_all("select * from retrieval_chunks where document_version_id = %s", (job["version_id"],))
-    document = fetch_all("select corpus_id from source_documents where id = %s", (job["document_id"],))
-    if not document:
-        raise ValueError("Document missing for embed job.")
-    store = QdrantStore()
-    store.delete_document_chunks(
-        document[0]["corpus_id"],
-        source_document_id=job["document_id"],
-        document_version_id=job["version_id"],
-    )
-    parsed_chunks = [
-        RetrievalChunk.model_validate(
-            {
-                **chunk,
-                "document_version_id": str(chunk["document_version_id"]),
-                "source_document_id": str(chunk["source_document_id"]),
-                "logical_node_ids_json": chunk["logical_node_ids_json"],
-                "metadata_json": chunk["metadata_json"],
-            }
-        )
-        for chunk in chunks
-    ]
-    store.upsert_chunks(document[0]["corpus_id"], parsed_chunks)
-    metadata_record = _fetch_document_metadata_record(job["document_id"])
-    if metadata_record:
-        store.delete_document_metadata(
+    current_step = "index_chunks"
+    try:
+        start_ingestion_step(job["run_id"], current_step)
+        chunks = fetch_all("select * from retrieval_chunks where document_version_id = %s", (job["version_id"],))
+        document = fetch_all("select corpus_id from source_documents where id = %s", (job["document_id"],))
+        if not document:
+            raise ValueError("Document missing for embed job.")
+        store = QdrantStore()
+        store.delete_document_chunks(
             document[0]["corpus_id"],
             source_document_id=job["document_id"],
             document_version_id=job["version_id"],
         )
-        store.upsert_document_metadata(document[0]["corpus_id"], [metadata_record])
-    execute("update ingestion_runs set status = 'completed', updated_at = now() where id = %s", (job["run_id"],))
-    execute("update source_documents set ingest_status = 'indexed', updated_at = now() where id = %s", (job["document_id"],))
-    log.info(
-        "worker_embed completed run_id=%s document_id=%s version_id=%s chunks=%s",
-        job["run_id"],
-        job["document_id"],
-        job["version_id"],
-        len(parsed_chunks),
-    )
+        parsed_chunks = [
+            RetrievalChunk.model_validate(
+                {
+                    **chunk,
+                    "document_version_id": str(chunk["document_version_id"]),
+                    "source_document_id": str(chunk["source_document_id"]),
+                    "logical_node_ids_json": chunk["logical_node_ids_json"],
+                    "metadata_json": chunk["metadata_json"],
+                }
+            )
+            for chunk in chunks
+        ]
+        store.upsert_chunks(document[0]["corpus_id"], parsed_chunks)
+        complete_ingestion_step(
+            job["run_id"],
+            current_step,
+            details={"corpus_id": document[0]["corpus_id"], "chunks_indexed": len(parsed_chunks)},
+        )
+
+        current_step = "index_metadata"
+        start_ingestion_step(job["run_id"], current_step)
+        metadata_record = _fetch_document_metadata_record(job["document_id"])
+        if metadata_record:
+            store.delete_document_metadata(
+                document[0]["corpus_id"],
+                source_document_id=job["document_id"],
+                document_version_id=job["version_id"],
+            )
+            store.upsert_document_metadata(document[0]["corpus_id"], [metadata_record])
+        complete_ingestion_step(
+            job["run_id"],
+            current_step,
+            details={"metadata_record_indexed": bool(metadata_record)},
+        )
+
+        current_step = "complete"
+        start_ingestion_step(job["run_id"], current_step)
+        execute("update ingestion_runs set status = 'completed', updated_at = now() where id = %s", (job["run_id"],))
+        execute("update source_documents set ingest_status = 'indexed', updated_at = now() where id = %s", (job["document_id"],))
+        complete_ingestion_step(
+            job["run_id"],
+            current_step,
+            details={"document_status": "indexed", "run_status": "completed"},
+        )
+        log.info(
+            "worker_embed completed run_id=%s document_id=%s version_id=%s chunks=%s",
+            job["run_id"],
+            job["document_id"],
+            job["version_id"],
+            len(parsed_chunks),
+        )
+    except Exception as exc:
+        fail_ingestion_step(job["run_id"], current_step, str(exc))
+        raise
 
 
 def main() -> None:
@@ -110,7 +138,11 @@ def main() -> None:
                 job.get("version_id"),
             )
             execute(
-                "update ingestion_runs set status = 'failed', error_message = %s, updated_at = now() where id = %s",
+                """
+                update ingestion_runs
+                set status = 'failed', failure_class = 'EMBED_FAILED', failure_reason = %s, updated_at = now()
+                where id = %s
+                """,
                 ("embed worker failure; check worker logs", job.get("run_id")),
             )
             execute(

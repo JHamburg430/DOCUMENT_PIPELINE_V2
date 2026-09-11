@@ -103,10 +103,31 @@ def test_eval_matrix_view_is_available():
     styles_css = (UI_DIR / "styles.css").read_text()
 
     assert 'data-tab="matrix"' in index_html
+    assert 'class="tab active" data-tab="matrix"' in index_html
+    assert 'id="matrix" class="tab-panel active"' in index_html
+    assert "End-to-End Eval" not in index_html
+    assert 'data-tab="eval"' not in index_html
+    assert 'id="eval"' not in index_html
     assert 'id="matrix-run-all-bank"' in index_html
     assert 'id="matrix-run-column"' in index_html
     assert 'id="matrix-use-model-judge"' in index_html
+    assert 'id="matrix-stop-on-answer-failure" type="checkbox" checked' in index_html
     assert 'id="matrix-clear-results"' in index_html
+    assert 'id="matrix-generate-questions"' in index_html
+    assert 'id="matrix-clear-questions"' in index_html
+    assert "Clear Questions" in index_html
+    assert 'id="matrix-generation-task"' in index_html
+    assert 'data-generation-field="single"' in index_html
+    assert 'data-generation-field="multi"' in index_html
+    assert 'data-generation-field="single-llm"' in index_html
+    assert 'id="matrix-generation-count"' in index_html
+    assert 'id="matrix-generation-window"' in index_html
+    assert 'id="matrix-generation-per-window"' in index_html
+    assert 'id="matrix-generation-num-ctx"' in index_html
+    assert 'id="matrix-generation-num-ctx" type="number" min="0" max="262144" value="4096"' in index_html
+    assert 'id="matrix-generation-prompt"' in index_html
+    assert "First use the document context" in index_html
+    assert "return NONE" in index_html
     assert 'id="matrix-stop"' in index_html
     assert 'id="matrix-summary"' in index_html
     assert 'id="matrix-table"' in index_html
@@ -117,13 +138,55 @@ def test_eval_matrix_view_is_available():
     assert 'id="matrix-column-picker"' in index_html
     assert "MATRIX_STAGES" in app_js
     assert "MATRIX_BASE_COLUMNS" in app_js
+    assert "generation_review" in app_js
+    assert "review_status" in app_js
+    assert "review_label" in app_js
+    assert "Review" in app_js
+    assert "ACCEPT" in app_js
+    assert "REJECT" in app_js
     assert "setupMatrixControls()" in app_js
     assert "startMatrixJob" in app_js
+    assert "stop_on_answer_failure: stopOnAnswerFailure" in app_js
+    assert "if (job.current_row_key) state.selectedMatrixKey = job.current_row_key" in app_js
     assert "stopMatrixJob" in app_js
     assert "clearMatrixResults" in app_js
+    clear_generated_body = re.search(r"async function clearGeneratedQuestions\(\) \{(?P<body>.*?)\n\}", app_js, re.S).group("body")
+    assert "state.matrixJob = null" in clear_generated_body
+    assert "state.matrixJobTimer = null" in clear_generated_body
+    assert "state.selectedMatrixKey = null" in clear_generated_body
+    assert "resumeControl.checked = false" in clear_generated_body
+    assert "saveMatrixGenerationDefaults()" in clear_generated_body
+    assert "renderMatrixJobStatus(null)" in clear_generated_body
     assert "/local/question-matrix/clear" in app_js
+    assert "/local/question-matrix/generate" in app_js
+    assert "/local/question-matrix/questions/clear" in app_js
+    assert "questionGenerationPayload" in app_js
+    assert "MATRIX_GENERATION_DEFAULTS_KEY" in app_js
+    assert "MATRIX_GENERATION_DEFAULT_PROMPT" in app_js
+    assert "MATRIX_GENERATION_LEGACY_DEFAULT_PROMPTS" in app_js
+    assert 'MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096"' in app_js
+    assert 'MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"])' in app_js
+    assert "matrix-generation-prompt" in app_js
+    assert "saveMatrixGenerationDefaults" in app_js
+    assert "applyMatrixGenerationDefaults" in app_js
+    assert "updateMatrixGenerationControlVisibility" in app_js
+    assert "setGenerationFieldEnabled" in app_js
+    assert "eventDetailText" in app_js
+    assert "question_generation_model_stream" in app_js or "preview = Array.isArray(event.preview)" in app_js
+    assert 'await loadQuestionMatrix();' in app_js
     assert "matrix-event-tail" in app_js
     assert ".matrix-event-tail" in styles_css
+    assert "generated-question-list" in app_js
+    assert ".generated-question-list" in styles_css
+    assert "liveGeneratedQuestionRows" in app_js
+    assert "liveGeneratedQuestionCandidatesFromEvents" in app_js
+    assert "matrixItemsWithLiveGeneratedQuestions" in app_js
+    assert "question_generation_model_completed" in app_js
+    assert "question_review_started" in app_js
+    assert "question_generation_rejected" in app_js
+    assert "live question generation" in app_js
+    assert "document_title" in app_js
+    assert "product_model" in app_js
     assert "current-run-cell" in app_js
     assert "loadQuestionMatrix" in app_js
     assert "renderMatrixSummary" in app_js
@@ -142,6 +205,7 @@ def test_eval_matrix_view_is_available():
     assert "updateQuestionMatrixLiveState()" in poll_body
     assert "renderQuestionMatrix(state.questionMatrix)" not in poll_body
     assert ".matrix-actions" in styles_css
+    assert ".matrix-generation-controls" in styles_css
     assert ".matrix-view-controls" in styles_css
     assert ".matrix-column-options" in styles_css
     assert ".matrix-sort" in styles_css
@@ -150,6 +214,173 @@ def test_eval_matrix_view_is_available():
     assert ".matrix-cell.blank" in styles_css
     assert "#ingestion.tab-panel.active" in styles_css
     assert "#ingestion > .panel" in styles_css
+
+
+def test_agent_evaluation_matrix_view_exposes_independent_backend_layers():
+    app_js = (UI_DIR / "app.js").read_text()
+    index_html = (UI_DIR / "index.html").read_text()
+    styles_css = (UI_DIR / "styles.css").read_text()
+
+    assert "Agent Evaluation Matrix" in index_html
+    assert 'id="run-agent-matrix"' in index_html
+    assert 'id="refresh-agent-matrix"' in index_html
+    assert 'id="agent-matrix-table"' in index_html
+    assert 'id="agent-matrix-detail"' in index_html
+    assert "/local/agent-matrix/run" in app_js
+    assert "/local/agent-matrix/jobs/" in app_js
+    assert "renderAgentMatrix" in app_js
+    assert "LangGraph" in app_js
+    assert "LlamaIndex" in app_js
+    for layer in (
+        "tool_selection",
+        "candidate_recall",
+        "document_retention",
+        "hop_dependencies",
+        "evidence_sufficiency",
+        "grounded_answer",
+        "latency_token_cost",
+    ):
+        assert layer in app_js
+    assert ".agent-matrix-grid" in styles_css
+
+
+def test_agent_live_runs_are_server_owned_and_reattachable(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def __iter__(self):
+            return iter(
+                [
+                    b'{"event":"plan_completed","policy":"test-policy","plan":{"mode":"single","hops":[]}}\n',
+                    b'{"event":"run_completed","result":{"answer":"done"}}\n',
+                ]
+            )
+
+    def fake_urlopen(request, timeout):
+        requests.append(loads(request.data))
+        assert timeout == 900
+        return FakeResponse()
+
+    monkeypatch.setattr(ui_server, "urlopen", fake_urlopen)
+    with ui_server.AGENT_LIVE_LOCK:
+        ui_server.AGENT_LIVE_JOBS.clear()
+        monkeypatch.setattr(ui_server, "AGENT_LIVE_LATEST_ID", None)
+
+    job = ui_server._start_agent_live_job(
+        {
+            "query": "Find the component, then its tolerance.",
+            "corpus_ids": ["manuals"],
+            "backends": ["langgraph_agent", "llamaindex_agent"],
+            "max_retrieval_hops": 3,
+        }
+    )
+    deadline = monotonic() + 2
+    while monotonic() < deadline:
+        with ui_server.AGENT_LIVE_LOCK:
+            snapshot = ui_server.deepcopy(ui_server.AGENT_LIVE_JOBS[job["id"]])
+        if snapshot["status"] not in {"queued", "running"}:
+            break
+        sleep(0.01)
+
+    assert snapshot["status"] == "completed"
+    assert {request["retrieval_orchestrator"] for request in requests} == {
+        "langgraph_agent",
+        "llamaindex_agent",
+    }
+    assert all(run["status"] == "completed" for run in snapshot["runs"].values())
+    assert all(run["events"][-1]["event"] == "run_completed" for run in snapshot["runs"].values())
+    assert ui_server.AGENT_LIVE_LATEST_ID == job["id"]
+
+
+def test_agent_lab_reattaches_without_browser_owned_api_stream():
+    app_js = (UI_DIR / "app.js").read_text()
+
+    assert "/local/agent-runs/run" in app_js
+    assert "/local/agent-runs/current" in app_js
+    assert "pollAgentLiveJob" in app_js
+    assert "hydrateAgentLiveJob" in app_js
+    assert "state.agentLab.controllers" not in app_js
+    assert 'setConnectionStatus("UI synchronized")' in app_js
+
+
+def test_agent_evaluation_matrix_joins_question_rows_to_backend_results(monkeypatch, tmp_path):
+    dataset = tmp_path / "agent-cases.jsonl"
+    report = tmp_path / "agent-report.json"
+    case = {
+        "case_id": "dependent-case",
+        "query": "Identify the cable, then find its orientation.",
+        "retrieval_task": "multi_step_retrieval",
+        "source_document_id": "doc-a",
+        "expected_evidence": [
+            {"chunk_id": "identify", "source_document_id": "doc-a"},
+            {"chunk_id": "orientation", "source_document_id": "doc-b"},
+        ],
+    }
+    dataset.write_text(ui_server.json.dumps(case) + "\n", encoding="utf-8")
+    report.write_text(
+        ui_server.json.dumps(
+            {
+                "dataset": str(dataset),
+                "summary": {"langgraph": {"agent_matrix_passed": 1}},
+                "items": [
+                    {
+                        "case_id": "dependent-case",
+                        "langgraph": {"agent_evaluation": {"passed": True}},
+                        "llamaindex": {"agent_evaluation": {"passed": False}},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "AGENT_MATRIX_REPORT", report)
+
+    payload = ui_server._build_agent_matrix()
+
+    assert payload["schema"] == "manuals-rag-agent-evaluation-matrix-v2"
+    assert payload["rows"][0]["question"] == case["query"]
+    assert payload["rows"][0]["expected_evidence_count"] == 2
+    assert payload["rows"][0]["expected_document_count"] == 2
+    assert payload["rows"][0]["result"]["langgraph"]["agent_evaluation"]["passed"] is True
+    assert payload["layers"] == [
+        "tool_selection",
+        "candidate_recall",
+        "document_retention",
+        "hop_dependencies",
+        "evidence_sufficiency",
+        "grounded_answer",
+        "latency_token_cost",
+    ]
+
+
+def test_ingestion_ui_supports_multi_upload_filtering_and_step_details():
+    app_js = (UI_DIR / "app.js").read_text()
+    index_html = (UI_DIR / "index.html").read_text()
+    styles_css = (UI_DIR / "styles.css").read_text()
+
+    assert 'id="ingestion-files" type="file"' in index_html
+    assert "multiple" in index_html
+    assert 'id="ingestion-ingest-selected"' in index_html
+    assert 'id="ingestion-filter-document"' in index_html
+    assert 'id="ingestion-filter-text"' in index_html
+    assert 'id="ingestion-filter-status"' in index_html
+    assert 'id="ingestion-step-detail"' in index_html
+    assert "uploadIngestionDocuments" in app_js
+    assert "ingestSelectedDocuments" in app_js
+    assert "data-ingestion-document" in app_js
+    assert "data-ingestion-run" in app_js
+    assert "data-ingestion-step" in app_js
+    assert "renderIngestionStepDetail" in app_js
+    assert "detail_json" in app_js
+    assert ".ingestion-step-track" in styles_css
+    assert ".ingestion-step-detail" in styles_css
 
 
 def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_path):
@@ -196,6 +427,10 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
         + "\n",
         encoding="utf-8",
     )
+    (reports / "retrieval_eval_summary_20260827_120000.json").write_text(
+        ui_server.json.dumps({"total_queries": 1}),
+        encoding="utf-8",
+    )
     manifest_path.write_text(
         ui_server.json.dumps(
             {
@@ -235,6 +470,144 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
     assert payload["rows"][0]["cells"]["answer"]["status"] == "fail"
     assert payload["rows"][0]["latest_result"]["answer"]["answer"] == "Reset the trigger signal error."
     assert payload["rows"][0]["latest_result"]["query_debug_result"]["answer"]["answer"] == "Reset the trigger signal error."
+
+
+def test_question_matrix_qualifies_duplicate_case_ids_by_dataset(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    first_rel = "test_reports/first.jsonl"
+    second_rel = "test_reports/second.jsonl"
+    first_case = {"case_id": "shared-case", "query": "First question?"}
+    second_case = {"case_id": "shared-case", "query": "Second question?"}
+    (reports / "first.jsonl").write_text(ui_server.json.dumps(first_case) + "\n", encoding="utf-8")
+    (reports / "second.jsonl").write_text(ui_server.json.dumps(second_case) + "\n", encoding="utf-8")
+    (reports / "retrieval_eval_results_20260901_120000.jsonl").write_text(
+        "\n".join(
+            [
+                ui_server.json.dumps({"dataset": first_rel, "case": first_case, "evaluation": {"passed": True, "rank": 1}}),
+                ui_server.json.dumps({"dataset": second_rel, "case": second_case, "evaluation": {"passed": False}}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (reports / "retrieval_eval_summary_20260901_120000.json").write_text(
+        ui_server.json.dumps({"total_queries": 2}),
+        encoding="utf-8",
+    )
+    (reports / "retrieval_accuracy_question_bank_manifest.json").write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [
+                        {"path": first_rel, "status": "generated", "total_questions": 1},
+                        {"path": second_rel, "status": "generated", "total_questions": 1},
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+
+    payload = ui_server._build_question_matrix()
+
+    assert payload["loaded_questions"] == 2
+    assert len({row["key"] for row in payload["rows"]}) == 2
+    assert payload["rows"][0]["key"] == f"{first_rel}::shared-case"
+    assert payload["rows"][1]["key"] == f"{second_rel}::shared-case"
+    assert payload["rows"][0]["latest_result"]["evaluation"]["passed"] is True
+    assert payload["rows"][1]["latest_result"]["evaluation"]["passed"] is False
+
+
+def test_question_matrix_ignores_newer_incomplete_result_artifact(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    case = {"case_id": "case-1", "query": "What should be checked?"}
+    dataset_rel = "test_reports/dataset.jsonl"
+    (reports / "dataset.jsonl").write_text(ui_server.json.dumps(case) + "\n", encoding="utf-8")
+    (reports / "retrieval_accuracy_question_bank_manifest.json").write_text(
+        ui_server.json.dumps(
+            {"question_bank": {"datasets": [{"path": dataset_rel, "status": "generated", "total_questions": 1}]}}
+        ),
+        encoding="utf-8",
+    )
+    (reports / "retrieval_eval_results_20260901_120000.jsonl").write_text(
+        ui_server.json.dumps(
+            {"dataset": dataset_rel, "case": case, "evaluation": {"passed": True, "rank": 1}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (reports / "retrieval_eval_summary_20260901_120000.json").write_text(
+        ui_server.json.dumps({"total_queries": 1}),
+        encoding="utf-8",
+    )
+    (reports / "retrieval_eval_results_20260901_130000_partial.jsonl").write_text(
+        ui_server.json.dumps(
+            {"dataset": dataset_rel, "case": case, "evaluation": {"passed": False, "rank": None}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+
+    payload = ui_server._build_question_matrix()
+
+    assert payload["rows"][0]["latest_result"]["run_id"] == "20260901_120000"
+    assert payload["rows"][0]["latest_result"]["evaluation"]["passed"] is True
+
+
+def test_question_matrix_marks_reviewed_generated_dataset_rows(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "generated.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    view_path = reports / ".question_matrix_question_view.json"
+    case = {
+        "case_id": "case-generated",
+        "query": "Which tab must I click to set the judgment value?",
+        "source_filename": "manual.pdf",
+        "generation_method": "reviewed_llm:procedure",
+        "benchmark_quality": "model_reviewed",
+    }
+    dataset_path.write_text(f"{ui_server.json.dumps(case)}\n", encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "total_questions": 0,
+                    "single_step_questions": 0,
+                    "multi_step_questions": 0,
+                    "datasets": [],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    view_path.write_text(
+        ui_server.json.dumps(
+            {
+                "hide_bank_questions": True,
+                "generated_datasets": [
+                    {"path": "test_reports/generated.jsonl", "status": "generated", "total_questions": 1}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+
+    payload = ui_server._build_question_matrix()
+
+    assert payload["loaded_questions"] == 1
+    assert payload["rows"][0]["generation_review"]["status"] == "pass"
+    assert payload["rows"][0]["generation_review"]["label"] == "ACCEPT"
+    assert payload["rows"][0]["generation_review"]["detail"] == "accepted by generation reviewer"
 
 
 def test_question_matrix_includes_active_job_for_page_refresh(monkeypatch, tmp_path):
@@ -330,6 +703,92 @@ def test_question_matrix_recovers_active_job_from_state_file(monkeypatch, tmp_pa
     assert payload["active_job"]["recovered"] is True
 
 
+def test_question_matrix_persistence_keeps_only_current_live_row(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-running"] = {
+        "id": "matrix-running",
+        "status": "running",
+        "current_row_key": "dataset::case-2",
+        "live_cells": {
+            "dataset::case-1": {"answer": {"status": "pass"}},
+            "dataset::case-2": {"answer": {"status": "fail"}},
+        },
+        "live_results": {
+            "dataset::case-1": {"answer": {"answer": "old"}},
+            "dataset::case-2": {"answer": {"answer": "current"}},
+        },
+        "events": [{"event": "progress", "number": number} for number in range(75)],
+    }
+
+    with ui_server.MATRIX_JOBS_LOCK:
+        ui_server._persist_question_matrix_jobs_locked()
+
+    persisted = ui_server._read_json(reports / ".question_matrix_jobs.json")["jobs"]["matrix-running"]
+    assert list(persisted["live_cells"]) == ["dataset::case-2"]
+    assert list(persisted["live_results"]) == ["dataset::case-2"]
+    assert len(persisted["events"]) == ui_server.MATRIX_JOB_PERSISTED_EVENT_TAIL_LIMIT
+    assert persisted["events"][0]["number"] == 25
+    assert len(ui_server.MATRIX_JOBS["matrix-running"]["live_results"]) == 2
+    ui_server.MATRIX_JOBS.clear()
+
+
+def test_question_matrix_marks_orphaned_active_job_failed(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    dataset_path.write_text('{"case_id":"case-1","query":"q"}\n', encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/dataset.jsonl", "status": "promoted", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports / ".question_matrix_jobs.json").write_text(
+        ui_server.json.dumps(
+            {
+                "jobs": {
+                    "matrix-orphaned": {
+                        "id": "matrix-orphaned",
+                        "status": "running",
+                        "pid": 1234,
+                        "started_at": "2026-08-31T22:33:52Z",
+                        "updated_at": "2026-08-31T22:42:54Z",
+                        "live_cells": {},
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "_pid_is_running", lambda pid: False)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_PROCESSES.clear()
+    monkeypatch.setattr(ui_server, "MATRIX_JOBS_LOADED", False)
+
+    try:
+        payload = ui_server._build_question_matrix()
+        job = dict(ui_server.MATRIX_JOBS["matrix-orphaned"])
+    finally:
+        ui_server.MATRIX_JOBS.clear()
+        ui_server.MATRIX_PROCESSES.clear()
+        ui_server.MATRIX_JOBS_LOADED = True
+
+    assert payload["active_job"] is None
+    assert job["status"] == "failed"
+    assert job["error"] == "UI server restarted before this matrix job finished; no active worker process was found."
+
+
 def test_question_matrix_job_runs_active_bank_with_llm_answer_judge(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()
@@ -381,6 +840,7 @@ def test_question_matrix_job_runs_active_bank_with_llm_answer_judge(monkeypatch,
     assert job["status"] == "completed"
     assert job["response_mode"] == "answer_with_citations"
     assert job["use_model_judge"] is True
+    assert job["stop_on_answer_failure"] is True
     assert job["current_stage_key"] == "answer"
     assert len(calls) == 1
     assert calls[0][1] == "test_reports/dataset.jsonl"
@@ -392,6 +852,72 @@ def test_question_matrix_model_judge_is_not_default_on():
 
     assert 'id="matrix-use-model-judge" type="checkbox"' in index_html
     assert 'id="matrix-use-model-judge" type="checkbox" checked' not in index_html
+
+
+def test_question_matrix_stop_on_answer_failure_is_default_on():
+    index_html = (ui_server.MANUALS_ROOT / "apps" / "ui" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="matrix-stop-on-answer-failure" type="checkbox" checked' in index_html
+
+
+def test_question_matrix_rejects_invalid_question_offset():
+    with pytest.raises(ValueError, match="question_offset must be a non-negative integer"):
+        ui_server._start_question_matrix_job({"mode": "all_bank", "question_offset": -1})
+
+
+def test_question_matrix_job_preserves_failed_answer_row_for_polling(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    dataset_path.write_text('{"case_id":"case-1","query":"q"}\n', encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/dataset.jsonl", "status": "promoted", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    class ImmediateThread:
+        def __init__(self, target, args, daemon):
+            self.target = target
+            self.args = args
+
+        def start(self):
+            self.target(*self.args)
+
+    def fail_first_answer(job_id, dataset_rel, dataset_path_arg, case_numbers, dataset_index):
+        ui_server._update_question_matrix_job(
+            job_id,
+            current_dataset=dataset_rel,
+            current_case_id="case-1",
+            current_row_key=f"{dataset_rel}::case-1",
+            current_question_number=1,
+            current_stage_key="answer",
+            returncode=1,
+        )
+        raise ui_server.MatrixAnswerFailure("Stopped on answer failure at question 1 (case-1): expected_terms_missing")
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "Thread", ImmediateThread)
+    monkeypatch.setattr(ui_server, "_run_answer_matrix_dataset", fail_first_answer)
+    ui_server.MATRIX_JOBS.clear()
+
+    job = ui_server._start_question_matrix_job({"mode": "all_bank"})
+
+    assert job["status"] == "failed"
+    assert job["stop_on_answer_failure"] is True
+    assert job["current_case_id"] == "case-1"
+    assert job["current_row_key"] == "test_reports/dataset.jsonl::case-1"
+    assert job["current_question_number"] == 1
+    assert "expected_terms_missing" in job["error"]
+    assert job["events"][-2]["event"] == "job_stopped_on_answer_failure"
 
 
 def test_question_matrix_retrieval_column_uses_retrieval_only(monkeypatch, tmp_path):
@@ -439,10 +965,314 @@ def test_question_matrix_retrieval_column_uses_retrieval_only(monkeypatch, tmp_p
     assert job["status"] == "completed"
     assert job["response_mode"] == "retrieval_only"
     assert job["use_model_judge"] is False
+    assert job["stop_on_answer_failure"] is False
     assert job["current_stage_key"] == "retrieval"
     cmd = calls[0][0]
     assert cmd[cmd.index("--response-mode") + 1] == "retrieval_only"
     assert "--use-llm-answer-judge" not in cmd
+
+
+def test_answer_matrix_stops_after_persisting_first_answer_failure(monkeypatch, tmp_path):
+    from manuals_rag_evals import retrieval_eval
+
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    cases = [
+        {
+            "case_id": f"case-{index}",
+            "query": f"What voltage does MODEL-{index} use?",
+            "source_document_id": "doc-1",
+            "document_version_id": "ver-1",
+            "source_chunk_id": f"chunk-{index}",
+            "source_title": "Manual",
+            "source_filename": "manual.pdf",
+            "chunk_type": "spec_record",
+            "section_path": "Specifications",
+            "page_from": index,
+            "page_to": index,
+            "expected_terms": ["24", "vdc"],
+            "expected_snippet": "Power supply voltage: 24 VDC",
+            "generation_method": "unit_test",
+            "source_metadata": {"product_model": f"MODEL-{index}"},
+        }
+        for index in (1, 2)
+    ]
+    dataset_path.write_text("".join(ui_server.json.dumps(case) + "\n" for case in cases), encoding="utf-8")
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(
+        ui_server,
+        "_run_query_debug_stream",
+        lambda *args, **kwargs: (
+            {"answer": {"answer": "12 VDC", "citations": []}, "completed_steps": ["generate_answer"]},
+            {"passed": True, "rank": 1},
+        ),
+    )
+    monkeypatch.setattr(ui_server, "_debug_top_results", lambda debug_result: [])
+    monkeypatch.setattr(
+        retrieval_eval,
+        "score_answer_response",
+        lambda *args, **kwargs: {"passed": False, "failure_reasons": ["expected_terms_missing"]},
+    )
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-stop"] = {
+        "id": "matrix-stop",
+        "status": "running",
+        "use_model_judge": True,
+        "stop_on_answer_failure": True,
+        "outputs": [],
+        "events": [],
+        "live_cells": {},
+        "live_results": {},
+    }
+
+    with pytest.raises(ui_server.MatrixAnswerFailure, match=r"question 1 .*expected_terms_missing"):
+        ui_server._run_answer_matrix_dataset(
+            "matrix-stop",
+            "test_reports/dataset.jsonl",
+            dataset_path,
+            {"case-1": 1, "case-2": 2},
+            1,
+        )
+
+    result_paths = list(reports.glob("retrieval_eval_results_*.jsonl"))
+    manifest_paths = list(reports.glob("retrieval_eval_manifest_*.json"))
+    assert len(result_paths) == 1
+    assert len(ui_server._read_jsonl(result_paths[0])) == 1
+    manifest = ui_server._read_json(manifest_paths[0])
+    assert manifest["status"] == "stopped_on_answer_failure"
+    assert manifest["completed"] is False
+    assert manifest["processed_questions"] == 1
+    assert manifest["total_questions"] == 2
+    assert manifest["failure"]["case_id"] == "case-1"
+    assert manifest["failure"]["failure_reasons"] == ["expected_terms_missing"]
+    job = ui_server.MATRIX_JOBS["matrix-stop"]
+    assert job["current_case_id"] == "case-1"
+    assert job["current_row_key"].endswith("::case-1")
+    assert job["live_results"][job["current_row_key"]]["answer_evaluation"]["passed"] is False
+    assert job["outputs"][0]["partial"] is True
+    assert job["events"][-1]["event"] == "answer_failure_stop"
+    assert ui_server._result_run_id(result_paths[0]) not in ui_server._completed_result_run_ids()
+
+
+def test_answer_matrix_stop_gate_also_stops_when_retrieval_blocks_answer(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    case = {
+        "case_id": "case-1",
+        "query": "What voltage does MODEL-1 use?",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "source_chunk_id": "chunk-1",
+        "source_title": "Manual",
+        "source_filename": "manual.pdf",
+        "chunk_type": "spec_record",
+        "section_path": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "expected_terms": ["24", "vdc"],
+        "expected_snippet": "Power supply voltage: 24 VDC",
+        "generation_method": "unit_test",
+        "source_metadata": {"product_model": "MODEL-1"},
+    }
+    dataset_path.write_text(ui_server.json.dumps(case) + "\n", encoding="utf-8")
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(
+        ui_server,
+        "_run_query_debug_stream",
+        lambda *args, **kwargs: (
+            {"answer": {}, "completed_steps": ["retrieve"]},
+            {"passed": False, "failure_reasons": ["expected_source_missing"]},
+        ),
+    )
+    monkeypatch.setattr(ui_server, "_debug_top_results", lambda debug_result: [])
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-retrieval-stop"] = {
+        "id": "matrix-retrieval-stop",
+        "status": "running",
+        "use_model_judge": True,
+        "stop_on_answer_failure": True,
+        "outputs": [],
+        "events": [],
+        "live_cells": {},
+        "live_results": {},
+    }
+
+    with pytest.raises(ui_server.MatrixAnswerFailure, match="expected_source_missing"):
+        ui_server._run_answer_matrix_dataset(
+            "matrix-retrieval-stop",
+            "test_reports/dataset.jsonl",
+            dataset_path,
+            {"case-1": 1},
+            1,
+        )
+
+    job = ui_server.MATRIX_JOBS["matrix-retrieval-stop"]
+    record = next(iter(job["live_results"].values()))
+    assert record["evaluation"]["passed"] is False
+    assert record["answer"] == {}
+    assert job["outputs"][0]["partial"] is True
+    assert job["events"][-1]["event"] == "answer_failure_stop"
+
+
+def test_answer_matrix_continues_when_stop_on_answer_failure_is_disabled(monkeypatch, tmp_path):
+    from manuals_rag_evals import retrieval_eval
+
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    case = {
+        "case_id": "case-1",
+        "query": "What voltage does MODEL-1 use?",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "source_chunk_id": "chunk-1",
+        "source_title": "Manual",
+        "source_filename": "manual.pdf",
+        "chunk_type": "spec_record",
+        "section_path": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "expected_terms": ["24", "vdc"],
+        "expected_snippet": "Power supply voltage: 24 VDC",
+        "generation_method": "unit_test",
+        "source_metadata": {"product_model": "MODEL-1"},
+    }
+    dataset_path.write_text(ui_server.json.dumps(case) + "\n", encoding="utf-8")
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(
+        ui_server,
+        "_run_query_debug_stream",
+        lambda *args, **kwargs: (
+            {"answer": {"answer": "12 VDC", "citations": []}, "completed_steps": ["generate_answer"]},
+            {"passed": True, "rank": 1},
+        ),
+    )
+    monkeypatch.setattr(ui_server, "_debug_top_results", lambda debug_result: [])
+    monkeypatch.setattr(
+        retrieval_eval,
+        "score_answer_response",
+        lambda *args, **kwargs: {"passed": False, "failure_reasons": ["expected_terms_missing"]},
+    )
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-continue"] = {
+        "id": "matrix-continue",
+        "status": "running",
+        "use_model_judge": True,
+        "stop_on_answer_failure": False,
+        "outputs": [],
+        "events": [],
+        "live_cells": {},
+        "live_results": {},
+    }
+
+    ui_server._run_answer_matrix_dataset(
+        "matrix-continue",
+        "test_reports/dataset.jsonl",
+        dataset_path,
+        {"case-1": 1},
+        1,
+    )
+
+    manifest = ui_server._read_json(next(reports.glob("retrieval_eval_manifest_*.json")))
+    job = ui_server.MATRIX_JOBS["matrix-continue"]
+    assert manifest["status"] == "completed"
+    assert manifest["completed"] is True
+    assert manifest["processed_questions"] == 1
+    assert job["completed_datasets"] == 1
+    assert job["returncode"] == 0
+    assert job["events"][-1]["event"] == "dataset_completed"
+
+
+def test_debug_answer_evidence_includes_all_serialized_answer_inputs():
+    context_results = [
+        {"chunk_id": "split-cause", "content": "Cause: fan is not operating"},
+        {"chunk_id": "split-action", "content": "Action: replace CA-F100"},
+    ]
+    debug_result = {
+        "answer_generation_inputs": {
+            "samples": [
+                context_results[0],
+                {
+                    "chunk_id": "combined-row",
+                    "content": "Cause: fan is not operating; Corrective Action: replace CA-F100",
+                },
+            ]
+        }
+    }
+
+    evidence = ui_server._debug_answer_evidence_results(debug_result, context_results)
+
+    assert [item["chunk_id"] for item in evidence] == ["split-cause", "split-action", "combined-row"]
+
+
+def test_question_matrix_job_uses_visible_generated_questions(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    official_path = reports / "official.jsonl"
+    generated_path = reports / "generated.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    view_path = reports / ".question_matrix_question_view.json"
+    official_path.write_text('{"case_id":"official-case","query":"official"}\n', encoding="utf-8")
+    generated_path.write_text('{"case_id":"generated-case","query":"generated"}\n', encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/official.jsonl", "status": "promoted", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    view_path.write_text(
+        ui_server.json.dumps(
+            {
+                "hide_bank_questions": True,
+                "generated_datasets": [
+                    {"path": "test_reports/generated.jsonl", "status": "generated_candidate", "total_questions": 1}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    class ImmediateThread:
+        def __init__(self, target, args, daemon):
+            self.target = target
+            self.args = args
+            self.daemon = daemon
+
+        def start(self):
+            self.target(*self.args)
+
+    class FakeProcess:
+        stdout = ['{"case_id":"generated-case"}\n']
+
+        def wait(self, timeout):
+            return 0
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "Thread", ImmediateThread)
+    monkeypatch.setattr(ui_server.subprocess, "Popen", lambda cmd, **kwargs: calls.append((cmd, kwargs)) or FakeProcess())
+    ui_server.MATRIX_JOBS.clear()
+
+    job = ui_server._start_question_matrix_job({"mode": "column", "column": "retrieval"})
+
+    assert job["status"] == "completed"
+    assert job["dataset_count"] == 1
+    cmd = calls[0][0]
+    assert str(generated_path) in cmd
+    assert str(official_path) not in cmd
 
 
 def test_question_matrix_rejects_second_active_job(monkeypatch, tmp_path):
@@ -588,6 +1418,267 @@ def test_question_matrix_clear_results_rejects_active_job(monkeypatch, tmp_path)
         ui_server.MATRIX_JOBS.clear()
 
 
+def test_question_generation_job_builds_tuned_command(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    dataset_path.write_text(
+        '{"case_id":"case-1","query":"What voltage is required?","source_chunk_id":"chunk-1"}\n',
+        encoding="utf-8",
+    )
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/dataset.jsonl", "status": "exploratory", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    class ImmediateThread:
+        def __init__(self, target, args, daemon):
+            self.target = target
+            self.args = args
+            self.daemon = daemon
+
+        def start(self):
+            self.target(*self.args)
+
+    class FakeProcess:
+        stdout = [
+            '{"event":"question_generation_model_started","chunk_id":"chunk-1","source_filename":"manual.pdf","snippet_chars":128,"parent_context_chars":64,"context_window_chars":512,"section_context_chars":576}\n',
+            '{"event":"question_generation_accepted","chunk_id":"chunk-1","source_filename":"manual.pdf","document_title":"MODEL-1 User Manual","product_model":"MODEL-1","question":"What voltage is required?","accepted_count":1,"snippet_chars":128,"parent_context_chars":64,"context_window_chars":512,"section_context_chars":576}\n',
+            '{"case_id":"generated-case"}\n',
+            '{"dataset_path":"test_reports/retrieval_eval_dataset_20260828_130000.jsonl"}\n',
+        ]
+
+        def wait(self, timeout):
+            return 0
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "Thread", ImmediateThread)
+    monkeypatch.setattr(ui_server.subprocess, "Popen", lambda cmd, **kwargs: calls.append((cmd, kwargs)) or FakeProcess())
+    ui_server.MATRIX_JOBS.clear()
+    monkeypatch.setattr(ui_server, "MATRIX_JOBS_LOADED", True)
+
+    job = ui_server._start_question_generation_job(
+        {
+            "retrieval_task": "single_step_retrieval",
+            "multi_step_case_family": "cross_document",
+            "max_questions": 12,
+            "chunk_offset": 20,
+            "chunk_window": 50,
+            "questions_per_window": 2,
+            "num_ctx": 65536,
+            "prompt_guidance": "Prefer realistic technician phrasing.",
+            "resume_previous_questions": True,
+            "use_llm_generation": False,
+        }
+    )
+
+    assert job["status"] == "completed"
+    assert job["mode"] == "generate_questions"
+    assert job["current_dataset"] == "test_reports/retrieval_eval_dataset_20260828_130000.jsonl"
+    cmd = calls[0][0]
+    assert cmd[cmd.index("--retrieval-task") + 1] == "single_step_retrieval"
+    assert "--multi-step-case-family" not in cmd
+    assert cmd[cmd.index("--max-queries") + 1] == "12"
+    assert cmd[cmd.index("--generation-chunk-offset") + 1] == "20"
+    assert cmd[cmd.index("--generation-chunk-window") + 1] == "50"
+    assert cmd[cmd.index("--questions-per-window") + 1] == "2"
+    assert cmd[cmd.index("--question-generation-num-ctx") + 1] == "65536"
+    assert cmd[cmd.index("--question-generation-timeout-seconds") + 1] == "180"
+    assert "--question-generation-guidance" in cmd
+    assert "--previous-questions-dataset" in cmd
+    assert "--disable-llm-query-generation" not in cmd
+    assert "--skip-evaluation" in cmd
+    assert job["generation"]["use_llm_generation"] is True
+    assert str(dataset_path) in cmd
+    assert calls[0][1]["env"]["MANUALS_RAG_EVAL_QUESTION_TRACE"] == "1"
+    assert any(event["event"] == "question_generation_accepted" for event in job["events"])
+    model_started = next(event for event in job["events"] if event["event"] == "question_generation_model_started")
+    assert model_started["snippet_chars"] == 128
+    assert model_started["parent_context_chars"] == 64
+    assert model_started["context_window_chars"] == 512
+    assert model_started["section_context_chars"] == 576
+    assert job["generated_question_count"] == 1
+    assert job["generated_questions"][0]["question"] == "What voltage is required?"
+    assert job["generated_questions"][0]["document_title"] == "MODEL-1 User Manual"
+    assert job["generated_questions"][0]["product_model"] == "MODEL-1"
+    assert job["generation"]["question_generation_timeout_seconds"] == 180
+
+
+def test_question_generation_job_accepts_dedicated_generation_timeout(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    manifest_path.write_text(
+        ui_server.json.dumps({"question_bank": {"datasets": [], "run_exclusions": []}}),
+        encoding="utf-8",
+    )
+    calls = []
+
+    class ImmediateThread:
+        def __init__(self, target, args, daemon):
+            self.target = target
+            self.args = args
+            self.daemon = daemon
+
+        def start(self):
+            self.target(*self.args)
+
+    class FakeProcess:
+        stdout = []
+
+        def wait(self, timeout):
+            return 0
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "Thread", ImmediateThread)
+    monkeypatch.setattr(ui_server.subprocess, "Popen", lambda cmd, **kwargs: calls.append((cmd, kwargs)) or FakeProcess())
+    ui_server.MATRIX_JOBS.clear()
+    monkeypatch.setattr(ui_server, "MATRIX_JOBS_LOADED", True)
+
+    job = ui_server._start_question_generation_job(
+        {
+            "retrieval_task": "single_step_retrieval",
+            "per_query_timeout_seconds": 60,
+            "question_generation_timeout_seconds": 240,
+        }
+    )
+
+    cmd = calls[0][0]
+    assert cmd[cmd.index("--per-query-timeout-seconds") + 1] == "60"
+    assert cmd[cmd.index("--question-generation-timeout-seconds") + 1] == "240"
+    assert job["generation"]["question_generation_timeout_seconds"] == 240
+
+
+def test_question_matrix_clear_questions_shows_bank_and_preserves_files(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    generated = reports / "retrieval_eval_dataset_20260828_130000.jsonl"
+    curated = reports / "retrieval_accuracy_question_bank_20260828_130000.jsonl"
+    manifest_listed_dataset = reports / "retrieval_eval_dataset_20260824_062714.jsonl"
+    generated.write_text("{}", encoding="utf-8")
+    curated.write_text('{"case_id":"case-1","query":"old question"}\n', encoding="utf-8")
+    manifest_listed_dataset.write_text('{"case_id":"case-2","query":"bank question"}\n', encoding="utf-8")
+    (reports / "retrieval_accuracy_question_bank_manifest.json").write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "total_questions": 2,
+                    "datasets": [
+                        {"path": "test_reports/retrieval_accuracy_question_bank_20260828_130000.jsonl", "status": "exploratory", "total_questions": 1},
+                        {"path": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl", "status": "exploratory", "total_questions": 1},
+                    ],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-generate-old"] = {
+        "id": "matrix-generate-old",
+        "status": "completed",
+        "mode": "generate_questions",
+        "generated_questions": [{"question": "Generated stale question?"}],
+        "generated_question_count": 1,
+        "current_dataset": "test_reports/retrieval_eval_dataset_20260828_130000.jsonl",
+    }
+    monkeypatch.setattr(ui_server, "MATRIX_JOBS_LOADED", True)
+
+    result = ui_server._clear_question_matrix_generated_questions()
+    payload = ui_server._build_question_matrix()
+
+    assert result["total_deleted"] == 1
+    assert result["deleted"]["generated_question_job_snapshots"] == 1
+    assert result["hide_bank_questions"] is False
+    assert not generated.exists()
+    assert curated.exists()
+    assert manifest_listed_dataset.exists()
+    assert payload["loaded_questions"] == 2
+    assert payload["question_view"]["hide_bank_questions"] is False
+    assert ui_server.MATRIX_JOBS.get("matrix-generate-old", {}).get("generated_questions") == []
+    assert ui_server.MATRIX_JOBS.get("matrix-generate-old", {}).get("generated_question_count") == 0
+    ui_server.MATRIX_JOBS.clear()
+
+
+def test_question_matrix_reset_bank_moves_manifest_datasets(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    bank_one = reports / "bank_one.jsonl"
+    bank_two = reports / "bank_two.jsonl"
+    generated = reports / "retrieval_eval_dataset_20260828_130000.jsonl"
+    bank_one.write_text('{"case_id":"case-1","query":"bank one"}\n', encoding="utf-8")
+    bank_two.write_text('{"case_id":"case-2","query":"bank two"}\n', encoding="utf-8")
+    generated.write_text('{"case_id":"generated","query":"generated"}\n', encoding="utf-8")
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "total_questions": 2,
+                    "single_step_questions": 1,
+                    "multi_step_questions": 1,
+                    "datasets": [
+                        {"path": "test_reports/bank_one.jsonl", "status": "exploratory", "total_questions": 1},
+                        {"path": "test_reports/bank_two.jsonl", "status": "promoted", "total_questions": 1},
+                    ],
+                    "run_exclusions": [{"run_id": "old"}],
+                },
+                "run_exclusions": [{"run_id": "old"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports / ".question_matrix_question_view.json").write_text(
+        ui_server.json.dumps(
+            {
+                "hide_bank_questions": True,
+                "generated_datasets": [
+                    {"path": "test_reports/retrieval_eval_dataset_20260828_130000.jsonl", "status": "generated_candidate"}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    monkeypatch.setattr(ui_server, "MATRIX_JOBS_LOADED", True)
+
+    result = ui_server._reset_question_matrix_bank()
+    manifest = ui_server._read_json(manifest_path)
+    payload = ui_server._build_question_matrix()
+
+    assert result["total_moved"] == 2
+    assert not bank_one.exists()
+    assert not bank_two.exists()
+    assert generated.exists()
+    backup_dir = tmp_path / result["backup_dir"]
+    assert (backup_dir / "test_reports" / "bank_one.jsonl").exists()
+    assert (backup_dir / "test_reports" / "bank_two.jsonl").exists()
+    assert (tmp_path / result["manifest_backup"]).exists()
+    assert manifest["question_bank"]["datasets"] == []
+    assert manifest["question_bank"]["total_questions"] == 0
+    assert manifest["question_bank"]["single_step_questions"] == 0
+    assert manifest["question_bank"]["multi_step_questions"] == 0
+    assert manifest["question_bank"]["run_exclusions"] == []
+    assert manifest["run_exclusions"] == []
+    assert payload["loaded_questions"] == 0
+    assert payload["question_view"]["hide_bank_questions"] is False
+    assert payload["question_view"]["generated_datasets"] == []
+
+
 def test_question_matrix_blanks_answer_steps_after_retrieval_failure():
     cells = ui_server._build_row_cells(
         {
@@ -669,6 +1760,8 @@ def test_question_matrix_retrieval_requires_expected_chunk_when_chunk_target_exi
             "case": {
                 "source_document_id": "doc-expected",
                 "source_chunk_id": "chunk-expected",
+                "page_from": 7,
+                "page_to": 7,
             },
             "query_debug_result": {
                 "completed_steps": [
@@ -680,10 +1773,10 @@ def test_question_matrix_retrieval_requires_expected_chunk_when_chunk_target_exi
                     "assemble_context",
                 ],
                 "stages": [
-                    {"name": "run_sparse_search", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
-                    {"name": "fuse_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
-                    {"name": "rerank_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
-                    {"name": "assemble_context", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                    {"name": "run_sparse_search", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other", "pages": [3]}]},
+                    {"name": "fuse_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other", "pages": [3]}]},
+                    {"name": "rerank_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other", "pages": [3]}]},
+                    {"name": "assemble_context", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other", "pages": [3]}]},
                 ],
             },
             "evaluation": {
@@ -699,6 +1792,117 @@ def test_question_matrix_retrieval_requires_expected_chunk_when_chunk_target_exi
     assert cells["retrieval"]["status"] == "fail"
     assert cells["retrieval"]["label"] == "FAIL"
     assert cells["relevance"]["status"] == "blank"
+
+
+def test_question_matrix_trusts_completed_saved_retrieval_evaluation_without_live_trace():
+    cells = ui_server._build_row_cells(
+        {
+            "case": {
+                "source_document_id": "doc-expected",
+                "source_chunk_id": "chunk-expected",
+            },
+            "evaluation": {
+                "passed": True,
+                "rank": 2,
+                "candidate_recall": True,
+                "metadata_document_selection": {"attempted": True, "passed": True, "rank": 1},
+            },
+            "answer_evaluation": {
+                "passed": True,
+                "expected_document_used": True,
+                "citation_fidelity": {"checked": True, "passed": True, "checked_quote_count": 0},
+                "term_check": {"passed": True},
+            },
+        }
+    )
+
+    assert cells["retrieval"] == {
+        "status": "pass",
+        "detail": "completed saved evaluation; rank 2",
+        "label": "PASS",
+    }
+    assert cells["answer"]["status"] == "pass"
+
+
+def test_question_matrix_accepts_scored_equivalent_evidence_without_exact_anchor():
+    cells = ui_server._build_row_cells(
+        {
+            "case": {
+                "source_document_id": "doc-expected",
+                "source_chunk_id": "chunk-expected",
+                "page_from": 7,
+                "page_to": 7,
+            },
+            "query_debug_result": {
+                "completed_steps": ["assemble_context"],
+                "stages": [
+                    {
+                        "name": "assemble_context",
+                        "samples": [
+                            {
+                                "source_document_id": "doc-expected",
+                                "chunk_id": "equivalent-answer-chunk",
+                                "pages": [9],
+                            }
+                        ],
+                    }
+                ],
+            },
+            "evaluation": {
+                "passed": True,
+                "match_reason": "same_document_snippet_evidence",
+                "candidate_recall": True,
+                "metadata_document_selection": {"attempted": False},
+            },
+        }
+    )
+
+    assert cells["assemble"]["label"] == "DOC_ONLY"
+    assert cells["retrieval"]["status"] == "pass"
+    assert cells["retrieval"]["label"] == "EQUIV"
+
+
+def test_question_matrix_retrieval_passes_when_expected_page_reaches_context():
+    cells = ui_server._build_row_cells(
+        {
+            "case": {
+                "source_document_id": "doc-expected",
+                "source_chunk_id": "chunk-expected",
+                "page_from": 12,
+                "page_to": 12,
+            },
+            "query_debug_result": {
+                "completed_steps": [
+                    "classify_query",
+                    "build_filters",
+                    "run_dense_search",
+                    "fuse_results",
+                    "rerank_results",
+                    "assemble_context",
+                ],
+                "stages": [
+                    {"name": "run_dense_search", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other", "pages": [12]}]},
+                    {"name": "fuse_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other", "pages": [12]}]},
+                    {"name": "rerank_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other", "pages": [12]}]},
+                    {"name": "assemble_context", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other", "pages": [12]}]},
+                ],
+            },
+            "evaluation": {
+                "passed": True,
+                "match_reason": "same_page_evidence",
+                "candidate_recall": True,
+                "metadata_document_selection": {"attempted": False},
+            },
+        }
+    )
+
+    assert cells["dense"]["status"] == "pass"
+    assert cells["dense"]["label"] == "YES"
+    assert cells["rerank"]["status"] == "pass"
+    assert "page" in cells["rerank"]["detail"]
+    assert cells["assemble"]["status"] == "pass"
+    assert cells["retrieval"]["status"] == "pass"
+    assert cells["retrieval"]["label"] == "PASS"
 
 
 def test_question_matrix_blocks_answer_steps_when_context_retention_fails():

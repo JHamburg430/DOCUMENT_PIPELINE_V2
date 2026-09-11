@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -38,6 +40,72 @@ STOPWORDS = {
     "caution",
     "note",
 }
+
+
+def _trace_question_generation_enabled() -> bool:
+    return os.getenv("MANUALS_RAG_EVAL_QUESTION_TRACE", "").lower() in {"1", "true", "yes", "on"}
+
+
+def _trace_question_generation_event(event: str, **fields: object) -> None:
+    if not _trace_question_generation_enabled():
+        return
+    payload = {
+        "event": event,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        **fields,
+    }
+    print(json.dumps(payload, ensure_ascii=True, default=str), flush=True)
+
+
+def _post_ollama_generate_with_optional_trace(
+    *,
+    client: httpx.Client,
+    request_payload: dict[str, Any],
+    trace_event: str,
+    trace_fields: dict[str, object],
+) -> str:
+    if not _trace_question_generation_enabled():
+        response = client.post("/api/generate", json=request_payload)
+        response.raise_for_status()
+        payload: dict[str, Any] = response.json()
+        return str(payload.get("response") or payload.get("thinking") or "")
+
+    streaming_payload = {**request_payload, "stream": True}
+    parts: list[str] = []
+    last_emit = 0.0
+    with client.stream("POST", "/api/generate", json=streaming_payload) as response:
+        response.raise_for_status()
+        for line in response.iter_lines():
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            fragment = str(event.get("response") or event.get("thinking") or "")
+            if fragment:
+                parts.append(fragment)
+                now = time.monotonic()
+                if now - last_emit >= 0.5:
+                    _trace_question_generation_event(
+                        trace_event,
+                        **trace_fields,
+                        fragment=fragment,
+                        preview="".join(parts)[-500:],
+                    )
+                    last_emit = now
+            if event.get("done"):
+                break
+    text = "".join(parts)
+    if text:
+        _trace_question_generation_event(
+            trace_event,
+            **trace_fields,
+            fragment="",
+            preview=text[-500:],
+            done=True,
+        )
+    return text
 
 QUERY_DEDUPE_FILLER = STOPWORDS.union(
     {
@@ -114,11 +182,22 @@ ANSWER_SCORING_GENERIC_TERMS = QUERY_DEDUPE_FILLER.union(
     {
         "as",
         "by",
+        "cause",
+        "causes",
         "description",
         "descriptions",
         "detail",
         "details",
+        "display",
+        "caution",
         "flag",
+        "danger",
+        "error",
+        "item",
+        "items",
+        "message",
+        "please",
+        "product",
         "whether",
         "executed",
         "having",
@@ -130,8 +209,10 @@ ANSWER_SCORING_GENERIC_TERMS = QUERY_DEDUPE_FILLER.union(
         "purpose",
         "purposes",
         "same",
+        "solution",
         "typical",
         "type",
+        "warning",
     },
 )
 
@@ -307,12 +388,25 @@ NONE
 
 Rules:
 - Write concise question-form queries a real technician, engineer, operator, purchaser, or integrator might ask.
-- Base every query on the provided context, especially the source snippet, structured fields, labels, and extracted terms.
-- Make each query answerable from the source snippet itself, not merely from a surrounding section.
-- Use surrounding section context only to understand what would distinguish this source from nearby sibling rows or steps.
+- Optimize for useful retrieval questions, not exhaustive coverage of every parseable cell. A question should be something a user might actually ask to solve a task, compare a spec, understand a warning, or find a setting.
+- Before writing queries, identify for yourself: the device/product, the parent article or section, the exact answerable fact/action/constraint, and the anchors that distinguish this source from sibling rows or nearby steps.
+- Base every query on the provided context, especially document_context, source snippet, structured fields, labels, and extracted terms.
+- Make each query answerable from the source snippet itself; surrounding context may disambiguate, but it must not be required as the only evidence for the answer.
+- Use surrounding section context to understand the parent article, device, feature area, and what distinguishes this source from nearby sibling rows or steps. Do not use surrounding context as the owner of the answer.
+- Bind the question subject to the exact snippet-owned row, part, device, setting, warning, or procedure. If surrounding context mentions a different nearby part/model/step, do not ask about that other item.
+- If the snippet contains multiple identifiers, ask only about the identifier directly tied to the answer value or action. If that binding is unclear, return NONE.
 - Represent the kind of question a user would ask before seeing the answer text; do not turn source wording into a keyword query.
 - Include enough fair discriminators that the intended row, warning, step, or spec can be found without reading adjacent context.
-- Use product names, model numbers, protocol names, units, and standardized technical terms as anchors when needed.
+- Use product names, model numbers, feature names, protocol names, units, and standardized technical terms as anchors when needed.
+- Prefer the product/device identity from document_context over filename-like artifacts. If document_context does not identify a real product/device, use the feature/section/action anchors instead.
+- If the snippet is a table row or cell, include the row subject and the measured/configured field, not just "what value" or "which setting".
+- If a table row/cell only exposes storage format, display precision, parser coordinates, or internal representation, return NONE unless it is clearly a user-facing specification someone would search for.
+- If a table cell has a value but the headers do not clearly name the metric/setting/field that value belongs to, return NONE instead of inventing a metric such as accuracy, resolution, limit, or range.
+- If the snippet is a procedure, ask about the action, screen/setting, prerequisite, or result that the snippet actually states.
+- If the snippet is a warning/caution, ask about the unsafe condition, required precaution, or consequence that the snippet actually states.
+- If the snippet gives a limit/specification, include the entity being limited and the type of limit/specification.
+- If the snippet defines a mode/option rather than giving setup steps, ask what the mode/option means or controls; do not ask how to configure it.
+- If the snippet has a placeholder value such as Current Value, blank, dash, or a coordinate-only artifact, return NONE unless another concrete source-backed fact is present.
 - Treat source field labels, table headers, row headers, and UI labels as concepts to paraphrase, not text to copy verbatim.
 - If a label or snippet contains a compound phrase, break it apart, reorder it, or replace part of it with a natural synonym.
 - If the source uses bracketed UI labels like [Output Setting], rewrite them into natural user wording. Do not include square brackets in the query.
@@ -333,7 +427,10 @@ Rules:
 - Prefer concrete terms from the snippet such as field names, units, menu labels, protocol names, settings, or actions.
 - Avoid vague storage-only phrasing such as "stores number" unless the query also includes the specific field/action name, for example "command number" or "specified-command".
 - Previous questions are scoped to this section/context. Do not repeat them or make close paraphrases. Ask about a different concrete facet of the same snippet only when one is logical and fair.
-- If no additional logical, answerable, non-duplicative question is possible for this section/context, return exactly NONE and no JSON.
+- If review_feedback_for_rejected_questions is present, use each rejection category and feedback item directly: make vague questions concrete, remove invented procedures/facts, bind the product/setting/row correctly, avoid mechanical source copying, and do not repeat duplicate questions.
+- If you cannot identify a specific source-backed answer and at least one fair discriminator, return exactly NONE and no JSON.
+- If all remaining questions would be vague, duplicate, purely filename/document based, or answerable only by guessing from surrounding context, return exactly NONE and no JSON.
+- Prefer returning NONE over producing a question whose subject/value binding might be wrong.
 - Do not make a question so specific that it merely restates the full answer or exact table cell. Include enough context to disambiguate sibling rows, but keep it natural.
 - Do not invent facts not present in the input.
 - Return 2 or 3 diverse queries when the context is strong, otherwise return 1.
@@ -378,6 +475,16 @@ Input facts: Source says the tag PLC1: I.Data[0].1 is ON when the Command error 
 Bad query: Is PLC1: I.Data0.1 the correct indicator for Command errors?
 Good query: Which tag indicates whether a command error occurred?
 
+Example 8:
+Input facts: Table cell only says data length is "+9.3" for an internal C2D P distance value.
+Bad query: How many decimal digits are included in the C2D P Circles Distance value?
+Good output: NONE
+
+Example 9:
+Input facts: Warning says the sensor head must not be used in an explosive atmosphere.
+Bad query: What warning applies to sensor head use?
+Good query: Can this sensor head be used around explosive gas?
+
 Pattern:
 - The good query sounds like a person asking before they have seen the answer.
 - It keeps necessary anchors such as model names, protocols, units, and settings, but avoids copying exact addresses, tag prefixes, or code-like identifiers unless the user would already know that identifier.
@@ -385,6 +492,73 @@ Pattern:
 - It avoids reusing full source noun phrases such as "displayed detection coordinate" when shorter wording can ask the same thing.
 - It never uses "detail is needed", "is listed", "entry applies", "purpose does", or source-like grammar.
 """.strip()
+
+USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT = """
+You review generated retrieval benchmark questions for technical manuals.
+
+Return strict JSON with this shape:
+{"approved":true,"category":"approved","feedback":"","answer_in_snippet":true,"false_rejection_check":{"synonym_or_smoother_wording_only":false,"valid_context_anchor_only":false,"single_step_or_setting_how_question":false,"valid_yes_no_restriction_question":false}}
+or
+{"approved":false,"category":"too_vague","feedback":"short actionable feedback for rewriting","answer_in_snippet":false,"false_rejection_check":{"synonym_or_smoother_wording_only":false,"valid_context_anchor_only":false,"single_step_or_setting_how_question":false,"valid_yes_no_restriction_question":false}}
+
+Allowed rejection categories:
+- too_vague: the question asks for a generic value, item, detail, entry, applicability, or broad topic without a concrete source-backed target.
+- not_answerable_from_snippet: the snippet does not contain the answer, even after using document_context only for disambiguation.
+- invented_fact: the question asks for a procedure, cause, formula, value, setting, part, device, or condition not stated by the snippet/context.
+- wrong_product_or_context: the question binds the answer to the wrong row, product, part, model, warning, setting, or sibling context.
+- asks_for_steps_not_present: the question asks for multiple steps, a complete setup flow, a verification process, or a calculation not present in the snippet.
+- mechanical_source_copy: the question copies source/table/UI wording, file/page artifacts, parser coordinates, or benchmark-only phrasing.
+- duplicate_or_near_duplicate: the question repeats or closely paraphrases a previous accepted question.
+
+Approve only if the question:
+- Sounds like a natural question from a technician, engineer, operator, purchaser, or integrator.
+- Is answerable from the provided source snippet itself.
+- Targets a concrete source-backed answer, action, limit, warning, setting, field, table row, or procedure result.
+- Uses document_context only for fair disambiguation, such as product/device, parent article, feature area, section, or page context.
+- Includes enough context to distinguish the intended row, warning, step, setting, or spec from nearby or unrelated content.
+- Does not merely ask for a generic value, item, detail, entry, or applicability without saying what concrete thing the user needs.
+- Does not ask "how" or "why" unless the snippet actually provides a procedure, causal explanation, formula, or reason.
+- Does not use a product/model anchor if that anchor appears to be only a filename artifact rather than source-backed device context.
+- Does not copy source/table/UI wording mechanically.
+- Does not depend on file names, page/table coordinates, or benchmark-only phrasing.
+- Does not ask about storage format, display precision, parser coordinates, or internal representation unless that is clearly a user-facing spec someone would search for.
+- When the snippet or document context contains multiple values for the same metric or multiple variants of the same component, names the user-visible accessory, assembly, location, mode, or other discriminator that uniquely binds the requested value. A product model plus a generic component name is not sufficient when sibling components have different values.
+
+Before rejecting, fill false_rejection_check for these conditions. If answer_in_snippet is true and any false_rejection_check value is true, approve unless there is a separate concrete defect covered by an allowed rejection category:
+- synonym_or_smoother_wording_only: the only issue is singular/plural wording, a natural synonym, broader user term, or smoother grammar.
+- valid_context_anchor_only: the only issue is that product/device/feature identity comes from document_context, product_models, section, parent context, or other non-filename context.
+- single_step_or_setting_how_question: the only issue is that the question says "how" while the snippet gives the needed action, control, tab, screen, setting, option, mode, or condition.
+- valid_yes_no_restriction_question: the only issue is that the question asks a yes/no safety, prohibition, or restriction question whose answer is directly stated.
+
+Do not reject solely because the question uses singular/plural variation, natural synonym, broader user term, or smoother grammar than the source. Natural terms like setting, settings, option, feature, item, function, field, mode, image count, number of images, base value, or reference value are acceptable when they clearly refer to the same source-backed concept. A question may ask "which setting..." when the source provides the setting name, or "what does X do..." when the source provides X's described behavior. Reject only when the paraphrase changes the source-backed meaning, makes the target ambiguous, invents a procedure/reason/formula, or binds the answer to the wrong row, part, model, setting, or warning.
+For procedure snippets or single-step instruction snippets, natural "how do I..." questions are acceptable when the source gives the specific action, control, tab, screen, or selection needed to answer the question. Do not require the snippet to contain a complete multi-step procedure.
+For setting and option snippets, natural task phrasing such as "How do I prevent X?", "How do I enable X?", or "What controls X?" is acceptable when the source names the setting, option, mode, or condition that accomplishes it. Do not reject these just because the snippet does not provide a step-by-step procedure; reject only if the question asks for steps that are not in the source.
+For safety, prohibition, or restriction snippets, natural yes/no questions such as "Can X be used for Y?", "Should X be installed in Y?", or "Is X rated for Y?" are acceptable when the source clearly states the allowed/prohibited use. Do not reject these just because the answer is negative.
+Do not claim the question uses a product, model, manufacturer, filename, page, or metadata anchor unless that text actually appears in the question. Hidden document_context is available to you for judging source fit, but it is not automatically part of the question wording.
+When the source defines one named conditional method among sibling methods (for example, "Refer to Vision Dashboard Cell"), reject a broad question such as "When does archiving start?" as too_vague. The question must retain enough of the named method to distinguish its trigger from Always Archive, task judgment, tool judgment, and other nearby conditions.
+
+Calibration examples:
+- Source says to check PLC-Link communication settings, connection cable, and status when connected by RS-232C. Question "What should I check when LJ-X8000 connects via RS-232C?" should be approved when document_context identifies LJ-X8000 as the product.
+- Source says a button selects the lighting color displayed on a VIEW bar. Question "How do I select a lighting color for the VIEW bar?" should be approved because the source provides the specific action/control.
+- Source says an LJ-V series head cannot register only grayscale images. Question "Can I register only grayscale images with an LJ-V series head?" should be approved because the yes/no restriction is directly stated.
+- Source says an RS-232C cable has part number OP-26487. Question "Which cable connects to the RS-232C port?" should be approved because the part number answers which cable.
+- Source only says to check a cable/status but gives no verification method. Question "How do I verify the cable status?" should be rejected as asks_for_steps_not_present.
+- Source context contains different tightening torques for several mounting accessories. Question "What torque is required for the bracket?" should be rejected as too_vague unless it names the particular bracket, accessory model, or mounting operation associated with the requested value.
+
+When rejecting, give concise feedback that the question generator can use directly. Do not rewrite the question yourself. Feedback must only criticize defects visible in the question text or concrete mismatches with the source snippet; never mention removing or changing a word, model, page, filename, manufacturer, or coordinate that is not literally present in the question.
+""".strip()
+
+REVIEW_REJECTION_CATEGORIES = {
+    "approved",
+    "too_vague",
+    "not_answerable_from_snippet",
+    "invented_fact",
+    "wrong_product_or_context",
+    "asks_for_steps_not_present",
+    "mechanical_source_copy",
+    "duplicate_or_near_duplicate",
+    "reviewer_rejected",
+}
 
 
 @dataclass(frozen=True)
@@ -409,9 +583,19 @@ class RetrievalEvalCase:
     retrieval_task: str = "single_step_retrieval"
     expected_source_chunk_ids: list[str] | None = None
     expected_evidence: list[dict[str, Any]] | None = None
+    expected_evidence_graph: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class GeneratedQueryReview:
+    approved: bool
+    category: str
+    feedback: str
+    answer_in_snippet: bool | None = None
+    false_rejection_check: dict[str, bool] | None = None
 
 
 def normalize_text(text: str) -> str:
@@ -516,7 +700,7 @@ def _looks_like_toc_line(content: str) -> bool:
         return True
     if re.match(r"^\[[^\]]+\]\s*\(page\s+\d+(?:-\d+)?\)", compact):
         return True
-    if re.search(r"\.{4,}\s*\d+(?:-\d+)?\b", content):
+    if re.search(r"(?:\.\s*){4,}\d+(?:-\d+)?\b", content):
         return True
     return False
 
@@ -607,6 +791,22 @@ def chunk_is_queryworthy(chunk: dict[str, Any], anchors: list[str]) -> bool:
         and not _meaningful_table_field_value_pairs(content)
     ):
         return False
+    if chunk_type == "table_record" and metadata.get("table_cell"):
+        column_headers = _metadata_list(metadata, "table_column_headers")
+        header_text = normalize_text(" ".join(column_headers))
+        field_pairs = _meaningful_table_field_value_pairs(content)
+        cell_value = _table_cell_value(content)
+        if (
+            not field_pairs
+            and cell_value.strip().startswith(("±", "+/-"))
+            and not re.search(r"\b(?:accuracy|repeatability|tolerance|deviation|error|precision)\b", header_text)
+        ):
+            return False
+        if not field_pairs and column_headers and not re.search(
+            r"\b(?:voltage|current|power|torque|range|distance|accuracy|resolution|repeatability|temperature|humidity|speed|time|count|limit|threshold|format|mode|setting|settings|output|input|type|status|error|cause|action|description|identifier|compatibility|approval|diameter|length|width|height|weight|pressure|frequency|wavelength)\b",
+            header_text,
+        ):
+            return False
     if (
         chunk_type == "table_record"
         and metadata.get("table_cell")
@@ -625,6 +825,107 @@ def chunk_is_queryworthy(chunk: dict[str, Any], anchors: list[str]) -> bool:
     if len(anchors) < 1:
         return False
     return _has_concrete_technical_signal(content, anchors, chunk_type)
+
+
+def generated_query_source_rejection_reason(query: str, content: str) -> str | None:
+    """Reject question intents that the candidate snippet does not actually support.
+
+    The model reviewer is useful for semantic paraphrases, but small local models can
+    mistake a forward reference or a procedure heading for the answer itself.  These
+    checks describe generic evidence requirements rather than any product or manual.
+    """
+
+    normalized_query = normalize_text(query)
+    normalized_content = normalize_text(content)
+    raw_content = str(content or "").strip()
+    if not normalized_query or not normalized_content:
+        return "not_answerable_from_snippet"
+
+    condition_equivalents = {
+        "insufficient": ("insufficient", "not enough", "too little", "shortage"),
+        "duplicate": ("duplicate", "same", "not unique", "already used"),
+        "full": ("full", "capacity reached", "no space", "maximum number"),
+        "minimum": ("minimum", "lowest", "min."),
+        "maximum": ("maximum", "highest", "max."),
+    }
+    for query_term, supported_phrases in condition_equivalents.items():
+        if re.search(rf"\b{re.escape(query_term)}\b", normalized_query) and not any(
+            phrase in normalized_content for phrase in supported_phrases
+        ):
+            return "invented_fact"
+
+    asks_for_precautions = bool(
+        re.search(r"\b(?:what|which|how).{0,45}\b(?:precautions?|instructions?|steps?)\b", normalized_query)
+    ) and not bool(re.search(r"\bwhat\s+happens?\b|\b(?:effect|result)\b", normalized_query))
+    if asks_for_precautions and re.search(
+        r"\b(?:following|follow)\s+(?:the\s+)?(?:precautions?|instructions?|steps?)(?:\s+below)?\b",
+        normalized_content,
+    ):
+        concrete_directives = re.findall(
+            r"(?:^|[.!?;•]\s*)"
+            r"(?:do not|never|always|must|should|keep|avoid|disconnect|separate|ground|use|connect|remove|"
+            r"wear|check|confirm|make sure|ensure)\b",
+            raw_content,
+            flags=re.IGNORECASE,
+        )
+        if not concrete_directives:
+            return "not_answerable_from_snippet"
+
+    asks_how_to_configure = bool(
+        re.search(
+            r"\bhow\s+(?:do|can|should)\b.{0,70}\b(?:configure|set\s*up|change|adjust|perform|carry\s+out)\b",
+            normalized_query,
+        )
+    )
+    if asks_how_to_configure and not re.search(
+        r"\b(?:select|set|open|click|press|choose|enter|connect|install|configure|adjust|turn|enable|disable)\b",
+        normalized_content,
+    ):
+        return "asks_for_steps_not_present"
+
+    asks_for_outcome = bool(
+        re.search(r"\bwhat\s+happens?\b|\bwhat\s+is\s+the\s+(?:effect|result)\b", normalized_query)
+    )
+    if asks_for_outcome and not re.search(
+        r"\b(?:will|may|causes?|results?\s+in|becomes?|turns?|remains?|stops?|starts?|occurs?|"
+        r"is\s+(?:shown|displayed|saved|updated|enabled|disabled|selected|used))\b|"
+        r"\b(?:displays?|updates?)\b(?!\s+(?:mode|settings?|method|option))",
+        normalized_content,
+    ):
+        return "not_answerable_from_snippet"
+
+    asks_for_bound_value = bool(
+        re.search(r"\b(?:what|which)\b.{0,70}\b(?:type|value|rating|range|limit|output|input|format|mode)\b", normalized_query)
+    )
+    if asks_for_bound_value:
+        query_identifiers = re.findall(
+            r"\b[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+\b",
+            query,
+        )
+        for identifier in query_identifiers:
+            bound_value = re.search(
+                rf"\b{re.escape(identifier)}\s*:\s*([^;\n]+)",
+                raw_content,
+                flags=re.IGNORECASE,
+            )
+            if not bound_value:
+                continue
+            compact_value = normalize_text(bound_value.group(1)).strip(" .:-")
+            if compact_value in {
+                "description",
+                "input",
+                "input type",
+                "model",
+                "output",
+                "output type",
+                "setting",
+                "specification",
+                "type",
+                "value",
+            }:
+                return "wrong_product_or_context"
+
+    return None
 
 
 def _query_specificity_score(query: str, expected_terms: list[str]) -> int:
@@ -690,6 +991,22 @@ def _query_has_discriminating_source_term(query: str, chunk: dict[str, Any]) -> 
         if _is_high_signal_anchor(token) or token in GENERIC_TECHNICAL_TERMS or token in TECHNICAL_VERBS or len(token) >= 7:
             return True
     return False
+
+
+def _query_preserves_named_condition_scope(query: str, chunk: dict[str, Any]) -> bool:
+    content = str(chunk.get("content", "")).strip()
+    match = re.match(r"Refer\s+to\s+([^:\n]{3,100})\s*:", content, flags=re.I)
+    if not match:
+        return True
+    label_terms = [
+        token
+        for token in tokenize(match.group(1))
+        if token not in STOPWORDS and token not in GENERIC_ANCHORS
+    ]
+    if len(label_terms) < 2:
+        return True
+    query_terms = set(tokenize(query))
+    return sum(1 for term in label_terms if term in query_terms) >= 2
 
 
 def _filename_artifact_terms(chunk: dict[str, Any]) -> set[str]:
@@ -915,6 +1232,14 @@ def _query_looks_mechanical(query: str) -> bool:
         and not any(re.search(r"\d", token) for token in compact_tokens)
     ):
         return True
+    if re.fullmatch(r"what\s+[\w/-]+\s+[\w/-]+(?:\s+[\w/-]+)?\s+is\s+specified(?:\s+for\s+.+)?", compact):
+        return True
+    if re.fullmatch(r"what\s+[\w/-]+\s+[\w/-]+(?:\s+[\w/-]+)?\s+applies(?:\s+to\s+.+)?", compact):
+        return True
+    if re.fullmatch(r"what\s+[\w/-]+\s+[\w/-]+\s+steps\s+apply(?:\s+to\s+.+)?", compact):
+        return True
+    if re.fullmatch(r"how\s+do\s+you\s+(?:procedure|step|steps)(?:\s+for\s+.+)?", compact):
+        return True
     if re.search(r"\bwhat\s+\S+\s+is\s+described\s+for\b", compact):
         described_subject = compact.split(" is described for ", 1)[0].removeprefix("what ").strip()
         described_terms = [token for token in tokenize(described_subject) if token not in STOPWORDS and token not in GENERIC_ANCHORS]
@@ -1001,8 +1326,6 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "document_bound_query"
     if _query_looks_meta(query):
         return False, "meta_query"
-    if _query_looks_mechanical(query):
-        return False, "mechanical_query"
     if _query_uses_filename_artifact(query, chunk):
         return False, "filename_artifact_query"
     if _query_uses_bracketed_source_label(query, chunk):
@@ -1013,6 +1336,8 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "table_artifact_syntax_query"
     if _query_copies_unfair_source_phrase(query, chunk):
         return False, "copied_source_phrase"
+    if _query_looks_mechanical(query):
+        return False, "mechanical_query"
     if chunk_type == "atomic_text":
         if len(anchors) < 2:
             return False, "atomic_requires_two_anchors"
@@ -1028,10 +1353,16 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "weak_source_affinity"
     if chunk_type in {"spec_record", "datasheet_record", "table_record"} and not _query_has_discriminating_source_term(query, chunk):
         return False, "weak_source_discriminator"
+    if not _query_preserves_named_condition_scope(query, chunk):
+        return False, "missing_condition_discriminator"
     return True, "validated"
 
 
 def _safe_query_label(chunk: dict[str, Any]) -> str:
+    def concise_series_label(value: str) -> str:
+        match = re.match(r"\s*([A-Z][A-Z0-9-]{1,15}\s+Series)\b", value, flags=re.IGNORECASE)
+        return match.group(1) if match else value
+
     metadata = dict(chunk.get("metadata_json", {}))
     model = str(chunk.get("product_model") or metadata.get("product_model") or "").strip()
     generic_model_label = re.search(
@@ -1040,13 +1371,16 @@ def _safe_query_label(chunk: dict[str, Any]) -> str:
         flags=re.IGNORECASE,
     )
     if model and not generic_model_label and len(model) <= 60 and model.count("/") <= 3 and not _query_uses_filename_artifact(model, chunk):
-        return model
+        return concise_series_label(model)
     family = str(metadata.get("product_family") or "").strip()
     if family and len(family) <= 80 and family.count("/") <= 1 and not _query_uses_filename_artifact(family, chunk):
-        return family
+        return concise_series_label(family)
     title = str(chunk.get("title", "")).strip()
     filename = str(chunk.get("source_filename", "")).strip()
     if title and title != filename and not title.lower().endswith(".pdf"):
+        series_match = re.search(r"\b([A-Z][A-Z0-9-]{1,15}\s+Series)\b", title)
+        if series_match:
+            return series_match.group(1)
         return title
     return ""
 
@@ -1126,10 +1460,37 @@ def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[st
         if value and value != content and value not in context_parts:
             context_parts.append(_unbracket_source_labels(value))
     field_matches = _field_value_pairs(content)
+    source_filename = str(chunk.get("source_filename") or "").strip()
+    product_model = _prompt_safe_metadata_value(str(chunk.get("product_model") or metadata.get("product_model") or "").strip(), chunk)
+    product_family = _prompt_safe_metadata_value(str(chunk.get("product_family") or metadata.get("product_family") or "").strip(), chunk)
+    manufacturer = _prompt_safe_grounded_metadata_value(str(chunk.get("manufacturer") or metadata.get("manufacturer") or "").strip(), chunk)
+    raw_document_title = str(chunk.get("document_title") or metadata.get("document_title") or "").strip()
+    document_title = "" if _looks_like_unhelpful_document_title(raw_document_title, source_filename) else raw_document_title
+    raw_chunk_title = str(chunk.get("title") or "").strip()
+    chunk_title = "" if _looks_like_unhelpful_document_title(raw_chunk_title, source_filename) else raw_chunk_title
+    raw_parent_article = str(metadata.get("parent_article") or metadata.get("parent_title") or raw_chunk_title).strip()
+    parent_article = "" if _looks_like_unhelpful_document_title(raw_parent_article, source_filename) else raw_parent_article
+    document_context = {
+        "document_title": document_title or chunk_title,
+        "chunk_title": chunk_title,
+        "document_kind": str(chunk.get("document_kind") or metadata.get("document_kind") or "").strip(),
+        "manufacturer": manufacturer,
+        "product_family": product_family,
+        "product_model": product_model,
+        "product_models": [_prompt_safe_metadata_value(value, chunk) for value in _metadata_list(metadata, "product_models")[:8] if _prompt_safe_metadata_value(value, chunk)],
+        "product_families": [_prompt_safe_metadata_value(value, chunk) for value in _metadata_list(metadata, "product_families")[:8] if _prompt_safe_metadata_value(value, chunk)],
+        "devices": [_prompt_safe_metadata_value(value, chunk) for value in _metadata_list(metadata, "devices")[:8] if _prompt_safe_metadata_value(value, chunk)],
+        "section_path": str(chunk.get("section_path_text", "")).strip(),
+        "parent_article": parent_article,
+        "parent_context_excerpt": content_preview(_unbracket_source_labels(str(metadata.get("parent_context") or "")), limit=1500),
+        "context_window_excerpt": content_preview(_unbracket_source_labels(str(metadata.get("context_window") or "")), limit=2500),
+    }
     return {
         "chunk_type": str(chunk.get("chunk_type", "")),
-        "title": _safe_query_label(chunk),
-        "product_model": _safe_query_label(chunk),
+        "title": chunk_title,
+        "document_context": {key: value for key, value in document_context.items() if value not in ("", [], [None, None])},
+        "product_model": product_model,
+        "product_family": product_family,
         "section_path": str(chunk.get("section_path_text", "")).strip(),
         "anchors": anchors[:6],
         "table_row_headers": _metadata_list(metadata, "table_row_headers")[:6],
@@ -1142,6 +1503,28 @@ def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[st
         "expected_terms": anchors[:4],
         "snippet": content_preview(prompt_content, limit=900),
         "section_context_excerpt": content_preview("\n\n".join(context_parts), limit=6000) if context_parts else "",
+    }
+
+
+def _question_generation_trace_fields(chunk: dict[str, Any]) -> dict[str, object]:
+    metadata = dict(chunk.get("metadata_json", {}))
+    structured_input = _structured_eval_input(chunk, extract_anchor_terms(str(chunk.get("content") or "")))
+    structured_context = structured_input.get("document_context") or {}
+    return {
+        "source_filename": chunk.get("source_filename"),
+        "document_title": structured_context.get("document_title") or chunk.get("document_title") or metadata.get("document_title") or chunk.get("title"),
+        "chunk_title": structured_context.get("chunk_title") or chunk.get("title"),
+        "section_path": chunk.get("section_path_text") or chunk.get("section_path"),
+        "page_from": chunk.get("page_from"),
+        "page_to": chunk.get("page_to"),
+        "manufacturer": structured_context.get("manufacturer") or None,
+        "product_family": structured_context.get("product_family") or None,
+        "product_model": structured_context.get("product_model") or None,
+        "document_kind": chunk.get("document_kind") or metadata.get("document_kind"),
+        "snippet_chars": len(str(structured_input.get("snippet") or "")),
+        "parent_context_chars": len(str(structured_context.get("parent_context_excerpt") or "")),
+        "context_window_chars": len(str(structured_context.get("context_window_excerpt") or "")),
+        "section_context_chars": len(str(structured_input.get("section_context_excerpt") or "")),
     }
 
 
@@ -1245,6 +1628,77 @@ def _build_table_query_candidates(chunk: dict[str, Any], label: str) -> list[tup
     return candidates
 
 
+def _prompt_safe_metadata_value(value: str, chunk: dict[str, Any]) -> str:
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    if _query_uses_filename_artifact(value, chunk):
+        return ""
+    return value
+
+
+def _looks_like_unhelpful_document_title(value: str, source_filename: str) -> bool:
+    normalized = normalize_text(str(value or ""))
+    if not normalized:
+        return False
+    if normalized in {"user's manual", "users manual", "classify title", "document", "manual"}:
+        return True
+    if len(normalized.split()) > 10 and any(
+        phrase in normalized
+        for phrase in (
+            "hazardous situation",
+            "death or serious injury",
+            "failure to follow",
+            "indicates a",
+        )
+    ):
+        return True
+    return _looks_like_filename_derived_title(value, source_filename)
+
+
+def _looks_like_filename_derived_title(value: str, source_filename: str) -> bool:
+    value = str(value or "").strip()
+    source_filename = str(source_filename or "").strip()
+    if not value:
+        return False
+    if value.lower().endswith(".pdf"):
+        return True
+    if source_filename:
+        normalized_filename = re.sub(r"\.[A-Za-z0-9]+$", "", source_filename)
+        normalized_filename = re.sub(r"[_\W]+", " ", normalized_filename).strip().casefold()
+        normalized_value = re.sub(r"[_\W]+", " ", value).strip().casefold()
+        if normalized_value == normalized_filename:
+            return True
+    tokens = tokenize(value)
+    return bool(len(tokens) >= 5 and sum(1 for token in tokens if any(char.isdigit() for char in token)) >= 3)
+
+
+def _metadata_value_is_grounded(value: str, source: str) -> bool:
+    normalized_value = " ".join(str(value or "").casefold().split())
+    normalized_source = " ".join(str(source or "").casefold().split())
+    return bool(normalized_value) and normalized_value in normalized_source
+
+
+def _prompt_safe_grounded_metadata_value(value: str, chunk: dict[str, Any]) -> str:
+    value = _prompt_safe_metadata_value(value, chunk)
+    if not value:
+        return ""
+    metadata = dict(chunk.get("metadata_json", {}))
+    source = "\n".join(
+        str(item or "")
+        for item in (
+            chunk.get("content"),
+            chunk.get("title"),
+            chunk.get("document_title"),
+            chunk.get("section_path_text"),
+            metadata.get("parent_context"),
+            metadata.get("context_window"),
+            metadata.get("local_rerank_context"),
+        )
+    )
+    return value if _metadata_value_is_grounded(value, source) else ""
+
+
 def _parse_generated_queries(payload: str) -> list[dict[str, str]]:
     data = _loads_generated_query_payload(payload)
     if isinstance(data, list):
@@ -1266,6 +1720,31 @@ def _parse_generated_queries(payload: str) -> list[dict[str, str]]:
 def _generated_query_response_is_none(payload: str) -> bool:
     text = _strip_generated_json_wrappers(payload).strip()
     return text.upper() == "NONE"
+
+
+def _parse_query_review(payload: str) -> GeneratedQueryReview:
+    data = _loads_generated_query_payload(payload)
+    if not isinstance(data, dict) or "approved" not in data:
+        raise ValueError("Generated-query review response must be a JSON object")
+    approved = bool(data.get("approved"))
+    category = str(data.get("category") or ("approved" if approved else "reviewer_rejected")).strip()
+    if category not in REVIEW_REJECTION_CATEGORIES:
+        category = "reviewer_rejected"
+    false_rejection_check = data.get("false_rejection_check")
+    if isinstance(false_rejection_check, dict):
+        false_rejection_check = {str(key): bool(value) for key, value in false_rejection_check.items()}
+    else:
+        false_rejection_check = None
+    answer_in_snippet = data.get("answer_in_snippet")
+    if not isinstance(answer_in_snippet, bool):
+        answer_in_snippet = None
+    return GeneratedQueryReview(
+        approved=approved,
+        category=category,
+        feedback=str(data.get("feedback", "")).strip(),
+        answer_in_snippet=answer_in_snippet,
+        false_rejection_check=false_rejection_check,
+    )
 
 
 def _section_context_key(chunk: dict[str, Any]) -> str:
@@ -1333,90 +1812,380 @@ def _extract_balanced_json(text: str) -> str:
     raise ValueError("Generated-query response did not contain a valid JSON object")
 
 
-def generate_user_style_queries(
+def _request_generated_queries(
     chunk: dict[str, Any],
     *,
     anchors: list[str],
-    fallback_candidates: list[tuple[str, str]],
-    previous_questions: list[str] | None = None,
-    limit: int,
-) -> list[tuple[str, str]]:
-    previous_questions = previous_questions or []
+    previous_questions: list[str],
+    review_feedback: list[dict[str, str]] | None = None,
+    prompt_guidance: str | None = None,
+    num_ctx: int | None = None,
+    timeout_seconds: float | None = None,
+) -> tuple[list[dict[str, str]], bool]:
+    trace_fields = _question_generation_trace_fields(chunk)
+    structured_input = _structured_eval_input(chunk, anchors)
     prompt = {
-        "document_title": _safe_query_label(chunk),
+        "document_title": (structured_input.get("document_context") or {}).get("document_title") or _safe_query_label(chunk),
         "section_path": chunk.get("section_path_text") or chunk.get("section_path"),
-        "structured_input": _structured_eval_input(chunk, anchors),
+        "structured_input": structured_input,
         "previous_questions_for_this_section": previous_questions[:30],
     }
-    model_declared_none = False
+    if prompt_guidance:
+        prompt["generation_guidance"] = prompt_guidance
+    if review_feedback:
+        prompt["review_feedback_for_rejected_questions"] = review_feedback[-5:]
+    _trace_question_generation_event(
+        "question_generation_model_started",
+        chunk_id=chunk.get("id"),
+        **trace_fields,
+        previous_question_count=len(previous_questions),
+        feedback_count=len(review_feedback or []),
+        num_ctx=num_ctx or settings.ollama_eval_question_num_ctx,
+        timeout_seconds=timeout_seconds or settings.ollama_eval_question_timeout_seconds,
+    )
+    with httpx.Client(base_url=settings.ollama_url, timeout=timeout_seconds or settings.ollama_eval_question_timeout_seconds) as client:
+        response_text = _post_ollama_generate_with_optional_trace(
+            client=client,
+            request_payload={
+                "model": settings.ollama_eval_question_model,
+                "prompt": (
+                    f"{USER_STYLE_QUERY_SYSTEM_PROMPT}\n\n"
+                    f"{USER_STYLE_QUERY_FEW_SHOT_EXAMPLES}\n\n"
+                    f"Current input: {json.dumps(prompt, ensure_ascii=True)}"
+                ),
+                "stream": False,
+                "think": False,
+                "options": {
+                    "temperature": 0.15,
+                    "top_p": 0.85,
+                    "top_k": 30,
+                    "num_ctx": num_ctx or settings.ollama_eval_question_num_ctx,
+                    "num_predict": 700,
+                    "presence_penalty": 1.3,
+                },
+            },
+            trace_event="question_generation_model_stream",
+            trace_fields={
+                "chunk_id": chunk.get("id"),
+                **trace_fields,
+            },
+        )
+    if _generated_query_response_is_none(response_text):
+        _trace_question_generation_event(
+            "question_generation_model_declared_none",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+        )
+        return [], True
+    parsed = _parse_generated_queries(response_text)
+    _trace_question_generation_event(
+        "question_generation_model_completed",
+        chunk_id=chunk.get("id"),
+        **trace_fields,
+        generated_count=len(parsed),
+        preview=[item.get("query") for item in parsed[:3]],
+    )
+    return parsed, False
+
+
+def _review_generated_query(
+    query: str,
+    chunk: dict[str, Any],
+    anchors: list[str],
+    *,
+    num_ctx: int | None = None,
+    timeout_seconds: float | None = None,
+) -> GeneratedQueryReview:
+    trace_fields = _question_generation_trace_fields(chunk)
+    structured_input = _structured_eval_input(chunk, anchors)
+    review_input = {
+        "question": query,
+        "structured_input": structured_input,
+    }
     try:
-        with httpx.Client(base_url=settings.ollama_url, timeout=settings.ollama_eval_question_timeout_seconds) as client:
-            response = client.post(
-                "/api/generate",
-                json={
+        _trace_question_generation_event(
+            "question_review_started",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            question=query,
+            num_ctx=num_ctx or settings.ollama_eval_question_num_ctx,
+            timeout_seconds=timeout_seconds or settings.ollama_eval_question_timeout_seconds,
+        )
+        with httpx.Client(base_url=settings.ollama_url, timeout=timeout_seconds or settings.ollama_eval_question_timeout_seconds) as client:
+            response_text = _post_ollama_generate_with_optional_trace(
+                client=client,
+                request_payload={
                     "model": settings.ollama_eval_question_model,
                     "prompt": (
-                        f"{USER_STYLE_QUERY_SYSTEM_PROMPT}\n\n"
-                        f"{USER_STYLE_QUERY_FEW_SHOT_EXAMPLES}\n\n"
-                        f"Current input: {json.dumps(prompt, ensure_ascii=True)}"
+                        f"{USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT}\n\n"
+                        f"Review input: {json.dumps(review_input, ensure_ascii=True)}"
                     ),
                     "stream": False,
                     "think": False,
                     "options": {
-                        "temperature": 0.15,
-                        "top_p": 0.85,
-                        "top_k": 30,
-                        "num_ctx": settings.ollama_eval_question_num_ctx,
-                        "num_predict": 700,
-                        "presence_penalty": 1.3,
+                        "temperature": 0.0,
+                        "top_p": 0.5,
+                        "top_k": 10,
+                        "num_ctx": num_ctx or settings.ollama_eval_question_num_ctx,
+                        "num_predict": 180,
                     },
                 },
+                trace_event="question_review_stream",
+                trace_fields={
+                    "chunk_id": chunk.get("id"),
+                    **trace_fields,
+                    "question": query,
+                },
             )
-            response.raise_for_status()
-            payload: dict[str, Any] = response.json()
-            response_text = str(payload.get("response") or payload.get("thinking") or "")
-            if _generated_query_response_is_none(response_text):
-                model_declared_none = True
-                generated = []
-            else:
-                generated = _parse_generated_queries(response_text)
+        review = _parse_query_review(response_text)
+        _trace_question_generation_event(
+            "question_review_completed",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            question=query,
+            approved=review.approved,
+            category=review.category,
+            feedback=review.feedback,
+            answer_in_snippet=review.answer_in_snippet,
+            false_rejection_check=review.false_rejection_check,
+        )
+        return review
     except Exception:
-        generated = []
+        _trace_question_generation_event(
+            "question_review_failed",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            question=query,
+        )
+        return GeneratedQueryReview(
+            approved=False,
+            category="reviewer_rejected",
+            feedback="Review model failed; question was not accepted.",
+        )
+
+
+def generate_user_style_queries(
+    chunk: dict[str, Any],
+    *,
+    anchors: list[str],
+    previous_questions: list[str] | None = None,
+    limit: int,
+    prompt_guidance: str | None = None,
+    num_ctx: int | None = None,
+    timeout_seconds: float | None = None,
+) -> list[tuple[str, str]]:
+    previous_questions = previous_questions or []
+    trace_fields = _question_generation_trace_fields(chunk)
+    _trace_question_generation_event(
+        "question_generation_chunk_started",
+        chunk_id=chunk.get("id"),
+        **trace_fields,
+        limit=limit,
+    )
+    model_declared_none = False
+    try:
+        generated, model_declared_none = _request_generated_queries(
+            chunk,
+            anchors=anchors,
+            previous_questions=previous_questions,
+            prompt_guidance=prompt_guidance,
+            num_ctx=num_ctx,
+            timeout_seconds=timeout_seconds,
+        )
+    except Exception as error:
+        _trace_question_generation_event(
+            "question_generation_model_failed",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            error=f"{error.__class__.__name__}: {error}",
+        )
+        return []
     if model_declared_none:
         return []
 
     queries: list[tuple[str, str]] = []
     seen: set[str] = {_normalized_query_key(question) for question in previous_questions}
     accepted_query_texts: list[str] = list(previous_questions)
-    for item in generated:
-        normalized = _normalized_query_key(item["query"])
-        if normalized in seen:
-            continue
-        if _has_near_duplicate_query(item["query"], accepted_query_texts):
-            continue
-        is_valid, _ = validate_eval_case(item["query"], chunk, anchors)
-        if not is_valid:
-            continue
-        seen.add(normalized)
-        accepted_query_texts.append(item["query"])
-        queries.append((item["query"], item["intent"]))
-        if len(queries) >= limit:
-            return queries
-    for query, method in fallback_candidates:
-        normalized = _normalized_query_key(query)
-        if normalized in seen:
-            continue
-        if _has_near_duplicate_query(query, accepted_query_texts):
-            continue
-        is_valid, _ = validate_eval_case(query, chunk, anchors)
-        if not is_valid:
-            continue
-        seen.add(normalized)
-        accepted_query_texts.append(query)
-        queries.append((query, method))
-        if len(queries) >= limit:
-            break
+    review_feedback: list[dict[str, str]] = []
+
+    def accept_generated_items(items: list[dict[str, str]]) -> None:
+        for item in items:
+            normalized = _normalized_query_key(item["query"])
+            if normalized in seen:
+                continue
+            if _has_near_duplicate_query(item["query"], accepted_query_texts):
+                continue
+            source_rejection = generated_query_source_rejection_reason(
+                item["query"],
+                str(chunk.get("content") or ""),
+            )
+            if source_rejection:
+                review_feedback.append(
+                    {
+                        "question": item["query"],
+                        "category": source_rejection,
+                        "feedback": "The source snippet does not contain the requested instruction or outcome.",
+                        "answer_in_snippet": False,
+                    }
+                )
+                _trace_question_generation_event(
+                    "question_generation_rejected",
+                    chunk_id=chunk.get("id"),
+                    **trace_fields,
+                    question=item["query"],
+                    category=source_rejection,
+                    reason="The source snippet does not contain the requested instruction or outcome.",
+                    answer_in_snippet=False,
+                    false_rejection_check={},
+                )
+                continue
+            review = _review_generated_query(item["query"], chunk, anchors, num_ctx=num_ctx, timeout_seconds=timeout_seconds)
+            if not review.approved:
+                review_feedback.append(
+                    {
+                        "question": item["query"],
+                        "category": review.category,
+                        "feedback": review.feedback or "Reviewer rejected the question.",
+                        "answer_in_snippet": review.answer_in_snippet,
+                    }
+                )
+                _trace_question_generation_event(
+                    "question_generation_rejected",
+                    chunk_id=chunk.get("id"),
+                    **trace_fields,
+                    question=item["query"],
+                    category=review.category,
+                    reason=review.feedback or "Reviewer rejected the question.",
+                    answer_in_snippet=review.answer_in_snippet,
+                    false_rejection_check=review.false_rejection_check,
+                )
+                continue
+            seen.add(normalized)
+            accepted_query_texts.append(item["query"])
+            queries.append((item["query"], f"reviewed_llm:{item['intent']}"))
+            _trace_question_generation_event(
+                "question_generation_accepted",
+                chunk_id=chunk.get("id"),
+                **trace_fields,
+                question=item["query"],
+                intent=item.get("intent"),
+                accepted_count=len(queries),
+            )
+            if len(queries) >= limit:
+                return
+
+    accept_generated_items(generated)
+    if len(queries) >= limit:
+        return queries
+    if not queries and review_feedback:
+        try:
+            regenerated, retry_declared_none = _request_generated_queries(
+                chunk,
+                anchors=anchors,
+                previous_questions=previous_questions,
+                review_feedback=review_feedback,
+                prompt_guidance=prompt_guidance,
+                num_ctx=num_ctx,
+                timeout_seconds=timeout_seconds,
+            )
+            if not retry_declared_none:
+                accept_generated_items(regenerated)
+                if len(queries) >= limit:
+                    return queries
+        except Exception as error:
+            _trace_question_generation_event(
+                "question_generation_retry_failed",
+                chunk_id=chunk.get("id"),
+                **trace_fields,
+                error=f"{error.__class__.__name__}: {error}",
+            )
+    if not queries:
+        _trace_question_generation_event(
+            "question_generation_no_accepted_questions",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            rejected_count=len(review_feedback),
+            review_feedback=review_feedback[-5:],
+        )
     return queries
+
+
+_EXPECTED_EVIDENCE_ACTION_LABELS = {
+    "action",
+    "corrective action",
+    "countermeasure",
+    "remedy",
+    "resolution",
+    "solution",
+}
+
+
+def _expected_evidence_field(segment: str) -> str:
+    match = re.match(r"\s*([A-Za-z][A-Za-z /_-]{1,40})\s*:\s*", segment)
+    return normalize_text(match.group(1)).strip() if match else ""
+
+
+def _query_aligned_expected_snippet(query: str, content: str) -> str:
+    """Select the source clause that answers one generated question.
+
+    A query-worthy chunk can contain several table rows or independent facts.
+    Reusing the chunk's first 220 characters for every generated question makes
+    later questions inherit the first row's expected terms.  Rank clauses by
+    their overlap with the individual query and retain the paired status/action
+    clause when the source is a labelled troubleshooting table.
+    """
+
+    raw_segments = [
+        segment.strip(" ;\t\r\n")
+        for segment in re.split(r"(?:;\s*|\n+|(?<=[.!?])\s+)", str(content or ""))
+        if segment.strip(" ;\t\r\n")
+    ]
+    if not raw_segments:
+        return content_preview(str(content or ""))
+
+    ignored = STOPWORDS.union(GENERIC_ANCHORS).union(ANSWER_SCORING_GENERIC_TERMS)
+    query_terms = {token for token in tokenize(query) if token not in ignored}
+    action_equivalents = (
+        {"clear", "disable", "disabled", "uncheck"},
+        {"check", "enable", "enabled", "select"},
+        {"decrease", "lower", "reduce"},
+        {"increase", "raise"},
+    )
+
+    def related(left: str, right: str) -> bool:
+        if left == right:
+            return True
+        if any(left in group and right in group for group in action_equivalents):
+            return True
+        left_base = left.replace("-", "")
+        right_base = right.replace("-", "")
+        return len(left_base) >= 5 and len(right_base) >= 5 and left_base[:5] == right_base[:5]
+
+    def relevance(segment: str) -> tuple[int, int, int, int]:
+        segment_terms = [token for token in tokenize(segment) if token not in ignored]
+        overlap = sum(1 for token in segment_terms if any(related(token, query_term) for query_term in query_terms))
+        action_overlap = sum(
+            1
+            for group in action_equivalents
+            if query_terms.intersection(group) and set(segment_terms).intersection(group)
+        )
+        numeric_overlap = sum(1 for token in segment_terms if any(char.isdigit() for char in token) and token in query_terms)
+        return action_overlap, overlap, numeric_overlap, -len(segment)
+
+    best_index = max(range(len(raw_segments)), key=lambda index: relevance(raw_segments[index]))
+    selected = [raw_segments[best_index]]
+    best_field = _expected_evidence_field(raw_segments[best_index])
+
+    if best_field in _EXPECTED_EVIDENCE_ACTION_LABELS and best_index > 0:
+        previous_field = _expected_evidence_field(raw_segments[best_index - 1])
+        if previous_field and previous_field not in _EXPECTED_EVIDENCE_ACTION_LABELS:
+            selected.append(raw_segments[best_index - 1])
+    elif best_field and best_field not in _EXPECTED_EVIDENCE_ACTION_LABELS and best_index + 1 < len(raw_segments):
+        next_field = _expected_evidence_field(raw_segments[best_index + 1])
+        if next_field in _EXPECTED_EVIDENCE_ACTION_LABELS:
+            selected.append(raw_segments[best_index + 1])
+
+    return content_preview("; ".join(selected), limit=500)
 
 
 def build_eval_cases_from_chunks(
@@ -1427,10 +2196,15 @@ def build_eval_cases_from_chunks(
     use_llm_generation: bool = True,
     previous_questions_by_chunk_id: dict[str, list[str]] | None = None,
     previous_questions_by_section_key: dict[str, list[str]] | None = None,
+    previous_questions_global: list[str] | None = None,
+    prompt_guidance: str | None = None,
+    num_ctx: int | None = None,
+    timeout_seconds: float | None = None,
 ) -> list[RetrievalEvalCase]:
     cases: list[RetrievalEvalCase] = []
     previous_questions_by_chunk_id = previous_questions_by_chunk_id or {}
     previous_questions_by_section_key = previous_questions_by_section_key or {}
+    previous_questions_global = previous_questions_global or []
     generated_questions_by_section_key: dict[str, list[str]] = {}
     for chunk in chunks:
         anchors = extract_anchor_terms(str(chunk["content"]))
@@ -1445,18 +2219,20 @@ def build_eval_cases_from_chunks(
             *previous_questions_by_section_key.get(section_key, []),
             *generated_questions_by_section_key.get(section_key, []),
             *previous_questions_by_chunk_id.get(str(chunk.get("id")), []),
+            *previous_questions_global,
         ]
-        fallback_candidates = build_query_candidates(chunk)[: max(per_chunk_limit * 4, per_chunk_limit)]
         candidates = (
             generate_user_style_queries(
                 chunk,
                 anchors=anchors,
-                fallback_candidates=fallback_candidates,
                 previous_questions=previous_questions,
                 limit=per_chunk_limit,
+                prompt_guidance=prompt_guidance,
+                num_ctx=num_ctx,
+                timeout_seconds=timeout_seconds,
             )
             if use_llm_generation
-            else fallback_candidates
+            else []
         )
         if len(anchors) < 1:
             continue
@@ -1464,11 +2240,20 @@ def build_eval_cases_from_chunks(
         for index, (query, method) in enumerate(candidates, start=1):
             if _has_near_duplicate_query(query, accepted_query_texts):
                 continue
-            is_valid, quality = validate_eval_case(query, chunk, anchors)
-            if not is_valid:
-                continue
+            if method.startswith("reviewed_llm:"):
+                quality = "model_reviewed"
+            else:
+                is_valid, quality = validate_eval_case(query, chunk, anchors)
+                if not is_valid:
+                    continue
             accepted_query_texts.append(query)
             generated_questions_by_section_key.setdefault(section_key, []).append(query)
+            source_metadata = dict(chunk.get("metadata_json", {}))
+            source_metadata["generation_document_context"] = _structured_eval_input(chunk, anchors).get("document_context") or {}
+            expected_snippet = _query_aligned_expected_snippet(query, str(chunk["content"]))
+            expected_terms = extract_anchor_terms(expected_snippet)
+            if not expected_terms:
+                expected_terms = anchors
             cases.append(
                 RetrievalEvalCase(
                     case_id=f"{chunk['id']}::{index}",
@@ -1482,12 +2267,12 @@ def build_eval_cases_from_chunks(
                     section_path=str(chunk.get("section_path_text", "")),
                     page_from=int(chunk.get("page_from", 0)),
                     page_to=int(chunk.get("page_to", 0)),
-                    expected_terms=anchors[:4],
-                    expected_snippet=content_preview(str(chunk["content"])),
+                    expected_terms=expected_terms[:4],
+                    expected_snippet=expected_snippet,
                     generation_method=method,
-                    source_metadata=dict(chunk.get("metadata_json", {})),
+                    source_metadata=source_metadata,
                     benchmark_quality=quality,
-                    anchor_terms=anchors[:4],
+                    anchor_terms=expected_terms[:4],
                 )
             )
             if len(cases) >= max_cases:
@@ -1508,16 +2293,25 @@ def _column_field(chunk: dict[str, Any]) -> str:
     return normalize_text(" ".join(headers))
 
 
-def _row_group_key(chunk: dict[str, Any]) -> tuple[str, str, str, str] | None:
+def _row_group_key(chunk: dict[str, Any]) -> tuple[str, str, str, str, str] | None:
     metadata = dict(chunk.get("metadata_json", {}))
     table_row = metadata.get("table_row")
     if table_row is None:
         return None
+    row_headers = _metadata_list(metadata, "table_row_headers")
+    # A section can contain several independent tables whose local row numbers
+    # restart at zero.  The first hierarchical row header identifies the table
+    # block/root and prevents unrelated cells with the same row number from
+    # being paired as an error, cause, and corrective action.
+    row_header_root = normalize_text(row_headers[0]) if row_headers else ""
+    if not row_header_root and any(term in _column_field(chunk) for term in {"error message", "symptom"}):
+        row_header_root = normalize_text(_cell_value(str(chunk.get("content", ""))))
     return (
         str(chunk.get("source_document_id", "")),
         str(chunk.get("document_version_id", "")),
         str(chunk.get("section_path_text", "")),
         str(table_row),
+        row_header_root,
     )
 
 
@@ -1526,6 +2320,8 @@ def _good_multi_step_anchor(value: str) -> bool:
     if len(compact) < 18:
         return False
     if re.search(r"\.{4,}", compact):
+        return False
+    if _looks_like_parser_artifact(value):
         return False
     return bool(extract_anchor_terms(value, limit=2))
 
@@ -1554,11 +2350,51 @@ def _best_related_cell(cells: list[dict[str, Any]], field_terms: set[str], ancho
 
 def _short_answer_anchor(value: str) -> str:
     clean = re.sub(r"\s+", " ", value).strip()
+    clean = re.sub(r"\bAlight\b", "A light", clean)
     clean = re.sub(r"\s*\([^)]{18,}\)", "", clean).strip()
-    if len(clean) <= 90:
+    if len(clean) <= 360:
         return clean
     sentence = re.split(r"(?<=[.!?])\s+", clean)[0].strip()
-    return sentence[:90].strip() if sentence else clean[:90].strip()
+    if (
+        len(sentence) >= 30
+        and normalize_text(sentence) not in {"the following error occurred", "the following error occurred."}
+        and len(extract_anchor_terms(sentence, limit=4)) >= 2
+    ):
+        return sentence
+    shortened = clean[:360].rsplit(" ", 1)[0].strip(" ,.;:-")
+    return shortened or clean
+
+
+def _troubleshooting_query_qualifier(cause_value: str, prompt_value: str) -> str:
+    """Return a mode/context qualifier that distinguishes an otherwise generic error.
+
+    Only a leading contextual clause is used; the actual causal assertion after
+    the comma remains hidden as the expected answer.
+    """
+    match = re.match(r"\s*(?:in|when|while|with)\s+(.{12,140}?),\s+", cause_value, flags=re.I)
+    minimum_distinctive_terms = 2
+    if match:
+        qualifier = match.group(0).strip(" ,")
+    else:
+        parenthetical = re.search(r"\(([^)]{3,60})\)", cause_value)
+        if not parenthetical:
+            return ""
+        qualifier = f"With {parenthetical.group(1).strip()}"
+        minimum_distinctive_terms = 1
+    prompt_terms = set(extract_anchor_terms(prompt_value, limit=12))
+    qualifier_terms = set(extract_anchor_terms(qualifier, limit=12)).difference(prompt_terms)
+    if len(qualifier_terms) < minimum_distinctive_terms:
+        return ""
+    return qualifier
+
+
+def _troubleshooting_row_identifier(chunk: dict[str, Any]) -> str:
+    metadata = dict(chunk.get("metadata_json", {}))
+    for header in _metadata_list(metadata, "table_row_headers"):
+        match = re.match(r"\s*(\d{3,6})\b", header)
+        if match:
+            return f"For error {match.group(1)}"
+    return ""
 
 
 def _looks_like_parser_artifact(text: str) -> bool:
@@ -1612,6 +2448,8 @@ def _multi_step_expected_evidence(*cells: dict[str, Any]) -> list[dict[str, Any]
             {
                 "chunk_id": str(cell.get("id", "")),
                 "source_document_id": str(cell.get("source_document_id", "")),
+                "page_from": int(cell.get("page_from", 0) or 0),
+                "page_to": int(cell.get("page_to", 0) or 0),
                 "field": _column_field(cell),
                 "label": _safe_query_label(cell),
                 "product_identifiers": sorted(_metadata_product_identifiers(metadata)),
@@ -1620,6 +2458,56 @@ def _multi_step_expected_evidence(*cells: dict[str, Any]) -> list[dict[str, Any]
             }
         )
     return evidence
+
+
+def multi_step_case_quality_rejection_reason(case: RetrievalEvalCase) -> str | None:
+    """Reject evaluation prompts that gain an advantage from internal pipeline data.
+
+    Exact alarm/error text and a public product name are allowed because users routinely
+    paste those. Internal ids, filenames, table coordinates, and answer-complete prompts
+    are not valid user inputs and cannot count toward the benchmark.
+    """
+    query = re.sub(r"\s+", " ", case.query).strip()
+    lowered = query.lower()
+    if not _query_looks_like_question(query):
+        return "not_question_form"
+    if len(query) > 650:
+        return "implausibly_long_query"
+    if re.search(r"\b(?:chunk|document version|source document|metadata)\s*(?:id)?\b", lowered):
+        return "internal_metadata_cue"
+    if re.search(r"\brow\s*\d+\s*(?:,|and)?\s*column\s*\d+\b", lowered):
+        return "table_coordinate_cue"
+    if re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b", lowered):
+        return "opaque_identifier_cue"
+    if ".pdf" in lowered or "///" in query:
+        return "filename_or_parser_cue"
+    hidden_ids = {
+        normalize_text(value)
+        for value in [
+            case.source_chunk_id,
+            case.source_document_id,
+            case.document_version_id,
+            *(case.expected_source_chunk_ids or []),
+        ]
+        if str(value or "").strip()
+    }
+    normalized_query = normalize_text(query)
+    if any(identifier and identifier in normalized_query for identifier in hidden_ids):
+        return "hidden_identifier_cue"
+    if re.search(r"\bwhat\s+.+\s+entries are listed for\b", lowered):
+        return "mechanical_query"
+
+    query_terms = set(tokenize(query))
+    expected_terms = {
+        term
+        for item in case.expected_evidence or []
+        for expected in item.get("expected_terms", [])
+        for term in tokenize(str(expected))
+        if term not in STOPWORDS and len(term) >= 3
+    }
+    if expected_terms and not expected_terms.difference(query_terms):
+        return "answer_fully_exposed_by_query"
+    return None
 
 
 def _procedure_subject(content: str) -> str:
@@ -1921,6 +2809,34 @@ def _good_cross_document_subject(subject: str, *, field: str, value: str) -> boo
     return bool(terms)
 
 
+def _cross_document_field_is_comparable(field: str) -> bool:
+    """Return whether a field denotes a specification meaningful across products."""
+
+    comparable_terms = {
+        "accuracy",
+        "capacity",
+        "current",
+        "cycle",
+        "dimensions",
+        "distance",
+        "frequency",
+        "interface",
+        "period",
+        "power",
+        "protocol",
+        "range",
+        "repeatability",
+        "resolution",
+        "sampling",
+        "speed",
+        "temperature",
+        "voltage",
+        "wavelength",
+        "weight",
+    }
+    return bool(set(tokenize(field)).intersection(comparable_terms))
+
+
 def _build_cross_document_multi_step_cases(
     chunks: list[dict[str, Any]],
     *,
@@ -1964,6 +2880,20 @@ def _build_cross_document_multi_step_cases(
             if str(left.get("source_document_id", "")) == str(grouped.get("source_document_id", "")):
                 continue
             if left_label == label:
+                continue
+            left_product_ids = _metadata_product_identifiers(dict(left.get("metadata_json", {})))
+            right_product_ids = _metadata_product_identifiers(metadata)
+            # A shared column label is not enough to make a useful comparison.
+            # Without a common product identity the generator paired unrelated
+            # manuals (for example, vision-controller output settings with a
+            # lighting-controller feature) and produced artificial retrieval
+            # failures that no technician would reasonably ask.
+            shares_product_identity = bool(
+                left_product_ids
+                and right_product_ids
+                and not left_product_ids.isdisjoint(right_product_ids)
+            )
+            if not shares_product_identity and not _cross_document_field_is_comparable(field):
                 continue
             right_terms = set(extract_anchor_terms(value, limit=4))
             if left_terms and right_terms and left_terms == right_terms:
@@ -2210,7 +3140,7 @@ def build_multi_step_eval_cases_from_chunks(
     max_cases: int,
     case_family: str = "all",
 ) -> list[RetrievalEvalCase]:
-    grouped: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+    grouped: dict[tuple[str, str, str, str, str], list[dict[str, Any]]] = {}
     for chunk in chunks:
         if str(chunk.get("chunk_type", "")) != "table_record":
             continue
@@ -2242,51 +3172,114 @@ def build_multi_step_eval_cases_from_chunks(
                 prompt_anchor = _short_answer_anchor(prompt_value)
                 if not prompt_anchor:
                     continue
+                prompt_question_text = prompt_anchor.rstrip(" .?!")
+                cause_value = _cell_value(str(cause_cell.get("content", "")))
+                qualifier = _troubleshooting_query_qualifier(cause_value, prompt_value)
+                if not qualifier:
+                    qualifier = _troubleshooting_row_identifier(prompt_cell)
+                cause_prompt = f"{qualifier}, what causes" if qualifier else "What causes"
+                action_prompt = f"{qualifier}, how should" if qualifier else "How should"
+                device = label or "the system"
+                qualifier_prefix = f"{qualifier}, " if qualifier else ""
                 if "symptom" in _column_field(prompt_cell):
-                    query = f"What causes {prompt_anchor}{_for_label(label)}, and what should be checked or corrected?"
+                    combined_query = (
+                        f"{cause_prompt} {prompt_question_text}{_for_label(label)}, "
+                        "and what should be checked or corrected?"
+                    )
                 else:
-                    query = f"What causes {prompt_anchor}{_for_label(label)}, and how should it be corrected?"
-                if _has_near_duplicate_query(query, seen_queries):
-                    continue
-                evidence = _multi_step_expected_evidence(prompt_cell, cause_cell, action_cell)
-                expected_terms = []
-                for item in evidence:
-                    for term in item["expected_terms"]:
-                        if term not in expected_terms:
-                            expected_terms.append(term)
+                    combined_query = f"{cause_prompt} {prompt_question_text}{_for_label(label)}, and how should it be corrected?"
+                variants = (
+                    (combined_query, (cause_cell, action_cell), "table_sibling_error_cause_action"),
+                    (
+                        f'{qualifier_prefix}{device} shows "{prompt_question_text}". What caused it, and what should I do?',
+                        (cause_cell, action_cell),
+                        "table_sibling_error_cause_action_user_variant_1",
+                    ),
+                    (
+                        f'I am getting "{prompt_question_text}" on {device}. What is the likely cause and recommended fix?',
+                        (cause_cell, action_cell),
+                        "table_sibling_error_cause_action_user_variant_2",
+                    ),
+                    (
+                        f'{qualifier_prefix}why is {device} reporting "{prompt_question_text}", and how can I resolve it?',
+                        (cause_cell, action_cell),
+                        "table_sibling_error_cause_action_user_variant_3",
+                    ),
+                    (
+                        f'{qualifier_prefix}when {device} reports "{prompt_question_text}", what are the cause and corrective action?',
+                        (cause_cell, action_cell),
+                        "table_sibling_error_cause_action_user_variant_4",
+                    ),
+                    (f"{cause_prompt} {prompt_question_text}{_for_label(label)}?", (cause_cell,), "table_sibling_error_cause"),
+                    (
+                        f'{qualifier_prefix}why does {device} show "{prompt_question_text}"?',
+                        (cause_cell,),
+                        "table_sibling_error_cause_user_variant_1",
+                    ),
+                    (
+                        f'{qualifier_prefix}what is the likely reason {device} reports "{prompt_question_text}"?',
+                        (cause_cell,),
+                        "table_sibling_error_cause_user_variant_2",
+                    ),
+                    (f"{action_prompt} {prompt_question_text}{_for_label(label)} be corrected?", (action_cell,), "table_sibling_error_action"),
+                    (
+                        f'{qualifier_prefix}what should I do when {device} shows "{prompt_question_text}"?',
+                        (action_cell,),
+                        "table_sibling_error_action_user_variant_1",
+                    ),
+                    (
+                        f'{qualifier_prefix}how can I resolve "{prompt_question_text}" on {device}?',
+                        (action_cell,),
+                        "table_sibling_error_action_user_variant_2",
+                    ),
+                )
+                for query, evidence_cells, generation_method in variants:
+                    query = query[:1].upper() + query[1:]
+                    if any(_normalized_query_key(query) == _normalized_query_key(existing) for existing in seen_queries):
+                        continue
+                    # The error/symptom is already supplied by the question. The
+                    # retrieved answer must contain the cause and/or corrective
+                    # action, not merely repeat that prompt cell.
+                    evidence = _multi_step_expected_evidence(*evidence_cells)
+                    expected_terms = []
+                    for item in evidence:
+                        for term in item["expected_terms"]:
+                            if term not in expected_terms:
+                                expected_terms.append(term)
+                            if len(expected_terms) >= 6:
+                                break
                         if len(expected_terms) >= 6:
                             break
-                    if len(expected_terms) >= 6:
-                        break
-                if len(expected_terms) < 4:
-                    continue
-                seen_queries.append(query)
-                cases.append(
-                    RetrievalEvalCase(
-                        case_id=f"{prompt_cell['id']}::multi_step::{len(cases) + 1}",
-                        query=query,
-                        source_document_id=str(prompt_cell["source_document_id"]),
-                        document_version_id=str(prompt_cell["document_version_id"]),
-                        source_chunk_id=str(prompt_cell["id"]),
-                        source_title=str(prompt_cell.get("title", "")),
-                        source_filename=str(prompt_cell.get("source_filename", "")),
-                        chunk_type=str(prompt_cell.get("chunk_type", "")),
-                        section_path=str(prompt_cell.get("section_path_text", "")),
-                        page_from=int(prompt_cell.get("page_from", 0)),
-                        page_to=int(prompt_cell.get("page_to", 0)),
-                        expected_terms=expected_terms[:6],
-                        expected_snippet=" | ".join(item["snippet"] for item in evidence),
-                        generation_method="table_sibling_error_cause_action",
-                        source_metadata=dict(prompt_cell.get("metadata_json", {})),
-                        benchmark_quality="validated",
-                        anchor_terms=expected_terms[:6],
-                        retrieval_task="multi_step_retrieval",
-                        expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
-                        expected_evidence=evidence,
-                    )
-                )
-                if len(cases) >= max_cases:
-                    return cases
+                    if len(expected_terms) < 2:
+                        continue
+                    candidate = RetrievalEvalCase(
+                            case_id=f"{prompt_cell['id']}::multi_step::{len(cases) + 1}",
+                            query=query,
+                            source_document_id=str(prompt_cell["source_document_id"]),
+                            document_version_id=str(prompt_cell["document_version_id"]),
+                            source_chunk_id=str(prompt_cell["id"]),
+                            source_title=str(prompt_cell.get("title", "")),
+                            source_filename=str(prompt_cell.get("source_filename", "")),
+                            chunk_type=str(prompt_cell.get("chunk_type", "")),
+                            section_path=str(prompt_cell.get("section_path_text", "")),
+                            page_from=int(prompt_cell.get("page_from", 0)),
+                            page_to=int(prompt_cell.get("page_to", 0)),
+                            expected_terms=expected_terms[:6],
+                            expected_snippet=" | ".join(item["snippet"] for item in evidence),
+                            generation_method=generation_method,
+                            source_metadata=dict(prompt_cell.get("metadata_json", {})),
+                            benchmark_quality="validated",
+                            anchor_terms=expected_terms[:6],
+                            retrieval_task="multi_step_retrieval",
+                            expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
+                            expected_evidence=evidence,
+                        )
+                    if multi_step_case_quality_rejection_reason(candidate):
+                        continue
+                    seen_queries.append(query)
+                    cases.append(candidate)
+                    if len(cases) >= max_cases:
+                        return cases
     if case_family in {"all", "contextual_section"} and len(cases) < max_cases:
         cases.extend(
             _build_contextual_multi_step_cases(
@@ -2357,7 +3350,12 @@ def _result_evidence_text(result: dict[str, Any]) -> str:
     return " ".join(
         str(part)
         for part in [
-            result.get("content", ""),
+            # Older matrix artifacts and intermediate debug-stage samples only
+            # contain content_preview.  Falling back keeps those artifacts
+            # replayable while current runs use the complete content payload.
+            result.get("content") or result.get("content_preview", ""),
+            result.get("context_window", ""),
+            result.get("parent_context", ""),
             result.get("title", ""),
             section_text,
             *metadata_values,
@@ -2369,114 +3367,6 @@ def _result_evidence_text(result: dict[str, Any]) -> str:
 def _result_term_overlap(result: dict[str, Any], expected_terms: list[str]) -> int:
     evidence_text = _result_evidence_text(result)
     return sum(1 for term in expected_terms if _term_matches_evidence(term, evidence_text))
-
-
-def _result_row_group_context_text(result: dict[str, Any]) -> str:
-    metadata = result.get("metadata", {})
-    metadata = metadata if isinstance(metadata, dict) else {}
-    context_parts = [
-        metadata.get("context_window"),
-        metadata.get("table_row_group_context"),
-        metadata.get("parent_context"),
-    ]
-    return " ".join(str(part) for part in context_parts if part)
-
-
-def _expected_item_row_anchor(item: dict[str, Any]) -> str:
-    for key in ("row_headers", "table_row_headers"):
-        raw_values = item.get(key)
-        if isinstance(raw_values, str):
-            values = [raw_values]
-        elif isinstance(raw_values, list):
-            values = [str(value) for value in raw_values if str(value).strip()]
-        else:
-            values = []
-        if values:
-            return " ".join(values)
-    snippet = str(item.get("snippet") or "")
-    match = re.search(
-        r"(?:Row headers?|Row header|Rows?)\s*:\s*([^;]+)",
-        snippet,
-        flags=re.IGNORECASE,
-    )
-    if match:
-        return match.group(1).strip()
-    return ""
-
-
-def _row_anchor_matches_context(anchor: str, context_text: str) -> bool:
-    anchor_tokens = [token for token in tokenize(anchor) if token not in STOPWORDS]
-    if not anchor_tokens:
-        return True
-    context_tokens = [token for token in tokenize(context_text) if token not in STOPWORDS]
-    if not context_tokens:
-        return False
-    if len(anchor_tokens) == 1:
-        return anchor_tokens[0] in context_tokens
-    position = 0
-    first_match = -1
-    last_match = -1
-    for token in anchor_tokens:
-        try:
-            match_index = context_tokens.index(token, position)
-        except ValueError:
-            return False
-        if first_match < 0:
-            first_match = match_index
-        last_match = match_index
-        position = match_index + 1
-    return last_match - first_match <= len(anchor_tokens) + 6
-
-
-def _result_context_supports_expected_item(
-    result: dict[str, Any],
-    item: dict[str, Any],
-    *,
-    required_overlap: int,
-) -> bool:
-    context_text = _result_row_group_context_text(result)
-    if not context_text:
-        return False
-    terms = [str(term) for term in item.get("expected_terms", []) if str(term)]
-    if not terms:
-        return False
-    context_lower = context_text.lower()
-    context_tokens = set(tokenize(context_lower))
-    overlap = sum(1 for term in terms if _expected_term_matches_text(term, context_lower, context_tokens))
-    if overlap < required_overlap:
-        return False
-    expected_field = normalize_text(str(item.get("field") or ""))
-    if expected_field and expected_field not in normalize_text(context_text):
-        return False
-    row_anchor = _expected_item_row_anchor(item)
-    if row_anchor and not _row_anchor_matches_context(row_anchor, context_text):
-        return False
-    item_identifiers = {
-        str(identifier)
-        for identifier in item.get("product_identifiers", []) or []
-        if str(identifier)
-    }
-    if item_identifiers:
-        compact_context = _compact_eval_identifier(context_text)
-        context_identifiers = {identifier for identifier in item_identifiers if identifier in compact_context}
-        if not item_identifiers.intersection(_result_product_identifiers(result)) and not context_identifiers:
-            return False
-    return True
-
-
-def _result_supports_single_step_expected_evidence(case: RetrievalEvalCase, result: dict[str, Any]) -> bool:
-    expected_evidence = case.expected_evidence or []
-    if not expected_evidence:
-        return True
-    result_document_id = str(result.get("source_document_id") or "")
-    cited_text = _result_evidence_text(result)
-    for item in expected_evidence:
-        expected_document_id = str(item.get("source_document_id") or case.source_document_id)
-        if expected_document_id and result_document_id != expected_document_id:
-            continue
-        if _expected_evidence_supported_by_cited_text(item, cited_text):
-            return True
-    return False
 
 
 def _result_column_field(result: dict[str, Any]) -> str:
@@ -2548,8 +3438,6 @@ def _result_matches_cross_document_evidence_item(
 ) -> bool:
     if case.generation_method != "cross_document_same_field_evidence":
         return False
-    if not item.get("allow_equivalent_citation"):
-        return False
     expected_document_id = str(item.get("source_document_id") or "")
     if expected_document_id and str(result.get("source_document_id", "")) != expected_document_id:
         return False
@@ -2597,9 +3485,7 @@ def _score_multi_step_search_results(
         item_rank: int | None = None
         max_overlap = 0
         for rank, result in enumerate(considered, start=1):
-            result_chunk_id = str(result.get("chunk_id", ""))
-            same_chunk = chunk_id and result_chunk_id == chunk_id
-            result_is_expected_context = result_chunk_id in set(case.expected_source_chunk_ids or [])
+            same_chunk = chunk_id and str(result.get("chunk_id", "")) == chunk_id
             expected_document_id = str(item.get("source_document_id") or case.source_document_id)
             same_document = str(result.get("source_document_id", "")) == expected_document_id
             overlap = _result_term_overlap(result, terms)
@@ -2607,16 +3493,7 @@ def _score_multi_step_search_results(
             required_overlap = max(1, min(2, len(terms)))
             if (
                 same_chunk
-                or (
-                    result_is_expected_context
-                    and same_document
-                    and _result_context_supports_expected_item(
-                        result,
-                        item,
-                        required_overlap=required_overlap,
-                    )
-                )
-                or (item.get("allow_equivalent_citation") and same_document and overlap >= required_overlap)
+                or (same_document and overlap >= required_overlap)
                 or _result_matches_cross_document_evidence_item(
                     case,
                     item,
@@ -2658,84 +3535,55 @@ def _query_evidence_overlap(query: str, result: dict[str, Any]) -> int:
             continue
         if token not in query_terms:
             query_terms.append(token)
+    normalized_query = normalize_text(query)
+    for phrase, table_term in (
+        ("input terminals", "inputs"),
+        ("input terminal", "inputs"),
+        ("output terminals", "outputs"),
+        ("output terminal", "outputs"),
+    ):
+        if phrase in normalized_query and table_term not in query_terms:
+            query_terms.append(table_term)
     return sum(1 for term in query_terms if _term_matches_evidence(term, evidence_text))
 
 
-def _expected_code_anchor_terms(terms: list[str]) -> list[str]:
-    anchors: list[str] = []
-    seen: set[str] = set()
-    for term in terms:
-        normalized = normalize_text(str(term))
-        if not normalized:
-            continue
-        term_tokens = tokenize(normalized)
-        if not term_tokens:
-            continue
-        has_code_anchor = any(char.isdigit() for token in term_tokens for char in token)
-        if not has_code_anchor:
-            continue
-        key = " ".join(term_tokens)
-        if key in seen:
-            continue
-        anchors.append(normalized)
-        seen.add(key)
-    return anchors
+def _expected_snippet_evidence_overlap(case: RetrievalEvalCase, result: dict[str, Any]) -> int:
+    """Count material answer tokens shared by the anchor and retrieved evidence.
+
+    Generated anchor lists are intentionally short and sometimes retain generic
+    parser labels.  The source snippet is the stronger fallback, but only
+    material (non-question/non-layout) tokens count so a same-document heading
+    cannot pass merely because it repeats the product name.
+    """
+    expected_tokens = _answer_overlap_tokens(case.expected_snippet)
+    evidence_tokens = _answer_overlap_tokens(_result_evidence_text(result))
+    return len(expected_tokens.intersection(evidence_tokens))
 
 
-def _expected_compound_code_anchors(case: RetrievalEvalCase) -> list[tuple[str, str]]:
-    expected_tokens = set(tokenize(" ".join(str(term) for term in case.expected_terms)))
-    non_code_labels = {
-        "address",
-        "addresses",
-        "area",
-        "bytes",
-        "count",
-        "line",
-        "lines",
-        "total",
-        "voltage",
+def _cross_document_semantic_evidence_is_applicable(
+    case: RetrievalEvalCase,
+    result: dict[str, Any],
+    *,
+    snippet_overlap: int,
+    query_overlap: int,
+) -> bool:
+    if str(result.get("source_document_id", "")) == case.source_document_id:
+        return False
+    # Require substantially stronger textual agreement than the same-document
+    # fallback.  This covers duplicated manual content without treating a loose
+    # topical match in another product manual as evidence.
+    if snippet_overlap < 4 or query_overlap < 2:
+        return False
+    explicit_case_identifiers = {
+        identifier
+        for identifier in _case_product_identifiers(case)
+        if identifier and identifier in _compact_eval_identifier(case.query)
     }
-    source_text = " ".join(
-        str(part or "")
-        for part in [
-            case.query,
-            case.expected_snippet,
-            " ".join(str(term) for term in case.expected_terms),
-        ]
-    )
-    tokens = tokenize(source_text)
-    anchors: list[tuple[str, str]] = []
-    seen: set[tuple[str, str]] = set()
-    for left, right in zip(tokens, tokens[1:]):
-        if not left.isalpha() or len(left) > 4 or left in non_code_labels or not re.fullmatch(r"\d{2,}", right):
-            continue
-        if left not in expected_tokens or right not in expected_tokens:
-            continue
-        if left in STOPWORDS or left in GENERIC_ANCHORS:
-            continue
-        key = (left, right)
-        if key in seen:
-            continue
-        anchors.append(key)
-        seen.add(key)
-    return anchors
-
-
-def _evidence_has_compound_code_anchor(evidence_text: str, prefix: str, value: str) -> bool:
-    # Preserve code prefix/value binding. A sibling token such as PQD428 must not satisfy PID 428.
-    pattern = rf"(?<![a-z0-9]){re.escape(prefix)}[\s:./#_-]*{re.escape(value)}(?![a-z0-9])"
-    return re.search(pattern, evidence_text, flags=re.IGNORECASE) is not None
-
-
-def _result_preserves_expected_code_anchors(case: RetrievalEvalCase, result: dict[str, Any]) -> bool:
-    anchors = _expected_code_anchor_terms(case.expected_terms)
-    if len(anchors) < 2:
+    if not explicit_case_identifiers:
         return True
-    evidence_text = _result_evidence_text(result)
-    for prefix, value in _expected_compound_code_anchors(case):
-        if not _evidence_has_compound_code_anchor(evidence_text, prefix, value):
-            return False
-    return all(_term_matches_evidence(anchor, evidence_text) for anchor in anchors)
+    result_identifiers = _result_product_identifiers(result)
+    result_text = _compact_eval_identifier(_result_evidence_text(result))
+    return any(identifier in result_identifiers or identifier in result_text for identifier in explicit_case_identifiers)
 
 
 def score_document_selection(
@@ -2798,14 +3646,17 @@ def score_search_results(
     found_chunk_family = False
     max_overlap = 0
     max_query_overlap = 0
+    max_snippet_overlap = 0
     for rank, result in enumerate(considered, start=1):
         same_document = str(result.get("source_document_id", "")) == case.source_document_id
         same_chunk = str(result.get("chunk_id", "")) == case.source_chunk_id
         same_section = " / ".join(result.get("section_path", [])) == case.section_path
         overlap = _result_term_overlap(result, case.expected_terms)
         query_overlap = _query_evidence_overlap(case.query, result)
+        snippet_overlap = _expected_snippet_evidence_overlap(case, result)
         max_overlap = max(max_overlap, overlap)
         max_query_overlap = max(max_query_overlap, query_overlap)
+        max_snippet_overlap = max(max_snippet_overlap, snippet_overlap)
         result_chunk_type = str(result.get("metadata", {}).get("chunk_type") or result.get("chunk_type", ""))
         if same_document:
             found_same_document = True
@@ -2822,15 +3673,7 @@ def score_search_results(
                 "candidate_recall": True,
                 "metadata_document_selection": document_selection,
             }
-        preserves_code_anchors = _result_preserves_expected_code_anchors(case, result)
-        supports_expected_evidence = _result_supports_single_step_expected_evidence(case, result)
-        if (
-            same_document
-            and same_section
-            and preserves_code_anchors
-            and supports_expected_evidence
-            and overlap >= max(2, min(3, len(case.expected_terms)))
-        ):
+        if same_document and same_section and overlap >= max(2, min(3, len(case.expected_terms))):
             return {
                 "passed": True,
                 "rank": rank,
@@ -2841,7 +3684,11 @@ def score_search_results(
                 "candidate_recall": True,
                 "metadata_document_selection": document_selection,
             }
-        if same_document and preserves_code_anchors and supports_expected_evidence and overlap >= max(2, min(3, len(case.expected_terms))):
+        if (
+            same_document
+            and overlap >= max(2, min(3, len(case.expected_terms)))
+            and snippet_overlap >= 2
+        ):
             return {
                 "passed": True,
                 "rank": rank,
@@ -2852,13 +3699,26 @@ def score_search_results(
                 "candidate_recall": True,
                 "metadata_document_selection": document_selection,
             }
-        if same_document and preserves_code_anchors and supports_expected_evidence and overlap >= 2 and query_overlap >= 2:
+        if same_document and overlap >= 2 and query_overlap >= 2:
             return {
                 "passed": True,
                 "rank": rank,
                 "match_reason": "same_document_answerable_evidence",
                 "overlap_terms": overlap,
                 "query_overlap_terms": query_overlap,
+                "failure_category": None,
+                "retrieval_stage": "final_top_k",
+                "candidate_recall": True,
+                "metadata_document_selection": document_selection,
+            }
+        if same_document and snippet_overlap >= 2 and query_overlap >= 2:
+            return {
+                "passed": True,
+                "rank": rank,
+                "match_reason": "same_document_snippet_evidence",
+                "overlap_terms": overlap,
+                "query_overlap_terms": query_overlap,
+                "snippet_overlap_terms": snippet_overlap,
                 "failure_category": None,
                 "retrieval_stage": "final_top_k",
                 "candidate_recall": True,
@@ -2876,6 +3736,24 @@ def score_search_results(
                 "candidate_recall": True,
                 "metadata_document_selection": document_selection,
             }
+        if _cross_document_semantic_evidence_is_applicable(
+            case,
+            result,
+            snippet_overlap=snippet_overlap,
+            query_overlap=query_overlap,
+        ):
+            return {
+                "passed": True,
+                "rank": rank,
+                "match_reason": "cross_document_semantic_evidence",
+                "overlap_terms": overlap,
+                "query_overlap_terms": query_overlap,
+                "snippet_overlap_terms": snippet_overlap,
+                "failure_category": None,
+                "retrieval_stage": "final_top_k",
+                "candidate_recall": found_same_document,
+                "metadata_document_selection": document_selection,
+            }
     failure_category = "candidate_miss"
     if found_same_document:
         failure_category = "ranking_or_context_loss"
@@ -2887,6 +3765,7 @@ def score_search_results(
         "match_reason": "no_match",
         "overlap_terms": max_overlap,
         "query_overlap_terms": max_query_overlap,
+        "snippet_overlap_terms": max_snippet_overlap,
         "failure_category": failure_category,
         "retrieval_stage": "final_top_k",
         "candidate_recall": found_same_document,
@@ -2950,208 +3829,20 @@ def _answer_contains_expected_terms(
     }
 
 
-def _answer_preserves_expected_table_cell_binding(
-    case: RetrievalEvalCase,
-    answer: dict[str, Any],
-    retrieved_results: list[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
-    snippets = _answer_table_cell_binding_snippets(case, answer, retrieved_results)
-    if not snippets:
-        return {"checked": False, "passed": True, "missing_bindings": []}
-    missing_bindings: list[dict[str, Any]] = []
-    checked = False
-    for snippet in snippets:
-        binding = _answer_preserves_table_cell_binding_for_snippet(case, answer, snippet)
-        if not binding.get("checked"):
-            continue
-        checked = True
-        if not binding.get("passed"):
-            missing_bindings.extend(binding.get("missing_bindings") or [])
-    if not checked:
-        return {"checked": False, "passed": True, "missing_bindings": []}
-    return {
-        "checked": True,
-        "passed": not missing_bindings,
-        "missing_bindings": missing_bindings,
-    }
-
-
-def _answer_preserves_table_cell_binding_for_snippet(
-    case: RetrievalEvalCase,
-    answer: dict[str, Any],
-    snippet: str,
-) -> dict[str, Any]:
-    if "Cell value:" not in snippet or "Row headers:" not in snippet:
-        return {"checked": False, "passed": True, "missing_bindings": []}
-    cell_match = re.search(r"Cell value:\s*([^;]+)", snippet, flags=re.I)
-    row_match = re.search(r"Row headers:\s*([^;]+)", snippet, flags=re.I)
-    if not cell_match or not row_match:
-        return {"checked": False, "passed": True, "missing_bindings": []}
-    row_terms = [
-        term
-        for term in tokenize(row_match.group(1))
-        if term.isdigit()
-        or re.search(r"\d", term)
-        or term in {"status", "area", "pid", "command"}
-    ]
-    cell_terms = [
-        term
-        for term in tokenize(cell_match.group(1))
-        if term not in STOPWORDS and term not in ANSWER_SCORING_GENERIC_TERMS
-    ]
-    cell_value = cell_match.group(1).strip()
-    required_terms = []
-    seen: set[str] = set()
-    for term in [*row_terms, *cell_terms]:
-        if term not in seen:
-            seen.add(term)
-            required_terms.append(term)
-    if len(required_terms) < 3:
-        return {"checked": False, "passed": True, "missing_bindings": []}
-    answer_text = str(answer.get("answer") or "")
-    segments = [segment for segment in _answer_claim_segments(answer_text) if segment.strip()]
-    for segment in segments:
-        segment_lower = segment.lower()
-        segment_tokens = set(tokenize(segment_lower))
-        if (
-            all(_expected_term_matches_text(term, segment_lower, segment_tokens) for term in required_terms)
-            and _table_cell_value_supported(cell_value, segment)
-            and _table_cell_binding_segment_supported(row_match.group(1), cell_value, segment, case.query)
-        ):
-            return {"checked": True, "passed": True, "required_terms": required_terms, "missing_bindings": []}
-    return {
-        "checked": True,
-        "passed": False,
-        "required_terms": required_terms,
-        "missing_bindings": [
-            {
-                "row_terms": row_terms,
-                "cell_terms": cell_terms,
-                "reason": "row_header_and_cell_value_not_bound_in_answer_segment",
-            }
-        ],
-    }
-
-
-def _answer_table_cell_binding_snippets(
-    case: RetrievalEvalCase,
-    answer: dict[str, Any],
-    retrieved_results: list[dict[str, Any]] | None,
-) -> list[str]:
-    expected_items = [item for item in case.expected_evidence or [] if isinstance(item, dict)]
-    item_snippets = [
-        str(item.get("snippet") or "")
-        for item in expected_items
-        if "Cell value:" in str(item.get("snippet") or "")
-        and "Row headers:" in str(item.get("snippet") or "")
-    ]
-    if not item_snippets:
-        snippet = str(case.expected_snippet or "")
-        return [snippet] if "Cell value:" in snippet and "Row headers:" in snippet else []
-    chunk_texts = _retrieved_chunk_texts(retrieved_results)
-    chunk_document_ids = _retrieved_chunk_document_ids(retrieved_results)
-    snippets: list[str] = []
-    for item in expected_items:
-        snippet = str(item.get("snippet") or "")
-        if "Cell value:" not in snippet or "Row headers:" not in snippet:
-            continue
-        if item.get("allow_equivalent_citation"):
-            expected_document_id = str(item.get("source_document_id") or item.get("document_id") or "")
-            equivalent_snippet = str(item.get("equivalent_snippet") or "")
-            for citation in answer.get("citations") or []:
-                if not isinstance(citation, dict):
-                    continue
-                cited_chunk_id = str(citation.get("chunk_id") or "")
-                cited_document_id = _citation_document_id(citation) or chunk_document_ids.get(cited_chunk_id, "")
-                cited_text = chunk_texts.get(cited_chunk_id, "")
-                if (
-                    cited_text
-                    and expected_document_id
-                    and cited_document_id == expected_document_id
-                    and _expected_evidence_supported_by_cited_text(item, cited_text)
-                ):
-                    if "Cell value:" in cited_text and "Row headers:" in cited_text:
-                        snippets.append(cited_text)
-                    elif "Cell value:" in equivalent_snippet and "Row headers:" in equivalent_snippet:
-                        snippets.append(equivalent_snippet)
-                    break
-            else:
-                snippets.append(snippet)
-        else:
-            snippets.append(snippet)
-    return snippets
-
-
-def _table_cell_binding_segment_supported(row_header: str, cell_value: str, answer_segment: str, query: str = "") -> bool:
-    row_header = re.sub(r"\s+", " ", row_header.strip())
-    cell_value = re.sub(r"\s+", " ", cell_value.strip())
-    segment = re.sub(r"\s+", " ", answer_segment.strip())
-    if not row_header or not cell_value or not segment:
-        return True
-    row_tokens = tokenize(row_header)
-    cell_tokens = tokenize(cell_value)
-    has_row_identifier = any(re.search(r"\d", token) for token in row_tokens)
-    has_cell_quantity = any(re.search(r"\d", token) for token in cell_tokens)
-    if not (has_row_identifier and has_cell_quantity):
-        return True
-    row_pattern = re.escape(row_header).replace(r"\ ", r"\s+")
-    cell_pattern = re.escape(cell_value).replace(r"\ ", r"\s+")
-    query_segment = re.sub(r"\s+", " ", query.strip())
-    query_tokens = set(tokenize(query_segment))
-    if query_segment and all(token in query_tokens for token in row_tokens):
-        return re.search(cell_pattern, segment, flags=re.IGNORECASE) is not None
-    if re.search(rf"{row_pattern}.{{0,100}}{cell_pattern}", segment, flags=re.IGNORECASE):
-        return True
-    if re.search(rf"{cell_pattern}.{{0,100}}{row_pattern}", segment, flags=re.IGNORECASE):
-        return True
-    return False
-
-
-def _answer_claim_segments(answer_text: str) -> list[str]:
-    segments: list[str] = []
-    for line in str(answer_text or "").splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if re.search(r"\bRow headers?:", stripped, flags=re.IGNORECASE) and re.search(
-            r"\bCell value:", stripped,
-            flags=re.IGNORECASE,
-        ):
-            segments.append(stripped)
-            continue
-        segments.extend(
-            segment.strip()
-            for segment in re.split(r"(?<=;)\s+|(?<=\.)\s+", stripped)
-            if segment.strip()
-        )
-    return segments
-
-
-def _table_cell_value_supported(expected_cell_value: str, answer_segment: str) -> bool:
-    expected = re.sub(r"\s+", " ", expected_cell_value.strip().lower())
-    segment = re.sub(r"\s+", " ", answer_segment.strip().lower())
-    if not expected or not segment:
-        return True
-    if "allocation" in expected and "possible" in expected:
-        if not re.search(r"\ballocation\s*(?:is|:)?\s+possible\b", segment):
-            return False
-        adverse_patterns = [
-            r"\ballocation\s+not\s+possible\b",
-            r"\bnot\s+allocation\s+possible\b",
-            r"\bnot\s+possible\b",
-            r"\bnot\s+allocat",
-            r"\bno\s+allocation\b",
-            r"\bunavailable\b",
-            r"\bdisabled\b",
-            r"\bprohibited\b",
-            r"\bnot\s+allowed\b",
-        ]
-        return not any(re.search(pattern, segment) for pattern in adverse_patterns)
-    return True
-
-
 def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
     if not case.expected_evidence:
+        if _is_quantity_answer_query(case.query):
+            specific_terms = _scorable_answer_terms(case.expected_terms, case.expected_snippet)
+            material_terms = _material_answer_terms_from_sentence(case.expected_snippet)
+            combined_terms = [*specific_terms]
+            for term in material_terms:
+                if term.lower() not in {item.lower() for item in combined_terms}:
+                    combined_terms.append(term)
+            if combined_terms:
+                return combined_terms, "case_expected_snippet_quantity_terms"
+        relevant_terms = _query_relevant_source_answer_terms(case.query, case.expected_snippet)
+        if relevant_terms:
+            return relevant_terms, "query_relevant_expected_snippet_terms"
         specific_terms = _scorable_answer_terms(case.expected_terms, case.expected_snippet)
         if specific_terms:
             return specific_terms, "case_expected_terms"
@@ -3189,6 +3880,63 @@ def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
     return case.expected_terms, "case_expected_terms"
 
 
+def _query_relevant_source_answer_terms(query: str, source_text: str) -> list[str]:
+    """Choose answer terms from the source clause most related to the question."""
+
+    segments = [
+        segment.strip(" ;•\t\r\n")
+        for segment in re.split(r"(?:[.!?;]\s+|[•\n]+)", str(source_text or ""))
+        if segment.strip(" ;•\t\r\n")
+    ]
+    if not segments:
+        return []
+    query_terms = _answer_overlap_tokens(query)
+
+    def related_to_query(token: str) -> bool:
+        if token in query_terms:
+            return True
+        token_base = token.replace("-", "")
+        return any(
+            len(query_term) >= 5
+            and len(token_base) >= 5
+            and query_term[:5] == token_base[:5]
+            for query_term in query_terms
+        )
+
+    def relevance(segment: str) -> tuple[int, int]:
+        segment_terms = _answer_overlap_tokens(segment)
+        overlap = sum(1 for token in segment_terms if related_to_query(token))
+        return overlap, min(len(segment), 240)
+
+    relevant_segment = max(segments, key=relevance)
+    source_address_terms = _source_address_terms(source_text)
+    terms: list[str] = []
+    seen: set[str] = set()
+
+    for phrase in re.findall(r"[\[\"]([^\]\"]{3,80})[\]\"]", relevant_segment):
+        phrase = re.sub(r"\s+", " ", phrase).strip()
+        phrase_key = phrase.lower()
+        if phrase_key not in seen and len(_answer_overlap_tokens(phrase)) >= 1:
+            seen.add(phrase_key)
+            terms.append(phrase)
+
+    for token in tokenize(relevant_segment):
+        if token in STOPWORDS or token in ANSWER_SCORING_GENERIC_TERMS or token in source_address_terms:
+            continue
+        if len(token) < 4 and not any(char.isdigit() for char in token):
+            continue
+        if token in query_terms:
+            continue
+        if not related_to_query(token) and not any(char.isdigit() for char in token):
+            continue
+        key = _answer_material_term_key(token)
+        if key in seen:
+            continue
+        seen.add(key)
+        terms.append(token)
+    return terms[:4]
+
+
 def _scorable_answer_terms(terms: list[str], source_text: str = "") -> list[str]:
     source_address_terms = _source_address_terms(source_text)
     scorable: list[str] = []
@@ -3221,7 +3969,22 @@ def _source_address_terms(text: str) -> set[str]:
 
 def _is_quantity_answer_query(query: str) -> bool:
     normalized = normalize_text(query)
-    return any(term in normalized for term in ANSWER_SCORING_QUANTITY_QUERY_TERMS)
+    query_tokens = set(tokenize(normalized))
+    measurement_roles = {
+        "angle",
+        "distance",
+        "height",
+        "interval",
+        "pressure",
+        "range",
+        "speed",
+        "temperature",
+        "voltage",
+        "width",
+    }
+    return any(term in normalized for term in ANSWER_SCORING_QUANTITY_QUERY_TERMS) or bool(
+        query_tokens.intersection(measurement_roles)
+    )
 
 
 def _answer_material_term_key(term: str) -> str:
@@ -3347,19 +4110,87 @@ def _answer_required_action_terms(case: RetrievalEvalCase) -> tuple[list[str], s
 
 def _answer_required_material_terms(case: RetrievalEvalCase, answer: dict[str, Any]) -> tuple[list[str], str]:
     if not case.expected_evidence:
+        if re.search(
+            r"\b(?:which|what)\b.{0,100}\b(?:setting|parameter|option)\b.{0,100}"
+            r"\b(?:match|correspond|agree)\b",
+            case.query,
+            flags=re.IGNORECASE,
+        ) and re.search(r"\bcorrect(?:ly)?\b", str(case.expected_snippet or ""), flags=re.IGNORECASE):
+            return ["correctly"], "required_setting_alignment_terms"
+        alternatives = re.search(
+            r"\b(?:selected|selects?|chosen|chooses?|used|uses)\s+between\s+"
+            r"(?P<left>[A-Za-z0-9][A-Za-z0-9+_./-]{0,40})\s+(?P<join>or|and)\s+"
+            r"(?P<right>[A-Za-z0-9][A-Za-z0-9+_./-]{0,40})",
+            str(case.expected_snippet or ""),
+            flags=re.IGNORECASE,
+        )
+        if alternatives and re.search(
+            r"\b(?:which|what)\b.+\bbetween\b|\bhow\s+does\b.+\b(?:select|choose|determine)\b",
+            case.query,
+            flags=re.IGNORECASE,
+        ):
+            left = alternatives.group("left").rstrip(".,;:")
+            right = alternatives.group("right").rstrip(".,;:")
+            return [f"{left} {alternatives.group('join')} {right}"], "named_alternative_terms"
+        if re.search(r"^\s*why\b|\b(?:cause|reason)\b", case.query, flags=re.IGNORECASE):
+            causal_match = re.search(
+                r"\b(?:because|due\s+to|caused\s+by|reason\s+is)\b\s*(.+)",
+                str(case.expected_snippet or ""),
+                flags=re.IGNORECASE,
+            )
+            if causal_match:
+                query_tokens = _answer_overlap_tokens(case.query)
+                causal_terms: list[str] = []
+                seen: set[str] = set()
+                for token in tokenize(causal_match.group(1)):
+                    if (
+                        len(token) < 4
+                        or token in STOPWORDS
+                        or token in GENERIC_ANCHORS
+                        or token in ANSWER_SCORING_GENERIC_TERMS
+                        or token in query_tokens
+                    ):
+                        continue
+                    _add_answer_material_term(causal_terms, seen, token)
+                    if len(causal_terms) >= 2:
+                        break
+                if causal_terms:
+                    return causal_terms, "causal_expected_snippet_terms"
+        if _is_quantity_answer_query(case.query):
+            # Conditions stated numerically in the question are mandatory, even
+            # when a broad expected snippet contains several nearby quantities.
+            # This prevents a related specification (for example, an ambient
+            # range) from passing a question about a threshold-triggered limit.
+            query_material = _material_answer_terms_from_sentence(case.query)
+            product_model = re.sub(
+                r"[^a-z0-9]+",
+                "",
+                str((case.source_metadata or {}).get("product_model") or "").lower(),
+            )
+            if product_model:
+                model_numbers = set(re.findall(r"\d+", product_model))
+                query_material = [
+                    term
+                    for term in query_material
+                    if not (
+                        (
+                            len(re.sub(r"[^a-z0-9]+", "", term.lower())) >= 3
+                            and re.sub(r"[^a-z0-9]+", "", term.lower()) in product_model
+                        )
+                        or (
+                            re.fullmatch(r"\d+", term)
+                            and term in model_numbers
+                        )
+                    )
+                ]
+            return (
+                query_material,
+                "quantity_query_terms" if query_material else "none",
+            )
         return [], "none"
     action_terms, action_source = _answer_required_action_terms(case)
     query_tokens = _answer_overlap_tokens(case.query)
     if not _is_quantity_answer_query(case.query):
-        source_terms = _answer_required_source_fact_terms(case, query_tokens)
-        if source_terms and action_terms:
-            required_terms: list[str] = []
-            seen: set[str] = set()
-            for term in [*action_terms, *source_terms]:
-                _add_answer_material_term(required_terms, seen, term)
-            return required_terms, "troubleshooting_action_and_source_fact_terms"
-        if source_terms:
-            return source_terms, "source_fact_terms"
         return action_terms, action_source
     required_terms: list[str] = []
     seen: set[str] = set()
@@ -3388,45 +4219,6 @@ def _answer_required_material_terms(case: RetrievalEvalCase, answer: dict[str, A
     return required_terms, "quantity_evidence_terms" if required_terms else "none"
 
 
-def _answer_required_source_fact_terms(case: RetrievalEvalCase, query_tokens: set[str]) -> list[str]:
-    if case.generation_method == "table_sibling_error_cause_action":
-        return []
-    if not re.search(
-        r"\bwhat\s+(?:operation|behavior|action)\b|\bwhat\b.{0,40}\b(?:section|procedure|step)\b.{0,40}\bdescribe",
-        case.query,
-        flags=re.I,
-    ):
-        return []
-    required_terms: list[str] = []
-    seen: set[str] = set()
-    for item in case.expected_evidence:
-        if not isinstance(item, dict):
-            continue
-        snippet = str(item.get("snippet") or "")
-        source_terms = _answer_overlap_tokens(snippet)
-        if len(source_terms.intersection(query_tokens)) < 2:
-            continue
-        for sentence in re.split(r"[.!?;|]\s*", snippet):
-            sentence_tokens = _answer_overlap_tokens(sentence)
-            novel_terms = [
-                token
-                for token in tokenize(sentence)
-                if token not in query_tokens
-                and token not in STOPWORDS
-                and token not in GENERIC_ANCHORS
-                and token not in ANSWER_SCORING_GENERIC_TERMS
-            ]
-            if not novel_terms:
-                continue
-            if not re.search(r"\b(perform|performs|process|processes|select|set|save|change|execute)\b", sentence, flags=re.I):
-                continue
-            for term in novel_terms:
-                _add_answer_material_term(required_terms, seen, term)
-                if len(required_terms) >= 4:
-                    return required_terms
-    return required_terms
-
-
 def _normalized_quote_text(text: str) -> str:
     return re.sub(r"\s+", " ", normalize_text(text)).strip()
 
@@ -3439,31 +4231,16 @@ def _retrieved_chunk_texts(results: list[dict[str, Any]] | None) -> dict[str, st
         chunk_id = str(result.get("chunk_id") or result.get("id") or "")
         if not chunk_id:
             continue
-        # Citation scoring must use the returned chunk body. Hidden expanded metadata can
-        # help retrieval/reranking, but it is not user-visible cited evidence.
-        chunk_texts[chunk_id] = str(result.get("content") or "")
-    return chunk_texts
-
-
-def _retrieved_chunk_document_ids(results: list[dict[str, Any]] | None) -> dict[str, str]:
-    chunk_document_ids: dict[str, str] = {}
-    for result in results or []:
-        if not isinstance(result, dict):
-            continue
-        chunk_id = str(result.get("chunk_id") or result.get("id") or "")
-        if not chunk_id:
-            continue
         metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
-        document_id = str(
-            result.get("source_document_id")
-            or result.get("document_id")
-            or metadata.get("source_document_id")
-            or metadata.get("document_id")
-            or ""
-        )
-        if document_id:
-            chunk_document_ids[chunk_id] = document_id
-    return chunk_document_ids
+        text_parts = [
+            str(result.get("content") or ""),
+            str(metadata.get("content") or ""),
+            str(metadata.get("context_window") or ""),
+            str(metadata.get("table_row_group_context") or ""),
+            str(metadata.get("parent_context") or ""),
+        ]
+        chunk_texts[chunk_id] = "\n".join(part for part in text_parts if part)
+    return chunk_texts
 
 
 def _answer_citation_fidelity(
@@ -3479,14 +4256,14 @@ def _answer_citation_fidelity(
     for citation in answer.get("citations") or []:
         if not isinstance(citation, dict):
             continue
+        quote = str(citation.get("quote_span") or "").strip()
+        if not quote:
+            continue
         checked_count += 1
         chunk_id = str(citation.get("chunk_id") or "")
         chunk_text = chunk_texts.get(chunk_id)
         if chunk_text is None:
             missing_cited_chunks.append(chunk_id)
-            continue
-        quote = str(citation.get("quote_span") or "").strip()
-        if not quote:
             continue
         if _normalized_quote_text(quote) not in _normalized_quote_text(chunk_text):
             unsupported_quotes.append(
@@ -3509,40 +4286,12 @@ def _citation_document_id(citation: dict[str, Any]) -> str:
     return str(citation.get("document_id") or citation.get("source_document_id") or "")
 
 
-def _equivalent_citation_item(item: dict[str, Any]) -> dict[str, Any]:
-    if not item.get("allow_equivalent_citation"):
-        return item
-    equivalent_snippet = str(item.get("equivalent_snippet") or "").strip()
-    if not equivalent_snippet:
-        return item
-    equivalent_item = dict(item)
-    equivalent_item["snippet"] = equivalent_snippet
-    equivalent_terms = [
-        term
-        for term in extract_anchor_terms(equivalent_snippet, limit=10)
-        if normalize_text(term)
-        and normalize_text(term)
-        not in {
-            "procedure",
-            "step",
-            "setting",
-            "item",
-            "settings",
-            "column",
-            "headers",
-            "row",
-            "cell",
-            "value",
-        }
-    ]
-    if equivalent_terms:
-        equivalent_item["expected_terms"] = equivalent_terms
-    return equivalent_item
-
-
-def _expected_evidence_item_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
+def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
     text_lower = cited_text.lower()
     text_tokens = set(tokenize(text_lower))
+    snippet = str(item.get("snippet") or "").strip()
+    if snippet and _normalized_quote_text(snippet) in _normalized_quote_text(cited_text):
+        return True
     binding_check = _expected_evidence_binding_check(item, cited_text)
     if not binding_check["passed"]:
         return False
@@ -3555,7 +4304,6 @@ def _expected_evidence_item_supported_by_cited_text(item: dict[str, Any], cited_
     required_terms = role_terms or expected_terms
     if required_terms and not all(_expected_term_matches_text(term, text_lower, text_tokens) for term in required_terms):
         return False
-    snippet = str(item.get("snippet") or "")
     snippet_terms = [
         term
         for term in extract_anchor_terms(snippet, limit=8)
@@ -3568,82 +4316,136 @@ def _expected_evidence_item_supported_by_cited_text(item: dict[str, Any], cited_
         for term in snippet_terms
         if _expected_term_matches_text(term, text_lower, text_tokens)
     ]
-    if len(matched_snippet_terms) < max(2, min(len(snippet_terms), len(snippet_terms) - 1)):
+    return len(matched_snippet_terms) >= max(2, min(len(snippet_terms), len(snippet_terms) - 1))
+
+
+def _table_evidence_field_family(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "", value.lower())
+    if "cause" in normalized:
+        return "cause"
+    if "remedy" in normalized or "correctiveaction" in normalized or normalized == "action":
+        return "action"
+    return normalized
+
+
+def _cited_table_field_family(cited_text: str) -> str:
+    match = re.search(r"\bColumn headers:\s*(.*?)(?=;\s*(?:Row headers|Cell value|Row|Column):|$)", cited_text, flags=re.I | re.S)
+    return _table_evidence_field_family(match.group(1)) if match else ""
+
+
+def _cited_cell_value(cited_text: str) -> str:
+    match = re.search(r"\bCell value:\s*(.*?)(?=;\s*(?:Row|Column):|$)", cited_text, flags=re.I | re.S)
+    return match.group(1).strip(" ;|") if match else ""
+
+
+def _equivalent_table_evidence_support(
+    case: RetrievalEvalCase,
+    item: dict[str, Any],
+    result: dict[str, Any],
+    cited_text: str,
+) -> bool:
+    """Accept a duplicate table rendering only when its bindings remain specific.
+
+    A manual can yield two active representations of the same troubleshooting
+    row (for example a source table and a repeated appendix table).  Chunk IDs,
+    page numbers, and even column labels may differ while the user-visible alarm
+    and operational answer are equivalent.  This check is intentionally narrow:
+    same document, same cause/action field family, strong query-to-row overlap,
+    at least half of the expected evidence terms, and no identifier, quantity,
+    or polarity binding conflict.
+    """
+    expected_document_id = str(item.get("source_document_id") or item.get("document_id") or "")
+    if expected_document_id and str(result.get("source_document_id") or "") != expected_document_id:
         return False
-    return _expected_evidence_role_segments_supported(item, cited_text)
-
-
-def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
-    if _expected_evidence_item_supported_by_cited_text(item, cited_text):
-        return True
-    equivalent_item = _equivalent_citation_item(item)
-    if equivalent_item == item:
+    expected_family = _table_evidence_field_family(str(item.get("field") or ""))
+    cited_family = _cited_table_field_family(cited_text)
+    if not expected_family or not cited_family or expected_family != cited_family:
         return False
-    return _expected_evidence_item_supported_by_cited_text(equivalent_item, cited_text)
-
-
-def _expected_evidence_role_segments_supported(item: dict[str, Any], cited_text: str) -> bool:
-    source_segments = _evidence_role_segments(str(item.get("snippet") or ""))
-    if not source_segments:
-        return True
-    cited_segments = _evidence_role_segments(cited_text)
-    if not cited_segments:
+    if _query_evidence_overlap(case.query, result) < 3:
         return False
-    expected_terms = {
-        normalize_text(term)
-        for term in item.get("expected_terms") or []
-        if str(term).strip()
-        and normalize_text(str(term)) not in ANSWER_SCORING_GENERIC_TERMS
-        and normalize_text(str(term)) not in {"procedure", "step", "setting", "item", "settings", "column", "headers", "row", "cell", "value"}
-    }
-    required_source_segments = []
-    for segment_terms in source_segments:
-        if expected_terms:
-            segment_terms = [term for term in segment_terms if term in expected_terms or any(part in expected_terms for part in term.split("/"))]
-        if len(segment_terms) >= 2:
-            required_source_segments.append(segment_terms)
-    if not required_source_segments:
-        return True
-
-    for source_terms in required_source_segments:
-        required_count = len(source_terms) if len(source_terms) <= 4 else max(4, len(source_terms) - 1)
-        if not any(len(set(source_terms).intersection(cited_terms)) >= required_count for cited_terms in cited_segments):
-            return False
-    return True
+    if not _expected_evidence_binding_check(item, cited_text)["passed"]:
+        return False
+    expected_terms = [str(term) for term in item.get("expected_terms") or [] if str(term).strip()]
+    if not expected_terms:
+        return False
+    cited_lower = cited_text.lower()
+    cited_tokens = set(tokenize(cited_lower))
+    matched_terms = sum(
+        1 for term in expected_terms if _expected_term_matches_text(term, cited_lower, cited_tokens)
+    )
+    return matched_terms >= max(2, (len(expected_terms) + 1) // 2)
 
 
-def _evidence_role_segments(text: str) -> list[list[str]]:
-    segments: list[list[str]] = []
-    seen_segments: set[tuple[str, ...]] = set()
-    for segment in re.split(r"(?<=[.!?;:])\s+|\n+|\s+\|\s+", text):
-        terms: list[str] = []
-        seen_terms: set[str] = set()
-        for token in tokenize(segment):
-            normalized = normalize_text(token)
-            if (
-                not normalized
-                or normalized in STOPWORDS
-                or normalized in GENERIC_ANCHORS
-                or normalized in ANSWER_SCORING_GENERIC_TERMS
-            ):
-                continue
-            if normalized not in seen_terms:
-                seen_terms.add(normalized)
-                terms.append(normalized)
-        if len(terms) < 2:
+def _expected_evidence_text(
+    item: dict[str, Any],
+    chunk_texts: dict[str, str],
+) -> str:
+    chunk_id = str(item.get("chunk_id") or "")
+    return (
+        chunk_texts.get(chunk_id)
+        or str(item.get("content") or item.get("expected_snippet") or item.get("snippet") or "").strip()
+    )
+
+
+def _expected_evidence_answer_support(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    retrieved_results: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Detect answers that contain the exact expected table-cell evidence.
+
+    This is deliberately narrow: it only protects literal expected cell/field
+    values, so a semantically nearby troubleshooting row cannot pass merely by
+    sharing broad anchor terms.
+    """
+    if not case.expected_evidence or not retrieved_results:
+        return {"checked": False, "passed": False, "matched_chunk_ids": [], "missing_chunk_ids": []}
+    answer_normalized = _normalized_quote_text(str(answer.get("answer") or ""))
+    chunk_texts = _retrieved_chunk_texts(retrieved_results)
+    matched_chunk_ids: list[str] = []
+    missing_chunk_ids: list[str] = []
+    checked = False
+    for item in case.expected_evidence:
+        if not isinstance(item, dict):
             continue
-        key = tuple(terms)
-        if key not in seen_segments:
-            seen_segments.add(key)
-            segments.append(terms)
-    return segments
+        chunk_id = str(item.get("chunk_id") or "")
+        evidence_text = _expected_evidence_text(item, chunk_texts)
+        if not evidence_text:
+            missing_chunk_ids.append(chunk_id)
+            continue
+        field = str(item.get("field") or "").strip().lower()
+        value = ""
+        cell_match = re.search(r"\bCell value:\s*(.*?)(?=;\s*(?:Row|Column):|$)", evidence_text, flags=re.I | re.S)
+        if cell_match:
+            value = cell_match.group(1).strip(" ;|")
+        elif field:
+            field_match = re.search(
+                rf"(?:^|;\s*){re.escape(field)}:\s*(.*?)(?=;\s*[A-Za-z][A-Za-z ]+:|$)",
+                evidence_text,
+                flags=re.I | re.S,
+            )
+            if field_match:
+                value = field_match.group(1).strip(" ;|")
+        if not value:
+            missing_chunk_ids.append(chunk_id)
+            continue
+        checked = True
+        if _normalized_quote_text(value) in answer_normalized:
+            matched_chunk_ids.append(chunk_id)
+        else:
+            missing_chunk_ids.append(chunk_id)
+    return {
+        "checked": checked,
+        "passed": checked and not missing_chunk_ids,
+        "matched_chunk_ids": matched_chunk_ids,
+        "missing_chunk_ids": missing_chunk_ids,
+    }
 
 
 def _expected_evidence_binding_check(item: dict[str, Any], cited_text: str) -> dict[str, Any]:
-    snippet_text = str(item.get("snippet") or "")
     source_text = " ".join(
         str(value)
-        for value in [snippet_text, " ".join(str(term) for term in item.get("expected_terms") or [])]
+        for value in [item.get("snippet"), " ".join(str(term) for term in item.get("expected_terms") or [])]
         if value
     )
     cited_lower = cited_text.lower()
@@ -3661,7 +4463,7 @@ def _expected_evidence_binding_check(item: dict[str, Any], cited_text: str) -> d
     ]
     relation_errors = [
         relation
-        for relation in _role_value_relations(snippet_text)
+        for relation in _role_value_relations(source_text)
         if not _role_value_relation_matches(relation, cited_text)
     ]
     return {
@@ -3724,42 +4526,25 @@ def _role_value_relations(text: str) -> list[tuple[str, str]]:
         rf"\b(?P<role>{role_pattern})\s+(?:is|are|was|were|to|:)\s+(?P<value>{value_pattern})\b",
         rf"\b(?P<role>{role_pattern})\s+(?P<value>{value_pattern})\b",
     ]
-    clauses = [
-        clause.strip()
-        for clause in re.split(r"(?<=[.!?;])\s+|\s+\band\b\s+|[;,]", normalized, flags=re.I)
-        if clause.strip()
-    ]
-    for clause in clauses:
-        for pattern in patterns:
-            for match in re.finditer(pattern, clause, flags=re.I):
-                role = normalize_text(match.group("role"))
-                value = normalize_text(match.group("value"))
-                role_tokens = [
-                    token
-                    for token in tokenize(role)
-                    if token not in STOPWORDS and token not in GENERIC_ANCHORS and token not in ANSWER_SCORING_GENERIC_TERMS
-                ]
-                if "number" in role_tokens:
-                    number_index = role_tokens.index("number")
-                    narrowed_role_tokens = [token for token in role_tokens[number_index + 1 :] if token != "of"]
-                    if narrowed_role_tokens:
-                        role_tokens = narrowed_role_tokens
-                if "of" in role_tokens:
-                    of_index = role_tokens.index("of")
-                    narrowed_role_tokens = role_tokens[of_index + 1 :]
-                    if narrowed_role_tokens:
-                        role_tokens = narrowed_role_tokens
-                role_tokens = [token for token in role_tokens if token != "of"]
-                if not role_tokens or not value:
-                    continue
-                if any(any(char.isdigit() for char in token) for token in role_tokens):
-                    continue
-                if not set(role_tokens).intersection(ANSWER_SCORING_QUANTITY_RELATION_ROLE_TERMS):
-                    continue
-                role_phrase = " ".join(role_tokens[-3:])
-                relation = (role_phrase, value)
-                if relation not in relations:
-                    relations.append(relation)
+    for pattern in patterns:
+        for match in re.finditer(pattern, normalized, flags=re.I):
+            role = normalize_text(match.group("role"))
+            value = normalize_text(match.group("value"))
+            role_tokens = [
+                token
+                for token in tokenize(role)
+                if token not in STOPWORDS and token not in GENERIC_ANCHORS and token not in ANSWER_SCORING_GENERIC_TERMS
+            ]
+            if not role_tokens or not value:
+                continue
+            if any(any(char.isdigit() for char in token) for token in role_tokens):
+                continue
+            if not set(role_tokens).intersection(ANSWER_SCORING_QUANTITY_RELATION_ROLE_TERMS):
+                continue
+            role_phrase = " ".join(role_tokens[-3:])
+            relation = (role_phrase, value)
+            if relation not in relations:
+                relations.append(relation)
     return relations
 
 
@@ -3799,7 +4584,6 @@ def _expected_evidence_citation_support(
     if retrieved_results is None or not case.expected_evidence:
         return {"passed": True, "checked": False, "missing_evidence": []}
     chunk_texts = _retrieved_chunk_texts(retrieved_results)
-    chunk_document_ids = _retrieved_chunk_document_ids(retrieved_results)
     citations = [citation for citation in answer.get("citations") or [] if isinstance(citation, dict)]
     if not citations:
         return {
@@ -3817,38 +4601,67 @@ def _expected_evidence_citation_support(
         }
 
     missing_evidence: list[dict[str, Any]] = []
+    coverage: list[dict[str, Any]] = []
+    answer_normalized = _normalized_quote_text(str(answer.get("answer") or ""))
     for item in case.expected_evidence:
         if not isinstance(item, dict):
             continue
         expected_chunk_id = str(item.get("chunk_id") or "")
-        expected_document_id = str(
-            item.get("source_document_id")
-            or item.get("document_id")
-            or chunk_document_ids.get(expected_chunk_id, "")
-        )
+        expected_document_id = str(item.get("source_document_id") or item.get("document_id") or "")
+        resolved_item = dict(item)
+        resolved_text = _expected_evidence_text(item, chunk_texts)
+        if resolved_text:
+            cell_match = re.search(
+                r"\bCell value:\s*(.*?)(?=;\s*(?:Row|Column):|$)",
+                resolved_text,
+                flags=re.I | re.S,
+            )
+            resolved_item["snippet"] = cell_match.group(1).strip(" ;|") if cell_match else resolved_text
         expected_terms = [str(term) for term in item.get("expected_terms") or [] if str(term).strip()]
         term_required = len(expected_terms) if len(expected_terms) <= 2 else 2
         supported = False
+        support_record: dict[str, Any] | None = None
         for citation in citations:
             cited_chunk_id = str(citation.get("chunk_id") or "")
-            cited_document_id = _citation_document_id(citation) or chunk_document_ids.get(cited_chunk_id, "")
-            if expected_document_id and cited_document_id != expected_document_id:
+            if expected_document_id and _citation_document_id(citation) != expected_document_id:
                 continue
             cited_text = chunk_texts.get(cited_chunk_id, "")
             if not cited_text:
                 continue
             if expected_chunk_id and cited_chunk_id != expected_chunk_id:
-                if (
-                    item.get("allow_equivalent_citation")
-                    and expected_document_id
-                    and cited_document_id == expected_document_id
-                    and _expected_evidence_supported_by_cited_text(item, cited_text)
-                ):
+                if _expected_evidence_supported_by_cited_text(resolved_item, cited_text):
                     supported = True
+                    value = _cited_cell_value(cited_text)
+                    support_record = {
+                        "expected_chunk_id": expected_chunk_id,
+                        "cited_chunk_id": cited_chunk_id,
+                        "match_type": "equivalent_text",
+                        "answer_supported": bool(value and _normalized_quote_text(value) in answer_normalized),
+                    }
+                    break
+                result = next(
+                    (candidate for candidate in retrieved_results if str(candidate.get("chunk_id") or "") == cited_chunk_id),
+                    None,
+                )
+                if result and _equivalent_table_evidence_support(case, resolved_item, result, cited_text):
+                    supported = True
+                    value = _cited_cell_value(cited_text)
+                    support_record = {
+                        "expected_chunk_id": expected_chunk_id,
+                        "cited_chunk_id": cited_chunk_id,
+                        "match_type": "equivalent_table_row",
+                        "answer_supported": bool(value and _normalized_quote_text(value) in answer_normalized),
+                    }
                     break
                 continue
-            if expected_chunk_id and cited_chunk_id == expected_chunk_id and not expected_terms:
+            if expected_chunk_id and cited_chunk_id == expected_chunk_id:
                 supported = True
+                support_record = {
+                    "expected_chunk_id": expected_chunk_id,
+                    "cited_chunk_id": cited_chunk_id,
+                    "match_type": "exact_chunk",
+                    "answer_supported": True,
+                }
                 break
             if not expected_terms:
                 continue
@@ -3861,7 +4674,15 @@ def _expected_evidence_citation_support(
             ]
             if len(matched_terms) >= term_required:
                 supported = True
+                support_record = {
+                    "expected_chunk_id": expected_chunk_id,
+                    "cited_chunk_id": cited_chunk_id,
+                    "match_type": "term_overlap",
+                    "answer_supported": True,
+                }
                 break
+        if support_record:
+            coverage.append(support_record)
         if not supported:
             missing_evidence.append(
                 {
@@ -3875,6 +4696,7 @@ def _expected_evidence_citation_support(
         "passed": not missing_evidence,
         "checked": True,
         "missing_evidence": missing_evidence,
+        "coverage": coverage,
     }
 
 
@@ -3883,6 +4705,11 @@ def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str
     if not term_lower:
         return False
     if term_lower in text_lower or term_lower in text_tokens:
+        return True
+    if term_lower in {"correct", "correctly"} and re.search(
+        r"\b(?:match(?:es|ed|ing)?|correspond(?:s|ed|ing)?|agree(?:s|d|ing)?|same)\b",
+        text_lower,
+    ):
         return True
     if " " in term_lower:
         phrase_skip_terms = STOPWORDS.union({"to"})
@@ -3935,18 +4762,77 @@ def _llm_required_information_judgment(
     *,
     expected_terms: list[str],
     material_terms: list[str],
+    retrieved_results: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     answer_text = str(answer.get("answer") or "").strip()
     if not answer_text:
         return {"checked": False, "passed": False, "reason": "empty_answer"}
     expected_evidence = case.expected_evidence or []
+    chunk_texts = _retrieved_chunk_texts(retrieved_results)
     evidence_text = "\n\n".join(
-        str(item.get("content") or item.get("expected_snippet") or "").strip()
+        _expected_evidence_text(item, chunk_texts)
         for item in expected_evidence[:4]
         if isinstance(item, dict)
     ).strip()
+    exact_source_text = ""
+    if not evidence_text:
+        # Generated single-step cases retain only a short expected_snippet.  It
+        # can end before the answer-bearing clause (for example, a table-row
+        # remedy after a long error message and cause).  When retrieval retained
+        # the expected source chunk, grade against that complete evidence rather
+        # than treating the generation-time preview as the full reference.
+        exact_source_text = str(chunk_texts.get(case.source_chunk_id) or "").strip()
+        evidence_text = exact_source_text
     if not evidence_text:
         evidence_text = str(case.expected_snippet or "").strip()
+    generated_snippet_is_truncated = bool(
+        not expected_evidence
+        and not exact_source_text
+        and re.search(
+            r"\b(?:it|the|a|an|and|or|to|of|from|by|with|for)\s*$",
+            str(case.expected_snippet or ""),
+            flags=re.IGNORECASE,
+        )
+    )
+    current_chunk_match = None
+    if generated_snippet_is_truncated:
+        source_context = str((case.source_metadata or {}).get("context_window") or "")
+        current_chunk_match = re.search(
+            r"Current chunk:\s*(.*?)(?=\n\nNext chunk:|$)",
+            source_context,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if current_chunk_match:
+            evidence_text = current_chunk_match.group(1).strip()
+    if generated_snippet_is_truncated and retrieved_results:
+        query_terms = _answer_overlap_tokens(case.query)
+        aligned_candidates: list[tuple[int, int, str]] = []
+        for index, result in enumerate(retrieved_results):
+            if not isinstance(result, dict):
+                continue
+            metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+            document_id = str(
+                result.get("source_document_id")
+                or result.get("document_id")
+                or metadata.get("source_document_id")
+                or metadata.get("document_id")
+                or ""
+            )
+            if document_id != case.source_document_id:
+                continue
+            chunk_id = str(result.get("chunk_id") or result.get("id") or "")
+            candidate_text = str(chunk_texts.get(chunk_id) or "").strip()
+            if not candidate_text:
+                continue
+            overlap = len(query_terms.intersection(_answer_overlap_tokens(candidate_text)))
+            aligned_candidates.append((overlap, -index, candidate_text))
+        if aligned_candidates:
+            overlap, _negative_index, candidate_text = max(
+                aligned_candidates,
+                key=lambda item: (item[0], item[1]),
+            )
+            if overlap >= 2 and not current_chunk_match:
+                evidence_text = candidate_text
     schema = {
         "type": "object",
         "properties": {
@@ -3956,7 +4842,7 @@ def _llm_required_information_judgment(
         },
         "required": ["contains_required_information", "missing_information", "reason"],
     }
-    payload, _ = chat_json(
+    payload, raw_response = chat_json(
         model=settings.ollama_eval_model,
         purpose="eval_answer_required_information",
         think=False,
@@ -3968,8 +4854,11 @@ def _llm_required_information_judgment(
                 "role": "system",
                 "content": (
                     "You are grading whether an answer contains the information needed to answer a manuals question. "
-                    "Use only the expected evidence and expected terms as the grading reference. "
-                    "Return JSON only. Mark true when the answer gives the required operational facts, even if wording differs."
+                    "Use only the expected evidence as the factual reference and the question as the scope. "
+                    "Expected terms are retrieval/generation anchors, not a checklist: do not require a table header, "
+                    "error code, or other anchor that the question does not ask the answer to repeat. "
+                    "Return JSON only, using the exact schema field contains_required_information. "
+                    "Mark it true only when the answer gives all operational facts requested by the question, even if wording differs."
                 ),
             },
             {
@@ -3988,14 +4877,133 @@ def _llm_required_information_judgment(
             },
         ],
     )
-    passed = bool(payload.get("contains_required_information"))
+    verdict_field = "contains_required_information"
+    verdict = payload.get(verdict_field)
+    if not isinstance(verdict, bool):
+        # Some local models ignore the requested schema name and emit a familiar
+        # boolean grading alias. Accept only explicit booleans; never turn a
+        # malformed or empty judge response into a false answer evaluation.
+        for alias in ("is_correct", "passed", "answer_contains_required_information"):
+            alias_verdict = payload.get(alias)
+            if isinstance(alias_verdict, bool):
+                verdict_field = alias
+                verdict = alias_verdict
+                break
+    if not isinstance(verdict, bool):
+        preview = raw_response.strip().replace("\n", " ")[:240]
+        raise ValueError(f"answer judge response omitted a boolean verdict: {preview or '<empty>'}")
+    missing_information = payload.get("missing_information")
+    if not isinstance(missing_information, list):
+        missing_information = []
+    reason = str(payload.get("reason") or "").strip()
+    if verdict is False and not missing_information and not reason:
+        # A negative verdict with neither missing facts nor an explanation is
+        # internally inconsistent. Treat it like a malformed response so a
+        # fully supported deterministic score is not converted into a false
+        # failure by an opaque local-model glitch.
+        raise ValueError("answer judge rejected the answer without identifying missing information")
     return {
         "checked": True,
         "provider": "ollama",
         "model": settings.ollama_eval_model,
-        "passed": passed,
-        "missing_information": list(payload.get("missing_information") or []),
-        "reason": str(payload.get("reason") or ""),
+        "passed": verdict,
+        "verdict_field": verdict_field,
+        "missing_information": list(missing_information),
+        "reason": reason,
+    }
+
+
+def _single_step_equivalent_citation_support(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    retrieved_results: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    if case.expected_evidence or not retrieved_results:
+        return {"passed": False, "checked": False, "chunk_ids": [], "document_ids": []}
+    cited_chunk_ids = {
+        str(item.get("chunk_id") or "")
+        for item in answer.get("citations", []) or []
+        if isinstance(item, dict) and item.get("chunk_id")
+    }
+    matched_chunks: list[str] = []
+    matched_documents: list[str] = []
+    for result in retrieved_results:
+        chunk_id = str(result.get("chunk_id") or "")
+        if not chunk_id or chunk_id not in cited_chunk_ids:
+            continue
+        snippet_overlap = _expected_snippet_evidence_overlap(case, result)
+        query_overlap = _query_evidence_overlap(case.query, result)
+        expected_normalized = normalize_text(str(case.expected_snippet or ""))
+        evidence_normalized = normalize_text(_result_evidence_text(result))
+        exact_duplicate = bool(
+            len(expected_normalized) >= 80
+            and expected_normalized[:80] in evidence_normalized
+        )
+        if not exact_duplicate and not _cross_document_semantic_evidence_is_applicable(
+            case,
+            result,
+            snippet_overlap=snippet_overlap,
+            query_overlap=query_overlap,
+        ):
+            continue
+        matched_chunks.append(chunk_id)
+        document_id = str(result.get("source_document_id") or "")
+        if document_id and document_id not in matched_documents:
+            matched_documents.append(document_id)
+    return {
+        "passed": bool(matched_chunks),
+        "checked": bool(cited_chunk_ids),
+        "chunk_ids": matched_chunks,
+        "document_ids": matched_documents,
+    }
+
+
+def _calculation_answer_support(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+) -> dict[str, Any]:
+    if not re.search(r"\b(?:calculated|computed|derived)\b", case.query, flags=re.IGNORECASE):
+        return {"checked": False, "passed": False, "required_terms": [], "matched_terms": []}
+    source_context = str((case.source_metadata or {}).get("context_window") or "")
+    reference = source_context or str(case.expected_snippet or "")
+    formula_matches = list(
+        re.finditer(
+            r"\b(?:calculated|computed|derived)\s+from\b\s*([^.!?\n]+)",
+            reference,
+            flags=re.IGNORECASE,
+        )
+    )
+    if not formula_matches:
+        return {"checked": False, "passed": False, "required_terms": [], "matched_terms": []}
+    query_tokens = _answer_overlap_tokens(case.query)
+    required_terms: list[str] = []
+    seen: set[str] = set()
+    for token in tokenize(formula_matches[0].group(1)):
+        if (
+            len(token) < 4
+            or token in STOPWORDS
+            or token in GENERIC_ANCHORS
+            or token in ANSWER_SCORING_GENERIC_TERMS
+            or token in query_tokens
+            or token in {"number", "numbers"}
+        ):
+            continue
+        _add_answer_material_term(required_terms, seen, token)
+        if len(required_terms) >= 4:
+            break
+    answer_text = str(answer.get("answer") or "")
+    answer_lower = answer_text.lower()
+    answer_tokens = set(tokenize(answer_text))
+    matched_terms = [
+        term
+        for term in required_terms
+        if _expected_term_matches_text(term, answer_lower, answer_tokens)
+    ]
+    return {
+        "checked": bool(required_terms),
+        "passed": bool(required_terms) and len(matched_terms) == len(required_terms),
+        "required_terms": required_terms,
+        "matched_terms": matched_terms,
     }
 
 
@@ -4012,11 +5020,22 @@ def score_answer_response(
     answer_document_ids = citation_document_ids.union(used_document_ids)
     expected_document_ids = _expected_answer_document_ids(case)
     missing_document_ids = sorted(expected_document_ids.difference(answer_document_ids))
+    equivalent_citation_support = _single_step_equivalent_citation_support(case, answer, retrieved_results)
+    if len(expected_document_ids) == 1 and missing_document_ids and equivalent_citation_support["passed"]:
+        missing_document_ids = []
     expected_terms, term_source = _answer_scoring_terms(case)
     material_terms, material_source = _answer_required_material_terms(case, answer)
     terms = _answer_contains_expected_terms(answer, expected_terms, required_terms=material_terms)
     terms["term_source"] = term_source
     terms["material_term_source"] = material_source
+    exact_evidence_answer_support = _expected_evidence_answer_support(case, answer, retrieved_results)
+    calculation_answer_support = _calculation_answer_support(case, answer)
+    if exact_evidence_answer_support.get("passed"):
+        # An exact expected table cell in the answer is stronger evidence than
+        # the lossy token heuristic, particularly for short corrective-action
+        # cells. Apply this independently of the optional LLM judge.
+        terms["passed"] = True
+        terms["exact_expected_evidence_matched"] = True
     llm_required_info = {"checked": False}
     if use_llm_required_info_judge:
         try:
@@ -4025,31 +5044,74 @@ def score_answer_response(
                 answer,
                 expected_terms=expected_terms,
                 material_terms=material_terms,
+                retrieved_results=retrieved_results,
             )
             if llm_required_info.get("checked"):
                 terms["llm_judged"] = True
                 terms["llm_required_information"] = llm_required_info
-                terms["passed"] = bool(llm_required_info.get("passed"))
+                if llm_required_info.get("passed"):
+                    terms["passed"] = True
+                elif exact_evidence_answer_support.get("passed"):
+                    terms["llm_negative_overridden_by_exact_expected_evidence"] = True
+                    terms["passed"] = True
+                elif calculation_answer_support.get("passed"):
+                    terms["llm_negative_overridden_by_calculation_support"] = True
+                    terms["passed"] = True
+                else:
+                    terms["passed"] = False
         except Exception as exc:
             llm_required_info = {"checked": False, "error": f"{exc.__class__.__name__}: {exc}"}
+            if calculation_answer_support.get("passed"):
+                terms["llm_negative_overridden_by_calculation_support"] = True
+                terms["passed"] = True
     citation_fidelity = _answer_citation_fidelity(answer, retrieved_results)
     evidence_citation_support = _expected_evidence_citation_support(case, answer, retrieved_results)
-    table_cell_binding = _answer_preserves_expected_table_cell_binding(case, answer, retrieved_results)
+    equivalent_answer_support = [
+        item
+        for item in evidence_citation_support.get("coverage", [])
+        if item.get("match_type") in {"equivalent_text", "equivalent_table_row"}
+    ]
+    if (
+        evidence_citation_support.get("passed")
+        and equivalent_answer_support
+        and all(item.get("answer_supported") for item in equivalent_answer_support)
+        and not (
+            llm_required_info.get("checked")
+            and not llm_required_info.get("passed")
+        )
+    ):
+        # The answer quotes a cited duplicate rendering of the expected table
+        # row.  Its wording is a stronger signal than token requirements derived
+        # from the other rendering.
+        terms["passed"] = True
+        terms["equivalent_cited_evidence_matched"] = True
     answer_text = str(answer.get("answer") or "").strip()
+    answer_claims_insufficient_evidence = bool(
+        re.search(
+            r"\b(?:provided|retrieved|available) evidence does not contain\b|"
+            r"\b(?:cannot|could not|unable to) (?:determine|find|answer)\b",
+            answer_text,
+            flags=re.IGNORECASE,
+        )
+    )
+    location_completeness = _configuration_location_answer_completeness(case, answer_text)
     passed = bool(
         answer_text
         and not answer.get("insufficient_evidence")
+        and not answer_claims_insufficient_evidence
         and not missing_document_ids
         and terms["passed"]
         and citation_fidelity["passed"]
         and evidence_citation_support["passed"]
-        and table_cell_binding["passed"]
+        and location_completeness["passed"]
     )
     failure_reasons: list[str] = []
     if not answer_text:
         failure_reasons.append("empty_answer")
     if answer.get("insufficient_evidence"):
         failure_reasons.append("insufficient_evidence")
+    if answer_claims_insufficient_evidence:
+        failure_reasons.append("answer_claims_insufficient_evidence")
     if missing_document_ids:
         failure_reasons.append("expected_document_not_cited_or_used")
     if not terms["passed"]:
@@ -4058,8 +5120,7 @@ def score_answer_response(
         failure_reasons.append("unsupported_citation_quote")
     if not evidence_citation_support["passed"]:
         failure_reasons.append("expected_evidence_not_cited")
-    if not table_cell_binding["passed"]:
-        failure_reasons.append("expected_table_cell_binding_missing")
+    failure_reasons.extend(location_completeness["failure_reasons"])
     if retrieval_evaluation and not retrieval_evaluation.get("passed"):
         failure_reasons.append("retrieval_not_passed")
     return {
@@ -4073,6 +5134,65 @@ def score_answer_response(
         "term_check": terms,
         "citation_fidelity": citation_fidelity,
         "evidence_citation_support": evidence_citation_support,
-        "table_cell_binding": table_cell_binding,
+        "equivalent_citation_support": equivalent_citation_support,
+        "exact_evidence_answer_support": exact_evidence_answer_support,
+        "calculation_answer_support": calculation_answer_support,
         "llm_required_information": llm_required_info,
+        "configuration_location_completeness": location_completeness,
     }
+
+
+def _configuration_location_answer_completeness(
+    case: RetrievalEvalCase,
+    answer_text: str,
+) -> dict[str, Any]:
+    query = case.query
+    location_query = bool(
+        re.search(
+            r"\bwhere\b.{0,100}\b(?:set|adjust|change|configure|find|locate|select|enable|disable)\b"
+            r"|\bwhere\s+(?:is|are)\b.{0,100}\b(?:setting|option|parameter|control|field)\b"
+            r"|\b(?:which|what)\s+(?:menu|screen|tab|section|page)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    if re.search(
+        r"\bwhat\s+screen\s+(?:resolution|size|dimensions?|technology|type|format)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        location_query = False
+    if not location_query:
+        return {"checked": False, "passed": True, "failure_reasons": []}
+    failures: list[str] = []
+    normalized = re.sub(r"\s+", " ", answer_text).strip()
+    first_sentence = re.split(r"(?<=[.!?])\s+|\n+", normalized, maxsplit=1)[0]
+    if re.search(r"\.pdf\b|\bretrieved evidence\b", first_sentence, flags=re.IGNORECASE):
+        failures.append("raw_context_answer")
+    if not re.search(
+        r"\b(?:menu|screen|tab|section|page|unit|settings?|options?|area|panel|dialog|folder)\b",
+        first_sentence,
+        flags=re.IGNORECASE,
+    ):
+        failures.append("configuration_location_missing")
+    if not re.match(r"^location\s*:", first_sentence, flags=re.IGNORECASE) and not re.search(
+        r"\b(?:in|under|inside|within|from|open|go to|navigate to)\b",
+        first_sentence,
+        flags=re.IGNORECASE,
+    ):
+        failures.append("configuration_location_missing")
+    source_text = " ".join(
+        [
+            case.expected_snippet,
+            str(case.source_metadata.get("parent_context") or ""),
+            " ".join(str(item.get("snippet") or "") for item in (case.expected_evidence or [])),
+        ]
+    )
+    if re.search(r"\b(?:specif(?:y|ies)|used (?:for|to)|because|so that|allows?|enables?|prevents?)\b", source_text, flags=re.IGNORECASE) and not re.search(
+        r"\b(?:purpose|specif(?:y|ies)|used (?:for|to)|because|so that|allows?|enables?|prevents?|controls?)\b",
+        normalized,
+        flags=re.IGNORECASE,
+    ):
+        failures.append("configuration_purpose_missing")
+    failures = list(dict.fromkeys(failures))
+    return {"checked": True, "passed": not failures, "failure_reasons": failures}

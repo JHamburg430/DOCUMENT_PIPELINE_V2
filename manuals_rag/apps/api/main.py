@@ -30,19 +30,202 @@ from apps.api.debug import (
     stream_query_debug_events,
 )
 from manuals_rag_answering.workflow import build_workflow
+from manuals_rag_answering.agentic_retrieval import (
+    build_langgraph_agentic_retriever,
+    build_llamaindex_agentic_retriever,
+    insufficient_agent_answer,
+)
+from manuals_rag_answering.generator import generate_answer
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import execute, fetch_all, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
+from manuals_rag_common.ingestion_progress import ensure_ingestion_step_table, initialize_ingestion_steps
 from manuals_rag_common.logging import configure_logging
-from manuals_rag_common.ollama import build_chat_payload, ensure_model_loaded, extract_chat_content, recent_ollama_calls
+from manuals_rag_common.ollama import (
+    build_chat_payload,
+    capture_ollama_usage,
+    chat_json,
+    ensure_model_loaded,
+    extract_chat_content,
+    recent_ollama_calls,
+    summarize_ollama_usage,
+)
 from manuals_rag_common.queue import enqueue, redis_client
 from manuals_rag_common.storage import ObjectStore
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase, build_eval_cases_from_chunks, score_search_results, tokenize
-from manuals_rag_observability.metrics import QUERY_DURATION
+from manuals_rag_observability.metrics import (
+    AGENTIC_RETRIEVAL_CLAIMS,
+    AGENTIC_RETRIEVAL_HOPS,
+    AGENTIC_RETRIEVAL_RUNS,
+    QUERY_DURATION,
+)
 from manuals_rag_parsers.metadata import infer_document_metadata
 from manuals_rag_permissions.auth import Principal, require_role
 from manuals_rag_retrieval.retriever import build_filters, retrieve
-from manuals_rag_schemas.documents import QueryRequest, SourceDocumentCreate
+from manuals_rag_schemas.documents import AnswerResponse, QueryRequest, SearchResult, SourceDocumentCreate
+
+
+AGENT_CLAIM_ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string"}},
+    "required": ["answer"],
+}
+
+
+def _answer_confirmed_claim(
+    objective: str,
+    results: list[SearchResult],
+    verifier_rationale: str,
+) -> AnswerResponse:
+    """Reduce one independently verified claim without cross-claim competition."""
+    try:
+        payload, _raw = chat_json(
+            model=settings.ollama_answer_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Answer exactly one requested claim using only the independently confirmed "
+                        "evidence. Return strict JSON with one key, answer. State the requested fact "
+                        "directly and concisely; do not mention chunk IDs or the verification process."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Claim: {objective}\n"
+                        f"Verifier rationale: {verifier_rationale}\n"
+                        "Confirmed evidence:\n"
+                        + "\n\n".join(
+                            f"[{result.title}; pages {result.pages}] {result.content[:1800]}"
+                            for result in results[:5]
+                        )
+                    ),
+                },
+            ],
+            json_schema=AGENT_CLAIM_ANSWER_SCHEMA,
+            think=False,
+            timeout=90.0,
+            num_predict=400,
+            purpose="agentic_retrieval.reduce_claim_answer",
+        )
+        answer_text = str(payload.get("answer") or "").strip()
+        if not answer_text:
+            raise ValueError("Claim reducer returned an empty answer")
+    except Exception:
+        return generate_answer(objective, results)
+
+    return AnswerResponse(
+        answer=answer_text,
+        confidence="high",
+        used_documents=[
+            {
+                "document_id": result.source_document_id,
+                "title": result.title,
+                "version": result.document_version_id,
+                "pages": result.pages,
+                "section_path": result.section_path,
+            }
+            for result in results
+        ],
+        citations=[
+            {
+                "chunk_id": result.chunk_id,
+                "document_id": result.source_document_id,
+                "pages": result.pages,
+                "quote_span": None,
+            }
+            for result in results
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+
+def _generate_agentic_answer(
+    query: str,
+    results: list[SearchResult],
+    trace: dict[str, Any],
+) -> AnswerResponse:
+    """Answer each confirmed required claim before reducing multi-claim output."""
+    required_support = dict(trace.get("required_claim_support") or {})
+    if len(required_support) <= 1:
+        return generate_answer(query, results)
+
+    ledger = dict(trace.get("evidence_ledger") or {})
+    results_by_id = {result.chunk_id: result for result in results}
+    branch_answers: list[AnswerResponse] = []
+    for hop_id, chunk_ids in required_support.items():
+        branch_results = [
+            results_by_id[str(chunk_id)]
+            for chunk_id in chunk_ids
+            if str(chunk_id) in results_by_id
+        ]
+        if not branch_results:
+            continue
+        objective = str((ledger.get(hop_id) or {}).get("objective") or query)
+        verification_candidates = [
+            entry
+            for candidate_id, entry in ledger.items()
+            if candidate_id == hop_id or str(entry.get("recovery_for") or "") == hop_id
+            if entry.get("sufficient")
+        ]
+        verifier_rationale = next(
+            (
+                str(
+                    ((entry.get("assessment") or {}).get("verification") or {}).get("rationale")
+                    or ""
+                )
+                for entry in verification_candidates
+                if str(
+                    ((entry.get("assessment") or {}).get("verification") or {}).get("rationale")
+                    or ""
+                ).strip()
+            ),
+            "",
+        )
+        branch_answers.append(
+            _answer_confirmed_claim(objective, branch_results, verifier_rationale)
+        )
+
+    if len(branch_answers) <= 1:
+        return generate_answer(query, results)
+
+    confidence_order = {"low": 0, "medium": 1, "high": 2}
+    confidence = min(
+        (answer.confidence for answer in branch_answers),
+        key=lambda value: confidence_order.get(value, 0),
+    )
+
+    def unique_records(records: list[dict[str, Any]], keys: tuple[str, ...]) -> list[dict[str, Any]]:
+        output: list[dict[str, Any]] = []
+        seen: set[tuple[str, ...]] = set()
+        for record in records:
+            identity = tuple(str(record.get(key) or "") for key in keys)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            output.append(record)
+        return output
+
+    return AnswerResponse(
+        answer="\n\n".join(answer.answer.strip() for answer in branch_answers if answer.answer.strip()),
+        confidence=confidence,
+        used_documents=unique_records(
+            [record for answer in branch_answers for record in answer.used_documents],
+            ("document_id", "version"),
+        ),
+        citations=unique_records(
+            [record for answer in branch_answers for record in answer.citations],
+            ("chunk_id", "document_id"),
+        ),
+        warnings=list(dict.fromkeys(item for answer in branch_answers for item in answer.warnings)),
+        followup_questions=list(
+            dict.fromkeys(item for answer in branch_answers for item in answer.followup_questions)
+        ),
+        insufficient_evidence=any(answer.insufficient_evidence for answer in branch_answers),
+    )
 
 
 def _storage_object_name(tenant_id: str, sha256: str, filename: str) -> str:
@@ -822,9 +1005,38 @@ app.add_middleware(
 )
 
 workflow = build_workflow()
+langgraph_agentic_retriever = build_langgraph_agentic_retriever()
+llamaindex_agentic_retriever = build_llamaindex_agentic_retriever()
 debug_workflow = build_workflow(include_answer=False)
 debug_query_runs: dict[str, dict[str, Any]] = {}
 debug_query_runs_lock = Lock()
+
+
+def _agentic_max_seconds(request: QueryRequest) -> float:
+    configured = float(request.max_retrieval_seconds or settings.agentic_retrieval_max_seconds)
+    return max(5.0, min(configured, 300.0))
+
+
+def _require_agentic_retrieval_enabled(request: QueryRequest) -> None:
+    if request.retrieval_orchestrator != "baseline" and not settings.agentic_retrieval_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Agentic retrieval is disabled by the production rollout switch.",
+        )
+
+
+def _record_agentic_trace(orchestrator: str, trace: dict[str, Any]) -> None:
+    outcome = str(trace.get("stop_reason") or "unknown")
+    AGENTIC_RETRIEVAL_RUNS.labels(orchestrator, outcome).inc()
+    completed_hops = list(trace.get("completed_hops") or [])
+    AGENTIC_RETRIEVAL_HOPS.labels(orchestrator).observe(len(completed_hops))
+    for item in (trace.get("evidence_ledger") or {}).values():
+        trust_state = str((item.get("assessment") or {}).get("trust_state") or "unknown")
+        AGENTIC_RETRIEVAL_CLAIMS.labels(orchestrator, trust_state).inc()
+
+
+def _record_agentic_failure(orchestrator: str) -> None:
+    AGENTIC_RETRIEVAL_RUNS.labels(orchestrator, "controller_error").inc()
 
 
 def _set_debug_query_run(run_id: str, payload: dict[str, Any]) -> None:
@@ -1023,7 +1235,13 @@ async def upload_documents(
 
 @app.post("/documents/{document_id}/ingest")
 def ingest_document(document_id: str, _: Principal = Depends(require_role("admin", "operator"))) -> dict[str, str]:
-    source = fetch_one("select current_version_id from source_documents where id = %s", (document_id,))
+    source = fetch_one(
+        """
+        select current_version_id, source_filename, file_size_bytes, sha256, storage_uri, corpus_id
+        from source_documents where id = %s
+        """,
+        (document_id,),
+    )
     if not source:
         raise HTTPException(status_code=404, detail="Document not found.")
     run_id = str(uuid4())
@@ -1033,6 +1251,16 @@ def ingest_document(document_id: str, _: Principal = Depends(require_role("admin
         values (%s, %s, %s, 'queued', null, now(), now())
         """,
         (run_id, document_id, source["current_version_id"]),
+    )
+    initialize_ingestion_steps(
+        run_id,
+        upload_details={
+            "filename": source.get("source_filename"),
+            "size_bytes": source.get("file_size_bytes"),
+            "sha256": source.get("sha256"),
+            "storage_uri": source.get("storage_uri"),
+            "corpus_id": source.get("corpus_id"),
+        },
     )
     enqueue("ingest_jobs", {"run_id": run_id, "document_id": document_id, "version_id": source["current_version_id"]})
     return {"run_id": run_id}
@@ -1058,9 +1286,14 @@ def list_versions(document_id: str, _: Principal = Depends(require_role("end_use
 
 @app.get("/ingestion-runs/{run_id}")
 def get_ingestion_run(run_id: str, _: Principal = Depends(require_role("operator", "admin", "auditor"))) -> dict[str, Any]:
+    ensure_ingestion_step_table()
     run = fetch_one("select * from ingestion_runs where id = %s", (run_id,))
     if not run:
         raise HTTPException(status_code=404, detail="Run not found.")
+    run["steps"] = fetch_all(
+        "select step_key, sequence, label, status, started_at, completed_at, duration_ms, detail_json, error from ingestion_run_steps where run_id = %s order by sequence",
+        (run_id,),
+    )
     return run
 
 
@@ -1069,11 +1302,46 @@ def query_documents(
     request: QueryRequest,
     _: Principal = Depends(require_role("end_user", "operator", "admin", "auditor")),
 ) -> JSONResponse:
-    with QUERY_DURATION.labels("full").time():
-        result = workflow.invoke(
-            {"query": request.query, "corpus_ids": request.corpus_ids, "filters": request.filters}
+    _require_agentic_retrieval_enabled(request)
+    if request.retrieval_orchestrator == "baseline":
+        with QUERY_DURATION.labels("full").time():
+            result = workflow.invoke(
+                {"query": request.query, "corpus_ids": request.corpus_ids, "filters": request.filters}
+            )
+        answer = dict(result["answer"])
+    else:
+        agentic_retriever = (
+            langgraph_agentic_retriever
+            if request.retrieval_orchestrator == "langgraph_agent"
+            else llamaindex_agentic_retriever
         )
-    answer = dict(result["answer"])
+        try:
+            with QUERY_DURATION.labels("full").time(), capture_ollama_usage() as usage_events:
+                result = agentic_retriever.invoke(
+                    {
+                        "query": request.query,
+                        "corpus_ids": request.corpus_ids,
+                        "filters": request.filters,
+                        "max_hops": request.max_retrieval_hops,
+                        "max_seconds": _agentic_max_seconds(request),
+                    }
+                )
+                retrieval_results = [SearchResult.model_validate(item) for item in result.get("retrieval_results", [])]
+                retrieval_trace = result.get("retrieval_trace", {})
+                answer = (
+                    _generate_agentic_answer(request.query, retrieval_results, retrieval_trace)
+                    if result.get("sufficient", retrieval_trace.get("sufficient"))
+                    else insufficient_agent_answer(request.query, retrieval_trace)
+                ).model_dump()
+        except Exception:
+            _record_agentic_failure(request.retrieval_orchestrator)
+            raise
+        trace = dict(result.get("retrieval_trace", {}))
+        _record_agentic_trace(request.retrieval_orchestrator, trace)
+        trace["cost"] = {**dict(trace.get("cost") or {}), **summarize_ollama_usage(usage_events), "measured": True}
+        result["retrieval_trace"] = trace
+        answer["retrieval_orchestrator"] = request.retrieval_orchestrator
+        answer["retrieval_trace"] = result.get("retrieval_trace", {})
     if request.include_source_assets or request.include_page_images or request.include_table_images:
         answer = _attach_source_assets(
             answer,
@@ -1082,6 +1350,106 @@ def query_documents(
             include_table_images=request.include_table_images,
         )
     return JSONResponse(answer)
+
+
+def _stream_agentic_query_events(request: QueryRequest):
+    """Run one agent backend in a worker and expose its bounded decisions as NDJSON."""
+    events: queue.Queue[dict[str, Any] | None] = queue.Queue()
+
+    def emit(event: dict[str, Any]) -> None:
+        events.put(event)
+
+    def run() -> None:
+        orchestrator = request.retrieval_orchestrator
+        try:
+            emit(
+                {
+                    "event": "run_started",
+                    "retrieval_orchestrator": orchestrator,
+                    "query": request.query,
+                    "max_hops": request.max_retrieval_hops,
+                    "max_seconds": _agentic_max_seconds(request),
+                }
+            )
+            factory = (
+                build_langgraph_agentic_retriever
+                if orchestrator == "langgraph_agent"
+                else build_llamaindex_agentic_retriever
+            )
+            with QUERY_DURATION.labels("full").time(), capture_ollama_usage() as usage_events:
+                result = factory(event_callback=emit).invoke(
+                    {
+                        "query": request.query,
+                        "corpus_ids": request.corpus_ids,
+                        "filters": request.filters,
+                        "max_hops": request.max_retrieval_hops,
+                        "max_seconds": _agentic_max_seconds(request),
+                    }
+                )
+                retrieval_results = [
+                    SearchResult.model_validate(item)
+                    for item in result.get("retrieval_results", [])
+                ]
+                emit(
+                    {
+                        "event": "answer_started",
+                        "evidence_count": len(retrieval_results),
+                        "synthesis_allowed": bool(result.get("sufficient", (result.get("retrieval_trace") or {}).get("sufficient"))),
+                    }
+                )
+                retrieval_trace = result.get("retrieval_trace", {})
+                answer = (
+                    _generate_agentic_answer(request.query, retrieval_results, retrieval_trace)
+                    if result.get("sufficient", retrieval_trace.get("sufficient"))
+                    else insufficient_agent_answer(request.query, retrieval_trace)
+                ).model_dump()
+            trace = dict(result.get("retrieval_trace", {}))
+            _record_agentic_trace(orchestrator, trace)
+            trace["cost"] = {**dict(trace.get("cost") or {}), **summarize_ollama_usage(usage_events), "measured": True}
+            result["retrieval_trace"] = trace
+            answer["retrieval_orchestrator"] = orchestrator
+            answer["retrieval_trace"] = result.get("retrieval_trace", {})
+            if request.include_source_assets or request.include_page_images or request.include_table_images:
+                answer = _attach_source_assets(
+                    answer,
+                    [item.model_dump() for item in retrieval_results],
+                    include_page_images=request.include_page_images,
+                    include_table_images=request.include_table_images,
+                )
+            emit({"event": "answer_completed", "answer": answer})
+            emit({"event": "run_completed", "result": answer})
+        except Exception as error:
+            _record_agentic_failure(orchestrator)
+            emit(
+                {
+                    "event": "run_failed",
+                    "error": f"{error.__class__.__name__}: {error}",
+                }
+            )
+        finally:
+            events.put(None)
+
+    Thread(target=run, daemon=True).start()
+    while True:
+        event = events.get()
+        if event is None:
+            break
+        yield json.dumps(event, default=str) + "\n"
+
+
+@app.post("/query/stream")
+def stream_agentic_query(
+    request: QueryRequest,
+    _: Principal = Depends(require_role("end_user", "operator", "admin", "auditor")),
+) -> StreamingResponse:
+    _require_agentic_retrieval_enabled(request)
+    if request.retrieval_orchestrator == "baseline":
+        raise HTTPException(status_code=422, detail="Live agent trace requires an agentic retrieval orchestrator.")
+    return StreamingResponse(
+        _stream_agentic_query_events(request),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/search")
@@ -1110,8 +1478,12 @@ def explain_retrieval(
 ) -> dict[str, Any]:
     filters = build_filters(request.query, request.filters)
     results = [item.model_dump() for item in retrieve(request.query, request.corpus_ids, filters)]
+    corrective_retrieval = {}
+    if results:
+        corrective_retrieval = dict(results[0].get("metadata", {}).get("corrective_retrieval") or {})
     return {
         "applied_filters": filters,
+        "corrective_retrieval": corrective_retrieval,
         "reranked_top_results": results,
     }
 
@@ -1486,8 +1858,12 @@ def debug_documents(
 @app.get("/debug/ingestion-status")
 def debug_ingestion_status(
     limit: int = 50,
+    document_id: str | None = None,
+    corpus_id: str | None = None,
+    status: str | None = None,
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> dict[str, Any]:
+    ensure_ingestion_step_table()
     bounded_limit = max(1, min(limit, 200))
     document_status = fetch_all(
         """
@@ -1505,8 +1881,20 @@ def debug_ingestion_status(
         order by status
         """
     )
+    run_where: list[str] = []
+    run_params: list[Any] = []
+    if document_id:
+        run_where.append("sd.id = %s")
+        run_params.append(document_id)
+    if corpus_id:
+        run_where.append("sd.corpus_id = %s")
+        run_params.append(corpus_id)
+    if status:
+        run_where.append("ir.status = %s")
+        run_params.append(status)
+    run_where_sql = f"where {' and '.join(run_where)}" if run_where else ""
     recent_runs = fetch_all(
-        """
+        f"""
         select
             ir.id as run_id,
             ir.status,
@@ -1527,13 +1915,26 @@ def debug_ingestion_status(
         from ingestion_runs ir
         join source_documents sd on sd.id = ir.source_document_id
         left join document_versions dv on dv.id = ir.document_version_id
+        {run_where_sql}
         order by ir.updated_at desc
         limit %s
         """,
-        (bounded_limit,),
+        tuple([*run_params, bounded_limit]),
     )
+    document_where: list[str] = []
+    document_params: list[Any] = []
+    if document_id:
+        document_where.append("sd.id = %s")
+        document_params.append(document_id)
+    if corpus_id:
+        document_where.append("sd.corpus_id = %s")
+        document_params.append(corpus_id)
+    if status:
+        document_where.append("sd.ingest_status = %s")
+        document_params.append(status)
+    document_where_sql = f"where {' and '.join(document_where)}" if document_where else ""
     recent_documents = fetch_all(
-        """
+        f"""
         select
             sd.id as document_id,
             sd.corpus_id,
@@ -1548,11 +1949,33 @@ def debug_ingestion_status(
             ) as chunk_count
         from source_documents sd
         left join document_versions dv on dv.id = sd.current_version_id
+        {document_where_sql}
         order by sd.updated_at desc
         limit %s
         """,
-        (bounded_limit,),
+        tuple([*document_params, bounded_limit]),
     )
+    run_ids = [str(row["run_id"]) for row in recent_runs]
+    step_rows = (
+        fetch_all(
+            """
+            select run_id, step_key, sequence, label, status, started_at, completed_at,
+                   duration_ms, detail_json, error
+            from ingestion_run_steps
+            where run_id = any(%s::uuid[])
+            order by run_id, sequence
+            """,
+            (run_ids,),
+        )
+        if run_ids
+        else []
+    )
+    steps_by_run: dict[str, list[dict[str, Any]]] = {}
+    for step in step_rows:
+        steps_by_run.setdefault(str(step["run_id"]), []).append(step)
+    for run in recent_runs:
+        run["steps"] = steps_by_run.get(str(run["run_id"]), [])
+        run["step_count"] = len(run["steps"])
     redis = redis_client()
     queues = {
         "ingest_jobs": redis.llen("ingest_jobs"),

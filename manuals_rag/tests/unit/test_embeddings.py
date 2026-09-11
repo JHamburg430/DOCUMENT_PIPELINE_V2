@@ -1,3 +1,4 @@
+from manuals_rag_common.config import settings
 from manuals_rag_retrieval.embeddings import EMBED_BATCH_SIZE, embed_dense, normalize_for_embedding
 
 
@@ -16,6 +17,7 @@ def test_normalize_for_embedding_adds_search_term_variants():
 
 def test_embed_dense_batches_requests(monkeypatch):
     calls = []
+    client_options = []
 
     class FakeResponse:
         status_code = 200
@@ -29,7 +31,7 @@ def test_embed_dense_batches_requests(monkeypatch):
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
-            pass
+            client_options.append(kwargs)
 
         def __enter__(self):
             return self
@@ -47,6 +49,7 @@ def test_embed_dense_batches_requests(monkeypatch):
     vectors = embed_dense(texts)
 
     assert len(calls) == 2
+    assert client_options[0]["base_url"] == settings.ollama_embed_url
     assert all(isinstance(call["input"], list) for call in calls)
     assert len(vectors) == len(texts)
 

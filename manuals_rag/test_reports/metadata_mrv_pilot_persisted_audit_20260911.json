@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-09-11T01:34:02.573179+00:00",
+  "pipeline": "evidence_map_reduce_verify_v1",
+  "document_count": 3,
+  "passed": 3,
+  "failed": 0,
+  "documents": [
+    {
+      "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+      "source_filename": "AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf",
+      "title": "NEW KV: X Series",
+      "claim_counts": {
+        "rejected": 58,
+        "confirmed": 19
+      },
+      "routing_product_models": [
+        "KV:X"
+      ],
+      "routing_part_numbers": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 9143,
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+      "source_filename": "AS_147320_LJ-S8000_SG_K47GB_WW_GB_2094_1.pdf",
+      "title": "LJ: S8000 Series Easy Configuration Manual",
+      "claim_counts": {
+        "rejected": 2,
+        "confirmed": 1
+      },
+      "routing_product_models": [
+        "LJ:S8000"
+      ],
+      "routing_part_numbers": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 153,
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+      "source_filename": "VJ-H500CX_Datasheet.pdf",
+      "title": "VJ-H500CX",
+      "claim_counts": {
+        "confirmed": 6
+      },
+      "routing_product_models": [
+        "VJ-H500CX"
+      ],
+      "routing_part_numbers": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 49,
+      "checks_passed": true,
+      "failures": []
+    }
+  ]
+}
