@@ -298,6 +298,49 @@ def test_agent_live_runs_are_server_owned_and_reattachable(monkeypatch):
     assert ui_server.AGENT_LIVE_LATEST_ID == job["id"]
 
 
+def test_agent_chat_page_exposes_grounded_conversation_controls():
+    app_js = (UI_DIR / "app.js").read_text()
+    index_html = (UI_DIR / "index.html").read_text()
+    styles_css = (UI_DIR / "styles.css").read_text()
+
+    assert 'data-tab="agent-chat"' in index_html
+    assert 'id="agent-chat-form"' in index_html
+    assert 'id="agent-chat-query"' in index_html
+    assert 'id="agent-chat-backend"' in index_html
+    assert 'id="agent-chat-show-trace"' in index_html
+    assert "Show live retrieval trace" in index_html
+    assert "/local/agent-chat/run" in app_js
+    assert "/local/agent-chat/current" in app_js
+    assert "sendAgentChatMessage" in app_js
+    assert "hydrateAgentChatJob" in app_js
+    assert "renderAgentChatTrace" in app_js
+    assert ".agent-chat-shell" in styles_css
+    assert ".agent-chat-composer" in styles_css
+    assert "#agent-chat.tab-panel.active" in styles_css
+
+
+def test_agent_chat_and_lab_reattach_to_their_own_latest_jobs():
+    with ui_server.AGENT_LIVE_LOCK:
+        ui_server.AGENT_LIVE_JOBS.clear()
+        ui_server.AGENT_LIVE_JOBS.update(
+            {
+                "lab-old": {"id": "lab-old", "surface": "lab", "status": "completed"},
+                "chat-new": {"id": "chat-new", "surface": "chat", "status": "completed"},
+            }
+        )
+
+    httpd = _serve(UiHandler)
+    try:
+        with urlopen(f"http://127.0.0.1:{httpd.server_port}/local/agent-runs/current", timeout=5) as response:
+            assert loads(response.read())["job"]["id"] == "lab-old"
+        with urlopen(f"http://127.0.0.1:{httpd.server_port}/local/agent-chat/current", timeout=5) as response:
+            assert loads(response.read())["job"]["id"] == "chat-new"
+    finally:
+        httpd.shutdown()
+        with ui_server.AGENT_LIVE_LOCK:
+            ui_server.AGENT_LIVE_JOBS.clear()
+
+
 def test_agent_lab_reattaches_without_browser_owned_api_stream():
     app_js = (UI_DIR / "app.js").read_text()
 

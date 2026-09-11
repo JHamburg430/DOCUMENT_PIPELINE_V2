@@ -114,6 +114,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/local/agent-chat/current":
+            self._local_current_agent_chat_job()
+            return
         if parsed.path.startswith("/local/agent-runs/jobs/"):
             self._local_agent_live_job(parsed.path.rsplit("/", 1)[-1])
             return
@@ -148,6 +151,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/local/agent-chat/run":
+            self._start_local_agent_chat_run()
+            return
         if parsed.path == "/local/agent-runs/run":
             self._start_local_agent_live_run()
             return
@@ -323,7 +329,27 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def _local_current_agent_live_job(self) -> None:
         with AGENT_LIVE_LOCK:
-            job = deepcopy(AGENT_LIVE_JOBS.get(AGENT_LIVE_LATEST_ID) or {})
+            job = next(
+                (
+                    deepcopy(item)
+                    for item in reversed(list(AGENT_LIVE_JOBS.values()))
+                    if item.get("surface", "lab") == "lab"
+                ),
+                {},
+            )
+        payload = json.dumps({"job": job or None}, default=str).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self._write(payload)
+
+    def _local_current_agent_chat_job(self) -> None:
+        with AGENT_LIVE_LOCK:
+            job = next(
+                (deepcopy(item) for item in reversed(list(AGENT_LIVE_JOBS.values())) if item.get("surface") == "chat"),
+                {},
+            )
         payload = json.dumps({"job": job or None}, default=str).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -364,6 +390,32 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._write(payload)
         except Exception as error:
             payload = dumps({"detail": f"Agent run failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _start_local_agent_chat_run(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+            body = self.rfile.read(content_length) if content_length else b"{}"
+            job = _start_agent_live_job(json.loads(body.decode("utf-8") or "{}"), surface="chat")
+            payload = json.dumps(job, default=str).encode("utf-8")
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Agent chat failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
@@ -670,7 +722,7 @@ def _start_agent_matrix_job(payload: dict) -> dict:
     return dict(job)
 
 
-def _start_agent_live_job(payload: dict) -> dict:
+def _start_agent_live_job(payload: dict, *, surface: str = "lab") -> dict:
     global AGENT_LIVE_LATEST_ID
     query = str(payload.get("query") or "").strip()
     if not query:
@@ -692,12 +744,14 @@ def _start_agent_live_job(payload: dict) -> dict:
     with AGENT_LIVE_LOCK:
         active = next((job for job in AGENT_LIVE_JOBS.values() if job.get("status") in {"queued", "running"}), None)
         if active:
-            raise ValueError(f"Agent run {active['id']} is already active; this page can reattach to it.")
+            active_surface = "Agent page" if active.get("surface") == "chat" else "Agent Lab"
+            raise ValueError(f"Agent run {active['id']} is already active in {active_surface}.")
         job_id = f"agent-run-{uuid.uuid4().hex[:12]}"
         started_epoch = time.time()
         job = {
             "id": job_id,
             "status": "queued",
+            "surface": surface,
             "query": query,
             "corpus_ids": corpus_ids,
             "backends": backends,

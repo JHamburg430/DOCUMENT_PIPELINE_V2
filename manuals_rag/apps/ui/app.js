@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260908-agent-sync";
+const ASSET_VERSION = "20260911-agent-chat";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
 const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
@@ -40,6 +40,11 @@ const state = {
   },
   agentLab: {
     runs: {},
+    job: null,
+    timer: null,
+  },
+  agentChat: {
+    turns: [],
     job: null,
     timer: null,
   },
@@ -2629,6 +2634,207 @@ function applyAgentEvent(run, event, shouldRender = true) {
   if (shouldRender) renderAgentLab();
 }
 
+function agentRunFromJob(job) {
+  const backend = job?.backends?.[0] || Object.keys(job?.runs || {})[0] || "langgraph_agent";
+  const snapshot = job?.runs?.[backend] || {};
+  const nowEpoch = Date.now() / 1000;
+  const startedEpoch = Number(job?.started_at_epoch || nowEpoch);
+  const startedAt = performance.now() - Math.max(0, nowEpoch - startedEpoch) * 1000;
+  const run = {
+    backend,
+    status: snapshot.status === "queued" ? "running" : (snapshot.status || job?.status || "running"),
+    startedAt,
+    completedAt: job?.completed_at_epoch
+      ? startedAt + Math.max(0, Number(job.completed_at_epoch) - startedEpoch) * 1000
+      : null,
+    events: [],
+    hops: {},
+    plan: null,
+    trace: null,
+    answer: null,
+    error: snapshot.error || job?.error || null,
+  };
+  (snapshot.events || []).forEach((rawEvent) => {
+    const event = { ...rawEvent };
+    event.receivedAt = event.received_at_epoch
+      ? startedAt + Math.max(0, Number(event.received_at_epoch) - startedEpoch) * 1000
+      : performance.now();
+    applyAgentEvent(run, event, false);
+  });
+  return run;
+}
+
+function renderAgentChatTrace(run) {
+  if (!$('agent-chat-show-trace').checked) return "";
+  const plan = run.plan || {};
+  const hops = Object.values(run.hops || {});
+  return `
+    <details class="agent-chat-trace" ${run.status === "running" ? "open" : ""}>
+      <summary>${run.status === "running" ? "Live retrieval trace" : "Retrieval trace"} · ${escapeHtml(agentBackendLabel(run.backend))}</summary>
+      ${plan.hops?.length ? `
+        <div class="agent-chat-plan">
+          <strong>${escapeHtml(plan.mode || "retrieval plan")}</strong>
+          <ol>${plan.hops.map((hop) => `<li>${escapeHtml(hop.objective || hop.query || hop.hop_id)} <span class="model-meta">${escapeHtml(hop.strategy || "")}</span></li>`).join("")}</ol>
+        </div>
+      ` : '<p class="muted">Waiting for the retrieval plan…</p>'}
+      <div class="agent-chat-hop-strip">
+        ${hops.map((hop) => `
+          <div class="agent-chat-hop ${hop.sufficient === true ? "pass" : hop.sufficient === false ? "fail" : ""}">
+            <strong>${escapeHtml(hop.hop_id || "hop")}</strong>
+            <span>${escapeHtml(hop.strategy || hop.status || "pending")}</span>
+            <small>${escapeHtml(hop.executed_query || hop.query || hop.objective || "")}</small>
+          </div>
+        `).join("") || '<div class="agent-chat-hop"><span>Preparing retrieval…</span></div>'}
+      </div>
+      ${run.trace?.stop_reason ? `<p class="model-meta">${escapeHtml(run.trace.stop_reason)} · ${escapeHtml(run.trace.completed_hops?.length || 0)} hop(s) · ${Number(run.trace.duration_ms || 0).toFixed(0)} ms</p>` : ""}
+    </details>
+  `;
+}
+
+function renderAgentChat() {
+  const node = $("agent-chat-messages");
+  const turns = state.agentChat.turns;
+  if (!turns.length) {
+    node.innerHTML = `
+      <div class="agent-chat-welcome">
+        <h3>What do you need to find?</h3>
+        <p>Ask about setup, wiring, specifications, troubleshooting, compatibility, or procedures in the indexed manuals.</p>
+        <div class="agent-chat-suggestions">
+          <button type="button" data-agent-suggestion="Which cable model connects the LJ-X8000 RS-232C port, and what is its connector orientation?">Find a cable and orientation</button>
+          <button type="button" data-agent-suggestion="Compare the key commissioning requirements for the SV2 and LJ-S8000 systems.">Compare two products</button>
+          <button type="button" data-agent-suggestion="What should I check when a trigger signal error occurs?">Troubleshoot an error</button>
+        </div>
+      </div>`;
+    setupAgentChatSuggestions();
+    return;
+  }
+  node.innerHTML = turns.map((turn) => {
+    const run = turn.run;
+    const answer = run?.answer;
+    const running = !run || run.status === "running" || turn.status === "queued";
+    const error = run?.error || turn.error;
+    return `
+      <article class="agent-chat-turn">
+        <div class="agent-chat-message user-message">
+          <span class="agent-chat-role">You</span>
+          <p>${escapeHtml(turn.query)}</p>
+        </div>
+        <div class="agent-chat-message assistant-message ${error ? "message-error" : ""}">
+          <span class="agent-chat-role">Manuals Agent</span>
+          ${running ? '<div class="agent-chat-thinking"><span class="activity-dot"></span> Searching and verifying evidence…</div>' : ""}
+          ${error ? `<div class="error-box">${escapeHtml(error)}</div>` : ""}
+          ${answer ? `
+            <p class="answer-text">${escapeHtml(answer.answer || "No grounded answer was produced.")}</p>
+            ${answer.citations?.length ? `<section class="agent-chat-sources"><h4>Sources</h4>${renderCitations(answer.citations)}</section>` : ""}
+            ${answer.warnings?.length ? `<div class="warning-box">${renderList(answer.warnings)}</div>` : ""}
+          ` : (!running && !error ? '<div class="warning-box">The agent completed without a grounded answer.</div>' : "")}
+          ${run ? renderAgentChatTrace(run) : ""}
+        </div>
+      </article>`;
+  }).join("");
+  node.scrollTop = node.scrollHeight;
+}
+
+function hydrateAgentChatJob(job) {
+  if (!job) return;
+  state.agentChat.job = job;
+  const run = agentRunFromJob(job);
+  let turn = state.agentChat.turns.find((item) => item.jobId === job.id);
+  if (!turn) {
+    turn = { jobId: job.id, query: job.query || "Agent question", status: job.status, run };
+    state.agentChat.turns.push(turn);
+  } else {
+    turn.status = job.status;
+    turn.run = run;
+  }
+  const active = ["queued", "running"].includes(job.status);
+  $("agent-chat-send").disabled = active;
+  const status = $("agent-chat-status");
+  status.textContent = active ? "Working" : run.status === "failed" ? "Failed" : "Ready";
+  status.className = `status-pill ${active ? "running" : run.status === "failed" ? "fail" : "pass"}`;
+  renderAgentChat();
+}
+
+async function pollAgentChatJob(jobId) {
+  if (state.agentChat.timer) clearTimeout(state.agentChat.timer);
+  const job = await localJson(`/local/agent-runs/jobs/${encodeURIComponent(jobId)}`);
+  hydrateAgentChatJob(job);
+  if (["queued", "running"].includes(job.status)) {
+    state.agentChat.timer = setTimeout(() => pollAgentChatJob(jobId).catch((error) => {
+      $("agent-chat-status").textContent = "Reconnect pending";
+      $("agent-chat-status").className = "status-pill running";
+      const turn = state.agentChat.turns.find((item) => item.jobId === jobId);
+      if (turn) turn.error = error.message;
+      renderAgentChat();
+    }), MATRIX_JOB_POLL_MS);
+    return;
+  }
+  state.agentChat.timer = null;
+  $("agent-chat-send").disabled = false;
+}
+
+async function loadAgentChatJob() {
+  const payload = await localJson("/local/agent-chat/current");
+  if (!payload.job) return;
+  hydrateAgentChatJob(payload.job);
+  if (["queued", "running"].includes(payload.job.status)) await pollAgentChatJob(payload.job.id);
+}
+
+async function sendAgentChatMessage() {
+  const query = $("agent-chat-query").value.trim();
+  if (!query) return;
+  $("agent-chat-query").value = "";
+  $("agent-chat-send").disabled = true;
+  $("agent-chat-status").textContent = "Starting";
+  $("agent-chat-status").className = "status-pill running";
+  const pendingId = `pending-${Date.now()}`;
+  state.agentChat.turns.push({ jobId: pendingId, query, status: "queued", run: null });
+  renderAgentChat();
+  try {
+    const job = await localPostJson("/local/agent-chat/run", {
+      query,
+      corpus_ids: splitList($("agent-chat-corpus").value || DEFAULT_CORPUS),
+      backends: [$("agent-chat-backend").value],
+      max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-chat-max-hops").value || 4))),
+    });
+    const pending = state.agentChat.turns.find((item) => item.jobId === pendingId);
+    if (pending) pending.jobId = job.id;
+    hydrateAgentChatJob(job);
+    await pollAgentChatJob(job.id);
+  } catch (error) {
+    const pending = state.agentChat.turns.find((item) => item.jobId === pendingId);
+    if (pending) {
+      pending.status = "failed";
+      pending.error = error.message;
+    }
+    $("agent-chat-send").disabled = false;
+    $("agent-chat-status").textContent = "Unavailable";
+    $("agent-chat-status").className = "status-pill fail";
+    renderAgentChat();
+  }
+}
+
+function setupAgentChatSuggestions() {
+  document.querySelectorAll("[data-agent-suggestion]").forEach((button) => {
+    button.addEventListener("click", () => {
+      $("agent-chat-query").value = button.dataset.agentSuggestion;
+      $("agent-chat-query").focus();
+    });
+  });
+}
+
+function resetAgentChat() {
+  if (state.agentChat.timer) clearTimeout(state.agentChat.timer);
+  state.agentChat.timer = null;
+  state.agentChat.turns = [];
+  state.agentChat.job = null;
+  $("agent-chat-send").disabled = false;
+  $("agent-chat-status").textContent = "Ready";
+  $("agent-chat-status").className = "status-pill";
+  renderAgentChat();
+  $("agent-chat-query").focus();
+}
+
 function hydrateAgentLiveJob(job) {
   if (!job) return;
   state.agentLab.job = job;
@@ -2885,6 +3091,7 @@ async function recoverAfterPageReturn() {
     if (activeTab === "agent-lab") {
       await Promise.all([loadAgentMatrix(), loadAgentLiveJob()]);
     }
+    if (activeTab === "agent-chat") await loadAgentChatJob();
     if (activeTab === "ingestion") {
       await loadIngestionStatus();
     }
@@ -3177,6 +3384,7 @@ function setupTabs() {
       tab.classList.add("active");
       $(tab.dataset.tab).classList.add("active");
       if (tab.dataset.tab === "matrix") loadQuestionMatrix();
+      if (tab.dataset.tab === "agent-chat") loadAgentChatJob().catch(console.error);
       if (tab.dataset.tab === "agent-lab") {
         loadAgentMatrix();
         loadAgentLiveJob().catch(console.error);
@@ -3212,6 +3420,19 @@ async function init() {
   setupTabs();
   setupMatrixControls();
   $("run-query").addEventListener("click", runQuery);
+  $("agent-chat-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    sendAgentChatMessage();
+  });
+  $("agent-chat-query").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      $("agent-chat-form").requestSubmit();
+    }
+  });
+  $("agent-chat-new").addEventListener("click", resetAgentChat);
+  $("agent-chat-show-trace").addEventListener("change", renderAgentChat);
+  setupAgentChatSuggestions();
   $("run-agent-test").addEventListener("click", () => runAgentTest().catch((error) => {
     $("run-agent-test").disabled = false;
     $("agent-lab-status").textContent = error.message;
@@ -3244,7 +3465,7 @@ async function init() {
   });
   setConnectionStatus("UI ready · synchronizing active views");
   state.ingestionTimer = setInterval(maybePollIngestion, 5000);
-  Promise.allSettled([loadQuestionMatrix(), loadAgentLiveJob()]).then((results) => {
+  Promise.allSettled([loadQuestionMatrix(), loadAgentLiveJob(), loadAgentChatJob()]).then((results) => {
     const failure = results.find((result) => result.status === "rejected");
     if (failure) {
       setConnectionStatus(`View sync pending: ${failure.reason?.message || failure.reason}`, "idle");
