@@ -86,6 +86,22 @@ def test_model_planners_enforce_parallel_branches_for_colon_delimited_product_co
     assert langgraph.hops[1].query == "What is grayscale settings for LJ:S8000?"
 
 
+def test_comparison_planner_assigns_trailing_details_to_matching_branches():
+    plan = plan_retrieval(
+        "Compare the VJ-H500CX weight qualification with the LJ:S8000 grayscale adjustment: "
+        "give the exact weight and lens caveat, then the exact adjustment direction and what that changes.",
+        use_llm=False,
+    )
+
+    assert plan.mode == "parallel"
+    assert plan.hops[0].query == (
+        "What is the VJ-H500CX weight qualification; give the exact weight and lens caveat?"
+    )
+    assert plan.hops[1].query == (
+        "What is the LJ:S8000 grayscale adjustment; the exact adjustment direction and what that changes?"
+    )
+
+
 def test_model_planners_split_independent_interrogative_facets(monkeypatch):
     query = "For KV-X Series, which software is listed and what upgrade benefit is stated?"
 
@@ -103,6 +119,31 @@ def test_model_planners_split_independent_interrogative_facets(monkeypatch):
     ]
     assert [hop.hop_id for hop in llamaindex.hops] == ["subquestion_1", "subquestion_2"]
     assert all(hop.strategy == "hybrid" for hop in llamaindex.hops)
+
+
+def test_model_planners_split_multi_product_reported_clauses(monkeypatch):
+    query = (
+        "Prepare a commissioning note that states the VJ-H500CX weight and whether it includes the lens, "
+        "explains how to increase grayscale percentage on LJ:S8000, and names the KV-X integrated software "
+        "plus its upgrade benefit."
+    )
+
+    def fail_if_called(**_kwargs):
+        raise AssertionError("multi-product claim safety must run before model planning")
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", fail_if_called)
+
+    langgraph = plan_retrieval(query, use_llm=True)
+    llamaindex = plan_llamaindex_retrieval(query, use_llm=True)
+
+    assert langgraph.mode == "parallel"
+    assert [hop.hop_id for hop in langgraph.hops] == ["claim_1", "claim_2", "claim_3"]
+    assert [hop.query for hop in langgraph.hops] == [
+        "Find explicit manual evidence that states the VJ-H500CX weight and whether it includes the lens.",
+        "Find explicit manual evidence that explains how to increase grayscale percentage on LJ:S8000.",
+        "Find explicit manual evidence that names the KV-X integrated software plus its upgrade benefit.",
+    ]
+    assert [hop.hop_id for hop in llamaindex.hops] == ["subquestion_1", "subquestion_2", "subquestion_3"]
 
 
 def test_backends_have_independent_default_planning_policies():
@@ -401,6 +442,134 @@ def test_verifier_normalizes_verdict_alias_response(monkeypatch):
     assert result["trust_state"] == "confirmed"
     assert result["claim_supported"] is True
     assert result["supporting_chunk_ids"] == ["alpha"]
+
+
+def test_verifier_normalizes_verified_and_chunk_ids_aliases(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "verified": True,
+                "chunk_ids": ["alpha"],
+                "evidence_support": "The cited chunk directly states the action.",
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha"]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+    assert result["supporting_chunk_ids"] == ["alpha"]
+    assert result["rationale"] == "The cited chunk directly states the action."
+
+
+def test_verifier_normalizes_claim_verified_and_supporting_evidence_aliases(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "claim_verified": True,
+                "supporting_evidence": ["alpha"],
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha"]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+    assert result["supporting_chunk_ids"] == ["alpha"]
+
+
+def test_verifier_normalizes_verified_trust_and_confirmed_applicability(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "trust_state": "verified",
+                "claim_supported": True,
+                "supporting_chunk_ids": ["alpha"],
+                "conflicting_chunk_ids": [],
+                "applicability": "confirmed",
+                "scope_entity": "ALPHA-1",
+                "rationale": "The cited chunk directly states the action.",
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha"]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+    assert result["applicability"] == "applicable"
+
+
+def test_verifier_conservatively_normalizes_domain_in_applicability_field(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Name the ALPHA-1 integrated software",
+        query="ALPHA-1 integrated software",
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "trust_state": "confirmed",
+                "claim_supported": True,
+                "supporting_chunk_ids": ["alpha"],
+                "conflicting_chunk_ids": [],
+                "applicability": "software",
+                "scope_entity": "ALPHA-1",
+                "rationale": "The cited chunk names the integrated software.",
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "ALPHA-1 integrated software: Control Suite.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha"]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+    assert result["applicability"] == "unknown"
 
 
 def test_verifier_retries_once_after_malformed_model_response(monkeypatch):
@@ -796,6 +965,52 @@ def test_claim_sufficiency_rejects_cross_chunk_keyword_collage():
     assert sufficient is False
     assert assessment["supporting_chunk_ids"] == []
     assert assessment["gap_reason"] == "no_single_chunk_supports_claim"
+
+
+def test_claim_sufficiency_rejects_incidental_requested_model_in_conflicting_document_scope():
+    wrong = _result(
+        "wrong",
+        "mod-600-doc",
+        "E42 cause: a blocked inlet. Corrective action: clear the inlet. Compatible accessory for MOD-500.",
+    ).model_copy(update={"metadata": {"chunk_type": "table_record", "product_model": "MOD-600"}})
+
+    sufficient, assessment = _assess_hop_evidence(
+        "Find the MOD-500 corrective action for error E42",
+        [wrong],
+    )
+
+    assert sufficient is False
+    assert assessment["supporting_chunk_ids"] == []
+    assert assessment["result_assessments"][0]["scope_supported"] is False
+
+
+def test_claim_sufficiency_keeps_only_authoritatively_scoped_row_from_mixed_results():
+    wrong = _result(
+        "wrong",
+        "mod-600-doc",
+        "E42 cause: a blocked inlet. Corrective action: clear the inlet. Compatible accessory for MOD-500.",
+    ).model_copy(update={"metadata": {"chunk_type": "table_record", "product_model": "MOD-600"}})
+    correct = _result(
+        "correct",
+        "mod-500-doc",
+        "For MOD-500 error E42, corrective action: reseat the sensor cable.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_model": "MOD-500",
+                "routing_product_models": ["MOD-500"],
+            }
+        }
+    )
+
+    sufficient, assessment = _assess_hop_evidence(
+        "Find the MOD-500 corrective action for error E42",
+        [wrong, correct],
+    )
+
+    assert sufficient is True
+    assert assessment["supporting_chunk_ids"] == ["correct"]
 
 
 def test_context_reserves_attributed_support_instead_of_first_result():

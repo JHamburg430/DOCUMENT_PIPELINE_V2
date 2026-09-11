@@ -184,6 +184,11 @@ def extract_chat_content(payload: dict[str, Any]) -> str:
     return content.strip()
 
 
+def parse_json_content(content: str) -> dict[str, Any]:
+    """Parse model JSON while tolerating raw control characters inside strings."""
+    return json.loads(content or "{}", strict=False)
+
+
 def _available_models(client: httpx.Client) -> set[str]:
     response = client.get("/api/tags")
     response.raise_for_status()
@@ -375,8 +380,11 @@ def chat_json(
     num_predict: int | None = None,
     num_ctx: int | None = None,
 ) -> tuple[dict[str, Any], str]:
-    with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
+    with httpx.Client(base_url=settings.ollama_url, timeout=load_timeout) as client:
         ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose)
+        # Model loading may legitimately need longer than inference. Do not let
+        # that load allowance silently override the caller's inference budget.
+        client.timeout = httpx.Timeout(max(1.0, timeout))
         try:
             body = _post_chat(
                 client=client,
@@ -392,7 +400,9 @@ def chat_json(
         except Exception as exc:
             logger.warning("Ollama chat_json failed for model=%s; reloading and retrying once: %s", model, exc)
             _record_call({"kind": "chat_error", "model": model, "purpose": purpose, "error": str(exc)})
+            client.timeout = httpx.Timeout(max(1.0, load_timeout))
             ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, force_reload=True, purpose=purpose)
+            client.timeout = httpx.Timeout(max(1.0, timeout))
             body = _post_chat(
                 client=client,
                 model=model,
@@ -405,7 +415,7 @@ def chat_json(
                 num_ctx=num_ctx,
             )
     content = extract_chat_content(body)
-    return json.loads(content or "{}"), content
+    return parse_json_content(content), content
 
 
 def chat_json_stream(
@@ -437,7 +447,7 @@ def chat_json_stream(
             num_ctx=num_ctx,
         )
     content = extract_chat_content(body)
-    return json.loads(content or "{}"), content
+    return parse_json_content(content), content
 
 
 def chat_text(

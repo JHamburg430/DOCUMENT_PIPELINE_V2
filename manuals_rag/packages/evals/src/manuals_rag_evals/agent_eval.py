@@ -16,6 +16,121 @@ AGENT_EVALUATION_LAYERS = (
     "latency_token_cost",
 )
 
+_NUMBER_WORDS = {
+    "zero": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+    "eleven": "11",
+    "twelve": "12",
+    "thirteen": "13",
+    "fourteen": "14",
+    "fifteen": "15",
+    "sixteen": "16",
+    "seventeen": "17",
+    "eighteen": "18",
+    "nineteen": "19",
+    "twenty": "20",
+}
+_QUANTITY_ROLES = {
+    "angle",
+    "count",
+    "counts",
+    "current",
+    "distance",
+    "height",
+    "interval",
+    "limit",
+    "line",
+    "lines",
+    "overlap",
+    "overlapping",
+    "pressure",
+    "range",
+    "speed",
+    "temperature",
+    "total",
+    "voltage",
+    "width",
+}
+_VALUE_PATTERN = (
+    r"(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+    r"thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|"
+    r"\d+(?:\.\d+)?)\s*(?:vdc|volts?|v|amps?|ma|a|lines?|mm|ms|%|hz|khz|mhz)?"
+)
+
+
+def _canonical_relation_value(value: str) -> str:
+    tokens = re.findall(r"\d+(?:\.\d+)?|[a-zA-Z%]+", value.lower())
+    unit_aliases = {
+        "volt": "v",
+        "volts": "v",
+        "amp": "a",
+        "amps": "a",
+        "line": "lines",
+    }
+    return " ".join(unit_aliases.get(token, _NUMBER_WORDS.get(token, token)) for token in tokens)
+
+
+def _role_value_relations(text: str) -> dict[str, set[str]]:
+    """Extract quantitative role/value bindings without treating values as a bag."""
+    relations: dict[str, set[str]] = {}
+    normalized = re.sub(r"\s+", " ", text)
+    role_pattern = r"[A-Za-z][A-Za-z0-9 /_-]{0,40}?"
+    patterns = (
+        rf"\b(?P<role>{role_pattern})\s+(?:is|are|was|were|to|:|=)\s+(?P<value>{_VALUE_PATTERN})\b",
+        rf"\b(?P<role>{role_pattern})\s+(?P<value>{_VALUE_PATTERN})\b",
+    )
+    for pattern in patterns:
+        for match in re.finditer(pattern, normalized, flags=re.I):
+            role_tokens = re.findall(r"[a-z]+", match.group("role").lower())
+            quantity_tokens = [token for token in role_tokens if token in _QUANTITY_ROLES]
+            if not quantity_tokens:
+                continue
+            # Preserve compound roles such as "overlap lines" while excluding
+            # generic lead-in prose captured by the permissive relation regex.
+            role = " ".join(quantity_tokens[-2:])
+            value = _canonical_relation_value(match.group("value"))
+            if value:
+                relations.setdefault(role, set()).add(value)
+    return relations
+
+
+def _expected_relation_text(case: dict[str, Any]) -> str:
+    snippets = [str(case.get("expected_snippet") or "")]
+    snippets.extend(
+        str(item.get("snippet") or "")
+        for item in case.get("expected_evidence") or []
+        if isinstance(item, dict)
+    )
+    return " ".join(snippet for snippet in snippets if snippet)
+
+
+def _relation_grounding(case: dict[str, Any], answer_text: str) -> dict[str, Any]:
+    expected = _role_value_relations(_expected_relation_text(case))
+    if len(expected) < 2:
+        return {"checked": False, "passed": True, "expected": expected, "answer": {}}
+    actual = _role_value_relations(answer_text)
+    missing_or_mismatched = {
+        role: {"expected": sorted(values), "answer": sorted(actual.get(role, set()))}
+        for role, values in expected.items()
+        if not actual.get(role, set()).intersection(values)
+    }
+    return {
+        "checked": True,
+        "passed": not missing_or_mismatched,
+        "expected": {role: sorted(values) for role, values in expected.items()},
+        "answer": {role: sorted(values) for role, values in actual.items()},
+        "missing_or_mismatched": missing_or_mismatched,
+    }
+
 
 def _cell(status: str, detail: str, **metrics: Any) -> dict[str, Any]:
     return {"status": status, "label": status.upper(), "detail": detail, "metrics": metrics}
@@ -182,6 +297,7 @@ def score_agent_run(
     )
 
     answer_text = _normalized(answer.get("answer"))
+    relation_grounding = _relation_grounding(case, str(answer.get("answer") or ""))
     expected_terms = [_normalized(value) for value in case.get("expected_terms") or [] if value]
     term_hits = [term for term in expected_terms if term and term in answer_text]
     citation_chunks = {
@@ -189,6 +305,7 @@ def score_agent_run(
         for item in answer.get("citations") or []
         if isinstance(item, dict) and item.get("chunk_id")
     }
+    invalid_citation_chunks = citation_chunks - candidate_chunks
     node_grounding = {
         node.node_id: {
             "terms": all(_normalized(term) in answer_text for term in node.expected_terms if term),
@@ -204,6 +321,8 @@ def score_agent_run(
             bool(answer_text)
             and (not expected_terms or len(term_hits) == len(expected_terms))
             and all(item["terms"] and item["citation"] for item in node_grounding.values())
+            and relation_grounding["passed"]
+            and not invalid_citation_chunks
         )
     grounded_cell = _cell(
         "pass" if grounding_ok else "fail",
@@ -211,7 +330,9 @@ def score_agent_run(
         expected_terms=expected_terms,
         matched_terms=term_hits,
         citation_chunks=sorted(citation_chunks),
+        invalid_citation_chunks=sorted(invalid_citation_chunks),
         claim_grounding=node_grounding,
+        relation_grounding=relation_grounding,
         insufficient_evidence=bool(answer.get("insufficient_evidence")),
     )
 

@@ -66,3 +66,111 @@ def test_agent_evaluation_separates_candidate_recall_from_final_context_retentio
 
     assert evaluation["cells"]["candidate_recall"]["status"] == "pass"
     assert evaluation["cells"]["document_retention"]["status"] == "fail"
+
+
+def _quantity_case():
+    return {
+        "case_id": "quantity-bindings",
+        "query": "What voltage and current should I set?",
+        "retrieval_task": "single_step_retrieval",
+        "source_document_id": "doc-controller",
+        "source_chunk_id": "setup-values",
+        "expected_terms": ["voltage", "5", "current", "10"],
+        "expected_snippet": "Set voltage to 5 volts and current to 10 amps.",
+        "expected_evidence": [
+            {
+                "chunk_id": "setup-values",
+                "source_document_id": "doc-controller",
+                "snippet": "Set voltage to 5 volts and current to 10 amps.",
+                "expected_terms": ["voltage", "5", "current", "10"],
+            }
+        ],
+    }
+
+
+def _quantity_trace():
+    return {
+        "sufficient": True,
+        "plan": {"mode": "single", "hops": [{"hop_id": "one", "depends_on": []}]},
+        "evidence_ledger": {
+            "one": {
+                "required": True,
+                "sufficient": True,
+                "strategy": "structural",
+                "chunk_ids": ["setup-values"],
+            }
+        },
+        "cost": {},
+    }
+
+
+def test_agent_evaluation_rejects_swapped_quantity_role_bindings():
+    evaluation = score_agent_run(
+        _quantity_case(),
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": "Set voltage to 10 amps and current to 5 volts.",
+            "citations": [{"chunk_id": "setup-values"}],
+        },
+    )
+
+    grounded = evaluation["cells"]["grounded_answer"]
+    assert grounded["status"] == "fail"
+    assert grounded["metrics"]["relation_grounding"]["checked"] is True
+    assert grounded["metrics"]["relation_grounding"]["passed"] is False
+
+
+def test_agent_evaluation_rejects_missing_required_quantity_role():
+    evaluation = score_agent_run(
+        _quantity_case(),
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={"answer": "Set voltage to 5 volts.", "citations": [{"chunk_id": "setup-values"}]},
+    )
+
+    assert evaluation["cells"]["grounded_answer"]["status"] == "fail"
+
+
+def test_agent_evaluation_accepts_relation_preserving_quantity_bindings():
+    evaluation = score_agent_run(
+        _quantity_case(),
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": "Set voltage to 5 volts and current to 10 amps.",
+            "citations": [{"chunk_id": "setup-values"}],
+        },
+    )
+
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+
+
+def test_agent_evaluation_accepts_equivalent_quantity_unit_spelling():
+    evaluation = score_agent_run(
+        _quantity_case(),
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": "Set voltage to 5 V and current to 10 A.",
+            "citations": [{"chunk_id": "setup-values"}],
+        },
+    )
+
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+
+
+def test_agent_evaluation_rejects_unretrieved_irrelevant_citation():
+    evaluation = score_agent_run(
+        _quantity_case(),
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": "Set voltage to 5 volts and current to 10 amps.",
+            "citations": [{"chunk_id": "setup-values"}, {"chunk_id": "invented-neighbor"}],
+        },
+    )
+
+    grounded = evaluation["cells"]["grounded_answer"]
+    assert grounded["status"] == "fail"
+    assert grounded["metrics"]["invalid_citation_chunks"] == ["invented-neighbor"]
