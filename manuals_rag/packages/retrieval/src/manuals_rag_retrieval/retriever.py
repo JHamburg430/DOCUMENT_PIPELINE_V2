@@ -4194,7 +4194,16 @@ def retrieve_with_strategy(
             analysis,
             limit=max(20, _contextual_lexical_limit(query)),
         )
-        candidates = fuse_results(store, [table, table_lexical, contextual], limit=50)
+        # Structural intent is a preference, not a table-only constraint. Many
+        # procedures and GUI instructions are stored as prose or section windows,
+        # so retain ordinary semantic and lexical candidates in the same fusion.
+        dense = run_dense_search(store, query, corpus_ids, resolved_filters, limit=50)
+        sparse = run_sparse_search(store, query, corpus_ids, resolved_filters, limit=50)
+        candidates = fuse_results(
+            store,
+            [table, table_lexical, contextual, dense, sparse],
+            limit=50,
+        )
     else:
         raise ValueError(f"Unsupported retrieval strategy: {strategy}")
 

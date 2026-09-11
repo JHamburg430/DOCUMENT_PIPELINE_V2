@@ -10,6 +10,7 @@ from manuals_rag_answering.agentic_retrieval import (
     refine_dependent_query,
     insufficient_agent_answer,
     _assess_hop_evidence,
+    verify_retrieval_claim,
 )
 from manuals_rag_schemas.documents import SearchResult
 
@@ -63,6 +64,45 @@ def test_heuristic_planner_decomposes_troubleshooting_facets():
     assert [hop.hop_id for hop in plan.hops] == ["cause", "corrective_action"]
     assert plan.hops[0].query == "What causes alarm E17 for ZX-9?"
     assert plan.hops[1].query == "How should alarm E17 for ZX-9 be corrected?"
+
+
+def test_model_planners_enforce_parallel_branches_for_colon_delimited_product_comparison(monkeypatch):
+    query = "Compare the VJ-H500CX weight with grayscale settings for LJ:S8000."
+
+    def fail_if_called(**_kwargs):
+        raise AssertionError("deterministic scope safety must run before model planning")
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", fail_if_called)
+
+    langgraph = plan_retrieval(query, use_llm=True)
+    llamaindex = plan_llamaindex_retrieval(query, use_llm=True)
+
+    assert langgraph.mode == "parallel"
+    assert [hop.hop_id for hop in langgraph.hops] == ["side_1", "side_2"]
+    assert all(identifier in langgraph.hops[index].query for index, identifier in enumerate(["VJ-H500CX", "LJ:S8000"]))
+    assert llamaindex.mode == "parallel"
+    assert [hop.hop_id for hop in llamaindex.hops] == ["subquestion_1", "subquestion_2"]
+    assert langgraph.hops[0].query == "What is the VJ-H500CX weight?"
+    assert langgraph.hops[1].query == "What is grayscale settings for LJ:S8000?"
+
+
+def test_model_planners_split_independent_interrogative_facets(monkeypatch):
+    query = "For KV-X Series, which software is listed and what upgrade benefit is stated?"
+
+    def fail_if_called(**_kwargs):
+        raise AssertionError("claim-facet safety must run before model planning")
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", fail_if_called)
+
+    langgraph = plan_retrieval(query, use_llm=True)
+    llamaindex = plan_llamaindex_retrieval(query, use_llm=True)
+
+    assert [hop.query for hop in langgraph.hops] == [
+        "For KV-X Series, which software is listed?",
+        "For KV-X Series, what upgrade benefit is stated for the software?",
+    ]
+    assert [hop.hop_id for hop in llamaindex.hops] == ["subquestion_1", "subquestion_2"]
+    assert all(hop.strategy == "hybrid" for hop in llamaindex.hops)
 
 
 def test_backends_have_independent_default_planning_policies():
@@ -152,12 +192,299 @@ def test_controller_emits_live_plan_hop_and_completion_events():
     assert [event["event"] for event in events] == [
         "plan_completed",
         "hop_started",
+        "claim_verified",
         "hop_completed",
         "retrieval_completed",
     ]
     assert events[1]["executed_query"] == "ALPHA-1 corrective action"
-    assert events[2]["results"][0]["chunk_id"] == "alpha"
-    assert events[3]["trace"]["stop_reason"] == "sufficient"
+    assert events[2]["trust_state"] == "confirmed"
+    assert events[3]["results"][0]["chunk_id"] == "alpha"
+    assert events[4]["trace"]["stop_reason"] == "sufficient"
+    assert events[4]["trace"]["pipeline"] == "evidence_map_reduce_verify_v1"
+
+
+def test_verifier_rejects_model_citations_that_were_not_retrieved(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+
+    def fake_chat_json(**_kwargs):
+        return (
+            {
+                "trust_state": "confirmed",
+                "claim_supported": True,
+                "supporting_chunk_ids": ["invented-chunk"],
+                "conflicting_chunk_ids": [],
+                "applicability": "not_requested",
+                "scope_entity": "ALPHA-1",
+                "rationale": "Claimed support.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", fake_chat_json)
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("real-chunk", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["real-chunk"]},
+    )
+
+    assert result["claim_supported"] is False
+    assert result["trust_state"] == "unresolved"
+    assert result["invalid_citation_ids"] == ["invented-chunk"]
+
+
+def test_verifier_normalizes_compact_supported_response(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "claim_supported": True,
+                "supporting_chunk_ids": ["alpha"],
+                "reasoning": "The cited chunk directly states the action.",
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha"]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+    assert result["supporting_chunk_ids"] == ["alpha"]
+    assert result["rationale"] == "The cited chunk directly states the action."
+
+
+def test_verifier_reconciles_internally_inconsistent_affirmative_response(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "trust_state": "unresolved",
+                "claim_supported": True,
+                "supporting_chunk_ids": ["alpha"],
+                "conflicting_chunk_ids": [],
+                "applicability": "not_requested",
+                "scope_entity": "ALPHA-1",
+                "rationale": "The cited chunk directly supports the claim.",
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha"]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+
+
+def test_verifier_normalizes_verdict_alias_response(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "verdict": "confirmed",
+                "supporting_chunk_ids": ["alpha"],
+                "reasoning": "The cited chunk directly supports the claim.",
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha"]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+    assert result["supporting_chunk_ids"] == ["alpha"]
+
+
+def test_verifier_retries_once_after_malformed_model_response(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+    calls = 0
+
+    def flaky_chat_json(**_kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise ValueError("Invalid JSON escape")
+        return (
+            {
+                "claim_supported": True,
+                "supporting_chunk_ids": ["alpha"],
+                "reasoning": "The cited chunk directly supports the claim.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        flaky_chat_json,
+    )
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha"]},
+    )
+
+    assert calls == 2
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+
+
+def test_coordinate_plan_preserves_first_branch_subject_in_second_claim():
+    query = (
+        "For the controller, which integrated software is listed "
+        "and what upgrade benefit is stated?"
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=False)
+        assert len(plan.hops) == 2
+        assert plan.hops[0].query == "For the controller, which integrated software is listed?"
+        assert plan.hops[1].query == (
+            "For the controller, what upgrade benefit is stated for the integrated software?"
+        )
+
+
+def test_verifier_treats_attributed_support_list_as_compact_affirmative_verdict(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "supporting_chunk_ids": ["alpha"],
+                "reasoning": "The cited chunk directly supports the claim.",
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha"]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+
+
+def test_verifier_does_not_promote_support_list_when_deterministic_gate_disagrees(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {"supporting_chunk_ids": ["alpha"], "reasoning": "Suggestive evidence."},
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("alpha", "alpha-doc", "ALPHA-1 overview only.")],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert result["trust_state"] == "unresolved"
+    assert result["claim_supported"] is False
+
+
+def test_deterministic_verifier_keeps_evidence_bound_to_branch_scope():
+    hop = RetrievalHop(
+        hop_id="alpha",
+        objective="Find ALPHA-1 corrective action",
+        query="ALPHA-1 corrective action",
+    )
+    alpha = _result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")
+    beta = _result("beta", "beta-doc", "Corrective action: recalibrate the BETA-2 sensor.")
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [alpha, beta],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha", "beta"]},
+        use_llm=False,
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["supporting_chunk_ids"] == ["alpha"]
+
+
+def test_probable_verification_cannot_unlock_required_claim():
+    plan = RetrievalPlan(
+        hops=[RetrievalHop(hop_id="lookup", objective="Find ALPHA-1 corrective action", query="ALPHA-1 corrective action")]
+    )
+    controller = AgenticRetrievalController(
+        use_llm=False,
+        planner=lambda _query: plan,
+        retriever=lambda *_args: [_result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")],
+        verifier=lambda *_args: {
+            "trust_state": "probable",
+            "claim_supported": False,
+            "supporting_chunk_ids": ["alpha"],
+            "conflicting_chunk_ids": [],
+            "applicability": "unknown",
+            "scope_entity": "ALPHA-1",
+            "rationale": "Scope is not independently established.",
+        },
+    )
+
+    output = _invoke(build_langgraph_agentic_retriever, controller, max_hops=1)
+
+    assert output["sufficient"] is False
+    assert output["evidence_ledger"]["lookup"]["assessment"]["trust_state"] == "probable"
+    assert output["retrieval_trace"]["required_claim_support"]["lookup"] == []
 
 
 def test_dependent_hop_is_refined_from_prior_evidence():

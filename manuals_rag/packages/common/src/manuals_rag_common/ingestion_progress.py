@@ -107,7 +107,10 @@ def fail_ingestion_step(run_id: str, step_key: str, error: str) -> None:
         """
         update ingestion_run_steps
         set status = 'skipped', completed_at = now(),
-            detail_json = jsonb_build_object('reason', 'Blocked by failed step', 'failed_step', %s)
+            detail_json = jsonb_build_object(
+                'reason', 'Blocked by failed step',
+                'failed_step', %s::text
+            )
         where run_id = %s
           and sequence > (select sequence from ingestion_run_steps where run_id = %s and step_key = %s)
           and status = 'queued'

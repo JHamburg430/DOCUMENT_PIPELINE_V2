@@ -114,6 +114,53 @@ def test_infer_document_metadata_extracts_filter_terms(monkeypatch):
     assert "configuration" not in metadata.document_topics
 
 
+def test_alphanumeric_family_is_promoted_when_model_field_is_empty(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: (
+            {
+                "manufacturer": "Acme Controls",
+                "product_family": "AX-1200U",
+                "product_families": ["AX-1200U"],
+                "product_models": [],
+                "document_kind": "datasheet",
+                "title": "AX-1200U Datasheet",
+            },
+            "{}",
+        ),
+    )
+
+    metadata = infer_document_metadata(
+        "datasheet.pdf",
+        "Acme Controls AX-1200U Datasheet",
+    )
+
+    assert metadata.product_family == "AX-1200U"
+    assert metadata.product_model == "AX-1200U"
+    assert metadata.product_models == ["AX-1200U"]
+
+
+def test_synthetic_page_and_section_markers_are_not_menu_labels(monkeypatch):
+    def fake_chat_json(**kwargs):
+        return (
+            {
+                "document_kind": "manual",
+                "title": "Setup Manual",
+                "menu_labels": ["[PAGE 1]", "[SECTION Setup]", "[Run]"],
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+
+    metadata = infer_document_metadata(
+        "setup.pdf",
+        "[PAGE 1] [SECTION Setup] Setup Manual. Select [Run].",
+    )
+
+    assert metadata.menu_labels == ["[Run]"]
+
+
 def test_infer_document_metadata_falls_back_on_invalid_model_response(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_parsers.metadata.chat_json",
@@ -357,7 +404,7 @@ def test_scoped_grounding_rejects_ungrounded_relationship_and_dimension_as_firmw
     assert grounded == []
 
 
-def test_filename_identifier_requires_matching_front_page_evidence(monkeypatch):
+def test_filename_identifier_routes_when_matching_descriptive_front_title(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_parsers.metadata._extract_metadata_with_model",
         lambda filename, text: MetadataExtraction(document_kind="manual", title="Command Manual"),
@@ -372,10 +419,11 @@ def test_filename_identifier_requires_matching_front_page_evidence(monkeypatch):
         [MetadataSourceSegment("LJ-X8000 Communication Command Manual", 1, 1)],
     )
 
-    assert metadata.routing_product_models == []
-    assert metadata.product_model is None
+    assert metadata.title == "LJ-X8000 Communication Command Manual"
+    assert metadata.routing_product_models == ["LJ-X8000"]
+    assert metadata.product_model == "LJ-X8000"
     assert any(
-        item.get("source_method") == "upload_identity_page_grounded"
+        item.get("source_method") == "opening_title_candidate"
         and item["relation"] == "mentioned"
         for item in metadata.metadata_evidence
     )
@@ -512,7 +560,7 @@ def test_scoped_metadata_retries_and_accepts_top_level_array_and_entity_alias(mo
     assert metadata.metadata_evidence[0]["confidence"] == pytest.approx(0.85)
 
 
-def test_scoped_metadata_splits_immediately_after_deterministic_json_error(monkeypatch):
+def test_scoped_metadata_retries_json_errors_before_splitting(monkeypatch):
     calls = 0
 
     def malformed_chat_json(**kwargs):
@@ -523,7 +571,7 @@ def test_scoped_metadata_splits_immediately_after_deterministic_json_error(monke
     monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", malformed_chat_json)
     with pytest.raises(MetadataExtractionIncomplete):
         _call_scoped_model("manual.pdf", [{"role": "user", "content": "text"}], purpose="test")
-    assert calls == 1
+    assert calls == 3
 
 
 def test_version_bearing_batch_gets_focused_completeness_pass(monkeypatch):
@@ -775,6 +823,78 @@ def test_reducer_marks_contradictory_scope_as_conflicting():
     assert {claim["verification_status"] for claim in claims} == {"conflicting"}
 
 
+def test_reducer_rejects_prose_shaped_model_and_sanitizes_company_footer():
+    claims = reconcile_metadata_claims(
+        [
+            {
+                "value": "ZX Series obtains detailed measurements and displays the resulting image on screen",
+                "kind": "product_model",
+                "relation": "mentioned",
+                "source_quote": "ZX Series obtains detailed measurements and displays the resulting image on screen.",
+                "page_from": 8,
+                "grounded": True,
+            },
+            {
+                "value": "ACME CORPORATION. All rights reserved: DOC-42 Printed in Japan",
+                "kind": "company",
+                "relation": "mentioned",
+                "source_quote": "Copyright © 2026 ACME CORPORATION. All rights reserved: DOC-42 Printed in Japan",
+                "page_from": 9,
+                "grounded": True,
+            },
+        ]
+    )
+
+    assert [(claim["kind"], claim["value"]) for claim in claims] == [
+        ("company", "ACME CORPORATION")
+    ]
+
+
+def test_opening_pages_are_ordered_by_physical_page_before_title_extraction(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="ZX-900 Easy Configuration Manual"),
+    )
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "metadata_extraction.scoped_entities":
+            return ({"entities": []}, "{}")
+        raise AssertionError(kwargs["purpose"])
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "opaque.pdf",
+        [
+            MetadataSourceSegment("Chapter 1 Installation | Contents", 2, 2),
+            MetadataSourceSegment("ZX-900 Easy Configuration Manual", 1, 1),
+        ],
+    )
+
+    assert metadata.title == "ZX-900 Easy Configuration Manual"
+
+
+def test_descriptive_opening_title_beats_isolated_document_code(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="D47AB"),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ({"entities": []}, "{}"),
+    )
+
+    metadata = infer_document_metadata_from_segments(
+        "opaque.pdf",
+        [
+            MetadataSourceSegment("D47AB", 1, 1, ("D47AB",)),
+            MetadataSourceSegment("ZX: 8000 Series Easy Configuration Manual", 1, 1),
+        ],
+    )
+
+    assert metadata.title == "ZX: 8000 Series Easy Configuration Manual"
+    assert "D47AB" not in metadata.routing_product_models
+
+
 def test_independent_verifier_controls_routing_and_derives_confidence(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_parsers.metadata._extract_metadata_with_model",
@@ -817,6 +937,112 @@ def test_independent_verifier_controls_routing_and_derives_confidence(monkeypatc
     assert claim["confidence"] == pytest.approx(0.85)
 
 
+def test_confirmed_opening_title_model_can_route_when_relation_is_only_mentioned(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="datasheet", title="ZX-900 Datasheet"),
+    )
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "metadata_extraction.scoped_entities":
+            return ({"entities": []}, "{}")
+        if kwargs["purpose"] == "metadata_extraction.claim_verification":
+            content = kwargs["messages"][1]["content"]
+            claims = json.loads(content.split("CLAIMS TO VERIFY:\n", 1)[1].split("\n\n", 1)[0])
+            return ({"entities": claims}, "{}")
+        raise AssertionError(kwargs["purpose"])
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "opaque_upload.pdf",
+        [MetadataSourceSegment("ZX-900 Datasheet", 1, 1, ("Cover",))],
+    )
+
+    assert metadata.product_model == "ZX-900"
+    assert metadata.routing_product_models == ["ZX-900"]
+
+
+def test_late_table_primary_label_does_not_replace_document_identity(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(
+            document_kind="brochure",
+            title="System Overview",
+            product_model="AX-100",
+            product_models=["AX-100"],
+            product_family="Accessory Series",
+            product_families=["Accessory Series"],
+        ),
+    )
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "metadata_extraction.scoped_entities":
+            source = kwargs["messages"][1]["content"]
+            if "Model | BX-200" in source:
+                return (
+                    {
+                        "entities": [
+                            {
+                                "value": "BX-200",
+                                "kind": "product_model",
+                                "relation": "primary_product",
+                                "source_quote": "Model | BX-200",
+                                "confidence": 0.9,
+                            }
+                        ]
+                    },
+                    "{}",
+                )
+            return ({"entities": []}, "{}")
+        if kwargs["purpose"] == "metadata_extraction.claim_verification":
+            content = kwargs["messages"][1]["content"]
+            claims = json.loads(content.split("CLAIMS TO VERIFY:\n", 1)[1].split("\n\n", 1)[0])
+            return ({"entities": claims}, "{}")
+        raise AssertionError(kwargs["purpose"])
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "opaque_upload.pdf",
+        [
+            MetadataSourceSegment("System Overview", 1, 1, ("Cover",)),
+            MetadataSourceSegment("Model | BX-200", 10, 10, ("Accessories",)),
+        ],
+    )
+
+    assert metadata.product_model is None
+    assert metadata.product_family is None
+    assert "AX-100" in metadata.product_models
+    assert "Accessory Series" not in metadata.product_families
+    assert "BX-200" not in metadata.routing_product_models
+
+
+def test_literal_opening_title_model_routes_when_llm_verifier_rejects_it(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="ZX: 900 Easy Configuration Manual"),
+    )
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] in {
+            "metadata_extraction.scoped_entities",
+            "metadata_extraction.claim_verification",
+        }:
+            return ({"entities": []}, "{}")
+        raise AssertionError(kwargs["purpose"])
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "opaque_upload.pdf",
+        [MetadataSourceSegment("ZX: 900 Easy Configuration Manual", 1, 1, ("Cover",))],
+    )
+
+    assert metadata.product_model == "ZX:900"
+    assert metadata.routing_product_models == ["ZX:900"]
+    claim = next(item for item in metadata.metadata_claims if item["value"] == "ZX:900")
+    assert claim["verification_status"] == "confirmed"
+    assert claim["confidence"] >= 0.8
+
+
 def test_successful_verifier_rejection_is_distinct_from_unresolved_failure(monkeypatch):
     claims = reconcile_metadata_claims(
         [
@@ -845,7 +1071,41 @@ def test_successful_verifier_rejection_is_distinct_from_unresolved_failure(monke
     assert verified[0]["confidence"] == 0.0
 
 
-def test_filename_prefix_collision_cannot_create_identity_or_routing(monkeypatch):
+def test_literal_deterministic_version_claim_survives_model_omission(monkeypatch):
+    claims = reconcile_metadata_claims(
+        [
+            {
+                "value": "12",
+                "kind": "software_version",
+                "relation": "mentioned",
+                "subject": "CONTROL STUDIO",
+                "source_quote": "CONTROL STUDIO Ver.12",
+                "page_from": 4,
+                "grounded": True,
+                "source": "deterministic_explicit_version",
+            }
+        ]
+    )
+    calls = 0
+
+    def fake_chat_json(**kwargs):
+        nonlocal calls
+        calls += 1
+        return ({"entities": []}, "{}")
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    verified = verify_metadata_claims(
+        "manual.pdf",
+        claims,
+        [MetadataSourceSegment("CONTROL STUDIO Ver.12", 4, 4)],
+    )
+
+    assert calls == 1
+    assert verified[0]["verification_status"] == "confirmed"
+    assert verified[0]["confidence"] >= 0.8
+
+
+def test_filename_prefix_collision_cannot_override_grounded_opening_title_identity(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_parsers.metadata._extract_metadata_with_model",
         lambda filename, text: MetadataExtraction(document_kind="manual", title="MOD-500 Manual"),
@@ -860,8 +1120,9 @@ def test_filename_prefix_collision_cannot_create_identity_or_routing(monkeypatch
         [MetadataSourceSegment("MOD-500 Manual", 1, 1)],
     )
 
-    assert metadata.product_model is None
-    assert metadata.routing_product_models == []
+    assert metadata.product_model == "MOD-500"
+    assert metadata.routing_product_models == ["MOD-500"]
+    assert "MOD-5" not in metadata.routing_product_models
     assert not any(item.get("value") == "MOD-5" for item in metadata.metadata_claims)
 
 

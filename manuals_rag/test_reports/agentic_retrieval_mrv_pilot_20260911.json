@@ -1,0 +1,1306 @@
+{
+  "generated_at": "2026-09-11T02:34:39.652035+00:00",
+  "pipeline": "evidence_map_reduce_verify_v1",
+  "api_base": "http://127.0.0.1:8600",
+  "case_count": 5,
+  "backend_count": 2,
+  "result_count": 10,
+  "passed": 10,
+  "failed": 0,
+  "results": [
+    {
+      "case_id": "vj_weight",
+      "backend": "langgraph_agent",
+      "query": "What is the weight of the VJ-H500CX, and does that value include the lens?",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 27.909189,
+      "answer": "Weight \u2014 VJ-H500CX: Approx. 280 g (not including lens)",
+      "citations": [
+        {
+          "chunk_id": "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+          "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "pages": [
+            1
+          ],
+          "quote_span": null
+        }
+      ],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": true,
+        "stop_reason": "sufficient",
+        "mapped_claim_count": 1,
+        "trust_states": {
+          "hop_1": "confirmed"
+        },
+        "confirmed_chunk_ids": [
+          "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+          "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+          "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+          "acd2d3f2-c310-5624-8f76-c5a2bd6aa9b9",
+          "a2b0e56f-8c72-5e96-844c-658ebfd04d51"
+        ],
+        "supporting_document_ids": [
+          "38a47a7d-42f7-4788-9f6e-3831b85973a1"
+        ],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "hop_1": {
+              "supporting_chunk_ids": [
+                "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+                "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+                "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+                "acd2d3f2-c310-5624-8f76-c5a2bd6aa9b9",
+                "a2b0e56f-8c72-5e96-844c-658ebfd04d51"
+              ],
+              "retained_chunk_ids": [
+                "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+                "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+                "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+                "acd2d3f2-c310-5624-8f76-c5a2bd6aa9b9",
+                "a2b0e56f-8c72-5e96-844c-658ebfd04d51"
+              ],
+              "covered": true
+            }
+          },
+          "retained_chunk_ids": [
+            "a2b0e56f-8c72-5e96-844c-658ebfd04d51",
+            "acd2d3f2-c310-5624-8f76-c5a2bd6aa9b9",
+            "afcdb609-8f8a-559d-b2c6-8c90c9db01c0",
+            "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+            "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+            "e9a9907e-8745-5279-96b4-83cdc823f27f",
+            "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+            "f5e5c1a2-d505-5220-bd04-9bde8bdf6652",
+            "f86a9cbe-5359-5969-a9ba-747677367fab"
+          ],
+          "missing_required_claims": [],
+          "all_required_claims_retained": true
+        },
+        "duration_ms": 27887.4,
+        "cost": {
+          "retrieval_calls": 1,
+          "llm_token_estimate": 18,
+          "model_calls": 2,
+          "prompt_tokens": 4074,
+          "completion_tokens": 411,
+          "total_tokens": 4485,
+          "total_duration_ms": 6960.51,
+          "by_purpose": {
+            "agentic_retrieval_plan": {
+              "model_calls": 1,
+              "prompt_tokens": 200,
+              "completion_tokens": 62,
+              "total_duration_ns": 886100240
+            },
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 1,
+              "prompt_tokens": 3874,
+              "completion_tokens": 349,
+              "total_duration_ns": 6074410359
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    },
+    {
+      "case_id": "vj_weight",
+      "backend": "llamaindex_agent",
+      "query": "What is the weight of the VJ-H500CX, and does that value include the lens?",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 8.258412,
+      "answer": "Weight \u2014 VJ-H500CX: Approx. 280 g (not including lens)",
+      "citations": [
+        {
+          "chunk_id": "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+          "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "pages": [
+            1
+          ],
+          "quote_span": null
+        }
+      ],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": true,
+        "stop_reason": "sufficient",
+        "mapped_claim_count": 1,
+        "trust_states": {
+          "subquestion_1": "confirmed"
+        },
+        "confirmed_chunk_ids": [
+          "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+          "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+          "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+          "acd2d3f2-c310-5624-8f76-c5a2bd6aa9b9",
+          "a2b0e56f-8c72-5e96-844c-658ebfd04d51"
+        ],
+        "supporting_document_ids": [
+          "38a47a7d-42f7-4788-9f6e-3831b85973a1"
+        ],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "subquestion_1": {
+              "supporting_chunk_ids": [
+                "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+                "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+                "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+                "acd2d3f2-c310-5624-8f76-c5a2bd6aa9b9",
+                "a2b0e56f-8c72-5e96-844c-658ebfd04d51"
+              ],
+              "retained_chunk_ids": [
+                "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+                "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+                "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+                "acd2d3f2-c310-5624-8f76-c5a2bd6aa9b9",
+                "a2b0e56f-8c72-5e96-844c-658ebfd04d51"
+              ],
+              "covered": true
+            }
+          },
+          "retained_chunk_ids": [
+            "a2b0e56f-8c72-5e96-844c-658ebfd04d51",
+            "acd2d3f2-c310-5624-8f76-c5a2bd6aa9b9",
+            "afcdb609-8f8a-559d-b2c6-8c90c9db01c0",
+            "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+            "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+            "e9a9907e-8745-5279-96b4-83cdc823f27f",
+            "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+            "f5e5c1a2-d505-5220-bd04-9bde8bdf6652",
+            "f86a9cbe-5359-5969-a9ba-747677367fab"
+          ],
+          "missing_required_claims": [],
+          "all_required_claims_retained": true
+        },
+        "duration_ms": 8252.08,
+        "cost": {
+          "retrieval_calls": 1,
+          "llm_token_estimate": 18,
+          "model_calls": 2,
+          "prompt_tokens": 4090,
+          "completion_tokens": 443,
+          "total_tokens": 4533,
+          "total_duration_ms": 6466.72,
+          "by_purpose": {
+            "llamaindex_subquestion_plan": {
+              "model_calls": 1,
+              "prompt_tokens": 216,
+              "completion_tokens": 94,
+              "total_duration_ns": 1111305166
+            },
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 1,
+              "prompt_tokens": 3874,
+              "completion_tokens": 349,
+              "total_duration_ns": 5355413930
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    },
+    {
+      "case_id": "lj_grayscale",
+      "backend": "langgraph_agent",
+      "query": "For LJ:S8000, how do you increase the percentage of grayscale in the display?",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 29.837966,
+      "answer": "Slide to the right to increase the percentage of grayscale.",
+      "citations": [
+        {
+          "chunk_id": "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+          "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+          "pages": [
+            11,
+            12
+          ],
+          "quote_span": null
+        }
+      ],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": true,
+        "stop_reason": "sufficient",
+        "mapped_claim_count": 1,
+        "trust_states": {
+          "hop_1": "confirmed"
+        },
+        "confirmed_chunk_ids": [
+          "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+          "6a4f29b4-6e5b-5ed4-9376-a704667e9006",
+          "349a362d-6213-5921-ac2c-99a4c216bedf"
+        ],
+        "supporting_document_ids": [
+          "3a18df27-6202-48e1-b5ba-f5b9428f0d74"
+        ],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "hop_1": {
+              "supporting_chunk_ids": [
+                "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+                "6a4f29b4-6e5b-5ed4-9376-a704667e9006",
+                "349a362d-6213-5921-ac2c-99a4c216bedf"
+              ],
+              "retained_chunk_ids": [
+                "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+                "6a4f29b4-6e5b-5ed4-9376-a704667e9006",
+                "349a362d-6213-5921-ac2c-99a4c216bedf"
+              ],
+              "covered": true
+            }
+          },
+          "retained_chunk_ids": [
+            "0442dbc2-1ea8-53ad-a5ac-59daa9645027",
+            "09269f86-062c-5ea1-95b0-8701e5cc69cc",
+            "349a362d-6213-5921-ac2c-99a4c216bedf",
+            "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+            "3adc7b54-23d4-5e81-952c-148bf44fb9d2",
+            "530482de-242c-50a9-a6b8-1d111811549c",
+            "5864ef0b-74ba-57da-9319-9a39b2444d05",
+            "6a4f29b4-6e5b-5ed4-9376-a704667e9006",
+            "6b3695fa-bb5b-5a07-931f-e7338d03f738",
+            "ebd6ec36-073c-53c3-a305-6ebc3efd2978"
+          ],
+          "missing_required_claims": [],
+          "all_required_claims_retained": true
+        },
+        "duration_ms": 7463.14,
+        "cost": {
+          "retrieval_calls": 1,
+          "llm_token_estimate": 19,
+          "model_calls": 12,
+          "prompt_tokens": 14453,
+          "completion_tokens": 1974,
+          "total_tokens": 16427,
+          "total_duration_ms": 27672.1,
+          "by_purpose": {
+            "agentic_retrieval_plan": {
+              "model_calls": 1,
+              "prompt_tokens": 198,
+              "completion_tokens": 63,
+              "total_duration_ns": 838252166
+            },
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 1,
+              "prompt_tokens": 4145,
+              "completion_tokens": 209,
+              "total_duration_ns": 4581723494
+            },
+            "relevance_review": {
+              "model_calls": 1,
+              "prompt_tokens": 2125,
+              "completion_tokens": 648,
+              "total_duration_ns": 6924079304
+            },
+            "chunk_summary": {
+              "model_calls": 6,
+              "prompt_tokens": 3673,
+              "completion_tokens": 485,
+              "total_duration_ns": 6776797913
+            },
+            "recursive_summary": {
+              "model_calls": 2,
+              "prompt_tokens": 2541,
+              "completion_tokens": 161,
+              "total_duration_ns": 2570177329
+            },
+            "final_answer": {
+              "model_calls": 1,
+              "prompt_tokens": 1771,
+              "completion_tokens": 408,
+              "total_duration_ns": 5981069387
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    },
+    {
+      "case_id": "lj_grayscale",
+      "backend": "llamaindex_agent",
+      "query": "For LJ:S8000, how do you increase the percentage of grayscale in the display?",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 31.553453,
+      "answer": "Slide to the right to increase the percentage of grayscale.",
+      "citations": [
+        {
+          "chunk_id": "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+          "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+          "pages": [
+            11,
+            12
+          ],
+          "quote_span": null
+        }
+      ],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": true,
+        "stop_reason": "sufficient",
+        "mapped_claim_count": 1,
+        "trust_states": {
+          "subquestion_1": "confirmed"
+        },
+        "confirmed_chunk_ids": [
+          "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+          "6a4f29b4-6e5b-5ed4-9376-a704667e9006",
+          "349a362d-6213-5921-ac2c-99a4c216bedf"
+        ],
+        "supporting_document_ids": [
+          "3a18df27-6202-48e1-b5ba-f5b9428f0d74"
+        ],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "subquestion_1": {
+              "supporting_chunk_ids": [
+                "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+                "6a4f29b4-6e5b-5ed4-9376-a704667e9006",
+                "349a362d-6213-5921-ac2c-99a4c216bedf"
+              ],
+              "retained_chunk_ids": [
+                "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+                "6a4f29b4-6e5b-5ed4-9376-a704667e9006",
+                "349a362d-6213-5921-ac2c-99a4c216bedf"
+              ],
+              "covered": true
+            }
+          },
+          "retained_chunk_ids": [
+            "0442dbc2-1ea8-53ad-a5ac-59daa9645027",
+            "09269f86-062c-5ea1-95b0-8701e5cc69cc",
+            "349a362d-6213-5921-ac2c-99a4c216bedf",
+            "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+            "3adc7b54-23d4-5e81-952c-148bf44fb9d2",
+            "530482de-242c-50a9-a6b8-1d111811549c",
+            "5864ef0b-74ba-57da-9319-9a39b2444d05",
+            "6a4f29b4-6e5b-5ed4-9376-a704667e9006",
+            "6b3695fa-bb5b-5a07-931f-e7338d03f738",
+            "ebd6ec36-073c-53c3-a305-6ebc3efd2978"
+          ],
+          "missing_required_claims": [],
+          "all_required_claims_retained": true
+        },
+        "duration_ms": 9057.48,
+        "cost": {
+          "retrieval_calls": 1,
+          "llm_token_estimate": 19,
+          "model_calls": 12,
+          "prompt_tokens": 14474,
+          "completion_tokens": 2158,
+          "total_tokens": 16632,
+          "total_duration_ms": 29156.63,
+          "by_purpose": {
+            "llamaindex_subquestion_plan": {
+              "model_calls": 1,
+              "prompt_tokens": 214,
+              "completion_tokens": 222,
+              "total_duration_ns": 2316329930
+            },
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 1,
+              "prompt_tokens": 4145,
+              "completion_tokens": 209,
+              "total_duration_ns": 4462683346
+            },
+            "relevance_review": {
+              "model_calls": 1,
+              "prompt_tokens": 2125,
+              "completion_tokens": 648,
+              "total_duration_ns": 6892742162
+            },
+            "chunk_summary": {
+              "model_calls": 6,
+              "prompt_tokens": 3673,
+              "completion_tokens": 497,
+              "total_duration_ns": 6695413079
+            },
+            "recursive_summary": {
+              "model_calls": 2,
+              "prompt_tokens": 2553,
+              "completion_tokens": 154,
+              "total_duration_ns": 2476565458
+            },
+            "final_answer": {
+              "model_calls": 1,
+              "prompt_tokens": 1764,
+              "completion_tokens": 428,
+              "total_duration_ns": 6312900707
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    },
+    {
+      "case_id": "kv_software",
+      "backend": "langgraph_agent",
+      "query": "For the KV-X Series, which integrated software is listed and what upgrade benefit is stated?",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 22.369182,
+      "answer": "KV STUDIO\n\nNo charge for upgrades-you can always use the latest version of the software with no running costs.",
+      "citations": [
+        {
+          "chunk_id": "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "7875fe77-80fc-541f-a89f-19eb1607ee09",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "e814c1a4-4e1e-51b8-92ba-641328df86bf",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            64
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "81c1737b-6b12-568a-83e5-745d8486a7f1",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            3
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            14
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            14
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            14
+          ],
+          "quote_span": null
+        }
+      ],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": true,
+        "stop_reason": "sufficient",
+        "mapped_claim_count": 2,
+        "trust_states": {
+          "facet_1": "confirmed",
+          "facet_2": "confirmed"
+        },
+        "confirmed_chunk_ids": [
+          "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+          "7875fe77-80fc-541f-a89f-19eb1607ee09",
+          "e814c1a4-4e1e-51b8-92ba-641328df86bf",
+          "81c1737b-6b12-568a-83e5-745d8486a7f1",
+          "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+          "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+          "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+        ],
+        "supporting_document_ids": [
+          "72d64a7b-d9ab-453d-9311-fd0685b12242"
+        ],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "facet_1": {
+              "supporting_chunk_ids": [
+                "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+                "7875fe77-80fc-541f-a89f-19eb1607ee09",
+                "e814c1a4-4e1e-51b8-92ba-641328df86bf",
+                "81c1737b-6b12-568a-83e5-745d8486a7f1",
+                "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+                "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+                "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+              ],
+              "retained_chunk_ids": [
+                "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+                "7875fe77-80fc-541f-a89f-19eb1607ee09",
+                "e814c1a4-4e1e-51b8-92ba-641328df86bf",
+                "81c1737b-6b12-568a-83e5-745d8486a7f1",
+                "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+                "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+                "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+              ],
+              "covered": true
+            },
+            "facet_2": {
+              "supporting_chunk_ids": [
+                "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+                "81c1737b-6b12-568a-83e5-745d8486a7f1",
+                "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+              ],
+              "retained_chunk_ids": [
+                "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+                "81c1737b-6b12-568a-83e5-745d8486a7f1",
+                "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+              ],
+              "covered": true
+            }
+          },
+          "retained_chunk_ids": [
+            "11c2db27-2b44-5e6a-bd99-4a22ed8d4a34",
+            "1b1ef71c-3edc-5217-ba65-81857ecc0d82",
+            "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+            "7875fe77-80fc-541f-a89f-19eb1607ee09",
+            "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+            "81c1737b-6b12-568a-83e5-745d8486a7f1",
+            "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c",
+            "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+            "d85615ed-bff6-5a51-b802-65108470df13",
+            "e814c1a4-4e1e-51b8-92ba-641328df86bf"
+          ],
+          "missing_required_claims": [],
+          "all_required_claims_retained": true
+        },
+        "duration_ms": 20690.76,
+        "cost": {
+          "retrieval_calls": 2,
+          "llm_token_estimate": 34,
+          "model_calls": 4,
+          "prompt_tokens": 10193,
+          "completion_tokens": 798,
+          "total_tokens": 10991,
+          "total_duration_ms": 14921.94,
+          "by_purpose": {
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 2,
+              "prompt_tokens": 8305,
+              "completion_tokens": 756,
+              "total_duration_ns": 13267333121
+            },
+            "agentic_retrieval.reduce_claim_answer": {
+              "model_calls": 2,
+              "prompt_tokens": 1888,
+              "completion_tokens": 42,
+              "total_duration_ns": 1654603259
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    },
+    {
+      "case_id": "kv_software",
+      "backend": "llamaindex_agent",
+      "query": "For the KV-X Series, which integrated software is listed and what upgrade benefit is stated?",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 24.47069,
+      "answer": "KV STUDIO\n\nNo charge for upgrades-you can always use the latest version of the software with no running costs.",
+      "citations": [
+        {
+          "chunk_id": "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "7875fe77-80fc-541f-a89f-19eb1607ee09",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "e814c1a4-4e1e-51b8-92ba-641328df86bf",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            64
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "81c1737b-6b12-568a-83e5-745d8486a7f1",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            3
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            14
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            14
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c",
+          "document_id": "72d64a7b-d9ab-453d-9311-fd0685b12242",
+          "pages": [
+            14
+          ],
+          "quote_span": null
+        }
+      ],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": true,
+        "stop_reason": "sufficient",
+        "mapped_claim_count": 2,
+        "trust_states": {
+          "subquestion_1": "confirmed",
+          "subquestion_2": "confirmed"
+        },
+        "confirmed_chunk_ids": [
+          "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+          "7875fe77-80fc-541f-a89f-19eb1607ee09",
+          "e814c1a4-4e1e-51b8-92ba-641328df86bf",
+          "81c1737b-6b12-568a-83e5-745d8486a7f1",
+          "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+          "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+          "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+        ],
+        "supporting_document_ids": [
+          "72d64a7b-d9ab-453d-9311-fd0685b12242"
+        ],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "subquestion_1": {
+              "supporting_chunk_ids": [
+                "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+                "7875fe77-80fc-541f-a89f-19eb1607ee09",
+                "e814c1a4-4e1e-51b8-92ba-641328df86bf",
+                "81c1737b-6b12-568a-83e5-745d8486a7f1",
+                "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+                "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+                "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+              ],
+              "retained_chunk_ids": [
+                "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+                "7875fe77-80fc-541f-a89f-19eb1607ee09",
+                "e814c1a4-4e1e-51b8-92ba-641328df86bf",
+                "81c1737b-6b12-568a-83e5-745d8486a7f1",
+                "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+                "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+                "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+              ],
+              "covered": true
+            },
+            "subquestion_2": {
+              "supporting_chunk_ids": [
+                "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+                "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+                "81c1737b-6b12-568a-83e5-745d8486a7f1",
+                "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+              ],
+              "retained_chunk_ids": [
+                "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+                "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+                "81c1737b-6b12-568a-83e5-745d8486a7f1",
+                "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c"
+              ],
+              "covered": true
+            }
+          },
+          "retained_chunk_ids": [
+            "11c2db27-2b44-5e6a-bd99-4a22ed8d4a34",
+            "1b1ef71c-3edc-5217-ba65-81857ecc0d82",
+            "296a352f-b051-5e14-9a92-2bbdbd9ff30b",
+            "7875fe77-80fc-541f-a89f-19eb1607ee09",
+            "7e3b6d29-4657-57e3-8ce6-e08b148f55c8",
+            "81c1737b-6b12-568a-83e5-745d8486a7f1",
+            "ab8391e7-6282-5417-8ef1-da1d8ff4bc9c",
+            "c5c5c8d8-e026-5f84-a1b8-71107c394a2c",
+            "d85615ed-bff6-5a51-b802-65108470df13",
+            "e814c1a4-4e1e-51b8-92ba-641328df86bf"
+          ],
+          "missing_required_claims": [],
+          "all_required_claims_retained": true
+        },
+        "duration_ms": 22717.95,
+        "cost": {
+          "retrieval_calls": 2,
+          "llm_token_estimate": 34,
+          "model_calls": 4,
+          "prompt_tokens": 10399,
+          "completion_tokens": 966,
+          "total_tokens": 11365,
+          "total_duration_ms": 17451.36,
+          "by_purpose": {
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 2,
+              "prompt_tokens": 8305,
+              "completion_tokens": 924,
+              "total_duration_ns": 15722049789
+            },
+            "agentic_retrieval.reduce_claim_answer": {
+              "model_calls": 2,
+              "prompt_tokens": 2094,
+              "completion_tokens": 42,
+              "total_duration_ns": 1729314019
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    },
+    {
+      "case_id": "cross_document",
+      "backend": "langgraph_agent",
+      "query": "Compare the VJ-H500CX weight with how grayscale percentage is increased for LJ:S8000.",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 13.089894,
+      "answer": "Approx. 280 g (not including lens)\n\nSlide to the right",
+      "citations": [
+        {
+          "chunk_id": "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+          "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "pages": [
+            1
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+          "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "pages": [
+            1
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+          "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "pages": [
+            1
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+          "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+          "pages": [
+            11,
+            12
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "349a362d-6213-5921-ac2c-99a4c216bedf",
+          "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+          "pages": [
+            11
+          ],
+          "quote_span": null
+        }
+      ],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": true,
+        "stop_reason": "sufficient",
+        "mapped_claim_count": 2,
+        "trust_states": {
+          "side_1": "confirmed",
+          "side_2": "confirmed"
+        },
+        "confirmed_chunk_ids": [
+          "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+          "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+          "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+          "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+          "349a362d-6213-5921-ac2c-99a4c216bedf"
+        ],
+        "supporting_document_ids": [
+          "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "3a18df27-6202-48e1-b5ba-f5b9428f0d74"
+        ],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "side_1": {
+              "supporting_chunk_ids": [
+                "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+                "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+                "f155630a-fe0a-58f3-b928-2f1fa0aa4165"
+              ],
+              "retained_chunk_ids": [
+                "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+                "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+                "f155630a-fe0a-58f3-b928-2f1fa0aa4165"
+              ],
+              "covered": true
+            },
+            "side_2": {
+              "supporting_chunk_ids": [
+                "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+                "349a362d-6213-5921-ac2c-99a4c216bedf"
+              ],
+              "retained_chunk_ids": [
+                "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+                "349a362d-6213-5921-ac2c-99a4c216bedf"
+              ],
+              "covered": true
+            }
+          },
+          "retained_chunk_ids": [
+            "349a362d-6213-5921-ac2c-99a4c216bedf",
+            "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+            "80673664-1c8c-52ea-853b-1830186f8701",
+            "a97f0a1c-9177-5eb2-a22d-ae5d09fcbe5f",
+            "ab9966bf-9d19-5bed-868a-1fd4cee46dc6",
+            "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+            "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+            "ebd6ec36-073c-53c3-a305-6ebc3efd2978",
+            "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+            "f541eb71-e2af-5d3f-b81c-754e765a08a5"
+          ],
+          "missing_required_claims": [],
+          "all_required_claims_retained": true
+        },
+        "duration_ms": 11881.31,
+        "cost": {
+          "retrieval_calls": 2,
+          "llm_token_estimate": 20,
+          "model_calls": 4,
+          "prompt_tokens": 7854,
+          "completion_tokens": 394,
+          "total_tokens": 8248,
+          "total_duration_ms": 8988.79,
+          "by_purpose": {
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 2,
+              "prompt_tokens": 7070,
+              "completion_tokens": 357,
+              "total_duration_ns": 7803566398
+            },
+            "agentic_retrieval.reduce_claim_answer": {
+              "model_calls": 2,
+              "prompt_tokens": 784,
+              "completion_tokens": 37,
+              "total_duration_ns": 1185223369
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    },
+    {
+      "case_id": "cross_document",
+      "backend": "llamaindex_agent",
+      "query": "Compare the VJ-H500CX weight with how grayscale percentage is increased for LJ:S8000.",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 13.168138,
+      "answer": "Approx. 280 g (not including lens)\n\nSlide to the right",
+      "citations": [
+        {
+          "chunk_id": "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+          "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "pages": [
+            1
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+          "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "pages": [
+            1
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+          "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "pages": [
+            1
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+          "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+          "pages": [
+            11,
+            12
+          ],
+          "quote_span": null
+        },
+        {
+          "chunk_id": "349a362d-6213-5921-ac2c-99a4c216bedf",
+          "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+          "pages": [
+            11
+          ],
+          "quote_span": null
+        }
+      ],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": true,
+        "stop_reason": "sufficient",
+        "mapped_claim_count": 2,
+        "trust_states": {
+          "subquestion_1": "confirmed",
+          "subquestion_2": "confirmed"
+        },
+        "confirmed_chunk_ids": [
+          "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+          "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+          "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+          "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+          "349a362d-6213-5921-ac2c-99a4c216bedf"
+        ],
+        "supporting_document_ids": [
+          "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+          "3a18df27-6202-48e1-b5ba-f5b9428f0d74"
+        ],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "subquestion_1": {
+              "supporting_chunk_ids": [
+                "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+                "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+                "f155630a-fe0a-58f3-b928-2f1fa0aa4165"
+              ],
+              "retained_chunk_ids": [
+                "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+                "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+                "f155630a-fe0a-58f3-b928-2f1fa0aa4165"
+              ],
+              "covered": true
+            },
+            "subquestion_2": {
+              "supporting_chunk_ids": [
+                "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+                "349a362d-6213-5921-ac2c-99a4c216bedf"
+              ],
+              "retained_chunk_ids": [
+                "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+                "349a362d-6213-5921-ac2c-99a4c216bedf"
+              ],
+              "covered": true
+            }
+          },
+          "retained_chunk_ids": [
+            "349a362d-6213-5921-ac2c-99a4c216bedf",
+            "369dcbb1-7ed9-564a-b1e4-e132ada06a81",
+            "80673664-1c8c-52ea-853b-1830186f8701",
+            "a97f0a1c-9177-5eb2-a22d-ae5d09fcbe5f",
+            "ab9966bf-9d19-5bed-868a-1fd4cee46dc6",
+            "d74c661d-da1b-5407-a8fa-81a50a7be7c5",
+            "e654599c-7f29-58a6-a18d-373f4cd4cf38",
+            "ebd6ec36-073c-53c3-a305-6ebc3efd2978",
+            "f155630a-fe0a-58f3-b928-2f1fa0aa4165",
+            "f541eb71-e2af-5d3f-b81c-754e765a08a5"
+          ],
+          "missing_required_claims": [],
+          "all_required_claims_retained": true
+        },
+        "duration_ms": 12003.47,
+        "cost": {
+          "retrieval_calls": 2,
+          "llm_token_estimate": 20,
+          "model_calls": 4,
+          "prompt_tokens": 7854,
+          "completion_tokens": 394,
+          "total_tokens": 8248,
+          "total_duration_ms": 9078.2,
+          "by_purpose": {
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 2,
+              "prompt_tokens": 7070,
+              "completion_tokens": 357,
+              "total_duration_ns": 7938317434
+            },
+            "agentic_retrieval.reduce_claim_answer": {
+              "model_calls": 2,
+              "prompt_tokens": 784,
+              "completion_tokens": 37,
+              "total_duration_ns": 1139883843
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    },
+    {
+      "case_id": "unknown_product_abstention",
+      "backend": "langgraph_agent",
+      "query": "What is the maximum transfer speed of the ZX-9999 controller?",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 28.520911,
+      "answer": "I do not have enough directly supported manual evidence to answer this reliably. The retrieval agent stopped with unresolved evidence requirements.",
+      "citations": [],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": false,
+        "stop_reason": "hop_budget_exhausted",
+        "mapped_claim_count": 3,
+        "trust_states": {
+          "hop_1": "probable",
+          "hop_1_recovery": "unresolved",
+          "hop_1_recovery_2": "unresolved"
+        },
+        "confirmed_chunk_ids": [],
+        "supporting_document_ids": [],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "hop_1": {
+              "supporting_chunk_ids": [],
+              "retained_chunk_ids": [],
+              "covered": false
+            }
+          },
+          "retained_chunk_ids": [
+            "2718a9be-8ded-532e-a9dc-0d94be827dab",
+            "39e70c56-4576-52e2-8256-3f394ea318c2",
+            "3adc7b54-23d4-5e81-952c-148bf44fb9d2",
+            "4f86f97e-056e-5a2a-8d29-9464ddccb0ba",
+            "511fbb3a-7aff-5b63-9595-5b3cb774d1f9",
+            "5860df5d-3be5-52a5-b71e-89299086debf",
+            "9b607fea-5bf2-5f0b-a3f9-cdae03095a81",
+            "b267e7c3-383a-53fc-bc69-fe40b69d051e",
+            "baf1efb1-a65e-52b3-998a-5f051eca49ff",
+            "c3c7c873-cea9-5043-be4d-398419ef6568"
+          ],
+          "missing_required_claims": [
+            "hop_1"
+          ],
+          "all_required_claims_retained": false
+        },
+        "duration_ms": 28516.42,
+        "cost": {
+          "retrieval_calls": 3,
+          "llm_token_estimate": 84,
+          "model_calls": 4,
+          "prompt_tokens": 14186,
+          "completion_tokens": 574,
+          "total_tokens": 14760,
+          "total_duration_ms": 13810.04,
+          "by_purpose": {
+            "agentic_retrieval_plan": {
+              "model_calls": 1,
+              "prompt_tokens": 194,
+              "completion_tokens": 63,
+              "total_duration_ns": 825001791
+            },
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 3,
+              "prompt_tokens": 13992,
+              "completion_tokens": 511,
+              "total_duration_ns": 12985033286
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    },
+    {
+      "case_id": "unknown_product_abstention",
+      "backend": "llamaindex_agent",
+      "query": "What is the maximum transfer speed of the ZX-9999 controller?",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 26.849139,
+      "answer": "I do not have enough directly supported manual evidence to answer this reliably. The retrieval agent stopped with unresolved evidence requirements.",
+      "citations": [],
+      "trace": {
+        "pipeline": "evidence_map_reduce_verify_v1",
+        "stages": [
+          "map_claims",
+          "retrieve_scoped_branches",
+          "verify_claims",
+          "reduce_confirmed_evidence"
+        ],
+        "sufficient": false,
+        "stop_reason": "hop_budget_exhausted",
+        "mapped_claim_count": 3,
+        "trust_states": {
+          "subquestion_1": "rejected",
+          "subquestion_1_query_engine_retry_1": "rejected",
+          "subquestion_1_query_engine_retry_2": "rejected"
+        },
+        "confirmed_chunk_ids": [],
+        "supporting_document_ids": [],
+        "invalid_citation_ids": [],
+        "out_of_scope_chunk_ids": [],
+        "context_assembly": {
+          "claims": {
+            "subquestion_1": {
+              "supporting_chunk_ids": [],
+              "retained_chunk_ids": [],
+              "covered": false
+            }
+          },
+          "retained_chunk_ids": [
+            "112a2cbd-017f-5a23-8c17-2f2343b74480",
+            "319e78d4-c562-5f4e-aae7-24abea0a856b",
+            "3adc7b54-23d4-5e81-952c-148bf44fb9d2",
+            "3bfdb4b6-06fd-52e6-8e3f-1e700d2f7f09",
+            "4c6280b9-731f-5a4a-990b-879f98e050f9",
+            "96d269ab-ebb2-5d94-bde7-21b8e70106d6",
+            "b267e7c3-383a-53fc-bc69-fe40b69d051e",
+            "baf1efb1-a65e-52b3-998a-5f051eca49ff",
+            "c3c7c873-cea9-5043-be4d-398419ef6568",
+            "fb360e8f-430f-55b2-aeef-db3b996a9a2c"
+          ],
+          "missing_required_claims": [
+            "subquestion_1"
+          ],
+          "all_required_claims_retained": false
+        },
+        "duration_ms": 26844.71,
+        "cost": {
+          "retrieval_calls": 3,
+          "llm_token_estimate": 88,
+          "model_calls": 4,
+          "prompt_tokens": 18050,
+          "completion_tokens": 470,
+          "total_tokens": 18520,
+          "total_duration_ms": 13326.31,
+          "by_purpose": {
+            "llamaindex_subquestion_plan": {
+              "model_calls": 1,
+              "prompt_tokens": 210,
+              "completion_tokens": 55,
+              "total_duration_ns": 769688286
+            },
+            "agentic_retrieval.verify_claim": {
+              "model_calls": 3,
+              "prompt_tokens": 17840,
+              "completion_tokens": 415,
+              "total_duration_ns": 12556621791
+            }
+          },
+          "measured": true
+        },
+        "missing_answer_terms": []
+      }
+    }
+  ]
+}

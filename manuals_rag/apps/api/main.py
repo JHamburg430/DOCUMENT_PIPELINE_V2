@@ -44,6 +44,7 @@ from manuals_rag_common.logging import configure_logging
 from manuals_rag_common.ollama import (
     build_chat_payload,
     capture_ollama_usage,
+    chat_json,
     ensure_model_loaded,
     extract_chat_content,
     recent_ollama_calls,
@@ -56,7 +57,170 @@ from manuals_rag_observability.metrics import QUERY_DURATION
 from manuals_rag_parsers.metadata import infer_document_metadata
 from manuals_rag_permissions.auth import Principal, require_role
 from manuals_rag_retrieval.retriever import build_filters, retrieve
-from manuals_rag_schemas.documents import QueryRequest, SearchResult, SourceDocumentCreate
+from manuals_rag_schemas.documents import AnswerResponse, QueryRequest, SearchResult, SourceDocumentCreate
+
+
+AGENT_CLAIM_ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string"}},
+    "required": ["answer"],
+}
+
+
+def _answer_confirmed_claim(
+    objective: str,
+    results: list[SearchResult],
+    verifier_rationale: str,
+) -> AnswerResponse:
+    """Reduce one independently verified claim without cross-claim competition."""
+    try:
+        payload, _raw = chat_json(
+            model=settings.ollama_answer_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Answer exactly one requested claim using only the independently confirmed "
+                        "evidence. Return strict JSON with one key, answer. State the requested fact "
+                        "directly and concisely; do not mention chunk IDs or the verification process."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Claim: {objective}\n"
+                        f"Verifier rationale: {verifier_rationale}\n"
+                        "Confirmed evidence:\n"
+                        + "\n\n".join(
+                            f"[{result.title}; pages {result.pages}] {result.content[:1800]}"
+                            for result in results[:5]
+                        )
+                    ),
+                },
+            ],
+            json_schema=AGENT_CLAIM_ANSWER_SCHEMA,
+            think=False,
+            timeout=90.0,
+            num_predict=400,
+            purpose="agentic_retrieval.reduce_claim_answer",
+        )
+        answer_text = str(payload.get("answer") or "").strip()
+        if not answer_text:
+            raise ValueError("Claim reducer returned an empty answer")
+    except Exception:
+        return generate_answer(objective, results)
+
+    return AnswerResponse(
+        answer=answer_text,
+        confidence="high",
+        used_documents=[
+            {
+                "document_id": result.source_document_id,
+                "title": result.title,
+                "version": result.document_version_id,
+                "pages": result.pages,
+                "section_path": result.section_path,
+            }
+            for result in results
+        ],
+        citations=[
+            {
+                "chunk_id": result.chunk_id,
+                "document_id": result.source_document_id,
+                "pages": result.pages,
+                "quote_span": None,
+            }
+            for result in results
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+
+def _generate_agentic_answer(
+    query: str,
+    results: list[SearchResult],
+    trace: dict[str, Any],
+) -> AnswerResponse:
+    """Answer each confirmed required claim before reducing multi-claim output."""
+    required_support = dict(trace.get("required_claim_support") or {})
+    if len(required_support) <= 1:
+        return generate_answer(query, results)
+
+    ledger = dict(trace.get("evidence_ledger") or {})
+    results_by_id = {result.chunk_id: result for result in results}
+    branch_answers: list[AnswerResponse] = []
+    for hop_id, chunk_ids in required_support.items():
+        branch_results = [
+            results_by_id[str(chunk_id)]
+            for chunk_id in chunk_ids
+            if str(chunk_id) in results_by_id
+        ]
+        if not branch_results:
+            continue
+        objective = str((ledger.get(hop_id) or {}).get("objective") or query)
+        verification_candidates = [
+            entry
+            for candidate_id, entry in ledger.items()
+            if candidate_id == hop_id or str(entry.get("recovery_for") or "") == hop_id
+            if entry.get("sufficient")
+        ]
+        verifier_rationale = next(
+            (
+                str(
+                    ((entry.get("assessment") or {}).get("verification") or {}).get("rationale")
+                    or ""
+                )
+                for entry in verification_candidates
+                if str(
+                    ((entry.get("assessment") or {}).get("verification") or {}).get("rationale")
+                    or ""
+                ).strip()
+            ),
+            "",
+        )
+        branch_answers.append(
+            _answer_confirmed_claim(objective, branch_results, verifier_rationale)
+        )
+
+    if len(branch_answers) <= 1:
+        return generate_answer(query, results)
+
+    confidence_order = {"low": 0, "medium": 1, "high": 2}
+    confidence = min(
+        (answer.confidence for answer in branch_answers),
+        key=lambda value: confidence_order.get(value, 0),
+    )
+
+    def unique_records(records: list[dict[str, Any]], keys: tuple[str, ...]) -> list[dict[str, Any]]:
+        output: list[dict[str, Any]] = []
+        seen: set[tuple[str, ...]] = set()
+        for record in records:
+            identity = tuple(str(record.get(key) or "") for key in keys)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            output.append(record)
+        return output
+
+    return AnswerResponse(
+        answer="\n\n".join(answer.answer.strip() for answer in branch_answers if answer.answer.strip()),
+        confidence=confidence,
+        used_documents=unique_records(
+            [record for answer in branch_answers for record in answer.used_documents],
+            ("document_id", "version"),
+        ),
+        citations=unique_records(
+            [record for answer in branch_answers for record in answer.citations],
+            ("chunk_id", "document_id"),
+        ),
+        warnings=list(dict.fromkeys(item for answer in branch_answers for item in answer.warnings)),
+        followup_questions=list(
+            dict.fromkeys(item for answer in branch_answers for item in answer.followup_questions)
+        ),
+        insufficient_evidence=any(answer.insufficient_evidence for answer in branch_answers),
+    )
 
 
 def _storage_object_name(tenant_id: str, sha256: str, filename: str) -> str:
@@ -1128,10 +1292,11 @@ def query_documents(
                 }
             )
             retrieval_results = [SearchResult.model_validate(item) for item in result.get("retrieval_results", [])]
+            retrieval_trace = result.get("retrieval_trace", {})
             answer = (
-                generate_answer(request.query, retrieval_results)
-                if result.get("sufficient", (result.get("retrieval_trace") or {}).get("sufficient"))
-                else insufficient_agent_answer(request.query, result.get("retrieval_trace", {}))
+                _generate_agentic_answer(request.query, retrieval_results, retrieval_trace)
+                if result.get("sufficient", retrieval_trace.get("sufficient"))
+                else insufficient_agent_answer(request.query, retrieval_trace)
             ).model_dump()
         trace = dict(result.get("retrieval_trace", {}))
         trace["cost"] = {**dict(trace.get("cost") or {}), **summarize_ollama_usage(usage_events), "measured": True}
@@ -1191,10 +1356,11 @@ def _stream_agentic_query_events(request: QueryRequest):
                         "synthesis_allowed": bool(result.get("sufficient", (result.get("retrieval_trace") or {}).get("sufficient"))),
                     }
                 )
+                retrieval_trace = result.get("retrieval_trace", {})
                 answer = (
-                    generate_answer(request.query, retrieval_results)
-                    if result.get("sufficient", (result.get("retrieval_trace") or {}).get("sufficient"))
-                    else insufficient_agent_answer(request.query, result.get("retrieval_trace", {}))
+                    _generate_agentic_answer(request.query, retrieval_results, retrieval_trace)
+                    if result.get("sufficient", retrieval_trace.get("sufficient"))
+                    else insufficient_agent_answer(request.query, retrieval_trace)
                 ).model_dump()
             trace = dict(result.get("retrieval_trace", {}))
             trace["cost"] = {**dict(trace.get("cost") or {}), **summarize_ollama_usage(usage_events), "measured": True}

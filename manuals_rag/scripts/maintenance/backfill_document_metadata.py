@@ -44,7 +44,11 @@ def _ensure_metadata_table() -> None:
     )
 
 
-def _documents(limit: int | None = None) -> list[dict[str, Any]]:
+def _documents(
+    limit: int | None = None,
+    *,
+    document_ids: list[str] | None = None,
+) -> list[dict[str, Any]]:
     query = """
         select
             sd.id as document_id,
@@ -57,12 +61,16 @@ def _documents(limit: int | None = None) -> list[dict[str, Any]]:
             from logical_nodes ln
             where ln.document_version_id = dv.id
         )
-        order by sd.updated_at desc, sd.id
     """
     params: tuple[Any, ...] = ()
+    if document_ids:
+        placeholders = ",".join(["%s"] * len(document_ids))
+        query += f" and sd.id in ({placeholders})"
+        params = tuple(document_ids)
+    query += " order by sd.updated_at desc, sd.id"
     if limit is not None:
         query += " limit %s"
-        params = (limit,)
+        params = (*params, limit)
     return fetch_all(query, params)
 
 
@@ -211,6 +219,12 @@ def main() -> None:
     parser.add_argument("--no-enqueue-embed", action="store_true", help="Do not enqueue embed jobs after updating chunk metadata.")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of documents.")
     parser.add_argument(
+        "--document-id",
+        action="append",
+        dest="document_ids",
+        help="Restrict processing to one source-document UUID. Repeat for multiple documents.",
+    )
+    parser.add_argument(
         "--node-limit",
         type=int,
         default=None,
@@ -221,7 +235,7 @@ def main() -> None:
 
     _ensure_metadata_table()
     results: list[BackfillResult] = []
-    for document in _documents(limit=args.limit):
+    for document in _documents(limit=args.limit, document_ids=args.document_ids):
         try:
             segments = _document_segments(str(document["version_id"]), node_limit=args.node_limit)
             metadata = _metadata_payload(

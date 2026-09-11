@@ -12,14 +12,28 @@ tool routing, query transformations, and alternate-query-engine recovery. They s
 hybrid, structural, sparse, dense, and broad retrieval tools; evidence/result
 schemas; budgets; and evaluation contract.
 
+Both backends implement an evidence Map–Reduce–Verify contract. Planning maps the
+question into bounded, independently scoped claim branches. Each branch retrieves
+through one shared search tool, then an independent `qwen3.5:9b` verifier classifies
+the evidence as `confirmed`, `probable`, `unresolved`, `conflicting`, or `rejected`.
+Reduction reserves only confirmed, scope-bound citations for required claims.
+Explicit multi-product comparisons are always mapped into one branch per normalized
+identifier, even if model planning proposes a single blended hop. Structural retrieval
+fuses table, contextual, dense, and sparse candidates because procedures and GUI
+instructions may be represented as prose rather than table records.
+
 Neither backend may synthesize merely because its retrieval budget ended. Each
-hop writes a claim-level evidence ledger entry that names the supporting chunks,
+hop writes a claim-level evidence ledger entry that names the verifier trust state, supporting chunks,
 documents, answer facets, dependency bindings, contradictions, and unresolved
 gaps. A claim is supported only when one evidence item contains both its answer
-facet and any dependency anchor. Aggregate keywords spread across unrelated
+facet and any dependency anchor, and the verifier cites a chunk that was actually
+retrieved for the same branch. Invented citation IDs and cross-scope evidence are
+rejected deterministically. Aggregate keywords spread across unrelated
 chunks do not satisfy the claim. The final context assembler reserves attributed
 support for every required claim and rechecks coverage before synthesis; any
 unresolved or dropped claim produces an explicit insufficient-evidence answer.
+Compact verifier response variants (for example `verdict` plus cited chunk IDs) are
+normalized into the trust schema before these deterministic integrity checks run.
 
 In both policies, dependent hops use evidence discovered by prior hops. Concrete identifiers not
 already present in the dependency query become anchors for the next query and
@@ -48,7 +62,7 @@ and measured Ollama prompt/completion token and duration counters.
 
 `POST /query/stream` accepts the same request for either agent backend and
 returns newline-delimited JSON events as the run progresses. Events cover plan
-creation, hop start/completion, evidence assessment, recovery scheduling,
+creation, hop start/completion, independent `claim_verified` decisions, recovery scheduling,
 tool selection, retrieval completion, answer generation, and terminal success
 or failure. Every trace identifies its control policy.
 

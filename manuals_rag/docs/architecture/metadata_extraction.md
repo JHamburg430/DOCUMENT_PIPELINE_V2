@@ -44,7 +44,7 @@ Claim trust states control retrieval use:
 - `conflicting`: retained with neutral retrieval treatment and an applicability warning path
 - `rejected`: retained for audit only
 
-Model output is intentionally treated as unreliable infrastructure. Common response-shape, enum, null, and date variants are normalized, then malformed/truncated calls are retried. Large batches that repeatedly truncate are bisected and retried recursively. If a scoped batch still cannot be recovered, the extraction fails and the backfill reports the document as failed instead of persisting partial routing metadata.
+Model output is intentionally treated as unreliable infrastructure. Common response-shape, enum, null, and date variants are normalized, then malformed/truncated calls are retried. Scoped extraction uses a 16K context window, a bounded output budget, and schema-level item/string limits. Large batches that repeatedly truncate are bisected and retried recursively. If a scoped batch still cannot be recovered, the extraction fails and the backfill reports the document as failed instead of persisting partial routing metadata.
 
 Version-bearing batches have two completeness gates. If the general scoped pass misses explicit firmware or software-version signals, a focused applicability pass runs; a batch that still lacks grounded version evidence fails safely. After independent verification, the document also fails safely if every grounded claim for a detected version kind was rejected or remained unresolved. Scoped values are accepted only when the model supplies an exact quote found in the same page-aware source batch, version records require an explicit subject, and external PLC/controller versions remain evidence rather than product applicability.
 
@@ -85,6 +85,7 @@ manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply
 Useful options:
 
 - `--limit N` restricts the number of documents processed.
+- Repeat `--document-id UUID` to target a pilot set or repair individual documents without scanning the corpus.
 - The default processes every logical node in page-aware batches.
 - `--segment-chars N` controls the maximum source characters in each scoped extraction call (default `3000`, matching ingestion).
 - `--node-limit N` is a diagnostic-only cap and reduces metadata recall.

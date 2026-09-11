@@ -35,4 +35,5 @@ def test_step_updates_persist_status_details_and_failure(monkeypatch):
     assert "status = 'failed'" in statements[2][0]
     assert statements[2][1] == ("index unavailable", "run-1", "index_chunks")
     assert "status = 'skipped'" in statements[3][0]
+    assert "'failed_step', %s::text" in statements[3][0]
     assert statements[3][1] == ("index_chunks", "run-1", "run-1", "index_chunks")

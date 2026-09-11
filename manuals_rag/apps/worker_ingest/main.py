@@ -265,12 +265,15 @@ def process_job(job: dict[str, str]) -> None:
             "tenant_id": document["tenant_id"],
             "corpus_id": document["corpus_id"],
             "document_kind": inferred_metadata.document_kind.value,
-            "manufacturer": inferred_metadata.manufacturer if inferred_metadata.manufacturer != "Unknown" else document["manufacturer"],
+            # Schema-v2 identity is a verified projection. Never refill an unresolved
+            # value from upload-time/legacy metadata, which may itself be an example
+            # entity extracted from the document body.
+            "manufacturer": inferred_metadata.manufacturer,
             "companies": inferred_metadata.companies,
-            "product_family": inferred_metadata.product_family or document["product_family"],
-            "product_model": inferred_metadata.product_model or document["product_model"],
+            "product_family": inferred_metadata.product_family,
+            "product_model": inferred_metadata.product_model,
             "product_families": inferred_metadata.product_families,
-            "product_models": inferred_metadata.product_models or ([document["product_model"]] if document["product_model"] else []),
+            "product_models": inferred_metadata.product_models,
             "devices": inferred_metadata.devices,
             "part_numbers": inferred_metadata.part_numbers,
             "document_protocol_terms": inferred_metadata.protocol_terms,

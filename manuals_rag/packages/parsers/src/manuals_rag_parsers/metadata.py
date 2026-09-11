@@ -94,7 +94,7 @@ DEFAULT_METADATA_SEGMENT_CHARS = 3000
 MAX_FLAT_LIST_ITEMS = 12
 MAX_SCOPED_ENTITIES = 10
 MIN_SCOPED_SPLIT_CHARS = 500
-METADATA_NUM_CTX = 8192
+METADATA_NUM_CTX = 16384
 METADATA_EXTRACTION_ATTEMPTS = 3
 PRIMARY_ENTITY_MIN_CONFIDENCE = 0.8
 TITLE_PAGE_LIMIT = 2
@@ -102,6 +102,11 @@ TITLE_SOURCE_MAX_CHARS = 12000
 CLAIM_VERIFICATION_BATCH_SIZE = 8
 METADATA_MAP_MAX_CONCURRENCY = 2
 MAX_HARVESTED_CANDIDATES = 80
+METADATA_SCOPED_NUM_PREDICT = 5000
+IDENTIFIER_CANDIDATE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:]\s*[A-Z0-9]{1,16})+|"
+    r"[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
+)
 METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v1"
 
 DOCUMENT_KIND_ALIASES = {
@@ -630,6 +635,13 @@ def _scoped_metadata_schema() -> dict[str, Any]:
             properties["kind"]["enum"] = sorted(SCOPED_METADATA_KINDS)
         if isinstance(properties.get("relation"), dict):
             properties["relation"]["enum"] = sorted(SCOPED_METADATA_RELATIONS)
+        for field_name, max_length in {
+            "value": 160,
+            "subject": 160,
+            "source_quote": 500,
+        }.items():
+            if isinstance(properties.get(field_name), dict):
+                properties[field_name]["maxLength"] = max_length
     entities_schema = schema.get("properties", {}).get("entities")
     if isinstance(entities_schema, dict):
         entities_schema["maxItems"] = MAX_SCOPED_ENTITIES
@@ -820,8 +832,11 @@ def _ground_values(field_name: str, values: list[str], filename: str, text: str)
             continue
         if field_name == "product_families" and stripped.upper() in {"PLC"}:
             continue
-        if field_name == "menu_labels" and not (stripped.startswith("[") and stripped.endswith("]")):
-            continue
+        if field_name == "menu_labels":
+            if not (stripped.startswith("[") and stripped.endswith("]")):
+                continue
+            if re.fullmatch(r"\[(?:PAGE|SECTION)(?:\s+[^\]]+)?\]", stripped, re.IGNORECASE):
+                continue
         if field_name == "devices" and stripped.casefold() in {filename.casefold(), *filename_stems}:
             continue
         if field_name in {"part_numbers", "product_models"} and ("_" in stripped or stripped.lower().endswith(".pdf")):
@@ -917,6 +932,17 @@ def _to_document_metadata(filename: str, text: str, extraction: MetadataExtracti
     product_family = product_families[0] if product_families else None
     if product_family is None and extraction.product_family and extraction.product_family not in product_models:
         product_family = extraction.product_family if _value_is_grounded(extraction.product_family, _source_text(filename, text)) else None
+    if (
+        product_model is None
+        and product_family
+        and any(char.isdigit() for char in product_family)
+        and re.fullmatch(r"[A-Za-z]{1,8}(?:[-: ]?[A-Za-z0-9]+)+", product_family)
+    ):
+        # Models are sometimes returned in the adjacent family field. Promote only
+        # grounded, compact alphanumeric identifiers; descriptive family names and
+        # ungrounded values remain families rather than retrieval identities.
+        product_model = product_family
+        product_models = _dedupe_preserve_order([*product_models, product_family])
     proposed_title = " ".join((extraction.title or "").split()).strip()
     title = proposed_title if proposed_title and _value_is_grounded(proposed_title, text) else _normalize_title(filename)
     revision_date = _ground_date(extraction.revision_date, filename, text)
@@ -968,9 +994,6 @@ def _segment_text(segment: MetadataSourceSegment) -> str:
 def harvest_metadata_candidates(segments: list[MetadataSourceSegment]) -> list[dict[str, Any]]:
     """Harvest broad, corpus-general candidates before asking the model to classify them."""
     candidates: list[dict[str, Any]] = []
-    identifier_pattern = re.compile(
-        r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:][A-Z0-9]{1,16})+|[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
-    )
     version_pattern = re.compile(
         r"\b(?:firmware|software|version|ver\.?|revision|rev\.?)\b[^\n]{0,100}?\b\d+(?:\.\d+){0,3}\b",
         re.IGNORECASE,
@@ -987,7 +1010,7 @@ def harvest_metadata_candidates(segments: list[MetadataSourceSegment]) -> list[d
             if not quote:
                 continue
             for kind, pattern in (
-                ("identifier", identifier_pattern),
+                ("identifier", IDENTIFIER_CANDIDATE_PATTERN),
                 ("version_statement", version_pattern),
                 ("protocol", protocol_pattern),
             ):
@@ -1010,6 +1033,36 @@ def harvest_metadata_candidates(segments: list[MetadataSourceSegment]) -> list[d
                     if len(candidates) >= MAX_HARVESTED_CANDIDATES:
                         return candidates
     return candidates
+
+
+def _opening_title_identifier_evidence(
+    selected_title: str,
+    segments: list[MetadataSourceSegment],
+) -> list[dict[str, Any]]:
+    """Turn grounded identifiers in the selected printed title into verifiable claims."""
+    opening_segments = _opening_page_segments(segments)
+    located = _quote_location(selected_title, opening_segments)
+    if located is None:
+        return []
+    evidence: list[dict[str, Any]] = []
+    for match in IDENTIFIER_CANDIDATE_PATTERN.finditer(selected_title):
+        value = re.sub(r"\s*([-:])\s*", r"\1", match.group(0).strip())
+        evidence.append(
+            {
+                "value": value,
+                "kind": "product_model",
+                "relation": "mentioned",
+                "subject": None,
+                "source_quote": selected_title,
+                "page_from": located.page_from,
+                "page_to": located.page_to,
+                "section_path": list(located.section_path),
+                "confidence": 0.45,
+                "grounded": True,
+                "source": "opening_title_candidate",
+            }
+        )
+    return evidence
 
 
 def pack_metadata_source_segments(
@@ -1116,7 +1169,7 @@ def _call_scoped_model(
                 json_schema=_scoped_metadata_schema(),
                 think=False,
                 purpose=purpose,
-                num_predict=3000,
+                num_predict=METADATA_SCOPED_NUM_PREDICT,
                 num_ctx=METADATA_NUM_CTX,
             )
             normalized = _normalize_object_response(parsed, collection_key="entities")
@@ -1131,8 +1184,6 @@ def _call_scoped_model(
                 purpose,
                 exc,
             )
-            if isinstance(exc, json.JSONDecodeError):
-                break
     raise MetadataExtractionIncomplete(
         f"Scoped metadata extraction exhausted retries for {filename} purpose={purpose}: {last_error}"
     )
@@ -1333,8 +1384,10 @@ def _claim_scope_key(item: dict[str, Any]) -> tuple[str, str, str]:
 def reconcile_metadata_claims(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Reduce page claims into a document ledger without product-specific knowledge."""
     groups: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
-    for item in evidence:
-        groups.setdefault(_claim_group_key(item), []).append(item)
+    for raw_item in evidence:
+        item = _sanitize_claim_shape(raw_item)
+        if item is not None:
+            groups.setdefault(_claim_group_key(item), []).append(item)
     reduced: list[dict[str, Any]] = []
     for items in groups.values():
         representative = dict(items[0])
@@ -1369,6 +1422,53 @@ def reconcile_metadata_claims(evidence: list[dict[str, Any]]) -> list[dict[str, 
     return reduced
 
 
+_RELATIONS_BY_CLAIM_KIND: dict[str, set[str]] = {
+    "company": {"primary_manufacturer", "external_reference", "mentioned"},
+    "product_family": {"primary_product", "applies_to", "compatible_with", "external_reference", "mentioned"},
+    "product_model": {"primary_product", "applies_to", "compatible_with", "external_reference", "mentioned"},
+    "device": {"primary_product", "applies_to", "compatible_with", "accessory_for", "external_reference", "mentioned"},
+    "part_number": {"applies_to", "compatible_with", "accessory_for", "external_reference", "mentioned"},
+    "protocol": {"applies_to", "compatible_with", "external_reference", "mentioned"},
+    "firmware_version": {"applies_to", "compatible_with", "external_reference", "mentioned"},
+    "software_name": {"applies_to", "compatible_with", "external_reference", "mentioned"},
+    "software_version": {"applies_to", "compatible_with", "external_reference", "mentioned"},
+    "document_revision": {"document_revision", "mentioned"},
+}
+
+
+def _sanitize_claim_shape(raw_item: dict[str, Any]) -> dict[str, Any] | None:
+    """Reject prose-shaped entities and impossible kind/relation pairs before verification."""
+    item = dict(raw_item)
+    kind = str(item.get("kind") or "").strip().casefold()
+    relation = str(item.get("relation") or "").strip().casefold()
+    value = " ".join(str(item.get("value") or "").split()).strip(" |,.;:")
+    if not value or kind not in _RELATIONS_BY_CLAIM_KIND:
+        return None
+    if relation not in _RELATIONS_BY_CLAIM_KIND[kind]:
+        relation = "mentioned"
+    if kind == "company":
+        value = re.split(r"\b(?:all rights reserved|printed in)\b", value, maxsplit=1, flags=re.IGNORECASE)[0]
+        value = re.sub(r"^copyright\s*(?:\([cC]\)|©)?\s*\d{4}\s*", "", value, flags=re.IGNORECASE)
+        value = value.strip(" |,.;:")
+        if not _plausible_company_name(value):
+            return None
+    if kind in {"product_model", "part_number"}:
+        if len(value) > 80 or len(value.split()) > 6:
+            return None
+        if not _expand_routing_identifiers(value, repeated_lines=set()):
+            return None
+    if kind in {"product_family", "device", "software_name"} and (
+        len(value) > 120 or len(value.split()) > 12
+    ):
+        return None
+    if kind in {"firmware_version", "software_version"} and relation != "external_reference" and not item.get("subject"):
+        return None
+    item["kind"] = kind
+    item["relation"] = relation
+    item["value"] = value
+    return item
+
+
 def _segments_for_claims(
     claims: list[dict[str, Any]],
     segments: list[MetadataSourceSegment],
@@ -1376,6 +1476,42 @@ def _segments_for_claims(
     pages = {claim.get("page_from") for claim in claims}
     selected = [segment for segment in segments if segment.page_from in pages]
     return selected or segments
+
+
+def _literal_opening_title_claim_is_confirmed(claim: dict[str, Any]) -> bool:
+    """Confirm only literal model identifiers harvested from an opening-page title."""
+    if (
+        claim.get("source_method") != "opening_title_candidate"
+        or claim.get("kind") != "product_model"
+        or claim.get("relation") != "mentioned"
+        or claim.get("grounded") is not True
+        or int(claim.get("page_from") or 10**9) > TITLE_PAGE_LIMIT
+    ):
+        return False
+    value = _compact_identifier(str(claim.get("value") or ""))
+    quote = _compact_identifier(str(claim.get("source_quote") or ""))
+    return bool(value) and value in quote
+
+
+def _literal_deterministic_version_claim_is_confirmed(claim: dict[str, Any]) -> bool:
+    """Confirm an exact same-line version mention without assigning applicability."""
+    if (
+        claim.get("source_method") != "deterministic_explicit_version"
+        or claim.get("kind") not in {"firmware_version", "software_version"}
+        or claim.get("relation") != "mentioned"
+        or claim.get("grounded") is not True
+    ):
+        return False
+    subject = " ".join(str(claim.get("subject") or "").split())
+    value = " ".join(str(claim.get("value") or "").split())
+    quote = " ".join(str(claim.get("source_quote") or "").split())
+    if not subject or not value or not quote:
+        return False
+    return re.search(
+        rf"{re.escape(subject)}\s+Ver(?:sion)?\.?\s*{re.escape(value)}\b",
+        quote,
+        re.IGNORECASE,
+    ) is not None
 
 
 def verify_metadata_claims(
@@ -1388,7 +1524,12 @@ def verify_metadata_claims(
     for offset in range(0, len(claims), CLAIM_VERIFICATION_BATCH_SIZE):
         batch = claims[offset : offset + CLAIM_VERIFICATION_BATCH_SIZE]
         local_segments = _segments_for_claims(batch, segments)
-        accepted: set[tuple[str, str, str, str, str]] = set()
+        accepted: set[tuple[str, str, str, str, str]] = {
+            _claim_fingerprint(claim)
+            for claim in batch
+            if _literal_opening_title_claim_is_confirmed(claim)
+            or _literal_deterministic_version_claim_is_confirmed(claim)
+        }
         verification_completed = False
         try:
             extraction = _call_scoped_model(
@@ -1397,10 +1538,40 @@ def verify_metadata_claims(
                 purpose="metadata_extraction.claim_verification",
             )
             accepted_evidence = _ground_scoped_candidates(extraction, local_segments)
-            accepted = {_claim_fingerprint(item) for item in accepted_evidence}
+            accepted.update(_claim_fingerprint(item) for item in accepted_evidence)
             verification_completed = True
         except MetadataExtractionIncomplete as exc:
             logger.warning("Claim verification failed safely for %s: %s", filename, exc)
+
+        # Deterministically harvested title/version claims are especially important to
+        # routing and completeness. If a crowded verifier batch omits one, retry that
+        # exact grounded claim alone before treating the omission as a rejection.
+        for claim in batch:
+            fingerprint = _claim_fingerprint(claim)
+            if (
+                fingerprint in accepted
+                or claim.get("source_method")
+                not in {"deterministic_explicit_version", "opening_title_candidate"}
+            ):
+                continue
+            claim_segments = _segments_for_claims([claim], segments)
+            try:
+                retry = _call_scoped_model(
+                    filename,
+                    _verification_prompt_messages(filename, [claim], claim_segments),
+                    purpose="metadata_extraction.claim_verification",
+                )
+                accepted.update(
+                    _claim_fingerprint(item)
+                    for item in _ground_scoped_candidates(retry, claim_segments)
+                )
+                verification_completed = True
+            except MetadataExtractionIncomplete as exc:
+                logger.warning(
+                    "Focused claim verification failed safely for %s: %s",
+                    filename,
+                    exc,
+                )
 
         for claim in batch:
             item = dict(claim)
@@ -1462,6 +1633,7 @@ def _canonical_routing_identifier(value: str, *, repeated_lines: set[str]) -> st
             return None
         stripped = stripped.rsplit("|", 1)[-1].strip()
     stripped = re.sub(r"\s*\([^)]*\)\s*$", "", stripped).strip()
+    stripped = re.sub(r"\s*([-:])\s*", r"\1", stripped)
     stripped = re.sub(r"\s+(?:series|family)$", "", stripped, flags=re.IGNORECASE).strip()
     if re.search(r"\s", stripped):
         return None
@@ -1477,7 +1649,7 @@ def _canonical_routing_identifier(value: str, *, repeated_lines: set[str]) -> st
         if any(char.isalpha() for char in match)
         and (
             any(char.isdigit() for char in match)
-            or re.fullmatch(r"[A-Z]{2,4}-[A-Z]{1,2}", match) is not None
+            or re.fullmatch(r"[A-Z]{2,4}[-:][A-Z]{1,2}", match) is not None
         )
     ]
     if len(matches) != 1:
@@ -1613,6 +1785,15 @@ def _first_primary(
     ]
     if not matches:
         return None
+    if kind in {"product_model", "product_family"} and relation == "primary_product":
+        matches = [
+            item
+            for item in matches
+            if (item.get("source_method") or item.get("source")) == "upload_identity_page_grounded"
+            or int(item.get("page_from") or 10**9) <= 3
+        ]
+        if not matches:
+            return None
     if kind == "company":
         matches = [item for item in matches if _plausible_company_name(str(item.get("value") or ""))]
         if not matches:
@@ -1640,7 +1821,7 @@ def _values_for_routing(
 ) -> list[str]:
     repeated_lines = repeated_lines or set()
     allowed_relations = {"primary_product", "applies_to", "compatible_with", "accessory_for"}
-    if kind not in {"product_model", "part_number"}:
+    if kind in {"company", "device", "protocol", "software_name"}:
         allowed_relations.add("mentioned")
     if kind == "company":
         allowed_relations.add("primary_manufacturer")
@@ -1677,6 +1858,37 @@ def _values_for_routing(
             value = _canonical_protocol(value) or ""
         if value:
             routed.append(value)
+    return _dedupe_preserve_order(routed)
+
+
+def _opening_title_identity_models(
+    evidence: list[dict[str, Any]],
+    selected_title: str,
+    *,
+    repeated_lines: set[str],
+) -> list[str]:
+    """Promote verified cover-title identifiers without trusting a model relation label."""
+    title_key = _compact_identifier(selected_title)
+    if not title_key:
+        return []
+    routed: list[str] = []
+    for item in evidence:
+        if (
+            item.get("kind") != "product_model"
+            or item.get("relation") != "mentioned"
+            or item.get("grounded") is not True
+            or item.get("verification_status", "confirmed") != "confirmed"
+            or float(item.get("confidence") or 0.0) < PRIMARY_ENTITY_MIN_CONFIDENCE
+            or int(item.get("page_from") or 10**9) > 2
+        ):
+            continue
+        for value in _expand_routing_identifiers(
+            str(item.get("value") or ""),
+            repeated_lines=repeated_lines,
+        ):
+            value_key = _compact_identifier(value)
+            if value_key and value_key in title_key:
+                routed.append(value)
     return _dedupe_preserve_order(routed)
 
 
@@ -1778,7 +1990,13 @@ def _opening_page_segments(segments: list[MetadataSourceSegment]) -> list[Metada
     ]
     if not page_keys:
         return segments[:]
-    return [segment for segment in segments if segment.page_from in page_keys]
+    indexed = [
+        (index, segment)
+        for index, segment in enumerate(segments)
+        if segment.page_from in page_keys
+    ]
+    indexed.sort(key=lambda item: (int(item[1].page_from or 10**9), item[0]))
+    return [segment for _index, segment in indexed]
 
 
 def _title_evidence(title: str, segments: list[MetadataSourceSegment]) -> dict[str, Any] | None:
@@ -1807,11 +2025,55 @@ def _select_document_title(
 ) -> tuple[str, dict[str, Any] | None]:
     opening_segments = _opening_page_segments(segments)
     opening_text = "\n\n".join(_segment_text(segment) for segment in opening_segments)[:TITLE_SOURCE_MAX_CHARS]
+    descriptive_candidates: list[tuple[int, int, str]] = []
+    title_kind_pattern = re.compile(
+        r"\b(?:user|instruction|configuration|installation|operation|reference|service)?\s*"
+        r"(?:manual|guide|datasheet|data\s+sheet|catalog|brochure|handbook|specifications?)\b",
+        re.IGNORECASE,
+    )
+    for segment in opening_segments:
+        for raw_line in segment.text.splitlines():
+            line = " ".join(raw_line.split()).strip(" |")
+            has_identifier = IDENTIFIER_CANDIDATE_PATTERN.search(line) is not None
+            has_kind = title_kind_pattern.search(line) is not None
+            has_series_identity = has_identifier and re.search(r"\bseries\b", line, re.IGNORECASE)
+            if not (12 <= len(line) <= 180) or not (has_kind or has_series_identity):
+                continue
+            if re.search(r"\b(?:copyright|all rights reserved|https?://|www\.)\b", line, re.IGNORECASE):
+                continue
+            words = line.split()
+            if not 2 <= len(words) <= 18:
+                continue
+            match = title_kind_pattern.search(line)
+            score = 4 if match and match.end() == len(line) else 0
+            if has_identifier:
+                score += 3
+            if has_series_identity:
+                score += 2
+            score += max(0, 3 - int(segment.page_from or 3))
+            descriptive_candidates.append((score, -len(line), line))
+    if descriptive_candidates:
+        descriptive_candidates.sort(reverse=True)
+        deterministic_title = descriptive_candidates[0][2]
+        return deterministic_title, _title_evidence(deterministic_title, opening_segments)
     proposed = " ".join(proposed_title.split()).strip()
-    if proposed and _value_is_grounded(proposed, opening_text):
+    proposed_has_identifier = IDENTIFIER_CANDIDATE_PATTERN.search(proposed) is not None
+    proposed_has_kind = title_kind_pattern.search(proposed) is not None
+    proposed_has_series_identity = proposed_has_identifier and re.search(
+        r"\bseries\b", proposed, re.IGNORECASE
+    )
+    if (
+        proposed
+        and _value_is_grounded(proposed, opening_text)
+        and (proposed_has_identifier or proposed_has_kind or proposed_has_series_identity)
+    ):
         return proposed, _title_evidence(proposed, opening_segments)
     printed_title = _extract_printed_title(opening_text) if opening_text else None
-    if printed_title:
+    if printed_title and (
+        IDENTIFIER_CANDIDATE_PATTERN.search(printed_title)
+        or title_kind_pattern.search(printed_title)
+        or (len(printed_title) >= 20 and len(printed_title.split()) >= 4)
+    ):
         return printed_title, _title_evidence(printed_title, opening_segments)
     return _normalize_title(filename), None
 
@@ -1832,6 +2094,12 @@ def _materialize_verified_metadata(
     repeated_lines = _repeated_short_line_values(segments)
 
     verified_product_models = _values_for_routing(scoped_evidence, "product_model", repeated_lines=repeated_lines)
+    opening_title_models = _opening_title_identity_models(
+        scoped_evidence,
+        selected_title,
+        repeated_lines=repeated_lines,
+    )
+    verified_product_models = _dedupe_preserve_order(verified_product_models + opening_title_models)
     verified_family_identifiers = _family_identifiers_for_routing(
         scoped_evidence,
         repeated_lines=repeated_lines,
@@ -1844,7 +2112,7 @@ def _materialize_verified_metadata(
         if not _unsafe_routing_value(value, repeated_lines=repeated_lines)
     ]
     product_models = _dedupe_preserve_order(safe_base_product_models + verified_product_models)
-    product_families = _dedupe_preserve_order(base.product_families + _values_for_routing(scoped_evidence, "product_family"))
+    product_families = _dedupe_preserve_order(_values_for_routing(scoped_evidence, "product_family"))
     part_numbers = _dedupe_preserve_order(base.part_numbers + verified_part_numbers)
     devices = _dedupe_preserve_order(base.devices + _values_for_routing(scoped_evidence, "device"))
     protocols = _dedupe_preserve_order(base.protocol_terms + verified_protocols)
@@ -1858,24 +2126,32 @@ def _materialize_verified_metadata(
         [alias for value in identifiers for alias in (value, _compact_identifier(value)) if alias]
     )
 
-    primary_manufacturer = _first_primary(scoped_evidence, "company", "primary_manufacturer")
+    primary_manufacturer = _first_primary(scoped_evidence, "company", "primary_manufacturer") or _first_primary(
+        scoped_evidence,
+        "company",
+        "mentioned",
+    )
     primary_product = _first_primary(
         scoped_evidence,
         "product_model",
         "primary_product",
         repeated_lines=repeated_lines,
     )
-    selected_product = primary_product or (
-        verified_product_models[0] if verified_product_models else None
+    primary_family = _first_primary(
+        scoped_evidence,
+        "product_family",
+        "primary_product",
+        repeated_lines=repeated_lines,
     )
+    selected_product = primary_product or (opening_title_models[0] if opening_title_models else None)
     return replace(
         base,
         title=selected_title,
         manufacturer=primary_manufacturer or "Unknown",
-        companies=_dedupe_preserve_order(base.companies + _values_for_routing(evidence, "company")),
+        companies=_dedupe_preserve_order(_values_for_routing(scoped_evidence, "company")),
         product_model=selected_product,
         product_models=product_models,
-        product_family=base.product_family or (product_families[0] if product_families else None),
+        product_family=primary_family,
         product_families=product_families,
         devices=devices,
         part_numbers=part_numbers,
@@ -1913,7 +2189,19 @@ class MetadataWorkflowState(TypedDict, total=False):
 
 
 def _prepare_metadata_workflow(state: MetadataWorkflowState) -> dict[str, Any]:
-    segments = [segment for segment in state["segments"] if segment.text.strip()]
+    indexed_segments = [
+        (index, segment)
+        for index, segment in enumerate(state["segments"])
+        if segment.text.strip()
+    ]
+    indexed_segments.sort(
+        key=lambda item: (
+            int(item[1].page_from or 10**9),
+            int(item[1].page_to or item[1].page_from or 10**9),
+            item[0],
+        )
+    )
+    segments = [segment for _index, segment in indexed_segments]
     opening_segments = _opening_page_segments(segments)
     front_text = "\n\n".join(_segment_text(segment) for segment in opening_segments)[
         :DEFAULT_METADATA_SEGMENT_CHARS
@@ -1959,6 +2247,7 @@ def _reduce_metadata_claims(state: MetadataWorkflowState) -> dict[str, Any]:
     )
     evidence = _dedupe_evidence(
         mapped
+        + _opening_title_identifier_evidence(state["selected_title"], state["segments"])
         + _filename_grounded_identifier_evidence(state["filename"], state["segments"])
     )
     return {"claims": reconcile_metadata_claims(evidence)}

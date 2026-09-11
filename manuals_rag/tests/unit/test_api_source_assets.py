@@ -170,6 +170,86 @@ def test_agentic_query_stream_rejects_baseline():
     assert response.status_code == 422
 
 
+def test_agentic_answer_reduces_each_confirmed_required_claim(monkeypatch):
+    results = [
+        main.SearchResult(
+            chunk_id="weight",
+            score=1.0,
+            title="Camera",
+            document_version_id="camera-v1",
+            source_document_id="camera-doc",
+            pages=[1],
+            section_path=["Specifications"],
+            content="Weight: 280 g",
+            metadata={},
+        ),
+        main.SearchResult(
+            chunk_id="direction",
+            score=1.0,
+            title="Display",
+            document_version_id="display-v1",
+            source_document_id="display-doc",
+            pages=[12],
+            section_path=["Display"],
+            content="Slide to the right to increase grayscale.",
+            metadata={},
+        ),
+    ]
+    calls = []
+
+    class FakeAnswer:
+        def __init__(self, answer, result):
+            self.answer = answer
+            self.confidence = "high"
+            self.used_documents = [
+                {
+                    "document_id": result.source_document_id,
+                    "title": result.title,
+                    "version": result.document_version_id,
+                    "pages": result.pages,
+                    "section_path": result.section_path,
+                }
+            ]
+            self.citations = [
+                {
+                    "chunk_id": result.chunk_id,
+                    "document_id": result.source_document_id,
+                    "pages": result.pages,
+                    "quote_span": None,
+                }
+            ]
+            self.warnings = []
+            self.followup_questions = []
+            self.insufficient_evidence = False
+
+    def fake_reduce(objective, branch_results, _rationale):
+        calls.append((objective, [result.chunk_id for result in branch_results]))
+        return FakeAnswer(
+            "280 g" if branch_results[0].chunk_id == "weight" else "Slide right",
+            branch_results[0],
+        )
+
+    monkeypatch.setattr(main, "_answer_confirmed_claim", fake_reduce)
+    answer = main._generate_agentic_answer(
+        "Compare the camera weight and display direction.",
+        results,
+        {
+            "required_claim_support": {"weight_claim": ["weight"], "direction_claim": ["direction"]},
+            "evidence_ledger": {
+                "weight_claim": {"objective": "Find the camera weight"},
+                "direction_claim": {"objective": "Find the display direction"},
+            },
+        },
+    )
+
+    assert calls == [
+        ("Find the camera weight", ["weight"]),
+        ("Find the display direction", ["direction"]),
+    ]
+    assert answer.answer == "280 g\n\nSlide right"
+    assert {citation["chunk_id"] for citation in answer.citations} == {"weight", "direction"}
+
+
 def _fake_query_result():
     return {
         "answer": {

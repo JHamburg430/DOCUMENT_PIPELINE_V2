@@ -188,7 +188,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("general")
     model_match_spans: list[tuple[int, int]] = []
     model_matches: list[tuple[int, str]] = []
-    for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query):
+    for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:[-:][A-Z0-9]{1,8})+\b", query):
         if not any(char.isdigit() for char in match.group(0)):
             continue
         model_matches.append((match.start(), match.group(0)))
@@ -229,7 +229,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         comparison_identifier_matches = [
             (match.start(), match.group(0))
             for match in re.finditer(
-                r"\b(?:[A-Z]{2,5}\d{1,5}|[A-Z]{1,5}-[A-Z]{1,8})\b",
+                r"\b(?:[A-Z]{2,5}\d{1,5}|[A-Z]{1,5}[-:][A-Z0-9]{1,8})\b",
                 query,
             )
             if not re.fullmatch(r"[A-Z]\d{1,5}", match.group(0))
@@ -247,13 +247,13 @@ def analyze_query(query: str) -> QueryAnalysis:
     family_matches = [
         (match.start(1), match.group(1).upper())
         for match in re.finditer(
-            r"\b([A-Z]{1,5}-[A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
+            r"\b([A-Z]{1,5}[-:][A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
             query,
             flags=re.IGNORECASE,
         )
     ]
     family_match = re.search(
-        r"\b([A-Z]{1,5}-[A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
+        r"\b([A-Z]{1,5}[-:][A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
         query,
         flags=re.IGNORECASE,
     )
