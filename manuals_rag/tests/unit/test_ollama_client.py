@@ -3,6 +3,7 @@ from manuals_rag_common.ollama import (
     capture_ollama_usage,
     chat_json,
     extract_chat_content,
+    parse_json_content,
     model_family,
     summarize_ollama_usage,
     supports_thinking_control,
@@ -51,6 +52,12 @@ def test_extract_chat_content_reads_message_content():
 def test_extract_chat_content_strips_inline_thinking_markup():
     payload = {"message": {"content": "<think>hidden reasoning</think>\n{\"ok\":true}"}}
     assert extract_chat_content(payload) == '{"ok":true}'
+
+
+def test_parse_json_content_tolerates_raw_control_characters_in_strings():
+    assert parse_json_content('{"reason":"line one\nline two"}') == {
+        "reason": "line one\nline two"
+    }
 
 
 def test_supports_thinking_control_for_qwen_only():
