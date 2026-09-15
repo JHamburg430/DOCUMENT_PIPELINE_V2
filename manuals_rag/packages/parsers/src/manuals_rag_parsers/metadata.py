@@ -530,6 +530,11 @@ def _scoped_prompt_messages(
                 "Do not infer an entity from a filename or from general knowledge. "
                 "Classify references to another controller, PLC, accessory, example vendor, or host software "
                 "as external_reference unless the excerpt explicitly says it applies to the manual's primary product. "
+                "An accessory can itself be the product described by a catalog or datasheet: a bracket or cable "
+                "with its own specifications is not external merely because it is an accessory. "
+                "In a model/specification table, retain every model in the model column; distinguish those "
+                "from models in a compatible-models column. Preserve the table heading in source_quote "
+                "when it is needed to establish that relationship. "
                 "Never attach a firmware or software version to a product unless the quote establishes that scope. "
                 "Every entity must include a calibrated confidence from 0 to 1; do not use a fixed default."
                 " A deterministic candidate harvester supplies recall-oriented candidates. Classify candidates only "
@@ -632,7 +637,14 @@ def _version_prompt_messages(filename: str, text: str, expected_kinds: set[str])
                 "Extract every explicit firmware/software version statement, including minimums, maximums, "
                 "unsupported ranges, requirements, and external PLC/controller dependencies. Each item needs an "
                 "exact source_quote, a subject, a calibrated confidence, and the correct relationship. "
-                "External product requirements must use external_reference. Do not invent a subject."
+                "External product requirements must use external_reference. Do not invent a subject. "
+                'Return exactly {"entities":[{"kind":"software_version","value":"1.2",'
+                '"subject":"Exact software name","relation":"mentioned",'
+                '"source_quote":"Exact quote containing software name and version",'
+                '"confidence":0.9}]}. This example is format only, never evidence. '
+                "Use kind firmware_version only for firmware. The value is the version number; "
+                "preserve minimum/maximum qualifiers in source_quote. Do not emit extracted_versions, "
+                "firmware_version or software_version as object keys, or omit subject."
             ),
         },
         {
@@ -652,6 +664,7 @@ def _scoped_metadata_schema() -> dict[str, Any]:
     entity_schema = schema.get("$defs", {}).get("ScopedMetadataCandidate")
     if isinstance(entity_schema, dict):
         entity_schema["additionalProperties"] = False
+        entity_schema["required"] = list(dict.fromkeys([*entity_schema.get("required", []), "subject"]))
         properties = entity_schema.get("properties", {})
         if isinstance(properties.get("kind"), dict):
             properties["kind"]["enum"] = sorted(SCOPED_METADATA_KINDS)

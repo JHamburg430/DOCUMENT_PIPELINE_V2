@@ -176,3 +176,12 @@ by the current test results.
 - Audit artifacts: test_reports/retrieval_improvement/pilot_source_audit.md and
   pilot_quote_audit.json. These are source-text/assistant checks, not human or
   visual PDF adjudication. No corpus changes or production enablement.
+
+- Follow-up live Lua run now rejects missing software versions (exit 1), proving
+  fail-closed behavior, not successful extraction. Raw focused probe found an
+  unexpected `extracted_versions` response shape and omitted version subjects.
+  Explicit output-shape instructions + required nullable subject recovered both
+  VisionEditor versions on the exact page-3 passage. Full verification is pending.
+- Clarified accessory-catalog roles: the accessory being specified may itself be
+  the primary product; compatible-model columns are distinct. No model-specific
+  routing values or benchmark answers were hard-coded.
