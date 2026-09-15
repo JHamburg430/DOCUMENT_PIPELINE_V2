@@ -1503,3 +1503,19 @@ def test_claim_id_verdict_rejects_duplicate_decisions(monkeypatch):
     monkeypatch.setattr('manuals_rag_parsers.metadata.chat_json',lambda **kwargs: ({'decisions':[verdict,verdict]},'{}'))
     with pytest.raises(MetadataExtractionIncomplete):
         _call_scoped_model('manual.pdf',messages,purpose='metadata_extraction.claim_verification')
+
+
+def test_scoped_model_rejects_missing_collection(monkeypatch):
+    monkeypatch.setattr('manuals_rag_parsers.metadata.chat_json', lambda **kwargs: ({}, '{}'))
+    with pytest.raises(MetadataExtractionIncomplete, match='omitted its entities'):
+        _call_scoped_model('manual.pdf', [{'role':'user','content':'Extract entities'}],
+                           purpose='metadata_extraction.scoped_entities')
+
+
+def test_runtime_version_does_not_become_firmware_without_firmware_evidence():
+    text = "The Lua version used in this system is Ver. 5.1.4."
+    extracted = ScopedMetadataExtraction.model_validate({"entities": [{
+        "value": "5.1.4", "kind": "firmware_version", "relation": "applies_to",
+        "subject": "Lua", "source_quote": text, "confidence": 0.95,
+    }]})
+    assert _ground_scoped_candidates(extracted, [MetadataSourceSegment(text, 2, 2)]) == []

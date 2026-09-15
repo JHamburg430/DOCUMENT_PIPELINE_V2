@@ -443,6 +443,8 @@ def chat_json(
                 num_ctx=num_ctx,
             )
     content = extract_chat_content(body)
+    if not content.strip():
+        raise ValueError("Ollama returned empty structured output")
     return parse_json_content(content), content
 
 
@@ -475,6 +477,8 @@ def chat_json_stream(
             num_ctx=num_ctx,
         )
     content = extract_chat_content(body)
+    if not content.strip():
+        raise ValueError("Ollama returned empty structured output")
     return parse_json_content(content), content
 
 

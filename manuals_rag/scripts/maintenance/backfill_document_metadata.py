@@ -330,6 +330,7 @@ def main() -> None:
     report_path = _write_report(results)
     failure_count = 0
     for document in _documents(limit=args.limit, document_ids=args.document_ids):
+        print(json.dumps({"document_id": str(document["document_id"]), "status": "started"}), flush=True)
         already_current = (
             str(document.get("extracted_version_id") or "") == str(document["version_id"])
             and document.get("extracted_pipeline_version") == METADATA_PIPELINE_VERSION

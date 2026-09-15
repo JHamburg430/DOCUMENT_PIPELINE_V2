@@ -211,3 +211,16 @@ by the current test results.
   the runtime workaround and title fix: /tmp/manuals-pilot-v4-structured.log.
   Source audit, sample persistence/index synchronization and live matrix remain
   open. No corpus changes or production enabling.
+
+### Empty-response and runtime-kind follow-up
+
+- Common structured clients now reject empty content instead of accepting it as
+  `{}`; scoped extraction rejects an omitted collection. Neither condition causes
+  an unrelated model reload. Regression covers ordinary and streaming clients.
+- A pre-workaround report mislabelled Lua's runtime version as firmware. A bare
+  non-device version without firmware wording no longer qualifies as firmware.
+- 90 focused tests passed; broad unit suite completed **991 passed**, excluding
+  live pipeline-health tests. No measured end-to-end accuracy gain is claimed.
+- Stopped the outdated thinking-enabled all-five dry-run with exit143 after no
+  document checkpoint in18minutes. No sample applied. A bounded raw response
+  probe is inspecting runtime behavior before another complete extraction.

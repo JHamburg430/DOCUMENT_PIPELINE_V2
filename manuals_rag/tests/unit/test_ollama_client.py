@@ -251,3 +251,19 @@ def test_inference_timeout_does_not_reload_and_duplicate_work(monkeypatch):
         module.chat_json(model='test',messages=[],json_schema={'type':'object'},timeout=1)
     assert len(loads) == 1
     assert not loads[0].get('force_reload')
+
+
+def test_empty_structured_output_is_not_success_or_reload(monkeypatch):
+    import pytest
+    import manuals_rag_common.ollama as module
+
+    loads = []
+    monkeypatch.setattr(module, "ensure_model_loaded", lambda **kw: loads.append(kw))
+    body = {"message": {"content": "", "thinking": "unfinished"}, "done_reason": "length"}
+    monkeypatch.setattr(module, "_post_chat", lambda **kw: body)
+    monkeypatch.setattr(module, "_post_chat_stream", lambda **kw: body)
+    for call in (module.chat_json, module.chat_json_stream):
+        with pytest.raises(ValueError, match="empty structured output"):
+            call(model="qwen3.5:9b", messages=[], json_schema={"type": "object"})
+    assert len(loads) == 2
+    assert not any(item.get("force_reload") for item in loads)

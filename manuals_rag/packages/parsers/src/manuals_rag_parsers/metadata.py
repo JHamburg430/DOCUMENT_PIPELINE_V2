@@ -1287,6 +1287,8 @@ def _call_scoped_model(
                     raise ValueError("Verifier omitted claim decisions")
                 parsed = {"entities": accepted}
             normalized = _normalize_object_response(parsed, collection_key="entities")
+            if "entities" not in normalized:
+                raise ValueError("Scoped response omitted its entities or decisions collection")
             return ScopedMetadataExtraction.model_validate(normalized)
         except Exception as exc:
             last_error = exc
@@ -1337,8 +1339,12 @@ def _ground_scoped_candidates(
                 continue
             if subject and not _value_is_grounded(subject, quote):
                 continue
-        if kind == "firmware_version" and not re.search(r"\b(?:firmware|fw|version)\b", quote, re.IGNORECASE):
-            continue
+        if kind == "firmware_version" and not re.search(r"\b(?:firmware|fw)\b", quote, re.IGNORECASE):
+            # A bare software/runtime "version" is not evidence of firmware.
+            if not subject or _canonical_routing_identifier(subject, repeated_lines=set()) is None:
+                continue
+            if not re.search(r"\bversion\b", quote, re.IGNORECASE):
+                continue
         if kind == "software_version" and not (
             re.search(r"\b(?:software|application|tool|version|ver\.?|studio|explorer)\b", quote, re.IGNORECASE)
             or (subject and _value_is_grounded(subject, quote) and re.search(r"\d", quote))
