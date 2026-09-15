@@ -112,7 +112,7 @@ IDENTIFIER_CANDIDATE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:]\s*[A-Z0-9]{1,16})+|"
     r"[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
 )
-METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v3"
+METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v4"
 
 DOCUMENT_KIND_ALIASES = {
     "user_manual": "manual",
@@ -552,6 +552,11 @@ def _scoped_prompt_messages(
                 "Allowed relations: primary_manufacturer, primary_product, applies_to, compatible_with, accessory_for, "
                 "external_reference, mentioned, document_revision. For firmware_version and software_version, subject "
                 "must name the product or software that the quote binds the version to; omit the entity if scope is unclear. "
+                "For accessory_for, applies_to, and compatible_with, include subject naming the related "
+                "product exactly as printed in source_quote. Never leave a known relationship subject null. "
+                'Return {"entities":[{"value":"...","kind":"...","relation":"...",'
+                '"subject":null,"source_quote":"...","confidence":0.9}]}; replace null with '
+                "the explicit subject for relational claims. "
                 "Use primary_manufacturer or primary_product only when the excerpt explicitly identifies the document owner/product."
             ),
         },
@@ -612,7 +617,11 @@ def _verification_prompt_messages(
                 "applies_to with a null subject means this manual or documented function applies to the named "
                 "product value: an explicit statement that a function is for those controllers supports it. "
                 "Do not demand a second subject for this product-applicability relationship. Firmware/software "
-                "version claims still require an explicit subject binding. Do not repair or add claims."
+                "version claims still require an explicit subject binding. Do not repair or add claims. "
+                'Return valid JSON in exactly this shape: {"decisions":[{"claim_id":"claim_1",'
+                '"supported":false,"reason":"Evidence-based reason"}]}. '
+                "The example is a format template, not a verdict. Use double-quoted keys and strings, "
+                "JSON booleans, no Markdown, and include each supplied claim_id exactly once."
             ),
         },
         {
@@ -656,6 +665,18 @@ def _version_prompt_messages(filename: str, text: str, expected_kinds: set[str])
             ),
         },
     ]
+
+
+def _metadata_thinking() -> bool:
+    # Ollama 0.22.0 locally ignores format for Qwen3.5 with think=False.
+    # The same adversarial schema probe passes with think=True (upstream #14645).
+    return "qwen3.5" in settings.ollama_metadata_model.lower()
+
+
+def _metadata_token_budget(requested: int) -> int:
+    # Thinking and structured output share the generation allowance. Ingestion
+    # prioritizes complete metadata; short responses still stop normally.
+    return max(requested, 8192) if _metadata_thinking() else requested
 
 
 def _scoped_metadata_schema() -> dict[str, Any]:
@@ -777,10 +798,10 @@ def _extract_scalar_metadata(filename: str, text: str) -> ScalarMetadataExtracti
                 model=settings.ollama_metadata_model,
                 messages=_scalar_prompt_messages(filename, text),
                 json_schema=_scalar_metadata_schema(),
-                think=False,
+                think=_metadata_thinking(),
                 timeout=settings.ollama_metadata_timeout_seconds,
                 purpose="metadata_extraction",
-                num_predict=320,
+                num_predict=_metadata_token_budget(320),
                 num_ctx=METADATA_NUM_CTX,
             )
             return ScalarMetadataExtraction.model_validate(_normalize_object_response(parsed))
@@ -805,10 +826,10 @@ def _extract_printed_title(text: str) -> str | None:
                 model=settings.ollama_metadata_model,
                 messages=_title_prompt_messages(text),
                 json_schema=TitleMetadataExtraction.model_json_schema(),
-                think=False,
+                think=_metadata_thinking(),
                 timeout=settings.ollama_metadata_timeout_seconds,
                 purpose="metadata_extraction.document_title",
-                num_predict=160,
+                num_predict=_metadata_token_budget(160),
                 num_ctx=METADATA_NUM_CTX,
             )
             candidate = TitleMetadataExtraction.model_validate(parsed).title
@@ -909,10 +930,10 @@ def _extract_list_field(field_name: str, filename: str, text: str) -> list[str]:
                 model=settings.ollama_metadata_model,
                 messages=_list_prompt_messages(field_name, filename, text),
                 json_schema=_list_field_schema(field_name),
-                think=False,
+                think=_metadata_thinking(),
                 timeout=settings.ollama_metadata_timeout_seconds,
                 purpose=f"metadata_extraction.{field_name}",
-                num_predict=1024,
+                num_predict=_metadata_token_budget(1024),
                 num_ctx=METADATA_NUM_CTX,
             )
             if isinstance(parsed, list):
@@ -1194,7 +1215,7 @@ def _deterministic_version_evidence(
                             "kind": kind,
                             "relation": "mentioned",
                             "subject": subject,
-                            "source_quote": line[:500],
+                            "source_quote": line,
                             "page_from": segment.page_from,
                             "page_to": segment.page_to,
                             "section_path": list(segment.section_path),
@@ -1235,10 +1256,10 @@ def _call_scoped_model(
                 model=settings.ollama_metadata_model,
                 messages=messages,
                 json_schema=schema,
-                think=False,
+                think=_metadata_thinking(),
                 timeout=settings.ollama_metadata_timeout_seconds,
                 purpose=purpose,
-                num_predict=METADATA_SCOPED_NUM_PREDICT,
+                num_predict=_metadata_token_budget(METADATA_SCOPED_NUM_PREDICT),
                 num_ctx=METADATA_NUM_CTX,
             )
             if verification_candidates and isinstance(parsed, list) and parsed and isinstance(parsed[0], dict) and "claim_id" in parsed[0]:
@@ -1331,7 +1352,9 @@ def _ground_scoped_candidates(
                 "kind": kind,
                 "relation": relation,
                 "subject": subject,
-                "source_quote": quote[:500],
+                # Grounding was checked against this entire quote. Truncating it
+                # afterward can remove the very identifier/version just verified.
+                "source_quote": quote,
                 "page_from": located.page_from,
                 "page_to": located.page_to,
                 "section_path": list(located.section_path),
@@ -1883,7 +1906,7 @@ def _deterministic_protocol_evidence(
                         "kind": "protocol",
                         "relation": "mentioned",
                         "subject": None,
-                        "source_quote": quote[:500],
+                        "source_quote": quote,
                         "page_from": segment.page_from,
                         "page_to": segment.page_to,
                         "section_path": list(segment.section_path),
@@ -2279,6 +2302,8 @@ def _select_document_title(
     segments: list[MetadataSourceSegment],
 ) -> tuple[str, dict[str, Any] | None]:
     def plausible_title(value: str) -> bool:
+        if value.lstrip().startswith(("■", "●", "•", "・")):
+            return False
         return not re.search(
             r"\b(?:download|click|tap|scan)\b.*\b(?:file|manual|image|text|details?|more)\b|"
             r"\bfor (?:a )?(?:larger|full) (?:image|text|view)\b|"
@@ -2534,6 +2559,38 @@ def _map_metadata_batch(state: MetadataWorkflowState) -> dict[str, Any]:
     }
 
 
+def _model_column_identifiers(segment: MetadataSourceSegment) -> list[str]:
+    lines = [line.strip() for line in segment.text.splitlines() if line.strip()]
+    if not lines or not re.match(r"^model(?:\s+name)?\s*\|", lines[0], re.I):
+        return []
+    # Wide specification tables put models in the header; catalog tables put
+    # them in column one. Compatible-model columns must not become primary IDs.
+    header_models = [m.group(0) for m in IDENTIFIER_CANDIDATE_PATTERN.finditer(lines[0])]
+    if header_models and "compatible" not in lines[0].lower():
+        return _dedupe_preserve_order(header_models)
+    return _dedupe_preserve_order([
+        identifier for line in lines[1:]
+        if (identifier := _canonical_routing_identifier(line.split("|", 1)[0].strip(), repeated_lines=set()))
+    ])
+
+
+def _focused_model_column_claims(filename, segments):
+    evidence = []
+    for segment in segments:
+        targets = _model_column_identifiers(segment)
+        for start in range(0, len(targets), MAX_SCOPED_ENTITIES):
+            group = targets[start:start + MAX_SCOPED_ENTITIES]
+            messages = _scoped_prompt_messages(filename, _segment_text(segment))
+            messages[1]["content"] += (
+                "\nFocus only on these model-column identifiers: " + json.dumps(group)
+                + ". Return one entity per target with its source-supported relationship. "
+                "Do not extract compatible-model-column entries in this pass."
+            )
+            extraction = _call_scoped_model(filename, messages, purpose="metadata_extraction.scoped_entities")
+            evidence.extend(_ground_scoped_candidates(extraction, [segment]))
+    return evidence
+
+
 def _reduce_metadata_claims(state: MetadataWorkflowState) -> dict[str, Any]:
     mapped = sorted(
         state.get("mapped_evidence", []),
@@ -2546,6 +2603,7 @@ def _reduce_metadata_claims(state: MetadataWorkflowState) -> dict[str, Any]:
     )
     evidence = _dedupe_evidence(
         mapped
+        + _focused_model_column_claims(state["filename"], state["segments"])
         + _opening_title_identifier_evidence(state["selected_title"], state["segments"])
         + _filename_grounded_identifier_evidence(state["filename"], state["segments"])
         + _deterministic_protocol_evidence(state["segments"])
@@ -2575,6 +2633,11 @@ def _verify_metadata_workflow_claims(state: MetadataWorkflowState) -> dict[str, 
     ])
     if missing_values:
         raise MetadataExtractionIncomplete(f"Verification lost explicit software versions: {sorted(missing_values)}")
+    expected_models = {_compact_identifier(value) for segment in state["segments"] for value in _model_column_identifiers(segment)}
+    found_models = {_compact_identifier(item["value"]) for item in verified_claims
+                    if item.get("verification_status") == "confirmed" and item.get("kind") in {"product_model", "part_number"}}
+    if expected_models - found_models:
+        raise MetadataExtractionIncomplete(f"Verification lost model-column identifiers: {sorted(expected_models - found_models)}")
     return {"verified_claims": verified_claims}
 
 

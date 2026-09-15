@@ -185,3 +185,29 @@ by the current test results.
 - Clarified accessory-catalog roles: the accessory being specified may itself be
   the primary product; compatible-model columns are distinct. No model-specific
   routing values or benchmark answers were hard-coded.
+
+### Version 4 and structured-output diagnosis
+
+- Preserve full grounded quotes: the prior 500-character truncation could remove
+  a late table identifier after grounding. Focused live verification now confirms
+  all four model-column identifiers on the audited bracket table.
+- Add dedicated model-column extraction and fail closed if a model-column value
+  is lost during independent verification. Compatibility columns remain distinct.
+- Pipeline version is now `evidence_map_reduce_verify_v4`; old v3 outputs must not
+  satisfy current-pipeline checks. Reject compatibility-list bullets as titles.
+- Local Ollama 0.22.0/Qwen3.5:9b A/B: with the same contradictory prompt and schema,
+  think=false returned the prompt's wrong shape; think=true returned the schema's
+  required shape. This reproduces https://github.com/ollama/ollama/issues/14645.
+  Metadata-only Qwen3.5 calls now enable thinking and reserve up to 8192 generated
+  tokens for reasoning plus complete output. Other models retain prior budgets.
+  No Ollama/gateway changes or restarts. Other structured agent calls have not
+  yet been changed; this potential downstream issue needs its own measured test.
+- Broad regression run: 987 passed in 372.10 seconds, excluding live pipeline
+  health and with CUDA disabled for that test process. Final focused run after
+  compatibility changes: 75 passed. These are not answer-accuracy results.
+- Pre-workaround v4 five-document run completed 5/5 (report ...020238.json), with
+  expected routing recovered, but it still selected a compatibility bullet as
+  title and relied on unreliable schema enforcement. New all-five dry-run with
+  the runtime workaround and title fix: /tmp/manuals-pilot-v4-structured.log.
+  Source audit, sample persistence/index synchronization and live matrix remain
+  open. No corpus changes or production enabling.

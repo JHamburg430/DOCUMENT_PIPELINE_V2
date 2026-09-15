@@ -410,6 +410,45 @@ def test_software_version_gate_requires_each_explicit_value():
     assert _deterministic_version_evidence([MetadataSourceSegment("The runtime version used in this system is Ver. 5.1.4.", 2, 2)], {"software_version"}) == []
 
 
+def test_grounding_preserves_late_identifier_in_full_table_quote():
+    text = "Model | Specification\n" + "Earlier row | details\n" * 30 + "ZX-2400 | 2400 mm"
+    extracted = ScopedMetadataExtraction.model_validate({"entities": [{
+        "value": "ZX-2400", "kind": "product_model", "relation": "primary_product",
+        "source_quote": text, "confidence": 0.95,
+    }]})
+    claims = _ground_scoped_candidates(extracted, [MetadataSourceSegment(text, 2, 2)])
+    assert len(claims) == 1
+    assert claims[0]["source_quote"] == text
+    assert "ZX-2400" in claims[0]["source_quote"]
+
+
+def test_model_column_coverage_excludes_compatible_products():
+    from manuals_rag_parsers.metadata import _model_column_identifiers
+    segment = MetadataSourceSegment(
+        "Model | Length | Recommended compatible models\n"
+        "ZX-1000 | 1000 | AB-20 / AB-40\n | | AB-60\nZX-2400 | 2400 | AB-80", 2, 2)
+    assert _model_column_identifiers(segment) == ["ZX-1000", "ZX-2400"]
+    assert _model_column_identifiers(MetadataSourceSegment("Model name | ZX-15 | ZX-25\nRange | 5 | 10", 2, 2)) == ["ZX-15", "ZX-25"]
+
+
+def test_compatibility_bullet_cannot_replace_catalog_title():
+    from manuals_rag_parsers.metadata import _select_document_title
+    title, _ = _select_document_title("catalog.pdf", "■ ZX-900 series integrated model", [
+        MetadataSourceSegment("ZX-900 Series mounting bracket : ZX-FB31\n■ ZX-900 series integrated model", 1, 1)
+    ])
+    assert title == "ZX-900 Series mounting bracket : ZX-FB31"
+
+
+def test_metadata_schema_workaround_preserves_other_model_budgets(monkeypatch):
+    from types import SimpleNamespace
+    from manuals_rag_parsers import metadata as module
+    from manuals_rag_parsers.metadata import _metadata_thinking, _metadata_token_budget
+    monkeypatch.setattr(module, "settings", SimpleNamespace(ollama_metadata_model="qwen3.5:9b"))
+    assert _metadata_thinking() and _metadata_token_budget(320) >= 8192
+    monkeypatch.setattr(module, "settings", SimpleNamespace(ollama_metadata_model="different-model:8b"))
+    assert not _metadata_thinking() and _metadata_token_budget(320) == 320
+
+
 def test_dense_identifier_batch_is_split_before_schema_cap_loses_rows(monkeypatch):
     from manuals_rag_parsers import metadata as module
     calls = []
