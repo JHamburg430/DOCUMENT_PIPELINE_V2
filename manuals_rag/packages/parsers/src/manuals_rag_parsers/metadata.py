@@ -68,7 +68,7 @@ PROTOCOL_ALIASES = {
     "bluetooth": "bluetooth",
 }
 PROTOCOL_PATTERN = re.compile(
-    r"\b(?:EtherNet/IP|EtherCAT|PROFINET|Modbus|TCP/IP|UDP|RS[- ]?232C?|RS[- ]?422|RS[- ]?485|"
+    r"\b(?:EtherNet/IP|Ethernet|EtherCAT|PROFINET|Modbus|TCP/IP|UDP|RS[- ]?232C?|RS[- ]?422|RS[- ]?485|"
     r"IO[- ]?Link|CANopen|CC[- ]?Link|Bluetooth|USB|PoE)\b",
     re.IGNORECASE,
 )
@@ -135,7 +135,8 @@ VERSION_SIGNAL_PATTERNS = {
         re.IGNORECASE,
     ),
     "software_version": re.compile(
-        r"\b(?:software|application|tool|studio|explorer)\b.{0,80}?"
+        r"(?:\b(?:software|application|tool|studio|explorer|[a-z]*editor|runtime|interpreter)\b"
+        r"|\b[a-z]+\s+version\s+used\b).{0,80}?"
         r"\b(?:v(?:er(?:sion)?)?\.?\s*)\d+(?:\.\d+){0,3}\b",
         re.IGNORECASE,
     ),
@@ -1135,6 +1136,21 @@ def _expected_version_kinds(segments: list[MetadataSourceSegment]) -> set[str]:
     return {kind for kind, pattern in VERSION_SIGNAL_PATTERNS.items() if pattern.search(source)}
 
 
+def _missing_explicit_software_versions(segments, evidence) -> set[str]:
+    """Check each explicit version in software-bearing source units, not just kind presence."""
+    expected = {
+        match.group(1)
+        for segment in segments
+        for line in segment.text.splitlines()
+        if VERSION_SIGNAL_PATTERNS["software_version"].search(line)
+        for match in re.finditer(r"\bVer(?:sion)?\.?\s*(\d+(?:\.\d+){0,3})\b", line, re.I)
+    }
+    # A flattened table/paragraph can contain both firmware and software. Keep
+    # its already-grounded firmware claim from becoming a false software gap.
+    found = {str(item["value"]) for item in evidence if item.get("kind") in {"software_version", "firmware_version"}}
+    return expected - found
+
+
 def _deterministic_version_evidence(
     segments: list[MetadataSourceSegment],
     expected_kinds: set[str],
@@ -1156,6 +1172,8 @@ def _deterministic_version_evidence(
                     subject = " ".join(match.group("subject").split()).strip(" |,;:")
                     version = match.group("version")
                     if not subject or not version:
+                        continue
+                    if re.search(r"\b(?:is|are|was|used|this|using)\b", subject, re.IGNORECASE):
                         continue
                     recovered.append(
                         {
@@ -1341,20 +1359,32 @@ def _extract_scoped_metadata(
     _split_depth: int = 0,
 ) -> list[dict[str, Any]]:
     rendered = "\n\n".join(_segment_text(segment) for segment in segments)
+    # The response schema caps entities. A dense table can exceed that cap while
+    # still fitting the character budget; a successful response then silently
+    # loses its later rows. Split before extraction, not only after JSON errors.
+    candidates = harvest_metadata_candidates(segments)
+    if len(candidates) > MAX_SCOPED_ENTITIES and _split_depth < 5:
+        split = _bisect_metadata_segments(segments)
+        if split is not None:
+            return _dedupe_evidence([
+                item
+                for part in split
+                for item in _extract_scoped_metadata(filename, part, _split_depth=_split_depth + 1)
+            ])
     try:
         extraction = _call_scoped_model(
             filename,
-            _scoped_prompt_messages(filename, rendered, harvest_metadata_candidates(segments)),
+            _scoped_prompt_messages(filename, rendered, candidates),
             purpose="metadata_extraction.scoped_entities",
         )
         grounded = _ground_scoped_candidates(extraction, segments)
         expected_versions = _expected_version_kinds(segments)
         found_versions = {item["kind"] for item in grounded if item["kind"] in expected_versions}
         missing_versions = expected_versions - found_versions
-        if missing_versions:
+        if missing_versions or _missing_explicit_software_versions(segments, grounded):
             focused = _call_scoped_model(
                 filename,
-                _version_prompt_messages(filename, rendered, missing_versions),
+                _version_prompt_messages(filename, rendered, expected_versions),
                 purpose="metadata_extraction.version_applicability",
             )
             grounded.extend(_ground_scoped_candidates(focused, segments))
@@ -1368,6 +1398,9 @@ def _extract_scoped_metadata(
             raise MetadataExtractionIncomplete(
                 f"Version-bearing batch for {filename} is missing grounded {sorted(missing_versions)} evidence"
             )
+        missing_values = _missing_explicit_software_versions(segments, grounded)
+        if missing_values:
+            raise MetadataExtractionIncomplete(f"Missing explicit software versions: {sorted(missing_values)}")
         return _dedupe_evidence(grounded)
     except MetadataExtractionIncomplete:
         split = _bisect_metadata_segments(segments) if _split_depth < 5 else None
@@ -2524,6 +2557,11 @@ def _verify_metadata_workflow_claims(state: MetadataWorkflowState) -> dict[str, 
             f"Independent verification for {state['filename']} rejected or could not resolve "
             f"all grounded {sorted(missing_version_kinds)} claims"
         )
+    missing_values = _missing_explicit_software_versions(state["segments"], [
+        item for item in verified_claims if item.get("verification_status") == "confirmed"
+    ])
+    if missing_values:
+        raise MetadataExtractionIncomplete(f"Verification lost explicit software versions: {sorted(missing_values)}")
     return {"verified_claims": verified_claims}
 
 

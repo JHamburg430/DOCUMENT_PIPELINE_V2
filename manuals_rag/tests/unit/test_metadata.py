@@ -388,6 +388,47 @@ def test_version_signal_does_not_cross_line_boundaries():
     assert _expected_version_kinds(segments) == set()
 
 
+def test_version_completeness_detects_named_editor_and_runtime_statements():
+    for text in (
+        "Using the ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later), upload settings.",
+        "The ExampleLanguage version used in this system is Ver. 5.1.4.",
+    ):
+        assert _expected_version_kinds([MetadataSourceSegment(text, 2, 2)]) == {"software_version"}
+
+
+def test_plain_ethernet_is_harvested_without_collapsing_ethernet_ip():
+    from manuals_rag_parsers.metadata import _deterministic_protocol_evidence
+    claims = _deterministic_protocol_evidence([MetadataSourceSegment("Ethernet and EtherNet/IP", 1, 1)])
+    assert {c["value"] for c in claims} == {"ethernet", "ethernet/ip"}
+    assert all(c["relation"] == "mentioned" for c in claims)
+
+
+def test_software_version_gate_requires_each_explicit_value():
+    from manuals_rag_parsers.metadata import _missing_explicit_software_versions
+    source = [MetadataSourceSegment("ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later)", 3, 3)]
+    assert _missing_explicit_software_versions(source, [{"kind": "software_version", "value": "5.1.0020"}]) == {"4.2.0020"}
+    assert _deterministic_version_evidence([MetadataSourceSegment("The runtime version used in this system is Ver. 5.1.4.", 2, 2)], {"software_version"}) == []
+
+
+def test_dense_identifier_batch_is_split_before_schema_cap_loses_rows(monkeypatch):
+    from manuals_rag_parsers import metadata as module
+    calls = []
+    def extract(filename, messages, *, purpose):
+        content = messages[1]["content"]
+        candidates = json.loads(content.split("classified):\n", 1)[1].split("\n\n", 1)[0])
+        calls.append(len(candidates))
+        return ScopedMetadataExtraction.model_validate({"entities": [
+            {"value": c["value"], "kind": "product_model", "relation": "mentioned",
+             "source_quote": c["source_quote"], "page_from": c["page_from"], "confidence": 0.9}
+            for c in candidates
+        ]})
+    monkeypatch.setattr(module, "_call_scoped_model", extract)
+    segments = [MetadataSourceSegment(f"Model ZX-{1000+i}", i+1, i+1) for i in range(12)]
+    claims = module._extract_scoped_metadata("catalog.pdf", segments)
+    assert len(claims) == 12
+    assert len(calls) > 1 and max(calls) <= module.MAX_SCOPED_ENTITIES
+
+
 def test_explicit_software_version_fallback_is_grounded_but_not_applicability():
     segments = [MetadataSourceSegment(
         "Graphic software | Downloadable | VT STUDIO Ver.8 (US edition)", 66, 66, ("Software",)

@@ -159,3 +159,20 @@ live oracle/dependency experiment → frozen48-case matrix with explicit exit fi
 → source-audited held-out evaluation → update measured outcomes and rollout gate.
 No full-corpus backfill, production enabling, or broad accuracy claim is authorized
 by the current test results.
+
+### Source audit follow-up
+
+- Completed assistant audit of the five-document dry-run against persisted source
+  text. All 37 ledger quotations match their cited pages, but three documents
+  fail completeness: Lua software versions, LJ-S head models, and bracket models/
+  compatibility rows. The two datasheets pass identity-only checks; visual
+  dimensional evidence remains unaudited. This does not satisfy T2.
+- Fixed named-editor/runtime version-signal detection, per-value version loss
+  checks, an invalid prose-subject fallback, missing plain-Ethernet harvesting,
+  and pre-splitting candidate-dense batches before the ten-entity response cap.
+- Focused metadata, backfill and persisted-audit tests: 71 passed. A targeted live
+  diagnostic still omitted important metadata; neither it nor the original
+  pilot was applied. Stronger completeness checks are being verified live.
+- Audit artifacts: test_reports/retrieval_improvement/pilot_source_audit.md and
+  pilot_quote_audit.json. These are source-text/assistant checks, not human or
+  visual PDF adjudication. No corpus changes or production enablement.
