@@ -27,6 +27,27 @@ def test_documents_can_target_multiple_document_ids(monkeypatch):
     assert captured["query"].rstrip().endswith("limit %s")
     assert captured["params"] == ("doc-a", "doc-b", 2)
     assert "extracted_pipeline_version" in captured["query"]
+    assert "authoritative_manufacturer" in captured["query"]
+
+
+def test_authoritative_corpus_manufacturer_overrides_extracted_company_noise():
+    metadata = {
+        "manufacturer": "Intel Corporation",
+        "companies": ["Intel Corporation", "Example PLC Vendor"],
+    }
+
+    result = _MODULE._apply_authoritative_metadata_defaults(
+        {"corpus_id": "manuals_vendor_keyence", "authoritative_manufacturer": "KEYENCE"},
+        metadata,
+    )
+
+    assert result["manufacturer"] == "KEYENCE"
+    assert result["companies"] == ["KEYENCE", "Intel Corporation", "Example PLC Vendor"]
+    assert result["metadata_authoritative_defaults"] == {
+        "manufacturer": "KEYENCE",
+        "source": "corpus_configuration",
+    }
+    assert metadata["manufacturer"] == "Intel Corporation"
 
 
 def test_checkpoint_report_reuses_explicit_path(monkeypatch, tmp_path):

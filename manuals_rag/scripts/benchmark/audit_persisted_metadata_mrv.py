@@ -10,13 +10,20 @@ from pathlib import Path
 from typing import Any
 
 from manuals_rag_common.db import fetch_all
-from manuals_rag_parsers.metadata import METADATA_PIPELINE_VERSION
+from manuals_rag_parsers.metadata import METADATA_PIPELINE_VERSION, _expand_routing_identifiers
 
 
 PIPELINE = METADATA_PIPELINE_VERSION
 TITLE_IDENTIFIER_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:]\s*[A-Z0-9]{1,16})+|"
     r"[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
+)
+TITLE_BOILERPLATE_PATTERN = re.compile(
+    r"\b(?:download|click|tap|scan)\b.*\b(?:file|manual|image|text|details?|more)\b|"
+    r"\bfor (?:a )?(?:larger|full) (?:image|text|view)\b|"
+    r"\b(?:learn|read|see) more\b|"
+    r"\bplease\s+read\b|\bread\b.*\bcarefully\b",
+    re.IGNORECASE,
 )
 
 
@@ -31,6 +38,7 @@ def _audit_document(row: dict[str, Any]) -> dict[str, Any]:
     routing = [
         *list(metadata.get("routing_product_models") or []),
         *list(metadata.get("routing_part_numbers") or []),
+        *list(metadata.get("routing_protocol_terms") or []),
     ]
     failures: list[str] = []
     if row.get("ingest_status") != "indexed":
@@ -52,18 +60,84 @@ def _audit_document(row: dict[str, Any]) -> dict[str, Any]:
         if float(item.get("confidence") or 0.0) < 0.8:
             failures.append("confirmed_claim_below_trust_threshold")
             break
+    if any(item.get("verification_status") == "unresolved" for item in claims):
+        failures.append("unresolved_claims_persisted")
     if any(len(str(value)) > 80 or len(str(value).split()) > 6 for value in routing):
         failures.append("prose_shaped_routing_identifier")
     title = str(metadata.get("title") or row.get("title") or "")
-    if TITLE_IDENTIFIER_PATTERN.search(title) and not metadata.get("routing_product_models"):
+    if TITLE_BOILERPLATE_PATTERN.search(title):
+        failures.append("boilerplate_selected_as_title")
+    if (
+        TITLE_IDENTIFIER_PATTERN.search(title)
+        and not metadata.get("routing_product_models")
+        and not metadata.get("routing_part_numbers")
+    ):
         failures.append("opening_title_identifier_not_routable")
-    confirmed_keys = {
-        _compact(str(item.get("value") or ""))
-        for item in confirmed
-        if item.get("kind") in {"product_model", "product_family", "part_number"}
+    confirmed_keys: set[str] = set()
+    allowed_routing_keys: set[str] = set()
+    document_scope_keys = {
+        _compact(str(value))
+        for value in metadata.get("routing_product_models") or []
+        if str(value or "").strip()
     }
+    upload_identity_keys: set[str] = {
+        _compact(value)
+        for item in claims
+        if str(item.get("source_method") or item.get("source") or "") == "upload_identity_page_grounded"
+        and item.get("kind") == "product_model"
+        and item.get("grounded") is True
+        for value in _expand_routing_identifiers(
+            str(item.get("value") or ""), repeated_lines=set()
+        )
+    }
+    for item in confirmed:
+        kind = str(item.get("kind") or "")
+        value = str(item.get("value") or "")
+        values = (
+            _expand_routing_identifiers(value, repeated_lines=set())
+            if kind in {"product_model", "product_family", "part_number"}
+            else [value]
+        )
+        keys = {_compact(candidate) for candidate in values if candidate}
+        confirmed_keys.update(keys)
+        source_method = str(item.get("source_method") or item.get("source") or "")
+        relation = str(item.get("relation") or "")
+        if source_method == "upload_identity_page_grounded" and kind in {"product_model", "part_number"}:
+            allowed_routing_keys.update(keys)
+        if (
+            source_method == "opening_title_candidate"
+            and kind == "part_number"
+            and relation == "mentioned"
+            and int(item.get("page_from") or 10**9) <= 2
+        ):
+            allowed_routing_keys.update(keys)
+        if (
+            kind == "part_number"
+            and relation == "accessory_for"
+            and str(item.get("subject") or "").strip()
+            and _compact(str(item.get("subject") or "")) in document_scope_keys
+        ):
+            allowed_routing_keys.update(keys)
+        if (
+            kind in {"product_model", "product_family"}
+            and relation in {"primary_product", "applies_to", "compatible_with", "accessory_for"}
+            and int(item.get("page_from") or 10**9) <= 3
+        ):
+            allowed_routing_keys.update(keys)
+        if kind == "protocol" and relation == "mentioned":
+            allowed_routing_keys.update(keys)
+    for item in confirmed:
+        if (
+            str(item.get("source_method") or item.get("source") or "") == "opening_title_candidate"
+            and item.get("kind") in {"product_model", "part_number"}
+        ):
+            key = _compact(str(item.get("value") or ""))
+            if not upload_identity_keys or key in upload_identity_keys:
+                allowed_routing_keys.add(key)
     if any(_compact(str(value)) not in confirmed_keys for value in routing):
         failures.append("routing_identifier_without_confirmed_claim")
+    if any(_compact(str(value)) not in allowed_routing_keys for value in routing):
+        failures.append("routing_identifier_without_scoped_relationship")
     applicable = [
         *list(metadata.get("firmware_applicability") or []),
         *list(metadata.get("software_applicability") or []),
@@ -81,6 +155,7 @@ def _audit_document(row: dict[str, Any]) -> dict[str, Any]:
         "claim_counts": dict(Counter(str(item.get("verification_status") or "unknown") for item in claims)),
         "routing_product_models": metadata.get("routing_product_models") or [],
         "routing_part_numbers": metadata.get("routing_part_numbers") or [],
+        "routing_protocol_terms": metadata.get("routing_protocol_terms") or [],
         "firmware_applicability": metadata.get("firmware_applicability") or [],
         "software_applicability": metadata.get("software_applicability") or [],
         "chunk_count": int(row.get("chunk_count") or 0),

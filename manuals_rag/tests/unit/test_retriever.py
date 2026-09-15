@@ -7,7 +7,8 @@ from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval import retriever
 from manuals_rag_retrieval.retriever import _resolve_rerank_device, fuse_results, rerank_results, run_dense_search, run_sparse_search, run_table_search
 from manuals_rag_retrieval.query_analysis import QueryAnalysis, analyze_query
-from manuals_rag_schemas.documents import SearchResult
+from manuals_rag_schemas.documents import RetrievalChunk, SearchResult
+from manuals_rag_schemas.enums import ChunkType
 from qdrant_client.http.exceptions import UnexpectedResponse
 
 
@@ -1793,6 +1794,48 @@ def test_dense_search_returns_empty_on_vector_dimension_mismatch(monkeypatch):
     assert results == []
 
 
+def test_qdrant_chunk_payload_preserves_logical_node_ids(monkeypatch):
+    captured: list[object] = []
+
+    class FakeClient:
+        def upsert(self, target_collection: str, points: list[object]) -> None:
+            assert target_collection == "manuals_manuals_corpus"
+            captured.extend(points)
+
+    store = object.__new__(QdrantStore)
+    store.client = FakeClient()
+    monkeypatch.setattr(store, "ensure_collection", lambda *_args: None)
+    monkeypatch.setattr(
+        "manuals_rag_retrieval.qdrant_store.embed_dense",
+        lambda _texts: [[0.1, 0.2]],
+    )
+    monkeypatch.setattr(
+        "manuals_rag_retrieval.qdrant_store.build_sparse_vector",
+        lambda _text: ([1], [1.0]),
+    )
+    chunk = RetrievalChunk(
+        id="chunk-1",
+        document_version_id="version-1",
+        source_document_id="document-1",
+        logical_node_ids_json=["node-1", "node-2"],
+        chunk_type=ChunkType.table_record,
+        chunk_level=1,
+        title="Table",
+        section_path_text="Options",
+        page_from=13,
+        page_to=13,
+        content="Part row",
+        content_for_sparse="Part row",
+        content_for_dense="Part row",
+        content_for_rerank="Part row",
+        metadata_json={"section_path": ["Options"]},
+    )
+
+    store.upsert_chunks("manuals_corpus", [chunk])
+
+    assert captured[0].payload["logical_node_ids_json"] == ["node-1", "node-2"]
+
+
 def test_enrich_candidates_for_rerank_adds_grouped_procedure_context(monkeypatch):
     result = SearchResult(
         chunk_id="step-1",
@@ -1835,6 +1878,44 @@ def test_enrich_candidates_for_rerank_adds_grouped_procedure_context(monkeypatch
     rerank_document = enriched[0].metadata["rerank_document"]
     assert "Enable power" in rerank_document
     assert "Full procedure block" in rerank_document
+
+
+def test_mode_alignment_prefers_page_local_context_over_stale_parent_section():
+    query = "In Standard Lighting Mode, which simulation capture setting is used?"
+    standard = SearchResult(
+        chunk_id="standard",
+        score=0.5,
+        title="Doc",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[10],
+        section_path=["stale"],
+        content="Simulation Image Capture",
+        metadata={
+            "parent_context": "Standard Lighting Mode and LumiTrax Specular Reflection Mode",
+            "page_context": "Capture Using Line Scan Cameras (Standard Lighting Mode)",
+        },
+    )
+    lumitrax = standard.model_copy(
+        update={
+            "chunk_id": "lumitrax",
+            "metadata": {
+                **standard.metadata,
+                "page_context": "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode)",
+            },
+        }
+    )
+
+    assert retriever._mode_phrase_alignment_adjustment(standard, query) > 0
+    assert retriever._mode_phrase_alignment_adjustment(lumitrax, query) < 0
+
+
+def test_requested_mode_phrases_excludes_hyphenated_product_and_camera_terms():
+    phrases = retriever._requested_mode_phrases(
+        "In Standard Lighting Mode, use the XG-X line-scan camera."
+    )
+
+    assert phrases == {"standardlightingmode"}
 
 
 def test_assemble_context_uses_nearest_table_row_group_for_table_cells(monkeypatch):

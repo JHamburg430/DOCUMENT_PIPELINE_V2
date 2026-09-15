@@ -60,6 +60,12 @@ def test_parse_json_content_tolerates_raw_control_characters_in_strings():
     }
 
 
+def test_parse_json_content_accepts_model_prose_and_fence_wrappers():
+    assert parse_json_content('Result follows:\n```json\n{"entities": []}\n```') == {
+        "entities": []
+    }
+
+
 def test_supports_thinking_control_for_qwen_only():
     assert supports_thinking_control("qwen3.5:4b") is True
     assert supports_thinking_control("gpt-oss:20b") is False
@@ -110,6 +116,7 @@ def test_chat_json_warms_requested_model_before_chat(monkeypatch):
         model="gpt-oss:20b",
         messages=[{"role": "user", "content": "Hi"}],
         json_schema={"type": "object"},
+        num_ctx=8192,
     )
 
     assert parsed == {"ok": True}
@@ -118,6 +125,8 @@ def test_chat_json_warms_requested_model_before_chat(monkeypatch):
     assert call_paths[:3] == ["/api/tags", "/api/ps", "/api/generate"]
     assert "/api/chat" in call_paths
     assert calls[2][2]["model"] == "gpt-oss:20b"
+    assert calls[2][2]["options"]["num_ctx"] == 8192
+    assert next(c[2] for c in calls if c[1] == "/api/chat")["options"]["num_ctx"] == 8192
 
 
 def test_chat_json_reloads_and_retries_after_chat_failure(monkeypatch):
@@ -227,3 +236,18 @@ def test_usage_capture_reports_actual_ollama_token_and_duration_counts(monkeypat
     assert usage["total_tokens"] == 135
     assert usage["total_duration_ms"] == 250.0
     assert usage["by_purpose"]["unit_usage"]["model_calls"] == 1
+
+
+def test_inference_timeout_does_not_reload_and_duplicate_work(monkeypatch):
+    import httpx
+    import pytest
+    import manuals_rag_common.ollama as module
+    loads = []
+    monkeypatch.setattr(module, 'ensure_model_loaded', lambda **kwargs: loads.append(kwargs))
+    def timed_out(**kwargs):
+        raise httpx.ReadTimeout('inference deadline')
+    monkeypatch.setattr(module, '_post_chat', timed_out)
+    with pytest.raises(httpx.ReadTimeout):
+        module.chat_json(model='test',messages=[],json_schema={'type':'object'},timeout=1)
+    assert len(loads) == 1
+    assert not loads[0].get('force_reload')

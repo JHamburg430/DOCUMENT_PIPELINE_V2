@@ -57,11 +57,14 @@ def _documents(
     query = """
         select
             sd.id as document_id,
+            sd.corpus_id,
             sd.source_filename,
             sd.current_version_id as version_id,
+            c.permissions_json #>> '{metadata_defaults,manufacturer}' as authoritative_manufacturer,
             dme.document_version_id as extracted_version_id,
             dme.metadata_json ->> 'metadata_pipeline_version' as extracted_pipeline_version
         from source_documents sd
+        join corpora c on c.id = sd.corpus_id
         join document_versions dv on dv.id = sd.current_version_id
         left join document_metadata_extractions dme on dme.source_document_id = sd.id
         where exists (
@@ -112,6 +115,23 @@ def _metadata_payload(metadata: Any) -> dict[str, Any]:
     payload["document_kind"] = metadata.document_kind.value
     payload["revision_date"] = metadata.revision_date.isoformat() if metadata.revision_date else None
     payload["effective_date"] = metadata.effective_date.isoformat() if metadata.effective_date else None
+    return payload
+
+
+def _apply_authoritative_metadata_defaults(
+    document: dict[str, Any], metadata: dict[str, Any]
+) -> dict[str, Any]:
+    """Overlay explicit corpus-owned identity without trusting extracted company mentions."""
+    manufacturer = str(document.get("authoritative_manufacturer") or "").strip()
+    if not manufacturer:
+        return metadata
+    payload = dict(metadata)
+    payload["manufacturer"] = manufacturer
+    payload["companies"] = list(dict.fromkeys([manufacturer, *list(payload.get("companies") or [])]))
+    payload["metadata_authoritative_defaults"] = {
+        "manufacturer": manufacturer,
+        "source": "corpus_configuration",
+    }
     return payload
 
 
@@ -362,12 +382,15 @@ def main() -> None:
             continue
         try:
             segments = _document_segments(str(document["version_id"]), node_limit=args.node_limit)
-            metadata = _metadata_payload(
-                infer_document_metadata_from_segments(
-                    str(document["source_filename"]),
-                    segments,
-                    max_segment_chars=args.segment_chars,
-                )
+            metadata = _apply_authoritative_metadata_defaults(
+                document,
+                _metadata_payload(
+                    infer_document_metadata_from_segments(
+                        str(document["source_filename"]),
+                        segments,
+                        max_segment_chars=args.segment_chars,
+                    )
+                ),
             )
             chunk_count = 0
             embed_enqueued = False

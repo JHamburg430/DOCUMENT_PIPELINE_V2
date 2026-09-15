@@ -116,6 +116,7 @@ class QdrantStore:
                     payload={
                         **chunk.metadata_json,
                         "chunk_id": chunk.id,
+                        "logical_node_ids_json": chunk.logical_node_ids_json,
                         "document_version_id": chunk.document_version_id,
                         "source_document_id": chunk.source_document_id,
                         "chunk_type": chunk.chunk_type.value,

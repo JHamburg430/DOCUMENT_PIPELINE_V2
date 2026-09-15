@@ -38,6 +38,9 @@ class Settings:
     )
     ollama_embed_model: str = os.getenv("OLLAMA_EMBED_MODEL", "qwen3-embedding:0.6b")
     ollama_metadata_model: str = os.getenv("OLLAMA_METADATA_MODEL", "qwen3.5:9b")
+    ollama_metadata_timeout_seconds: float = float(
+        os.getenv("OLLAMA_METADATA_TIMEOUT_SECONDS", "300")
+    )
     ollama_fast_model: str = os.getenv("OLLAMA_FAST_MODEL", "qwen3.5:4b")
     ollama_retrieval_verifier_model: str = os.getenv(
         "OLLAMA_RETRIEVAL_VERIFIER_MODEL",

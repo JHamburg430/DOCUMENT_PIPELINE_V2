@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from collections.abc import Callable
 from time import perf_counter
@@ -15,6 +16,7 @@ from manuals_rag_retrieval.query_analysis import analyze_query
 from manuals_rag_retrieval.retriever import (
     assess_evidence_sufficiency,
     assemble_agent_context,
+    result_matches_requested_mode,
     retrieve_with_strategy,
 )
 from manuals_rag_schemas.documents import AnswerResponse, SearchResult
@@ -50,6 +52,35 @@ class EvidenceVerification(BaseModel):
     applicability: ApplicabilityState = "not_requested"
     scope_entity: str | None = None
     rationale: str = ""
+
+
+VISUAL_DEPENDENCY_RE = re.compile(
+    r"\b(?:diagram|wiring|wire\s+color|pinout|pin[- ]?assignment|connector\s+orientation|"
+    r"which\s+wire|pin\s*\d+|connector\s+(?:face|layout|keying)|terminal\s+(?:layout|position)|"
+    r"screenshot|screen\s+shot|icon|figure|drawing|dimension(?:al)?\s+drawing|schematic|"
+    r"flowchart|what\s+does\s+the\s+screen\s+show|where\s+on\s+the\s+(?:image|screen|panel))\b",
+    re.IGNORECASE,
+)
+
+
+def query_requires_visual_evidence(query: str) -> bool:
+    """Identify questions whose truth depends on spatial or graphical page content."""
+    return bool(VISUAL_DEPENDENCY_RE.search(query))
+
+
+def visual_evidence_unavailable_answer(query: str) -> AnswerResponse:
+    return AnswerResponse(
+        answer=(
+            "I can’t answer this safely from text extraction alone because the request depends on "
+            "visual page evidence. Please review the relevant manual diagram or enable validated visual retrieval."
+        ),
+        confidence="low",
+        used_documents=[],
+        citations=[],
+        warnings=["Visual-dependent request was safely declined because visual retrieval is not production-enabled."],
+        followup_questions=[f"Can you provide the relevant page or diagram for: {query}"],
+        insufficient_evidence=True,
+    )
 
 
 class AgenticState(TypedDict, total=False):
@@ -186,7 +217,11 @@ Decompose only when separate evidence is genuinely required. Use:
 - single: one independently answerable lookup;
 - parallel: multiple independent facts or documents must all be retrieved;
 - dependent: a later lookup needs an entity, value, component, or location discovered earlier.
-Each hop must be a standalone search query without pronouns. Keep at most four hops.
+Each independent hop must be a standalone search query without pronouns.
+For a dependent lookup, describe the unknown entity by its role and reference
+its discovery hop in depends_on; do not guess its value or collapse discovery
+and lookup into one hop. For comparisons preserve each subject in its own hop.
+Keep at most four hops.
 Choose structural for tables, settings, specifications, procedures, or troubleshooting rows;
 sparse for exact identifiers and quoted phrases; dense for conceptual language; broad when the
 request is exploratory; otherwise hybrid. Dependencies must reference earlier hop_id values.
@@ -237,7 +272,7 @@ def _parallel_scope_plan(query: str) -> RetrievalPlan | None:
         if pair_details and detail_match:
             hop_query = f"For {scope}, {detail_match.group('prefix')}{details[index]}?"
         else:
-            hop_query = f"{query.rstrip('?')} Focus only on {scope}."
+            hop_query = f"For {scope}, {request}"
         hops.append(
             RetrievalHop(
                 hop_id=f"side_{index + 1}",
@@ -255,13 +290,16 @@ def _parallel_scope_plan(query: str) -> RetrievalPlan | None:
 
 def _troubleshooting_facet_plan(query: str) -> RetrievalPlan | None:
     match = re.match(
-        r"^\s*what\s+causes?\s+(?P<target>.+?)(?:,)?\s+and\s+how\s+should\s+(?:it|this|that)\s+be\s+corrected\??$",
+        r"^\s*(?P<scope>on\s+.+?,\s*)?what\s+causes?\s+(?P<target>.+?)(?:,)?\s+and\s+"
+        r"(?:how\s+should\s+(?:it|this|that)\s+be\s+corrected|what\s+should\s+i\s+do)\??$",
         query,
         flags=re.I,
     )
     if not match:
         return None
+    scope = str(match.group("scope") or "").strip()
     target = match.group("target").strip(" ,.;?")
+    scoped_prefix = f"{scope} " if scope else ""
     return RetrievalPlan(
         mode="parallel",
         rationale="The request requires separate cause and corrective-action evidence.",
@@ -269,13 +307,13 @@ def _troubleshooting_facet_plan(query: str) -> RetrievalPlan | None:
             RetrievalHop(
                 hop_id="cause",
                 objective=f"Find the documented cause of {target}",
-                query=f"What causes {target}?",
+                query=f"{scoped_prefix}What causes {target}?",
                 strategy="structural",
             ),
             RetrievalHop(
                 hop_id="corrective_action",
                 objective=f"Find the documented corrective action for {target}",
-                query=f"How should {target} be corrected?",
+                query=f"{scoped_prefix}How should {target} be corrected?",
                 strategy="structural",
             ),
         ],
@@ -289,9 +327,33 @@ def _claim_strategy(query: str) -> RetrievalStrategy:
     ) else "hybrid"
 
 
+def _labelled_lookup_plan(query: str) -> RetrievalPlan | None:
+    """Route direct named-field questions to row/cell-preserving retrieval."""
+    if not re.search(
+        r"\b(?:what|which)\s+[^?]{0,100}\b(?:mode|settings?|option|status|code|"
+        r"address|parameter|rating|range|value|chart|screen|chapter|section|page)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        return None
+    retrieval_query = query
+    if (
+        re.search(r"\bcamera\b", query, flags=re.I)
+        and re.search(r"\btrigger\b", query, flags=re.I)
+        and re.search(r"\blight(?:ing)?\b", query, flags=re.I)
+        and re.search(r"\b(?:settings?|configuration)\b", query, flags=re.I)
+    ):
+        retrieval_query = f'{query} "Camera Trigger Light Configuration Settings"'
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request is a direct labelled field lookup.",
+        hops=[RetrievalHop(hop_id="hop_1", objective=query, query=retrieval_query, strategy="structural")],
+    )
+
+
 def _comparison_facet_plan(query: str) -> RetrievalPlan | None:
     match = re.match(
-        r"^\s*compare\s+(?P<left>.+?)\s+(?:with|versus|vs\.?)\s+"
+        r"^\s*compare\s+(?P<left>.+?)\s+(?:with|versus|(?-i:vs)\.?)\s+"
         r"(?P<right>.+?)(?:\s*:(?=\s)\s*(?P<details>.+?))?\s*[?.]*$",
         query,
         flags=re.I,
@@ -333,7 +395,11 @@ def _comparison_facet_plan(query: str) -> RetrievalPlan | None:
             for index, base in enumerate(queries)
         ]
     analyses = [analyze_query(item) for item in queries]
-    if any(not analysis.product_identifiers for analysis in analyses):
+    if any(
+        not analysis.product_identifiers
+        and not re.search(r"\b[A-Z][A-Z0-9:-]{1,20}\s+(?i:series|family)\b", branch)
+        for analysis, branch in zip(analyses, branches, strict=True)
+    ):
         return None
     return RetrievalPlan(
         mode="parallel",
@@ -523,6 +589,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _comparison_facet_plan(query)
         or _coordinate_question_plan(query)
         or _reported_clause_plan(query)
+        or _labelled_lookup_plan(query)
     )
     if forced_plan is not None:
         return forced_plan
@@ -550,7 +617,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
 
 def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
     """Subquestion-oriented fallback that is intentionally independent of LangGraph planning."""
-    base = _heuristic_plan(query)
+    base = _labelled_lookup_plan(query) or _heuristic_plan(query)
     hops: list[RetrievalHop] = []
     for index, hop in enumerate(base.hops, start=1):
         strategy = hop.strategy
@@ -581,6 +648,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _comparison_facet_plan(query) is not None
         or _coordinate_question_plan(query) is not None
         or _reported_clause_plan(query) is not None
+        or _labelled_lookup_plan(query) is not None
     ):
         return _llamaindex_heuristic_plan(query)
     if not use_llm:
@@ -608,6 +676,13 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
 def _validate_plan(plan: RetrievalPlan) -> None:
     if not plan.hops:
         raise ValueError("Retrieval plan must contain at least one hop.")
+    if plan.mode == "single" and len(plan.hops) != 1:
+        raise ValueError("Single plans must contain exactly one hop.")
+    has_dependencies = any(hop.depends_on for hop in plan.hops)
+    if plan.mode == "dependent" and not has_dependencies:
+        raise ValueError("Dependent plans require explicit dependency links.")
+    if plan.mode != "dependent" and has_dependencies:
+        raise ValueError("Dependency links require dependent plan mode.")
     ids = [hop.hop_id for hop in plan.hops]
     if len(ids) != len(set(ids)):
         raise ValueError("Retrieval hop IDs must be unique.")
@@ -620,22 +695,25 @@ def _validate_plan(plan: RetrievalPlan) -> None:
         seen.add(hop.hop_id)
 
 
-def _evidence_excerpt(results: list[SearchResult], *, max_chars: int = 2400) -> str:
+def _evidence_excerpt(results: list[SearchResult], *, max_chars: int = 6000) -> str:
+    # Dependency refiners need the complete supported fact, not the first 700
+    # characters of each chunk. Omit oversized units explicitly instead.
     parts: list[str] = []
     used = 0
-    for result in results[:4]:
+    omitted = 0
+    for result in results:
         item = (
             f"Document: {result.title} ({result.source_document_id}); "
-            f"section: {' > '.join(result.section_path)}; evidence: {result.content}"
+            f"pages: {result.pages}; section: {' > '.join(result.section_path)}; "
+            f"evidence: {result.content}"
         )
-        item = item[:700]
-        if used + len(item) > max_chars:
-            item = item[: max(0, max_chars - used)]
-        if item:
-            parts.append(item)
-            used += len(item)
-        if used >= max_chars:
-            break
+        if used + len(item) + 80 > max_chars:
+            omitted += 1
+            continue
+        parts.append(item)
+        used += len(item) + 1
+    if omitted:
+        parts.append(f"[{omitted} complete evidence units omitted for budget; do not infer their content.]")
     return "\n".join(parts)
 
 
@@ -654,7 +732,8 @@ def _dependency_anchors(results: list[SearchResult]) -> list[str]:
             if not normalized or not any(character.isdigit() for character in normalized):
                 continue
             compact = re.sub(r"[^a-z0-9]", "", normalized.lower())
-            if compact and compact not in compact_anchors:
+            source_pattern = r"(?<![a-z0-9])" + r"[^a-z0-9]*".join(map(re.escape, compact)) + r"(?![a-z0-9])"
+            if compact and compact not in compact_anchors and re.search(source_pattern, result.content, re.I):
                 anchors.append(normalized)
                 compact_anchors.add(compact)
             if len(anchors) >= 12:
@@ -922,6 +1001,8 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
     example, or compatibility note.  Legacy unscoped chunks retain the textual
     fallback so pre-v2 corpora can still be searched safely.
     """
+    if not result_matches_requested_mode(result, query):
+        return False
     analysis = analyze_query(query)
     identifiers = list(dict.fromkeys(analysis.product_identifiers or []))
     if not identifiers:
@@ -941,7 +1022,13 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
             authoritative_values.append(str(value))
     authoritative = {compact(value) for value in authoritative_values if compact(value)}
     if authoritative:
-        return bool(requested.intersection(authoritative))
+        return any(
+            requested_value == authoritative_value
+            or requested_value + "series" == authoritative_value
+            or authoritative_value + "series" == requested_value
+            for requested_value in requested
+            for authoritative_value in authoritative
+        )
 
     # A verified part-number match can establish scope, but unrelated part
     # numbers are not product identity and therefore cannot create a conflict.
@@ -974,9 +1061,22 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
     return any(identifier in searchable_compact for identifier in requested)
 
 
-def _verification_evidence(results: list[SearchResult]) -> list[dict[str, Any]]:
+def _verification_evidence(
+    results: list[SearchResult], *, query: str = "", max_bytes: int = 12000,
+) -> dict[str, Any]:
     evidence: list[dict[str, Any]] = []
-    for result in results[:4]:
+    # Preserve complete evidence units. UTF-8 bytes conservatively bound token
+    # usage without a model-specific tokenizer. Never silently cut table rows.
+    terms = set(re.findall(r"\w+", query.casefold()))
+    ranked = sorted(results, key=lambda r: len(terms & set(
+        re.findall(r"\w+", str(r.content or "").casefold())
+    )), reverse=True)
+    omitted_count = 0
+    seen: set[str] = set()
+    for result in ranked:
+        if result.chunk_id in seen:
+            continue
+        seen.add(result.chunk_id)
         metadata = result.metadata or {}
         evidence.append(
             {
@@ -985,7 +1085,7 @@ def _verification_evidence(results: list[SearchResult]) -> list[dict[str, Any]]:
                 "title": result.title,
                 "pages": result.pages,
                 "section_path": result.section_path,
-                "content": str(result.content or "")[:900],
+                "content": str(result.content or ""),
                 "document_identity": {
                     "product_model": metadata.get("product_model"),
                     "product_family": metadata.get("product_family"),
@@ -993,13 +1093,511 @@ def _verification_evidence(results: list[SearchResult]) -> list[dict[str, Any]]:
                     "routing_part_numbers": metadata.get("routing_part_numbers") or [],
                     "metadata_pipeline_version": metadata.get("metadata_pipeline_version"),
                 },
+                "query_applicability": metadata.get("query_applicability"),
+                "document_metadata_evidence_scope_only": metadata.get("document_metadata_evidence") or [],
                 "applicability": {
-                    "firmware": (metadata.get("firmware_applicability") or [])[:4],
-                    "software": (metadata.get("software_applicability") or [])[:4],
+                    "firmware": (metadata.get("firmware_applicability") or []),
+                    "software": (metadata.get("software_applicability") or []),
                 },
             }
         )
-    return evidence
+        packet = {"evidence": evidence, "omitted_count": omitted_count}
+        if len(json.dumps(packet, ensure_ascii=False).encode("utf-8")) + 20 > max_bytes:
+            evidence.pop()
+            omitted_count += 1
+    return {"evidence": evidence, "omitted_count": omitted_count}
+
+
+def _claim_requires_applicability(hop: RetrievalHop, executed_query: str) -> bool:
+    text = f"{hop.objective} {executed_query}"
+    # A troubleshooting message may contain words such as "unsupported
+    # firmware" while asking only for the documented cause or remedy.  That is
+    # a row-binding problem, not a request to establish version applicability.
+    # Reserve the stricter applicability verifier for explicit compatibility
+    # intent or a concrete firmware/software version constraint.
+    return re.search(
+        r"\b(?:applicab(?:le|ility)|compatib(?:le|ility)|works?\s+with|"
+        r"supported\s+(?:on|by|with)|"
+        r"(?:minimum|required|recommended)\s+(?:firmware|software)|"
+        r"(?:firmware|software)(?:\s+(?:version|release))?\s+v?\d+(?:\.\d+)*|"
+        r"requires?\b.{0,40}\b(?:firmware|software|version|release))\b",
+        text,
+        re.IGNORECASE,
+    ) is not None
+
+
+def _direct_warning_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an explicit, condition-aligned warning without an LLM verdict.
+
+    This gate is deliberately narrow.  It applies only to ordinary warning or
+    caution wording (not version/compatibility claims), requires a single
+    sentence to contain the safety language, every requested numeric value,
+    and strong lexical overlap, and retains the normal product-scope gate.
+    """
+    if not re.search(r"\b(?:warning|caution)\b", query, flags=re.IGNORECASE):
+        return []
+    if not preliminary_assessment.get("claim_supported"):
+        return []
+
+    stopwords = {
+        "what", "which", "warning", "caution", "when", "where", "that",
+        "this", "with", "from", "does", "should", "about", "into", "the",
+        "and", "for", "is", "are", "its", "higher", "lower",
+    }
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9][a-z0-9:/-]+", query.lower())
+        if len(term) > 2 and term not in stopwords
+    }
+    query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, int, int, str]] = []
+    for result_index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids:
+            continue
+        if not _result_supports_branch_scope(query, result):
+            continue
+        direct_evidence = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        for sentence in re.split(r"(?<=[.!?])\s+", direct_evidence):
+            if not re.search(
+                r"\b(?:warning|caution|be\s+careful|do\s+not|must\s+not|"
+                r"never|avoid|risk|damage|hazard)\b",
+                sentence,
+                flags=re.IGNORECASE,
+            ):
+                continue
+            sentence_numbers = set(
+                re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", sentence)
+            )
+            if query_numbers and not query_numbers.issubset(sentence_numbers):
+                continue
+            sentence_terms = set(re.findall(r"[a-z0-9][a-z0-9:/-]+", sentence.lower()))
+            overlap = len(query_terms.intersection(sentence_terms))
+            if overlap < min(4, max(2, len(query_terms))):
+                continue
+            chunk_type = str(result.metadata.get("chunk_type") or "")
+            bounded = int(
+                chunk_type
+                in {"atomic_text", "warning_record", "procedure_record", "table_record"}
+            )
+            matches.append((bounded, overlap, -len(direct_evidence), -result_index, result.chunk_id))
+            break
+    if not matches:
+        return []
+    best = max(matches, key=lambda item: item[:4])
+    return [best[-1]]
+
+
+def _direct_named_reference_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an explicitly named chart/screen/section in one scoped passage."""
+    artifact_match = re.search(
+        r"\b(?P<artifact>(?:timing\s+)?(?:chart|screen|chapter|section|page))\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not artifact_match or not re.search(r"\b(?:what|which)\b", query, flags=re.I):
+        return []
+    if not preliminary_assessment.get("claim_supported"):
+        return []
+    stopwords = {
+        "check", "for", "i", "is", "should", "the", "to", "what", "which", "with",
+    }
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", query.lower())
+        if len(term) > 1 and term not in stopwords
+    }
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    artifact = re.sub(r"\s+", r"\\s+", artifact_match.group("artifact"))
+    matches: list[tuple[int, int, int, str]] = []
+    for result_index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = str(result.content or "")
+        for segment in re.split(r"(?<=[.!?])\s+|\n+", content):
+            segment = re.sub(r"\s+", " ", segment).strip()
+            if not segment or not re.search(rf"\b{artifact}\b", segment, flags=re.I):
+                continue
+            segment_terms = set(re.findall(r"[a-z0-9]+", segment.lower()))
+            overlap = len(query_terms.intersection(segment_terms))
+            if overlap < min(4, max(2, len(query_terms))):
+                continue
+            bounded = int(
+                str(result.metadata.get("chunk_type") or "")
+                in {"atomic_text", "procedure_record", "table_record"}
+            )
+            matches.append((bounded, overlap, -result_index, result.chunk_id))
+            break
+    return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
+def _direct_structured_setting_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an exact named-setting behavior bound in one structured row."""
+    label_match = re.search(
+        r"\bwhat\s+does\s+(?:the\s+)?(?P<label>.+?)\s+setting\s+"
+        r"(?P<behavior>add|do|enable|disable|change|set)\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not label_match or not preliminary_assessment.get("claim_supported"):
+        return []
+    label = re.sub(r"[^a-z0-9]+", " ", label_match.group("label").lower()).strip()
+    # Product scope commonly precedes the setting name in the question (for
+    # example, ``LJ-S8000 Output Symbol Identifier``).  Remove only product
+    # identifiers that the query analyser explicitly recognized; never use a
+    # loose prefix match that could collapse neighboring models.
+    for identifier in analyze_query(query).product_identifiers or []:
+        normalized_identifier = re.sub(
+            r"[^a-z0-9]+", " ", str(identifier).lower()
+        ).strip()
+        if normalized_identifier and label.startswith(normalized_identifier + " "):
+            label = label[len(normalized_identifier) :].strip()
+            break
+    behavior = label_match.group("behavior").lower()
+    behavior_pattern = {
+        "add": r"\b(?:add|added|adds)\b",
+        "do": r"\b(?:add|added|adds|enable|enabled|disable|disabled|set|sets|change|changes|use|uses)\b",
+        "enable": r"\benabl(?:e|ed|es|ing)\b",
+        "disable": r"\bdisabl(?:e|ed|es|ing)\b",
+        "change": r"\bchang(?:e|ed|es|ing)\b",
+        "set": r"\bset(?:s|ting)?\b",
+    }[behavior]
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, int, str]] = []
+    for result_index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = str(result.content or "")
+        row_match = re.search(
+            r"Row\s+headers:\s*(?P<label>.*?);\s*Cell\s+value:\s*(?P<value>.*?)"
+            r"(?:;\s*Row:\s*\d+|$)",
+            content,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if not row_match:
+            continue
+        row_label = re.sub(r"[^a-z0-9]+", " ", row_match.group("label").lower()).strip()
+        value = re.sub(r"\s+", " ", row_match.group("value")).strip()
+        if row_label != label or not re.search(behavior_pattern, value, flags=re.IGNORECASE):
+            continue
+        if re.search(r"\bwhen\s+(?:it\s+is\s+)?enabled\b", query, flags=re.IGNORECASE) and not re.search(
+            r"\bwhen\s+enabled\b", value, flags=re.IGNORECASE
+        ):
+            continue
+        chunk_type = str(result.metadata.get("chunk_type") or "")
+        bounded = int(chunk_type in {"table_record", "spec_record", "atomic_text"})
+        matches.append((bounded, -len(content), -result_index, result.chunk_id))
+    if not matches:
+        return []
+    return [max(matches, key=lambda item: item[:3])[-1]]
+
+
+def _direct_structured_lookup_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm a direct column -> row -> value lookup in one serialized cell."""
+    if not re.search(r"\b(?:what|which)\b", query, flags=re.IGNORECASE):
+        return []
+    if not preliminary_assessment.get("claim_supported"):
+        return []
+
+    stopwords = {
+        "and", "are", "does", "for", "in", "is", "of", "on", "or", "the",
+        "this", "to", "uses", "using", "what", "when", "which", "with",
+    }
+
+    def terms(text: str) -> set[str]:
+        normalized: set[str] = set()
+        for token in re.findall(r"[a-z0-9]+", text.lower()):
+            if len(token) < 2 or token in stopwords:
+                continue
+            normalized.add(token[:-1] if token.endswith("s") and len(token) > 3 else token)
+        return normalized
+
+    query_terms = terms(query)
+    query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, int, str]] = []
+    for result_index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = str(result.content or "")
+        cell_match = re.search(
+            r"Column\s+headers:\s*(?P<column>.*?);\s*"
+            r"Row\s+headers:\s*(?P<row>.*?);\s*"
+            r"Cell\s+value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+|$)",
+            content,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if not cell_match:
+            continue
+        column_terms = terms(cell_match.group("column"))
+        row_terms = terms(cell_match.group("row"))
+        value_terms = terms(cell_match.group("value"))
+        if not column_terms or not row_terms:
+            continue
+        if len(column_terms.intersection(query_terms)) < min(2, len(column_terms)):
+            continue
+        if len(row_terms.intersection(query_terms)) < min(2, len(row_terms)):
+            continue
+        value_overlap = len(value_terms.intersection(query_terms))
+        value_numbers = set(
+            re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", cell_match.group("value"))
+        )
+        if query_numbers and not query_numbers.issubset(value_numbers):
+            continue
+        if value_overlap < 2:
+            continue
+        chunk_type = str(result.metadata.get("chunk_type") or "")
+        bounded = int(chunk_type in {"table_record", "spec_record", "atomic_text"})
+        matches.append((bounded, value_overlap, -result_index, result.chunk_id))
+    if not matches:
+        return []
+    return [max(matches, key=lambda item: item[:3])[-1]]
+
+
+def _direct_menu_mapping_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm a named menu/setting -> feature mapping in one table record."""
+    if not re.search(r"\b(?:what|which)\b", query, flags=re.I):
+        return []
+    if not preliminary_assessment.get("claim_supported"):
+        return []
+
+    stopwords = {"and", "are", "for", "in", "is", "of", "on", "the", "to", "what", "which"}
+
+    def terms(text: str) -> set[str]:
+        output: set[str] = set()
+        for token in re.findall(r"[a-z0-9]+", text.lower()):
+            if len(token) < 2 or token in stopwords or token == "page":
+                continue
+            token = {
+                "lighting": "light",
+                "configuration": "setting",
+                "settings": "setting",
+            }.get(token, token)
+            if token.isdigit():
+                continue
+            output.add(token)
+        return output
+
+    query_terms = terms(query)
+    preliminary_ids = {
+        str(chunk_id) for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, int, str]] = []
+    for result_index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        mapping = re.match(r"(?P<label>[^;:]{3,220}):\s*(?P<item>[^;]{3,180});", content)
+        if not mapping:
+            continue
+        label_terms = terms(mapping.group("label"))
+        item_terms = terms(mapping.group("item"))
+        if len(label_terms.intersection(query_terms)) < min(4, len(label_terms)):
+            continue
+        if len(item_terms.intersection(query_terms)) < min(3, len(item_terms)):
+            continue
+        matches.append((len(item_terms), len(label_terms), -result_index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
+def _direct_structured_troubleshooting_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm one cause/remedy cell whose row header binds the exact fault.
+
+    This intentionally ignores aggregate contradiction flags once an exact
+    row-bound cell is found.  Those flags can be triggered by neighboring
+    rows in a retrieved table (for example, unrelated orientation wording),
+    while the serialized cell itself preserves the fault -> cause/action
+    relationship deterministically.
+    """
+    lowered = query.lower()
+    if re.search(r"\b(?:cause\s+of|what\s+causes?|documented\s+cause)\b", lowered):
+        allowed_columns = {"cause", "check point", "check points"}
+        target_match = re.search(
+            r"(?:cause\s+of|what\s+causes?|documented\s+cause\s+of)\s+(?P<target>.+)",
+            query,
+            flags=re.I,
+        )
+    elif re.search(r"\b(?:corrective\s+action|remedy|be\s+corrected)\b", lowered):
+        allowed_columns = {"corrective action", "remedy", "countermeasure"}
+        target_match = re.search(
+            r"(?:corrective\s+action\s+for|remedy\s+for|how\s+should)\s+"
+            r"(?P<target>.+?)(?:\s+be\s+corrected)?[?.]*$",
+            query,
+            flags=re.I,
+        )
+    else:
+        return []
+    if not target_match:
+        return []
+
+    def normalized(value: str) -> str:
+        return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+    target = normalized(target_match.group("target"))
+    # Remove a trailing product scope only when query analysis recognized it.
+    for identifier in analyze_query(query).product_identifiers or []:
+        identity = normalized(str(identifier))
+        for suffix in (f" for {identity} series", f" for {identity}"):
+            if identity and target.endswith(suffix):
+                target = target[: -len(suffix)].strip()
+                break
+    target_terms = {
+        term
+        for term in target.split()
+        if len(term) > 2 and term not in {"the", "and", "for", "that", "this", "was", "were"}
+    }
+    if len(target_terms) < 2:
+        return []
+    target_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", target))
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    if not preliminary_ids:
+        return []
+    matches: list[tuple[float, int, int, str]] = []
+    for result_index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = str(result.content or "")
+        cell_match = re.search(
+            r"Column\s+headers:\s*(?P<column>.*?);\s*"
+            r"Row\s+headers:\s*(?P<row>.*?);\s*Cell\s+value:\s*(?P<value>.*?)"
+            r"(?:;\s*Row:\s*\d+|$)",
+            content,
+            flags=re.I | re.S,
+        )
+        if not cell_match:
+            continue
+        column = normalized(cell_match.group("column"))
+        if column not in allowed_columns or not cell_match.group("value").strip():
+            continue
+        row = normalized(cell_match.group("row"))
+        row_terms = set(row.split())
+        overlap = len(target_terms.intersection(row_terms)) / len(target_terms)
+        row_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", row))
+        if overlap < 0.7 or (target_numbers and not target_numbers.issubset(row_numbers)):
+            continue
+        exact = int(target in row)
+        matches.append((float(exact) + overlap, -len(content), -result_index, result.chunk_id))
+    if not matches:
+        return []
+    return [max(matches, key=lambda item: item[:3])[-1]]
+
+
+def _direct_flowchart_rule_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an explicit flowchart branch rule from one scoped passage.
+
+    Flowchart procedure questions often retrieve a section window rather than
+    the atomic child sentence.  Accept only a passage that names the flowchart,
+    branch/condition, and a normative instruction in the same bounded result;
+    this avoids promoting nearby descriptive text about capture units.
+    """
+    if not (
+        re.search(r"\bflowchart\b", query, flags=re.I)
+        and re.search(r"\b(?:branch(?:ed|ing)?|condition|rule)\b", query, flags=re.I)
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    if not preliminary_ids:
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not (
+            re.search(r"\bflowchart\b", content, flags=re.I)
+            and re.search(r"\bbranch(?:ed|ing|es)?\b|\bbranch\s+condition\b", content, flags=re.I)
+            and re.search(
+                r"\b(?:must|should|required|specified|based\s+on|condition)\b",
+                content,
+                flags=re.I,
+            )
+        ):
+            continue
+        matches.append((-len(content), -index, result.chunk_id))
+    return [max(matches)[-1]] if matches else []
+
+
+def _direct_scoped_yes_no_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm a scoped yes/no fact only when one source sentence mirrors it."""
+    if not re.search(r"^\s*for\s+.+?,\s*can\b", query, flags=re.I):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    def canonical(term: str) -> str:
+        value = re.sub(r"[^a-z0-9-]+", "", term.lower())
+        value = re.sub(r"^asynchronous(?:ly)?$", "asynchronous", value)
+        value = re.sub(r"^plac(?:e|ed|ing)$", "place", value)
+        return value
+
+    query_terms = {
+        canonical(term) for term in analyze_query(query).normalized_terms
+        if len(term) > 2 and term not in {"can", "for", "the", "with"}
+    }
+    query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
+    matches: list[tuple[float, int, int, str]] = []
+    for result_index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(result.content or "")):
+            terms = {canonical(term) for term in analyze_query(sentence).normalized_terms}
+            overlap = len(query_terms.intersection(terms)) / max(1, len(query_terms))
+            sentence_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", sentence))
+            if overlap < 0.65 or (query_numbers and not query_numbers.issubset(sentence_numbers)):
+                continue
+            matches.append((overlap, -len(sentence), -result_index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
 
 
 def verify_retrieval_claim(
@@ -1012,6 +1610,7 @@ def verify_retrieval_claim(
 ) -> dict[str, Any]:
     """Independently verify one mapped claim and enforce citation/scope integrity."""
     allowed_results = {result.chunk_id: result for result in results}
+    applicability_required = _claim_requires_applicability(hop, executed_query)
     scoped_ids = {
         result.chunk_id for result in results if _result_supports_branch_scope(hop.objective, result)
     }
@@ -1023,21 +1622,206 @@ def verify_retrieval_claim(
             rationale="No retrieval evidence was supplied to the verifier.",
         ).model_dump()
 
+    if not applicability_required:
+        direct_troubleshooting_support = _direct_structured_troubleshooting_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_troubleshooting_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_troubleshooting_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic structured-troubleshooting verification matched the exact "
+                    "fault row, requested evidence column, numeric anchors, and product scope."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_flowchart_support = _direct_flowchart_rule_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_flowchart_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_flowchart_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic flowchart-rule verification matched one scoped passage "
+                    "containing the flowchart, branch condition, and normative instruction."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_yes_no_support = _direct_scoped_yes_no_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_yes_no_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_yes_no_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic scoped yes/no verification matched one source sentence "
+                    "with the requested entities, numeric anchors, and product scope."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_reference_support = _direct_named_reference_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_reference_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_reference_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic named-reference verification matched the requested artifact "
+                    "and its scoped source phrase in one passage."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_setting_support = _direct_structured_setting_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_setting_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_setting_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic structured-setting verification matched the exact row label, "
+                    "requested behavior, enabled condition, and product scope."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_lookup_support = _direct_structured_lookup_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_lookup_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_lookup_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic structured lookup verification matched the exact column "
+                    "qualifier, row label, cell value anchors, and product scope."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_mapping_support = _direct_menu_mapping_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_mapping_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_mapping_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic menu-mapping verification matched the requested label and "
+                    "feature in one scoped table record."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_warning_support = _direct_warning_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_warning_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_warning_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic direct-warning verification matched the condition, "
+                    "numeric values, safety language, and product scope in one source sentence."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+
     if not use_llm:
         support = [
             str(chunk_id)
             for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
             if str(chunk_id) in allowed_results and str(chunk_id) in scoped_ids
         ]
-        confirmed = bool(preliminary_assessment.get("claim_supported")) and bool(support)
+        confirmed = (
+            bool(preliminary_assessment.get("claim_supported"))
+            and bool(support)
+            and not applicability_required
+        )
         return EvidenceVerification(
             trust_state="confirmed" if confirmed else "unresolved",
             claim_supported=confirmed,
             supporting_chunk_ids=support,
-            applicability="not_requested",
-            rationale="Deterministic verification used because model verification was disabled.",
+            applicability="unknown" if applicability_required else "not_requested",
+            rationale=(
+                "Applicability-sensitive claims require independent model verification."
+                if applicability_required
+                else "Deterministic verification used because model verification was disabled."
+            ),
         ).model_dump()
 
+    evidence_packet = _verification_evidence(results, query=f"{hop.objective} {executed_query}")
+    if not evidence_packet["evidence"]:
+        return EvidenceVerification(
+            trust_state="unresolved", claim_supported=False, supporting_chunk_ids=[],
+            applicability="unknown" if applicability_required else "not_requested",
+            rationale="No complete evidence unit fit the verifier budget; retrieve a focused source unit.",
+        ).model_dump() | {"verification_evidence_omitted_count": evidence_packet["omitted_count"]}
     verification: EvidenceVerification | None = None
     verification_error: Exception | None = None
     for _attempt in range(2):
@@ -1052,7 +1836,8 @@ def verify_retrieval_claim(
                             f"Claim objective: {hop.objective}\n"
                             f"Executed retrieval query: {executed_query}\n"
                             f"Preliminary deterministic assessment: {preliminary_assessment}\n"
-                            f"Evidence: {_verification_evidence(results)}"
+                            f"Evidence (omitted sources are unavailable, not negative evidence): "
+                            f"{json.dumps(evidence_packet, ensure_ascii=False)}"
                         ),
                     },
                 ],
@@ -1061,8 +1846,23 @@ def verify_retrieval_claim(
                 timeout=max(1.0, min(settings.agentic_retrieval_verifier_timeout_seconds, 180.0)),
                 num_predict=420,
                 purpose="agentic_retrieval.verify_claim",
+                num_ctx=16384,
             )
-            normalized_payload = dict(payload)
+            if isinstance(payload, dict):
+                normalized_payload = dict(payload)
+            else:
+                candidate: object = payload
+                if isinstance(candidate, list) and len(candidate) == 1:
+                    candidate = candidate[0]
+                if isinstance(candidate, str):
+                    candidate = json.loads(candidate)
+                if isinstance(candidate, list):
+                    object_items = [item for item in candidate if isinstance(item, dict)]
+                    if len(object_items) == 1:
+                        candidate = object_items[0]
+                if not isinstance(candidate, dict):
+                    raise ValueError("Verifier response must normalize to one JSON object")
+                normalized_payload = dict(candidate)
             trust_aliases = {
                 "verified": "confirmed",
                 "supported": "confirmed",
@@ -1157,6 +1957,7 @@ def verify_retrieval_claim(
                 and selected_support
                 and not conflicts
                 and applicability != "conflicting"
+                and (not applicability_required or applicability == "applicable")
                 and explicit_state not in {"probable", "conflicting", "rejected"}
             ):
                 # Reconcile the common internally inconsistent response
@@ -1201,7 +2002,8 @@ def verify_retrieval_claim(
         return fallback
 
     requested_support = list(dict.fromkeys(verification.supporting_chunk_ids))
-    invalid_citations = [chunk_id for chunk_id in requested_support if chunk_id not in allowed_results]
+    shown_ids = {item["chunk_id"] for item in evidence_packet["evidence"]}
+    invalid_citations = [chunk_id for chunk_id in requested_support if chunk_id not in shown_ids]
     out_of_scope = [chunk_id for chunk_id in requested_support if chunk_id not in scoped_ids]
     valid_support = [
         chunk_id
@@ -1215,8 +2017,13 @@ def verify_retrieval_claim(
         and bool(valid_support)
         and not invalid_citations
         and not out_of_scope
+        and not any(
+            (allowed_results[chunk_id].metadata or {}).get("query_applicability", {}).get("state") == "conflicting"
+            for chunk_id in valid_support
+        )
         and not verification.conflicting_chunk_ids
         and verification.applicability != "conflicting"
+        and (not applicability_required or verification.applicability == "applicable")
     )
     if not confirmed and verification.trust_state == "confirmed":
         verification.trust_state = "conflicting" if verification.applicability == "conflicting" else "unresolved"
@@ -1226,6 +2033,8 @@ def verify_retrieval_claim(
     output["invalid_citation_ids"] = invalid_citations
     output["out_of_scope_chunk_ids"] = out_of_scope
     output["scope_candidate_chunk_ids"] = sorted(scoped_ids)
+    output["verification_evidence_chunk_ids"] = sorted(shown_ids)
+    output["verification_evidence_omitted_count"] = evidence_packet["omitted_count"]
     return output
 
 

@@ -13,6 +13,54 @@ client = TestClient(app)
 USER_HEADERS = {"Authorization": "Bearer user-token"}
 
 
+def test_agentic_query_safely_declines_visual_dependency_before_retrieval(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "settings",
+        SimpleNamespace(**{**vars(main.settings), "agentic_retrieval_enabled": True}),
+    )
+
+    response = client.post(
+        "/query",
+        headers=USER_HEADERS,
+        json={
+            "query": "Which pin in the wiring diagram carries output 4?",
+            "corpus_ids": ["manuals"],
+            "retrieval_orchestrator": "langgraph_agent",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["insufficient_evidence"] is True
+    assert payload["citations"] == []
+    assert payload["retrieval_trace"]["stop_reason"] == "visual_evidence_not_enabled"
+
+
+def test_confirmed_claim_reducer_revalidates_action_polarity(monkeypatch):
+    result = main.SearchResult(
+        chunk_id="setup-values",
+        score=0.9,
+        title="Controller manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[4],
+        section_path=["Setup"],
+        content="Set voltage to 5 volts and current to 10 amps.",
+        metadata={},
+    )
+    monkeypatch.setattr(
+        main,
+        "chat_json",
+        lambda **_kwargs: ({"answer": "Do not set voltage to 5 volts or current to 10 amps."}, "{}"),
+    )
+
+    answer = main._answer_confirmed_claim("What voltage and current should I set?", [result], "supported")
+
+    assert "Do not set" not in answer.answer
+    assert any("not sufficiently supported" in warning for warning in answer.warnings)
+
+
 @pytest.mark.parametrize(
     ("orchestrator", "attribute"),
     [

@@ -2507,6 +2507,7 @@ function renderAgentEvidence(results = []) {
             <span class="model-meta">p. ${escapeHtml((result.pages || []).join(", ") || "—")} · ${Number(result.score || 0).toFixed(3)}</span>
           </summary>
           <div class="model-meta">${escapeHtml((result.section_path || []).join(" › "))}</div>
+          ${result.metadata?.query_applicability?.state && result.metadata.query_applicability.state !== "not_requested" ? `<div class="model-meta">Requested version: ${escapeHtml(result.metadata.query_applicability.state)}</div>` : ""}
           <p>${escapeHtml(result.content || "")}</p>
           <div class="model-meta">Chunk ${escapeHtml(result.chunk_id || "")}</div>
         </details>
@@ -2568,6 +2569,7 @@ function renderAgentRun(run) {
       <section>
         <h3>Answer</h3>
         ${run.answer ? `
+          <div class="model-meta">${run.answer.insufficient_evidence ? "Incomplete answer / abstained" : "Answer returned"}</div>
           <p class="answer-text">${escapeHtml(run.answer.answer || "")}</p>
           ${renderCitations(run.answer.citations || [])}
           ${run.answer.warnings?.length ? `<div class="warning-box">${renderList(run.answer.warnings)}</div>` : ""}
@@ -2691,6 +2693,13 @@ function renderAgentChatTrace(run) {
   `;
 }
 
+function agentUserError(message) {
+  if (/\b503\b|Service Unavailable/i.test(String(message || ""))) {
+    return "Agent queries are currently unavailable. No answer was generated. Please try again after the service is available.";
+  }
+  return String(message || "The request failed. No answer was generated.");
+}
+
 function renderAgentChat() {
   const node = $("agent-chat-messages");
   const turns = state.agentChat.turns;
@@ -2722,8 +2731,9 @@ function renderAgentChat() {
         <div class="agent-chat-message assistant-message ${error ? "message-error" : ""}">
           <span class="agent-chat-role">Manuals Agent</span>
           ${running ? '<div class="agent-chat-thinking"><span class="activity-dot"></span> Searching and verifying evidence…</div>' : ""}
-          ${error ? `<div class="error-box">${escapeHtml(error)}</div>` : ""}
+          ${error ? `<div class="error-box">${escapeHtml(agentUserError(error))}</div>` : ""}
           ${answer ? `
+            <div class="model-meta">${answer.insufficient_evidence ? "Incomplete answer / abstained" : "Answer returned"}</div>
             <p class="answer-text">${escapeHtml(answer.answer || "No grounded answer was produced.")}</p>
             ${answer.citations?.length ? `<section class="agent-chat-sources"><h4>Sources</h4>${renderCitations(answer.citations)}</section>` : ""}
             ${answer.warnings?.length ? `<div class="warning-box">${renderList(answer.warnings)}</div>` : ""}

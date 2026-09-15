@@ -67,6 +67,11 @@ PROTOCOL_ALIASES = {
     "poe": "poe",
     "bluetooth": "bluetooth",
 }
+PROTOCOL_PATTERN = re.compile(
+    r"\b(?:EtherNet/IP|EtherCAT|PROFINET|Modbus|TCP/IP|UDP|RS[- ]?232C?|RS[- ]?422|RS[- ]?485|"
+    r"IO[- ]?Link|CANopen|CC[- ]?Link|Bluetooth|USB|PoE)\b",
+    re.IGNORECASE,
+)
 
 SCOPED_METADATA_KINDS = {
     "company",
@@ -107,7 +112,7 @@ IDENTIFIER_CANDIDATE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:]\s*[A-Z0-9]{1,16})+|"
     r"[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
 )
-METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v1"
+METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v3"
 
 DOCUMENT_KIND_ALIASES = {
     "user_manual": "manual",
@@ -205,7 +210,11 @@ class ScopedMetadataCandidate(BaseModel):
     relation: str = "mentioned"
     subject: str | None = None
     source_quote: str
-    confidence: float = Field(ge=0.0, le=1.0)
+    # Candidate confidence is advisory only.  Reconciliation resets it and the
+    # independent verifier must promote the grounded relationship to 0.8+.
+    # Defaulting model omissions avoids discarding an otherwise valid verifier
+    # response before that independent trust decision can be made.
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
 
     @model_validator(mode="before")
     @classmethod
@@ -571,7 +580,14 @@ def _verification_prompt_messages(
         }
         for claim in claims
     ]
-    for candidate in candidate_payload:
+    for index, candidate in enumerate(candidate_payload):
+        candidate["claim_id"] = f"claim_{index + 1}"
+        if candidate["kind"] in {"product_model", "product_family"} and candidate["relation"] == "applies_to":
+            candidate["assertion"] = f"The documented function or manual applies to {candidate['value']}."
+        elif candidate["relation"] == "primary_product":
+            candidate["assertion"] = f"{candidate['value']} is a primary product or product family described by this document."
+        else:
+            candidate["assertion"] = f"{candidate['kind']} {candidate['value']} has relation {candidate['relation']} to {candidate.get('subject') or 'the documented system'}."
         # Required by the shared structured-output schema. This value is deliberately
         # ignored; publication confidence is derived from verifier agreement and evidence.
         candidate["confidence"] = 1.0
@@ -579,13 +595,18 @@ def _verification_prompt_messages(
         {
             "role": "system",
             "content": (
-                "You independently verify grounded metadata claims. Return only the subset that is fully supported, "
-                "using exactly the supplied value, kind, relation, subject, and source_quote. Reject a claim when the "
+                "You independently verify grounded metadata claims. Return a decision for EVERY claim_id, "
+                "with supported true or false and a short evidence-based reason. Judge the explicit assertion; "
+                "the typed fields are bookkeeping. Do not rewrite the claim. Reject when the "
                 "quote does not prove the typed relationship, its subject is ambiguous, a version qualifier is lost, "
                 "or an external/example device is classified as the primary product. A specification-table row "
                 "explicitly labelled Model is direct primary-product evidence unless nearby text identifies it as an "
                 "accessory or example. An opening-page publisher/manufacturer heading is direct manufacturer evidence "
-                "when the same page describes the primary model. Do not repair or add claims."
+                "when the same page describes the primary model. For product_model/product_family claims, "
+                "applies_to with a null subject means this manual or documented function applies to the named "
+                "product value: an explicit statement that a function is for those controllers supports it. "
+                "Do not demand a second subject for this product-applicability relationship. Firmware/software "
+                "version claims still require an explicit subject binding. Do not repair or add claims."
             ),
         },
         {
@@ -594,7 +615,7 @@ def _verification_prompt_messages(
                 f"FILENAME (context only; not evidence): {filename}\n\n"
                 f"SOURCE EVIDENCE:\n{source}\n\n"
                 f"CLAIMS TO VERIFY:\n{json.dumps(candidate_payload, ensure_ascii=False)}\n\n"
-                "Return an entities array containing only fully supported claims, copied exactly."
+                "Return decisions: [{claim_id, supported, reason}] for every supplied claim."
             ),
         },
     ]
@@ -743,6 +764,7 @@ def _extract_scalar_metadata(filename: str, text: str) -> ScalarMetadataExtracti
                 messages=_scalar_prompt_messages(filename, text),
                 json_schema=_scalar_metadata_schema(),
                 think=False,
+                timeout=settings.ollama_metadata_timeout_seconds,
                 purpose="metadata_extraction",
                 num_predict=320,
                 num_ctx=METADATA_NUM_CTX,
@@ -770,6 +792,7 @@ def _extract_printed_title(text: str) -> str | None:
                 messages=_title_prompt_messages(text),
                 json_schema=TitleMetadataExtraction.model_json_schema(),
                 think=False,
+                timeout=settings.ollama_metadata_timeout_seconds,
                 purpose="metadata_extraction.document_title",
                 num_predict=160,
                 num_ctx=METADATA_NUM_CTX,
@@ -873,6 +896,7 @@ def _extract_list_field(field_name: str, filename: str, text: str) -> list[str]:
                 messages=_list_prompt_messages(field_name, filename, text),
                 json_schema=_list_field_schema(field_name),
                 think=False,
+                timeout=settings.ollama_metadata_timeout_seconds,
                 purpose=f"metadata_extraction.{field_name}",
                 num_predict=1024,
                 num_ctx=METADATA_NUM_CTX,
@@ -998,11 +1022,6 @@ def harvest_metadata_candidates(segments: list[MetadataSourceSegment]) -> list[d
         r"\b(?:firmware|software|version|ver\.?|revision|rev\.?)\b[^\n]{0,100}?\b\d+(?:\.\d+){0,3}\b",
         re.IGNORECASE,
     )
-    protocol_pattern = re.compile(
-        r"\b(?:EtherNet/IP|EtherCAT|PROFINET|Modbus|TCP/IP|UDP|RS[- ]?232C?|RS[- ]?422|RS[- ]?485|"
-        r"IO[- ]?Link|CANopen|CC[- ]?Link|Bluetooth|USB|PoE)\b",
-        re.IGNORECASE,
-    )
     seen: set[tuple[str, str, int | None]] = set()
     for segment in segments:
         for raw_line in segment.text.splitlines():
@@ -1012,7 +1031,7 @@ def harvest_metadata_candidates(segments: list[MetadataSourceSegment]) -> list[d
             for kind, pattern in (
                 ("identifier", IDENTIFIER_CANDIDATE_PATTERN),
                 ("version_statement", version_pattern),
-                ("protocol", protocol_pattern),
+                ("protocol", PROTOCOL_PATTERN),
             ):
                 for match in pattern.finditer(quote):
                     value = match.group(0).strip()
@@ -1047,10 +1066,12 @@ def _opening_title_identifier_evidence(
     evidence: list[dict[str, Any]] = []
     for match in IDENTIFIER_CANDIDATE_PATTERN.finditer(selected_title):
         value = re.sub(r"\s*([-:])\s*", r"\1", match.group(0).strip())
+        canonical = _canonical_routing_identifier(value, repeated_lines=set()) or value
+        kind = "part_number" if re.fullmatch(r"OP-\d+[A-Z0-9-]*", canonical, re.IGNORECASE) else "product_model"
         evidence.append(
             {
-                "value": value,
-                "kind": "product_model",
+                "value": canonical,
+                "kind": kind,
                 "relation": "mentioned",
                 "subject": None,
                 "source_quote": selected_title,
@@ -1160,18 +1181,59 @@ def _call_scoped_model(
     *,
     purpose: str,
 ) -> ScopedMetadataExtraction:
+    verification_candidates: dict[str, dict[str, Any]] = {}
+    schema = _scoped_metadata_schema()
+    if purpose == "metadata_extraction.claim_verification":
+        content = messages[1]["content"]
+        candidates = json.loads(content.rsplit("CLAIMS TO VERIFY:\n", 1)[1].split("\n\n", 1)[0])
+        verification_candidates = {item["claim_id"]: item for item in candidates}
+        schema = {
+            "type": "object", "additionalProperties": False, "required": ["decisions"],
+            "properties": {"decisions": {"type": "array", "items": {
+                "type": "object", "additionalProperties": False,
+                "required": ["claim_id", "supported", "reason"], "properties": {
+                    "claim_id": {"type": "string", "enum": list(verification_candidates)},
+                    "supported": {"type": "boolean"}, "reason": {"type": "string"},
+                },
+            }}},
+        }
     last_error: Exception | None = None
     for attempt in range(1, METADATA_EXTRACTION_ATTEMPTS + 1):
         try:
             parsed, _raw = chat_json(
                 model=settings.ollama_metadata_model,
                 messages=messages,
-                json_schema=_scoped_metadata_schema(),
+                json_schema=schema,
                 think=False,
+                timeout=settings.ollama_metadata_timeout_seconds,
                 purpose=purpose,
                 num_predict=METADATA_SCOPED_NUM_PREDICT,
                 num_ctx=METADATA_NUM_CTX,
             )
+            if verification_candidates and isinstance(parsed, list) and parsed and isinstance(parsed[0], dict) and "claim_id" in parsed[0]:
+                parsed = {"decisions": parsed}
+            if verification_candidates and isinstance(parsed, dict) and "claim_id" in parsed:
+                parsed = {"decisions": [parsed]}
+            if verification_candidates and isinstance(parsed, dict) and "decisions" in parsed:
+                decisions = parsed["decisions"]
+                if not isinstance(decisions, list):
+                    raise ValueError("Verifier decisions must be an array")
+                seen: set[str] = set()
+                accepted = []
+                for decision in decisions:
+                    if not isinstance(decision, dict):
+                        raise ValueError("Invalid verifier decision")
+                    claim_id = decision.get("claim_id")
+                    if claim_id not in verification_candidates or claim_id in seen:
+                        raise ValueError("Verifier returned unknown or duplicate claim ID")
+                    if type(decision.get("supported")) is not bool or not str(decision.get("reason") or "").strip():
+                        raise ValueError("Verifier decision requires boolean support and a reason")
+                    seen.add(claim_id)
+                    if decision["supported"]:
+                        accepted.append(verification_candidates[claim_id])
+                if seen != set(verification_candidates):
+                    raise ValueError("Verifier omitted claim decisions")
+                parsed = {"entities": accepted}
             normalized = _normalize_object_response(parsed, collection_key="entities")
             return ScopedMetadataExtraction.model_validate(normalized)
         except Exception as exc:
@@ -1417,7 +1479,10 @@ def reconcile_metadata_claims(evidence: list[dict[str, Any]]) -> list[dict[str, 
     for item in reduced:
         key = _claim_scope_key(item)
         relations = relations_by_entity[key]
-        if "external_reference" in relations and relations & {"primary_product", "applies_to", "compatible_with"}:
+        # Being compatible with a protocol/device and mentioning it in an
+        # external example are not mutually exclusive. Only primary identity
+        # versus external identity is a document-wide role contradiction.
+        if "external_reference" in relations and "primary_product" in relations:
             item["verification_status"] = "conflicting"
     return reduced
 
@@ -1479,10 +1544,10 @@ def _segments_for_claims(
 
 
 def _literal_opening_title_claim_is_confirmed(claim: dict[str, Any]) -> bool:
-    """Confirm only literal model identifiers harvested from an opening-page title."""
+    """Confirm literal model or part identifiers harvested from an opening-page title."""
     if (
         claim.get("source_method") != "opening_title_candidate"
-        or claim.get("kind") != "product_model"
+        or claim.get("kind") not in {"product_model", "part_number"}
         or claim.get("relation") != "mentioned"
         or claim.get("grounded") is not True
         or int(claim.get("page_from") or 10**9) > TITLE_PAGE_LIMIT
@@ -1491,6 +1556,48 @@ def _literal_opening_title_claim_is_confirmed(claim: dict[str, Any]) -> bool:
     value = _compact_identifier(str(claim.get("value") or ""))
     quote = _compact_identifier(str(claim.get("source_quote") or ""))
     return bool(value) and value in quote
+
+
+def _literal_upload_identity_claim_is_confirmed(claim: dict[str, Any]) -> bool:
+    """Confirm a filename identifier only when the same identifier is on an opening page."""
+    if (
+        claim.get("source_method") != "upload_identity_page_grounded"
+        or claim.get("kind") not in {"product_model", "part_number"}
+        or claim.get("relation") != "mentioned"
+        or claim.get("grounded") is not True
+        or int(claim.get("page_from") or 10**9) > 3
+    ):
+        return False
+    value = _compact_identifier(str(claim.get("value") or ""))
+    if _identifier_is_grounded(
+        str(claim.get("value") or ""),
+        str(claim.get("source_quote") or ""),
+    ):
+        return True
+    quote_values = {
+        _compact_identifier(candidate)
+        for candidate in _expand_routing_identifiers(
+            str(claim.get("source_quote") or ""), repeated_lines=set()
+        )
+    }
+    return bool(value) and value in quote_values
+
+
+def _literal_protocol_mention_is_confirmed(claim: dict[str, Any]) -> bool:
+    """Confirm only the fact that an explicit protocol token occurs in the quote."""
+    if (
+        claim.get("source_method") != "deterministic_protocol_mention"
+        or claim.get("kind") != "protocol"
+        or claim.get("relation") != "mentioned"
+        or claim.get("grounded") is not True
+    ):
+        return False
+    expected = _canonical_protocol(str(claim.get("value") or ""))
+    observed = {
+        _canonical_protocol(match.group(0))
+        for match in PROTOCOL_PATTERN.finditer(str(claim.get("source_quote") or ""))
+    }
+    return bool(expected) and expected in observed
 
 
 def _literal_deterministic_version_claim_is_confirmed(claim: dict[str, Any]) -> bool:
@@ -1528,6 +1635,8 @@ def verify_metadata_claims(
             _claim_fingerprint(claim)
             for claim in batch
             if _literal_opening_title_claim_is_confirmed(claim)
+            or _literal_upload_identity_claim_is_confirmed(claim)
+            or _literal_protocol_mention_is_confirmed(claim)
             or _literal_deterministic_version_claim_is_confirmed(claim)
         }
         verification_completed = False
@@ -1541,7 +1650,13 @@ def verify_metadata_claims(
             accepted.update(_claim_fingerprint(item) for item in accepted_evidence)
             verification_completed = True
         except MetadataExtractionIncomplete as exc:
-            logger.warning("Claim verification failed safely for %s: %s", filename, exc)
+            # Verification is a publication gate, not a best-effort enrichment step.
+            # Persisting claims from a partially verified document can turn a transient
+            # model failure into authoritative routing metadata. Quarantine the entire
+            # document so a later run can retry it cleanly.
+            raise MetadataExtractionIncomplete(
+                f"Independent claim verification did not complete for {filename}: {exc}"
+            ) from exc
 
         # Deterministically harvested title/version claims are especially important to
         # routing and completeness. If a crowded verifier batch omits one, retry that
@@ -1550,8 +1665,13 @@ def verify_metadata_claims(
             fingerprint = _claim_fingerprint(claim)
             if (
                 fingerprint in accepted
-                or claim.get("source_method")
-                not in {"deterministic_explicit_version", "opening_title_candidate"}
+                or (claim.get("kind") not in {"product_model", "product_family"}
+                    and claim.get("source_method") not in {
+                    "deterministic_explicit_version",
+                    "opening_title_candidate",
+                    "upload_identity_page_grounded",
+                    "deterministic_protocol_mention",
+                })
             ):
                 continue
             claim_segments = _segments_for_claims([claim], segments)
@@ -1654,7 +1774,11 @@ def _canonical_routing_identifier(value: str, *, repeated_lines: set[str]) -> st
     ]
     if len(matches) != 1:
         return None
-    candidate = matches[0]
+    # OCR commonly renders the narrow hyphen in cover-page model names as a
+    # colon (for example ``KV: X`` and ``LJ: X8000``).  Model identifiers in
+    # this corpus use hyphens, so keep the punctuation-insensitive alias while
+    # publishing a stable canonical spelling for routing and display.
+    candidate = matches[0].replace(":", "-")
     return candidate
 
 
@@ -1691,6 +1815,38 @@ def _canonical_protocol(value: str) -> str | None:
     if compact.startswith("usb"):
         return "usb"
     return PROTOCOL_ALIASES.get(compact)
+
+
+def _deterministic_protocol_evidence(
+    segments: list[MetadataSourceSegment],
+) -> list[dict[str, Any]]:
+    """Record exact protocol mentions without inferring compatibility or applicability."""
+    evidence: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for segment in segments:
+        for raw_line in segment.text.splitlines():
+            quote = " ".join(raw_line.split()).strip()
+            for match in PROTOCOL_PATTERN.finditer(quote):
+                protocol = _canonical_protocol(match.group(0))
+                if not protocol or protocol in seen:
+                    continue
+                seen.add(protocol)
+                evidence.append(
+                    {
+                        "value": protocol,
+                        "kind": "protocol",
+                        "relation": "mentioned",
+                        "subject": None,
+                        "source_quote": quote[:500],
+                        "page_from": segment.page_from,
+                        "page_to": segment.page_to,
+                        "section_path": list(segment.section_path),
+                        "confidence": 0.45,
+                        "grounded": True,
+                        "source": "deterministic_protocol_mention",
+                    }
+                )
+    return evidence
 
 
 def _filename_grounded_identifier_evidence(
@@ -1818,8 +1974,12 @@ def _values_for_routing(
     kind: str,
     *,
     repeated_lines: set[str] | None = None,
+    routing_subjects: list[str] | None = None,
 ) -> list[str]:
     repeated_lines = repeated_lines or set()
+    routing_subject_keys = {
+        _compact_identifier(value) for value in (routing_subjects or []) if value
+    }
     allowed_relations = {"primary_product", "applies_to", "compatible_with", "accessory_for"}
     if kind in {"company", "device", "protocol", "software_name"}:
         allowed_relations.add("mentioned")
@@ -1827,9 +1987,24 @@ def _values_for_routing(
         allowed_relations.add("primary_manufacturer")
     routed: list[str] = []
     for item in evidence:
+        upload_identity = (
+            (item.get("source_method") or item.get("source")) == "upload_identity_page_grounded"
+            and kind in {"product_model", "part_number"}
+            and item.get("relation") == "mentioned"
+        )
+        opening_part_identity = (
+            (item.get("source_method") or item.get("source")) == "opening_title_candidate"
+            and kind == "part_number"
+            and item.get("relation") == "mentioned"
+            and int(item.get("page_from") or 10**9) <= TITLE_PAGE_LIMIT
+        )
         if (
             item.get("kind") != kind
-            or item.get("relation") not in allowed_relations
+            or (
+                item.get("relation") not in allowed_relations
+                and not upload_identity
+                and not opening_part_identity
+            )
             or item.get("grounded") is not True
             or item.get("verification_status", "confirmed") != "confirmed"
             or float(item.get("confidence") or 0.0) < PRIMARY_ENTITY_MIN_CONFIDENCE
@@ -1837,10 +2012,30 @@ def _values_for_routing(
             continue
         if (
             kind == "product_model"
-            and item.get("relation") == "primary_product"
-            and (item.get("source_method") or item.get("source")) != "upload_identity_page_grounded"
+            and not upload_identity
             and int(item.get("page_from") or 10**9) > 3
         ):
+            # Models found deep in compatibility/accessory tables are useful
+            # searchable metadata, but they are not safe document-scope keys.
+            continue
+        if (
+            kind == "part_number"
+            and not upload_identity
+            and not opening_part_identity
+            and (
+                item.get("relation") != "accessory_for"
+                or not str(item.get("subject") or "").strip()
+                or (
+                    routing_subject_keys
+                    and _compact_identifier(str(item.get("subject") or ""))
+                    not in routing_subject_keys
+                )
+            )
+        ):
+            # A bare identifier in a bill of materials or compatibility table
+            # is not sufficient to scope the entire document. Keep it in flat
+            # metadata/chunk text, but require an explicit subject-bound
+            # accessory relationship before publishing a hard routing key.
             continue
         value = str(item.get("value") or "")
         if kind == "company" and not _plausible_company_name(value):
@@ -1871,6 +2066,16 @@ def _opening_title_identity_models(
     title_key = _compact_identifier(selected_title)
     if not title_key:
         return []
+    upload_identity_keys = {
+        _compact_identifier(value)
+        for item in evidence
+        if (item.get("source_method") or item.get("source")) == "upload_identity_page_grounded"
+        and item.get("kind") == "product_model"
+        and item.get("verification_status", "confirmed") == "confirmed"
+        for value in _expand_routing_identifiers(
+            str(item.get("value") or ""), repeated_lines=set()
+        )
+    }
     routed: list[str] = []
     for item in evidence:
         if (
@@ -1887,6 +2092,8 @@ def _opening_title_identity_models(
             repeated_lines=repeated_lines,
         ):
             value_key = _compact_identifier(value)
+            if upload_identity_keys and value_key not in upload_identity_keys:
+                continue
             if value_key and value_key in title_key:
                 routed.append(value)
     return _dedupe_preserve_order(routed)
@@ -1907,7 +2114,9 @@ def _family_identifiers_for_routing(
             or float(item.get("confidence") or 0.0) < PRIMARY_ENTITY_MIN_CONFIDENCE
         ):
             continue
-        if item.get("relation") == "primary_product" and int(item.get("page_from") or 10**9) > 3:
+        if int(item.get("page_from") or 10**9) > 3:
+            # A late family mention normally describes a compatible or
+            # referenced product, not the document's authoritative scope.
             continue
         routed.extend(_expand_routing_identifiers(str(item.get("value") or ""), repeated_lines=repeated_lines))
     return _dedupe_preserve_order(routed)
@@ -2023,6 +2232,16 @@ def _select_document_title(
     proposed_title: str,
     segments: list[MetadataSourceSegment],
 ) -> tuple[str, dict[str, Any] | None]:
+    def plausible_title(value: str) -> bool:
+        return not re.search(
+            r"\b(?:download|click|tap|scan)\b.*\b(?:file|manual|image|text|details?|more)\b|"
+            r"\bfor (?:a )?(?:larger|full) (?:image|text|view)\b|"
+            r"\b(?:learn|read|see) more\b|"
+            r"\bplease\s+read\b|\bread\b.*\bcarefully\b",
+            value,
+            re.IGNORECASE,
+        )
+
     opening_segments = _opening_page_segments(segments)
     opening_text = "\n\n".join(_segment_text(segment) for segment in opening_segments)[:TITLE_SOURCE_MAX_CHARS]
     descriptive_candidates: list[tuple[int, int, str]] = []
@@ -2037,9 +2256,19 @@ def _select_document_title(
             has_identifier = IDENTIFIER_CANDIDATE_PATTERN.search(line) is not None
             has_kind = title_kind_pattern.search(line) is not None
             has_series_identity = has_identifier and re.search(r"\bseries\b", line, re.IGNORECASE)
-            if not (12 <= len(line) <= 180) or not (has_kind or has_series_identity):
+            page_one_identifier_heading = (
+                int(segment.page_from or 10**9) == 1
+                and has_identifier
+                and "|" not in raw_line
+                and 2 <= len(line.split()) <= 12
+            )
+            if not (12 <= len(line) <= 180) or not (
+                has_kind or has_series_identity or page_one_identifier_heading
+            ):
                 continue
             if re.search(r"\b(?:copyright|all rights reserved|https?://|www\.)\b", line, re.IGNORECASE):
+                continue
+            if not plausible_title(line):
                 continue
             words = line.split()
             if not 2 <= len(words) <= 18:
@@ -2049,6 +2278,8 @@ def _select_document_title(
             if has_identifier:
                 score += 3
             if has_series_identity:
+                score += 2
+            if page_one_identifier_heading:
                 score += 2
             score += max(0, 3 - int(segment.page_from or 3))
             descriptive_candidates.append((score, -len(line), line))
@@ -2065,11 +2296,12 @@ def _select_document_title(
     if (
         proposed
         and _value_is_grounded(proposed, opening_text)
+        and plausible_title(proposed)
         and (proposed_has_identifier or proposed_has_kind or proposed_has_series_identity)
     ):
         return proposed, _title_evidence(proposed, opening_segments)
     printed_title = _extract_printed_title(opening_text) if opening_text else None
-    if printed_title and (
+    if printed_title and plausible_title(printed_title) and (
         IDENTIFIER_CANDIDATE_PATTERN.search(printed_title)
         or title_kind_pattern.search(printed_title)
         or (len(printed_title) >= 20 and len(printed_title.split()) >= 4)
@@ -2104,7 +2336,12 @@ def _materialize_verified_metadata(
         scoped_evidence,
         repeated_lines=repeated_lines,
     )
-    verified_part_numbers = _values_for_routing(scoped_evidence, "part_number", repeated_lines=repeated_lines)
+    verified_part_numbers = _values_for_routing(
+        scoped_evidence,
+        "part_number",
+        repeated_lines=repeated_lines,
+        routing_subjects=verified_product_models + verified_family_identifiers,
+    )
     verified_protocols = [value.lower() for value in _values_for_routing(scoped_evidence, "protocol")]
     safe_base_product_models = [
         value
@@ -2143,7 +2380,23 @@ def _materialize_verified_metadata(
         "primary_product",
         repeated_lines=repeated_lines,
     )
-    selected_product = primary_product or (opening_title_models[0] if opening_title_models else None)
+    upload_identity_models = _dedupe_preserve_order(
+        [
+            value
+            for item in scoped_evidence
+            if (item.get("source_method") or item.get("source")) == "upload_identity_page_grounded"
+            and item.get("kind") == "product_model"
+            and item.get("verification_status", "confirmed") == "confirmed"
+            for value in _expand_routing_identifiers(
+                str(item.get("value") or ""), repeated_lines=set()
+            )
+        ]
+    )
+    selected_product = (
+        primary_product
+        or (opening_title_models[0] if opening_title_models else None)
+        or (upload_identity_models[0] if upload_identity_models else None)
+    )
     return replace(
         base,
         title=selected_title,
@@ -2249,6 +2502,7 @@ def _reduce_metadata_claims(state: MetadataWorkflowState) -> dict[str, Any]:
         mapped
         + _opening_title_identifier_evidence(state["selected_title"], state["segments"])
         + _filename_grounded_identifier_evidence(state["filename"], state["segments"])
+        + _deterministic_protocol_evidence(state["segments"])
     )
     return {"claims": reconcile_metadata_claims(evidence)}
 
@@ -2313,7 +2567,10 @@ def infer_document_metadata_from_segments(
     """Run evidence-first Map–Reduce–Verify extraction over a whole document."""
     nonempty = [segment for segment in segments if segment.text.strip()]
     if not nonempty:
-        return infer_document_metadata(filename, "")
+        raise MetadataExtractionIncomplete("No source text is available; reparse/OCR before metadata extraction")
+    readable_words = sum(len(re.findall(r"[^\W\d_]{2,}", segment.text)) for segment in nonempty)
+    if readable_words == 0 or (len(nonempty) >= 10 and readable_words < 5):
+        raise MetadataExtractionIncomplete("Source text contains no readable words; reparse/OCR before metadata extraction")
     global _METADATA_EXTRACTION_GRAPH
     if _METADATA_EXTRACTION_GRAPH is None:
         _METADATA_EXTRACTION_GRAPH = build_metadata_extraction_graph()
