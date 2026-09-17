@@ -233,3 +233,21 @@ by the current test results.
   matching now normalizes printed `Ver.`/`Version` prefixes without collapsing
   distinct version numbers. A new dry-run records independent verifier inputs
   and decisions so missing values can be diagnosed rather than guessed.
+
+### Five-document sample persistence completed
+
+- Corrected bracket dry-run `document_metadata_backfill_20260917_231629.json`
+  passed a source-text audit for all 36 compatibility relationships. Continuation
+  claims now retain literal contiguous table spans rather than synthesized quotes
+  that omit intervening rows.
+- Persisted the two previously withheld documents from their exact audited reports
+  after backing up their PostgreSQL and Qdrant state. The other three sample
+  documents were already on pipeline v4.
+- Final PostgreSQL/chunk audit passes 5/5. Final Qdrant audit passes all 383 active
+  chunks and five document selectors with no scope/version payload mismatches;
+  all refresh jobs completed. A second ordinary backfill skipped the two newly
+  applied documents as current with zero writes or enqueues.
+- Focused metadata/backfill/audit tests: 84 passed. Full unit suite: 1019 passed.
+- U3/T3 remain unchecked until intentional interrupted-resume recovery is proved.
+  T2 also remains conservatively unchecked because this is an assistant source-text
+  audit, not human visual-PDF adjudication. Production remains disabled.

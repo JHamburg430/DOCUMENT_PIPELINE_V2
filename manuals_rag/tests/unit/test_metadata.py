@@ -442,6 +442,8 @@ def test_model_column_coverage_excludes_compatible_products():
     assert all(item["relation"] == "compatible_with" for item in claims)
     assert "ZX-1000" in claims[2]["source_quote"]
     assert "Recommended compatible models" in claims[2]["source_quote"]
+    assert "ZX-1000 | 1000 | AB-20 / AB-40\n| | AB-60" in claims[2]["source_quote"]
+    assert " ".join(claims[3]["source_quote"].split()) == " ".join(segment.text.split())
     assert all(_literal_compatible_model_column_claim_is_confirmed(item) for item in claims)
     assert _model_column_identifiers(MetadataSourceSegment("Model name | ZX-15 | ZX-25\nRange | 5 | 10", 2, 2)) == ["ZX-15", "ZX-25"]
 

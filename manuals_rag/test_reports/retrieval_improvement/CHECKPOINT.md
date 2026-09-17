@@ -131,3 +131,28 @@ thrashing; no report/apply. Invalid client exit0 renamed
 /tmp/manuals-pilot-compatible-rows.log. Do not retry until metadata model loads
 reliably; then run only bracket dry-run, audit ledger, and persist only if complete.
 Production OFF; other GPU workloads untouched.
+
+2026-09-17 23:20 UTC SUPERSEDES: Ollama9B/16K schema probe passed in10.5s and
+bracket-only dry-run completed exit0. Source audit caught synthesized noncontiguous
+quotes for continuation rows; fixed compatible-column evidence to preserve the
+literal contiguous table prefix. Corrected report231629 passes36/36 relationships
+(GL-FB1000/1400/1900/2400 =12/15/6/3), no missing/extra/duplicates, no compatible
+model promoted to a primary claim, and49/49 ledger quotes are literal page spans.
+Focused84pass; full unit1019pass in392.94s with CUDA hidden from tests.
+
+Restorable pre-apply PostgreSQL/Qdrant backup:
+retrieval_improvement/pilot_preapply_backup_20260917_231629.json (2 withheld docs,
+225 chunks,225 vector points,2 selectors). Applied exact audited LJ-S report025252
+and bracket report231629 without re-extraction or enqueue:153+72 chunks. Persisted
+audit passed2/2. Enqueued those2 plus CA-EN100U stale-status recovery; all3 embed
+runs completed. Final all5 PostgreSQL audit passed5/5; Qdrant audit passed383/383
+active chunks and5/5 selectors with zero payload/version mismatches. Second ordinary
+backfill skipped both newly applied docs as current with zero writes/enqueues.
+Artifacts: pilot_acceptance_20260917_231629.json,
+pilot_postgres_audit_all5_20260917_231629.json,
+pilot_qdrant_audit_all5_20260917_231629.json. Qdrant client1.15.1/server1.17.1
+compatibility warning remains non-blocking. Production and agentic retrieval OFF.
+
+NEXT: verify an intentionally interrupted sample-resume path before checking T3;
+then controlled live oracle/dependency experiments, frozen48 matrix with explicit
+exit, clean held-out source audit, UI live-success flow, and rollout decision.

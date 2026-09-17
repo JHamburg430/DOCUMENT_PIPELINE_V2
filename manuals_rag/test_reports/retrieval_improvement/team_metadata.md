@@ -87,3 +87,24 @@ sample-only persistence. Production remains off.
   remaining documents plus guarded Lua when scheduling permits. All-five acceptance,
   sample persistence and index checks remain open. No source audit is being
   represented as human or visual PDF adjudication.
+
+## 2026-09-17 completed sample gate
+
+- Main Ollama Qwen3.5 9B loaded at 16K context and the bracket-only no-write run
+  completed successfully in `../document_metadata_backfill_20260917_231629.json`.
+- The audit found and fixed a provenance bug: continuation relationships had
+  combined the table header, subject row, and later row while omitting intervening
+  rows. Compatible-column claims now retain the literal contiguous table prefix.
+- Bracket result: 36/36 compatible GL-R models, subject distribution 12/15/6/3
+  across GL-FB1000/1400/1900/2400, no missing/extra/duplicate relationships,
+  no compatible model promoted to a primary claim, and no nonliteral quote span.
+- Exact audited LJ-S and bracket reports were persisted after an 8.2 MiB targeted
+  PostgreSQL/Qdrant backup. PostgreSQL audit passed 2/2 before vector refresh.
+- Final five-document state passes PostgreSQL 5/5 and Qdrant 5/5: 383 active
+  chunks, 383 matching vector points, five matching document selectors, and no
+  pipeline/version/scope payload mismatch. All three refresh jobs completed.
+- Re-entry skipped both newly applied documents as current with zero writes or
+  enqueues. Focused tests: 84 passed. Full unit suite: 1019 passed in 392.94s.
+- Production remains disabled. Interrupted-resume proof and all downstream live
+  answer-quality gates remain open; these results are metadata/index consistency,
+  not end-to-end answer accuracy.

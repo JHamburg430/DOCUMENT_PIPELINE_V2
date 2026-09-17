@@ -1,0 +1,20 @@
+[
+  {
+    "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+    "version_id": "9468a502-bff2-4a91-8f7a-4d17f4a362ca",
+    "source_filename": "AS_147320_LJ-S8000_SG_K47GB_WW_GB_2094_1.pdf",
+    "source_report": "test_reports/document_metadata_backfill_20260915_025252.json",
+    "chunks_updated": 153,
+    "embed_enqueued": false,
+    "warning": null
+  },
+  {
+    "document_id": "9faae21a-84b7-41ee-aa34-253cf69e118f",
+    "version_id": "dceb96ce-da7f-416a-b6c6-0791fc27052e",
+    "source_filename": "AS_149074_SZ-V_GL-R_L_689034_KA_US_2114_1.pdf",
+    "source_report": "test_reports/document_metadata_backfill_20260917_231629.json",
+    "chunks_updated": 72,
+    "embed_enqueued": false,
+    "warning": null
+  }
+]

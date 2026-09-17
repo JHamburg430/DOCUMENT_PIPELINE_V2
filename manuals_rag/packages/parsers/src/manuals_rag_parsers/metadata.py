@@ -2666,14 +2666,14 @@ def _compatible_model_column_claims(
             continue
         compatible_index = compatible_indexes[0]
         active_subject: str | None = None
-        subject_line: str | None = None
+        table_rows = [lines[0]]
         for line in lines[1:]:
+            table_rows.append(line)
             cells = [cell.strip() for cell in line.split("|")]
             if cells and cells[0]:
                 active_subject = _canonical_routing_identifier(
                     cells[0], repeated_lines=set()
                 )
-                subject_line = line if active_subject else None
             if not active_subject or compatible_index >= len(cells):
                 continue
             compatible_values = _expand_routing_identifiers(
@@ -2681,10 +2681,11 @@ def _compatible_model_column_claims(
             )
             if not compatible_values:
                 continue
-            row_quote = line
-            if not _identifier_is_grounded(active_subject, row_quote) and subject_line:
-                row_quote = f"{subject_line}\n{line}"
-            quote = f"{lines[0]}\n{row_quote}"
+            # Continuation rows inherit the nearest preceding subject. Preserve
+            # the complete contiguous table prefix instead of synthesizing a
+            # quote from the header, subject row, and later row while skipping
+            # intervening source text.
+            quote = "\n".join(table_rows)
             for value in compatible_values:
                 evidence.append(
                     {
