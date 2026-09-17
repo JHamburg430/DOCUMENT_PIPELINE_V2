@@ -10,6 +10,7 @@ from qdrant_client.http.models import (
     FieldCondition,
     Filter,
     FilterSelector,
+    HasIdCondition,
     MatchAny,
     MatchValue,
     NamedSparseVector,
@@ -78,8 +79,9 @@ def document_metadata_collection_name(corpus_id: str) -> str:
 
 
 class QdrantStore:
-    def __init__(self) -> None:
-        self.client = QdrantClient(url=settings.qdrant_url)
+    def __init__(self, *, timeout: float | None = None) -> None:
+        options = {"timeout": timeout} if timeout is not None else {}
+        self.client = QdrantClient(url=settings.qdrant_url, **options)
 
     def ensure_collection(self, corpus_id: str, vector_size: int) -> None:
         name = collection_name(corpus_id)
@@ -199,6 +201,7 @@ class QdrantStore:
         source_document_id: str | None = None,
         document_version_id: str | None = None,
         chunk_ids: list[str] | None = None,
+        exclude_chunk_ids: list[str] | None = None,
     ) -> None:
         if not self.client.collection_exists(collection_name(corpus_id)):
             return
@@ -213,7 +216,10 @@ class QdrantStore:
             return
         self.client.delete(
             collection_name=collection_name(corpus_id),
-            points_selector=FilterSelector(filter=Filter(must=must)),
+            points_selector=FilterSelector(filter=Filter(
+                must=must,
+                must_not=[HasIdCondition(has_id=exclude_chunk_ids)] if exclude_chunk_ids else None,
+            )),
             wait=True,
         )
 

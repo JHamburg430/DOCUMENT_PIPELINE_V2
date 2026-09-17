@@ -1518,7 +1518,7 @@ def test_deterministic_dependency_refinement_keeps_concrete_identifiers_only():
     refined = refine_dependent_query(hop, [prior], use_llm=False)
 
     assert refined == (
-        "Find that cable's connector orientation. Relevant prior-hop identifiers: RS-232C, OP26487"
+        "What is that cable's connector orientation. Relevant prior-hop identifiers: RS-232C, OP26487"
     )
     assert "bus-powered" not in refined
     assert "and/or" not in refined
@@ -1880,3 +1880,65 @@ def test_dependency_anchors_require_source_not_only_metadata():
     result.metadata['identifier_tokens'] = ['OP-999','OP-100']
     assert _dependency_anchors([result]) == ['OP-100']
     assert 'Use cable OP-100 for this port.' in _evidence_excerpt([result])
+
+
+def test_dependent_query_keeps_requested_conditions_not_only_short_objective():
+    prior = _result('component', 'discovery', 'The service part is ZX-9.')
+    hop = RetrievalHop(
+        hop_id='detail', objective='Find specifications',
+        query='What is the calibration tolerance at 25 degrees C for that part?',
+        depends_on=['discovery'],
+    )
+    refined = refine_dependent_query(hop, [prior], use_llm=False)
+    assert 'calibration tolerance at 25 degrees C' in refined
+    assert 'ZX-9' in refined
+
+
+def test_dependent_hybrid_execution_preserves_query_facet_and_condition():
+    plan = RetrievalPlan(mode='dependent', hops=[
+        RetrievalHop(hop_id='discovery', objective='Identify service part',
+                     query='Which service part is installed?', strategy='sparse'),
+        RetrievalHop(hop_id='detail', objective='Find specifications',
+                     query='What is the calibration tolerance at 25 degrees C for that part?',
+                     strategy='hybrid', depends_on=['discovery']),
+    ])
+    queries = []
+
+    def retrieve(query, *_args):
+        queries.append(query)
+        if len(queries) == 1:
+            return [_result('component', 'discovery', 'The service part is ZX-9.')]
+        return [_result('spec', 'catalog', 'ZX-9 calibration tolerance at 25 degrees C is 0.2 percent.')]
+
+    controller = AgenticRetrievalController(
+        use_llm=False, planner=lambda _query: plan, retriever=retrieve,
+        refiner=lambda _hop, _results: 'ZX-9 calibration tolerance at 25 degrees C',
+    )
+    _invoke(build_langgraph_agentic_retriever, controller, max_hops=2)
+    assert len(queries) == 2
+    assert 'calibration tolerance at 25 degrees C' in queries[1]
+    assert 'ZX-9' in queries[1]
+
+
+def test_dependency_binding_excludes_unverified_candidates_after_recovery():
+    from manuals_rag_answering.agentic_retrieval import _results_for_ids, _dependency_anchors
+    plan = RetrievalPlan(mode='dependent', hops=[
+        RetrievalHop(hop_id='discover', objective='Identify part', query='Which part?'),
+        RetrievalHop(hop_id='recover', objective='Identify part', query='Which part?', recovery_for='discover'),
+        RetrievalHop(hop_id='detail', objective='Find rating', query='Rating?', depends_on=['discover']),
+    ])
+    state = {
+        'plan': plan.model_dump(),
+        'hop_results': {
+            'discover': [_result('rejected', 'wrong', 'Use part BAD-8.').model_dump()],
+            'recover': [_result('confirmed', 'right', 'Use part GOOD-9.').model_dump(),
+                        _result('noise', 'other', 'Other part NOISE-7.').model_dump()],
+        },
+        'evidence_ledger': {
+            'discover': {'sufficient': False, 'assessment': {'supporting_chunk_ids': []}},
+            'recover': {'sufficient': True, 'assessment': {'supporting_chunk_ids': ['confirmed']}},
+        },
+    }
+    selected = _results_for_ids(state, ['discover'])
+    assert [result.chunk_id for result in selected] == ['confirmed']
+    assert _dependency_anchors(selected) == ['GOOD-9']

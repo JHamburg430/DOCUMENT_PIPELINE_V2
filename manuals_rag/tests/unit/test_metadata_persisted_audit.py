@@ -160,3 +160,21 @@ def test_audit_rejects_download_call_to_action_as_title():
     result = _MODULE._audit_document(row)
 
     assert "boilerplate_selected_as_title" in result["failures"]
+
+
+def test_current_pipeline_stamp_does_not_mask_stale_chunk_scope(monkeypatch):
+    captured = {}
+    def fetch(query, params):
+        captured["query"] = query
+        return [{"document_id": "doc", "ingest_status": "indexed", "chunk_count": 3,
+                 "mrv_chunk_count": 3, "scope_mismatch_chunk_count": 1,
+                 "version_mismatch_chunk_count": 1,
+                 "metadata_json": {"metadata_schema_version": 2,
+                                   "metadata_pipeline_version": _MODULE.PIPELINE}}]
+    monkeypatch.setattr(_MODULE, "fetch_all", fetch)
+    report = _MODULE.run(["doc"])
+    assert not report["checks_passed"]
+    assert "chunk_scope_metadata_mismatch" in report["documents"][0]["failures"]
+    assert "chunk_document_version_mismatch" in report["documents"][0]["failures"]
+    for field in _MODULE.PROPAGATED_SCOPE_FIELDS:
+        assert f"rc.metadata_json->'{field}' is distinct from dme.metadata_json->'{field}'" in captured["query"]

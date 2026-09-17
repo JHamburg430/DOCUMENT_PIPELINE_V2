@@ -224,3 +224,12 @@ by the current test results.
 - Stopped the outdated thinking-enabled all-five dry-run with exit143 after no
   document checkpoint in18minutes. No sample applied. A bounded raw response
   probe is inspecting runtime behavior before another complete extraction.
+
+- Thinking workaround **retired** after two real-source probes each exhausted8192
+  tokens with zero content. Adjusted sampling did not fix it. Non-thinking probe
+  returned10 candidates in14s;9 grounded. Metadata again uses bounded non-thinking
+  calls with client/schema/grounding checks, not reliance on Ollama formatting.
+- Subsequent pilot correctly failed closed on Lua version coverage. Completeness
+  matching now normalizes printed `Ver.`/`Version` prefixes without collapsing
+  distinct version numbers. A new dry-run records independent verifier inputs
+  and decisions so missing values can be diagnosed rather than guessed.

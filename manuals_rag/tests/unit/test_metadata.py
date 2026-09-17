@@ -423,11 +423,26 @@ def test_grounding_preserves_late_identifier_in_full_table_quote():
 
 
 def test_model_column_coverage_excludes_compatible_products():
-    from manuals_rag_parsers.metadata import _model_column_identifiers
+    from manuals_rag_parsers.metadata import (
+        _compatible_model_column_claims,
+        _literal_compatible_model_column_claim_is_confirmed,
+        _model_column_identifiers,
+    )
     segment = MetadataSourceSegment(
         "Model | Length | Recommended compatible models\n"
         "ZX-1000 | 1000 | AB-20 / AB-40\n | | AB-60\nZX-2400 | 2400 | AB-80", 2, 2)
     assert _model_column_identifiers(segment) == ["ZX-1000", "ZX-2400"]
+    claims = _compatible_model_column_claims([segment])
+    assert [(item["value"], item["subject"]) for item in claims] == [
+        ("AB-20", "ZX-1000"),
+        ("AB-40", "ZX-1000"),
+        ("AB-60", "ZX-1000"),
+        ("AB-80", "ZX-2400"),
+    ]
+    assert all(item["relation"] == "compatible_with" for item in claims)
+    assert "ZX-1000" in claims[2]["source_quote"]
+    assert "Recommended compatible models" in claims[2]["source_quote"]
+    assert all(_literal_compatible_model_column_claim_is_confirmed(item) for item in claims)
     assert _model_column_identifiers(MetadataSourceSegment("Model name | ZX-15 | ZX-25\nRange | 5 | 10", 2, 2)) == ["ZX-15", "ZX-25"]
 
 
@@ -444,7 +459,7 @@ def test_metadata_schema_workaround_preserves_other_model_budgets(monkeypatch):
     from manuals_rag_parsers import metadata as module
     from manuals_rag_parsers.metadata import _metadata_thinking, _metadata_token_budget
     monkeypatch.setattr(module, "settings", SimpleNamespace(ollama_metadata_model="qwen3.5:9b"))
-    assert _metadata_thinking() and _metadata_token_budget(320) >= 8192
+    assert not _metadata_thinking() and _metadata_token_budget(320) == 320
     monkeypatch.setattr(module, "settings", SimpleNamespace(ollama_metadata_model="different-model:8b"))
     assert not _metadata_thinking() and _metadata_token_budget(320) == 320
 
@@ -1519,3 +1534,37 @@ def test_runtime_version_does_not_become_firmware_without_firmware_evidence():
         "subject": "Lua", "source_quote": text, "confidence": 0.95,
     }]})
     assert _ground_scoped_candidates(extracted, [MetadataSourceSegment(text, 2, 2)]) == []
+
+
+def test_version_coverage_accepts_printed_version_prefix_without_losing_values():
+    from manuals_rag_parsers.metadata import _missing_explicit_software_versions
+    source = [MetadataSourceSegment("ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later)",3,3)]
+    claims = [{"kind":"software_version","value":"Ver. 5.1.0020"},
+              {"kind":"software_version","value":"Version 4.2.0020"}]
+    assert _missing_explicit_software_versions(source, claims) == set()
+    assert _missing_explicit_software_versions(source, claims[:1]) == {"4.2.0020"}
+
+
+def test_explicit_parenthesized_version_list_is_mentions_only():
+    from manuals_rag_parsers.metadata import (
+        _deterministic_version_evidence, _literal_deterministic_version_claim_is_confirmed,
+        _parenthesized_version_mentions,
+    )
+    source = [MetadataSourceSegment("Using the ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later), upload settings.", 3, 3)]
+    claims = _deterministic_version_evidence(source, {"software_version"})
+    assert {(c["subject"], c["value"]) for c in claims} == {
+        ("ExampleEditor", "5.1.0020"), ("ExampleEditor", "4.2.0020")}
+    for claim in claims:
+        claim["source_method"] = claim["source"]
+        assert claim["relation"] == "mentioned"
+        assert _literal_deterministic_version_claim_is_confirmed(claim)
+        assert not _literal_deterministic_version_claim_is_confirmed({**claim, "relation": "applies_to"})
+    assert not _parenthesized_version_mentions("ExampleEditor(Ver.5.1, OtherEditor Ver.4.2)")
+
+
+def test_grounding_rejects_unquoted_subject_even_for_mentions():
+    from manuals_rag_parsers.metadata import _ground_scoped_candidates, ScopedMetadataExtraction
+    extraction = ScopedMetadataExtraction.model_validate({"entities": [{
+        "kind": "protocol", "value": "Ethernet", "relation": "mentioned",
+        "subject": "invented_manual.pdf", "source_quote": "Ethernet communication", "confidence": 0.9}]})
+    assert not _ground_scoped_candidates(extraction, [MetadataSourceSegment("Ethernet communication", 1, 1)])

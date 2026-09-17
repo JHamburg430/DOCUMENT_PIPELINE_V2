@@ -748,7 +748,7 @@ def refine_dependent_query(hop: RetrievalHop, dependency_results: list[SearchRes
     anchors = _dependency_anchors(dependency_results)
     fallback = hop.query
     if anchors:
-        fallback = f"{hop.objective}. Relevant prior-hop identifiers: {', '.join(anchors[:6])}"
+        fallback = f"{hop.query.rstrip(' ?')}. Relevant prior-hop identifiers: {', '.join(anchors[:6])}"
     else:
         fallback = f"{fallback}\nRelevant prior-hop evidence: {evidence}"
     if not use_llm:
@@ -850,12 +850,18 @@ def _results_for_ids(state: AgenticState, hop_ids: list[str]) -> list[SearchResu
             for hop in plan.hops
             if hop.recovery_for == hop_id and bool(ledger.get(hop.hop_id, {}).get("sufficient"))
         ]
-        # A successful recovery is the best dependency evidence for the next hop.
-        # Retain the original result set as additional grounding when it exists.
+        # Only verified supporting evidence can bind a later lookup. Other
+        # candidates can mention unrelated parts; importing those identifiers
+        # turns recall noise into a false dependency constraint.
         for result_hop_id in [*recovery_ids, hop_id]:
+            entry = ledger.get(result_hop_id, {})
+            if not entry.get("sufficient"):
+                continue
+            support_ids = set((entry.get("assessment") or {}).get("supporting_chunk_ids") or [])
             results.extend(
                 SearchResult.model_validate(item)
                 for item in state.get("hop_results", {}).get(result_hop_id, [])
+                if item.get("chunk_id") in support_ids
             )
     return results
 
@@ -2197,7 +2203,7 @@ class AgenticRetrievalController:
         executed_strategy: RetrievalStrategy = hop.strategy
         if dependency_anchors and hop.strategy == "hybrid":
             executed_query = (
-                f"{hop.objective}. Relevant prior-hop identifiers: {', '.join(dependency_anchors[:6])}"
+                f"{hop.query.rstrip(' ?')}. Relevant prior-hop identifiers: {', '.join(dependency_anchors[:6])}"
             )
             executed_strategy = "sparse"
         self._emit(

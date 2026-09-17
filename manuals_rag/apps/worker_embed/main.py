@@ -56,15 +56,12 @@ def process_job(job: dict[str, str]) -> None:
     try:
         start_ingestion_step(job["run_id"], current_step)
         chunks = fetch_all("select * from retrieval_chunks where document_version_id = %s", (job["version_id"],))
+        if not chunks:
+            raise ValueError("No chunks available; preserving existing index.")
         document = fetch_all("select corpus_id from source_documents where id = %s", (job["document_id"],))
         if not document:
             raise ValueError("Document missing for embed job.")
-        store = QdrantStore()
-        store.delete_document_chunks(
-            document[0]["corpus_id"],
-            source_document_id=job["document_id"],
-            document_version_id=job["version_id"],
-        )
+        store = QdrantStore(timeout=30)
         parsed_chunks = [
             RetrievalChunk.model_validate(
                 {
@@ -78,6 +75,14 @@ def process_job(job: dict[str, str]) -> None:
             for chunk in chunks
         ]
         store.upsert_chunks(document[0]["corpus_id"], parsed_chunks)
+        # Preserve the working index if embedding/upsert fails. Remove only
+        # obsolete IDs after the replacement points have been accepted.
+        store.delete_document_chunks(
+            document[0]["corpus_id"],
+            source_document_id=job["document_id"],
+            document_version_id=job["version_id"],
+            exclude_chunk_ids=[chunk.id for chunk in parsed_chunks],
+        )
         complete_ingestion_step(
             job["run_id"],
             current_step,
@@ -88,11 +93,6 @@ def process_job(job: dict[str, str]) -> None:
         start_ingestion_step(job["run_id"], current_step)
         metadata_record = _fetch_document_metadata_record(job["document_id"])
         if metadata_record:
-            store.delete_document_metadata(
-                document[0]["corpus_id"],
-                source_document_id=job["document_id"],
-                document_version_id=job["version_id"],
-            )
             store.upsert_document_metadata(document[0]["corpus_id"], [metadata_record])
         complete_ingestion_step(
             job["run_id"],

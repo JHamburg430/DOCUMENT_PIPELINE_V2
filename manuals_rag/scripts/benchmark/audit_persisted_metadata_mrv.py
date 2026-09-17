@@ -14,6 +14,13 @@ from manuals_rag_parsers.metadata import METADATA_PIPELINE_VERSION, _expand_rout
 
 
 PIPELINE = METADATA_PIPELINE_VERSION
+# Compare routing/applicability values, not only a version stamp: interrupted or
+# partial propagation can leave a current-stamped chunk with stale constraints.
+PROPAGATED_SCOPE_FIELDS = (
+    "metadata_schema_version", "normalized_identifier_aliases", "routing_product_models",
+    "routing_part_numbers", "routing_protocol_terms", "firmware_applicability",
+    "software_applicability",
+)
 TITLE_IDENTIFIER_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:]\s*[A-Z0-9]{1,16})+|"
     r"[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
@@ -148,6 +155,10 @@ def _audit_document(row: dict[str, Any]) -> dict[str, Any]:
         failures.append("no_persisted_chunks")
     if int(row.get("mrv_chunk_count") or 0) != int(row.get("chunk_count") or 0):
         failures.append("metadata_not_propagated_to_every_chunk")
+    if int(row.get("scope_mismatch_chunk_count") or 0):
+        failures.append("chunk_scope_metadata_mismatch")
+    if int(row.get("version_mismatch_chunk_count") or 0):
+        failures.append("chunk_document_version_mismatch")
     return {
         "document_id": str(row["document_id"]),
         "source_filename": row.get("source_filename"),
@@ -177,6 +188,10 @@ def run(document_ids: list[str] | None = None, *, corpus_id: str | None = None) 
     if corpus_id:
         where_clauses.append("sd.corpus_id = %s")
         params.append(corpus_id)
+    scope_mismatch = " or ".join(
+        f"rc.metadata_json->'{field}' is distinct from dme.metadata_json->'{field}'"
+        for field in PROPAGATED_SCOPE_FIELDS
+    )
     rows = fetch_all(
         f"""
         select sd.id as document_id, sd.source_filename, sd.title, sd.ingest_status,
@@ -184,12 +199,16 @@ def run(document_ids: list[str] | None = None, *, corpus_id: str | None = None) 
                count(rc.id)::int as chunk_count,
                count(rc.id) filter (
                    where rc.metadata_json->>'metadata_pipeline_version' = %s
-               )::int as mrv_chunk_count
+               )::int as mrv_chunk_count,
+               count(rc.id) filter (where {scope_mismatch})::int as scope_mismatch_chunk_count,
+               count(rc.id) filter (
+                   where rc.document_version_id is distinct from dme.document_version_id
+               )::int as version_mismatch_chunk_count
         from source_documents sd
         left join document_metadata_extractions dme on dme.source_document_id = sd.id
         left join retrieval_chunks rc on rc.source_document_id = sd.id and rc.is_active = true
         where {' and '.join(where_clauses)}
-        group by sd.id, sd.source_filename, sd.title, sd.ingest_status, dme.metadata_json
+        group by sd.id, sd.source_filename, sd.title, sd.ingest_status, dme.metadata_json, dme.document_version_id
         order by sd.source_filename
         """,
         tuple(params),

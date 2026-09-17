@@ -668,15 +668,14 @@ def _version_prompt_messages(filename: str, text: str, expected_kinds: set[str])
 
 
 def _metadata_thinking() -> bool:
-    # Ollama 0.22.0 locally ignores format for Qwen3.5 with think=False.
-    # The same adversarial schema probe passes with think=True (upstream #14645).
-    return "qwen3.5" in settings.ollama_metadata_model.lower()
+    # Qwen3.5/Ollama's thinking workaround exhausted 8192 tokens without content
+    # on source extraction. Use bounded non-thinking responses, validated here;
+    # never rely on server-side format enforcement alone (upstream #14645).
+    return False
 
 
 def _metadata_token_budget(requested: int) -> int:
-    # Thinking and structured output share the generation allowance. Ingestion
-    # prioritizes complete metadata; short responses still stop normally.
-    return max(requested, 8192) if _metadata_thinking() else requested
+    return requested
 
 
 def _scoped_metadata_schema() -> dict[str, Any]:
@@ -1181,8 +1180,31 @@ def _missing_explicit_software_versions(segments, evidence) -> set[str]:
     }
     # A flattened table/paragraph can contain both firmware and software. Keep
     # its already-grounded firmware claim from becoming a false software gap.
-    found = {str(item["value"]) for item in evidence if item.get("kind") in {"software_version", "firmware_version"}}
+    found = set()
+    for item in evidence:
+        if item.get("kind") not in {"software_version", "firmware_version"}:
+            continue
+        value = str(item["value"]).strip()
+        match = re.fullmatch(r"(?:Ver(?:sion)?\.?\s*)?(\d+(?:\.\d+){0,3})", value, re.I)
+        found.add(match.group(1) if match else value)
     return expected - found
+
+
+def _parenthesized_version_mentions(text: str) -> list[tuple[str, str]]:
+    """Read a named subject's explicit version list, never its applicability range."""
+    mentions = []
+    for match in re.finditer(
+        r"(?P<subject>[A-Z][A-Za-z0-9+_.-]*(?:\s+[A-Z][A-Za-z0-9+_.-]*){0,3})"
+        r"\s*\((?P<body>[^()\n]{1,160})\)", text
+    ):
+        body = match.group("body")
+        version_pattern = r"\bVer(?:sion)?\.?\s*(\d+(?:\.\d+){0,3})\b"
+        versions = re.findall(version_pattern, body, re.I)
+        residue = re.sub(version_pattern, "", body, flags=re.I)
+        residue = re.sub(r"\b(?:or|and|later|earlier|above|below)\b|[,;/\s]+", "", residue, flags=re.I)
+        if versions and not residue:
+            mentions.extend((match.group("subject"), value) for value in versions)
+    return mentions
 
 
 def _deterministic_version_evidence(
@@ -1201,6 +1223,14 @@ def _deterministic_version_evidence(
     for segment in segments:
         for raw_line in segment.text.splitlines():
             line = " ".join(raw_line.split()).strip()
+            if "software_version" in expected_kinds and VERSION_SIGNAL_PATTERNS["software_version"].search(line):
+                for subject, version in _parenthesized_version_mentions(line):
+                    recovered.append({
+                        "value": version, "kind": "software_version", "relation": "mentioned",
+                        "subject": subject, "source_quote": line, "page_from": segment.page_from,
+                        "page_to": segment.page_to, "section_path": list(segment.section_path),
+                        "confidence": 0.95, "grounded": True, "source": "deterministic_explicit_version",
+                    })
             for kind, pattern in patterns.items():
                 for match in pattern.finditer(line):
                     subject = " ".join(match.group("subject").split()).strip(" |,;:")
@@ -1331,7 +1361,18 @@ def _ground_scoped_candidates(
             continue
         if kind in {"product_model", "part_number"} and not _identifier_is_grounded(value, quote):
             continue
+        if kind == "part_number" and re.search(r"copyright|printed in", quote, re.I) and not re.search(r"\b(?:part|order|model|accessory)\b", quote, re.I):
+            # Publication/footer codes are not component part numbers.
+            continue
+        if kind in {"product_model", "product_family"} and relation == "primary_product" and re.search(
+            r"\b(?:bracket|column|cable|adapter|accessory)\b.{0,100}\bfor\s+" + re.escape(value), quote, re.I
+        ):
+            # The receiver of an accessory is only mentioned here; this quote
+            # does not establish it as the product being specified.
+            relation = "mentioned"
         subject = candidate.subject.strip() if candidate.subject else None
+        if subject and not _value_is_grounded(subject, quote):
+            continue
         if kind in {"firmware_version", "software_version"} and not subject:
             continue
         if relation in {"applies_to", "compatible_with", "accessory_for"}:
@@ -1689,11 +1730,33 @@ def _literal_deterministic_version_claim_is_confirmed(claim: dict[str, Any]) -> 
     quote = " ".join(str(claim.get("source_quote") or "").split())
     if not subject or not value or not quote:
         return False
+    if claim.get("kind") == "software_version" and (subject, value) in _parenthesized_version_mentions(quote):
+        return True
     return re.search(
         rf"{re.escape(subject)}\s+Ver(?:sion)?\.?\s*{re.escape(value)}\b",
         quote,
         re.IGNORECASE,
     ) is not None
+
+
+def _literal_compatible_model_column_claim_is_confirmed(
+    claim: dict[str, Any],
+) -> bool:
+    """Confirm a model relationship only when the quote includes the table contract and row."""
+    if (
+        claim.get("source_method") != "deterministic_compatible_model_column"
+        or claim.get("kind") != "product_model"
+        or claim.get("relation") != "compatible_with"
+        or claim.get("grounded") is not True
+    ):
+        return False
+    quote = str(claim.get("source_quote") or "")
+    return (
+        "compatible" in quote.casefold()
+        and "model" in quote.casefold()
+        and _identifier_is_grounded(str(claim.get("subject") or ""), quote)
+        and _identifier_is_grounded(str(claim.get("value") or ""), quote)
+    )
 
 
 def verify_metadata_claims(
@@ -1713,6 +1776,7 @@ def verify_metadata_claims(
             or _literal_upload_identity_claim_is_confirmed(claim)
             or _literal_protocol_mention_is_confirmed(claim)
             or _literal_deterministic_version_claim_is_confirmed(claim)
+            or _literal_compatible_model_column_claim_is_confirmed(claim)
         }
         verification_completed = False
         try:
@@ -2469,8 +2533,11 @@ def _materialize_verified_metadata(
             )
         ]
     )
+    title_parts = [value for value in verified_part_numbers if _identifier_is_grounded(value, selected_title)]
     selected_product = (
-        primary_product
+        (title_parts[0] if len(title_parts) == 1 else None)
+        or (opening_title_models[0] if len(opening_title_models) == 1 else None)
+        or primary_product
         or (opening_title_models[0] if opening_title_models else None)
         or (upload_identity_models[0] if upload_identity_models else None)
     )
@@ -2580,6 +2647,66 @@ def _model_column_identifiers(segment: MetadataSourceSegment) -> list[str]:
     ])
 
 
+def _compatible_model_column_claims(
+    segments: list[MetadataSourceSegment],
+) -> list[dict[str, Any]]:
+    """Recover explicit catalog compatibility rows without promoting them to primary IDs."""
+    evidence: list[dict[str, Any]] = []
+    for segment in segments:
+        lines = [line.strip() for line in segment.text.splitlines() if line.strip()]
+        if not lines or "|" not in lines[0]:
+            continue
+        headers = [cell.strip().casefold() for cell in lines[0].split("|")]
+        compatible_indexes = [
+            index
+            for index, header in enumerate(headers)
+            if "compatible" in header and "model" in header
+        ]
+        if not compatible_indexes:
+            continue
+        compatible_index = compatible_indexes[0]
+        active_subject: str | None = None
+        subject_line: str | None = None
+        for line in lines[1:]:
+            cells = [cell.strip() for cell in line.split("|")]
+            if cells and cells[0]:
+                active_subject = _canonical_routing_identifier(
+                    cells[0], repeated_lines=set()
+                )
+                subject_line = line if active_subject else None
+            if not active_subject or compatible_index >= len(cells):
+                continue
+            compatible_values = _expand_routing_identifiers(
+                cells[compatible_index], repeated_lines=set()
+            )
+            if not compatible_values:
+                continue
+            row_quote = line
+            if not _identifier_is_grounded(active_subject, row_quote) and subject_line:
+                row_quote = f"{subject_line}\n{line}"
+            quote = f"{lines[0]}\n{row_quote}"
+            for value in compatible_values:
+                evidence.append(
+                    {
+                        "value": value,
+                        "kind": "product_model",
+                        "relation": "compatible_with",
+                        "subject": active_subject,
+                        "source_quote": quote,
+                        "page_from": segment.page_from,
+                        "page_to": segment.page_to,
+                        "section_path": list(segment.section_path),
+                        "source_method": "deterministic_compatible_model_column",
+                        "confidence": 0.8,
+                        "grounded": True,
+                        "support_pages": [segment.page_from]
+                        if segment.page_from is not None
+                        else [],
+                    }
+                )
+    return _dedupe_evidence(evidence)
+
+
 def _focused_model_column_claims(filename, segments):
     evidence = []
     for segment in segments:
@@ -2610,6 +2737,7 @@ def _reduce_metadata_claims(state: MetadataWorkflowState) -> dict[str, Any]:
     evidence = _dedupe_evidence(
         mapped
         + _focused_model_column_claims(state["filename"], state["segments"])
+        + _compatible_model_column_claims(state["segments"])
         + _opening_title_identifier_evidence(state["selected_title"], state["segments"])
         + _filename_grounded_identifier_evidence(state["filename"], state["segments"])
         + _deterministic_protocol_evidence(state["segments"])
@@ -2639,7 +2767,15 @@ def _verify_metadata_workflow_claims(state: MetadataWorkflowState) -> dict[str, 
     ])
     if missing_values:
         raise MetadataExtractionIncomplete(f"Verification lost explicit software versions: {sorted(missing_values)}")
-    expected_models = {_compact_identifier(value) for segment in state["segments"] for value in _model_column_identifiers(segment)}
+    expected_models = {
+        _compact_identifier(value)
+        for segment in state["segments"]
+        for value in _model_column_identifiers(segment)
+    }
+    expected_models.update(
+        _compact_identifier(str(item["value"]))
+        for item in _compatible_model_column_claims(state["segments"])
+    )
     found_models = {_compact_identifier(item["value"]) for item in verified_claims
                     if item.get("verification_status") == "confirmed" and item.get("kind") in {"product_model", "part_number"}}
     if expected_models - found_models:
