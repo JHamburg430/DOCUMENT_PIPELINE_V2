@@ -393,8 +393,24 @@ def _compact_identifier(text: str) -> str:
 
 
 def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
-    if not {"structured_lookup", "spec_lookup", "part_lookup"}.intersection(analysis.query_types) and not (
-        "comparison" in analysis.query_types and analysis.product_identifiers
+    named_setting_lookup = bool(
+        "configuration" in analysis.query_types
+        and re.search(
+            r"\bwhat\s+does\s+(?:the\s+)?[^?]{1,120}\s+settings?\s+"
+            r"(?:control|do|mean|represent)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    power_source_lookup = bool(
+        re.search(r"\bhow\s+(?:is|are)\b.{0,100}\bpowered\b", query, flags=re.I)
+        or re.search(r"\bwhat\b.{0,100}\bpower(?:-|\s*)supply\b", query, flags=re.I)
+    )
+    if (
+        not {"structured_lookup", "spec_lookup", "part_lookup"}.intersection(analysis.query_types)
+        and not ("comparison" in analysis.query_types and analysis.product_identifiers)
+        and not named_setting_lookup
+        and not power_source_lookup
     ):
         return []
     terms: list[str] = []
@@ -426,6 +442,10 @@ def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
                     terms.append(piece)
     if re.search(r"\bhow\s+long\b", query, flags=re.IGNORECASE) and "length" not in terms:
         terms.append("length")
+    if power_source_lookup:
+        for alias in ("power", "supply", "powersupply"):
+            if alias not in terms:
+                terms.append(alias)
     if (
         re.search(r"\b(?:output\s+)?polarity\b", query, flags=re.IGNORECASE)
         and re.search(r"\b(?:out\s+of\s+the\s+box|out\s+of\s+box|default|initial)\b", query, flags=re.IGNORECASE)
@@ -517,6 +537,15 @@ def _structured_prompt_phrase(query: str) -> str:
             r"\bwhat\s+(?:value|setting|number\s+format|initial\s+value|upper\s+limit(?:\s+value)?|"
             r"lower\s+limit(?:\s+value)?|decimal\s+digits|integer\s+digits|referenceable)\b"
             r".+\b(?:listed|specified|shown|given|configured|set)\s+for\s+(?P<phrase>.+?)\??$",
+            query,
+            flags=re.IGNORECASE,
+        )
+    if not match and re.search(r"\bhow\s+(?:is|are)\b.{0,100}\bpowered\b", query, flags=re.I):
+        return "powersupply"
+    if not match:
+        match = re.search(
+            r"\bwhat\s+does\s+(?:the\s+)?(?P<phrase>.+?)\s+settings?\s+"
+            r"(?:control|do|mean|represent)\b",
             query,
             flags=re.IGNORECASE,
         )
@@ -2600,7 +2629,8 @@ def _promote_named_setting_candidates(
 ) -> list[SearchResult]:
     """Retain the table row whose setting label is explicitly named by the query."""
     match = re.search(
-        r"^\s*(?:how|what)\s+does\s+(?:the\s+)?(?P<label>.+?)\s+setting\b",
+        r"^\s*(?:for\s+.+?,\s*)?(?:how|what)\s+does\s+(?:the\s+)?"
+        r"(?P<label>.+?)\s+setting\b",
         query,
         flags=re.IGNORECASE,
     )

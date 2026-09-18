@@ -14,6 +14,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _assess_hop_evidence,
     verify_retrieval_claim,
 )
+from manuals_rag_common.config import settings
 from manuals_rag_schemas.documents import SearchResult
 
 
@@ -149,6 +150,29 @@ def test_model_planners_enforce_parallel_branches_for_colon_delimited_product_co
     assert langgraph.hops[1].query == "What is grayscale settings for LJ:S8000?"
 
 
+def test_model_planners_pair_scoped_named_settings_before_labelled_lookup(monkeypatch):
+    query = (
+        "For CV-X482 and LJ-X8000, compare what the Condition list and Standard Angle "
+        "settings control."
+    )
+
+    def fail_if_called(**_kwargs):
+        raise AssertionError("deterministic scoped comparison planning must run before model planning")
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", fail_if_called)
+
+    langgraph = plan_retrieval(query, use_llm=True)
+    llamaindex = plan_llamaindex_retrieval(query, use_llm=True)
+
+    assert langgraph.mode == "parallel"
+    assert [hop.query for hop in langgraph.hops] == [
+        "For CV-X482, what does the Condition list setting control?",
+        "For LJ-X8000, what does the Standard Angle setting control?",
+    ]
+    assert llamaindex.mode == "parallel"
+    assert [hop.query for hop in llamaindex.hops] == [hop.query for hop in langgraph.hops]
+
+
 def test_comparison_planner_assigns_trailing_details_to_matching_branches():
     plan = plan_retrieval(
         "Compare the VJ-H500CX weight qualification with the LJ:S8000 grayscale adjustment: "
@@ -182,6 +206,38 @@ def test_model_planners_split_independent_interrogative_facets(monkeypatch):
     ]
     assert [hop.hop_id for hop in llamaindex.hops] == ["subquestion_1", "subquestion_2"]
     assert all(hop.strategy == "hybrid" for hop in llamaindex.hops)
+
+
+def test_model_planners_make_demonstrative_coordinate_question_dependent(monkeypatch):
+    query = (
+        "Which encoder head model is compatible with the CA-EN100U, and how is that "
+        "encoder head powered?"
+    )
+
+    def fail_if_called(**_kwargs):
+        raise AssertionError("deterministic dependency safety must run before model planning")
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", fail_if_called)
+
+    langgraph = plan_retrieval(query, use_llm=True)
+    llamaindex = plan_llamaindex_retrieval(query, use_llm=True)
+
+    assert langgraph.mode == "dependent"
+    assert langgraph.hops[1].depends_on == ["facet_1"]
+    assert llamaindex.mode == "dependent"
+    assert llamaindex.hops[1].depends_on == ["subquestion_1"]
+
+
+def test_llamaindex_keeps_structural_tool_for_dependency_predicate():
+    hop = RetrievalHop(
+        hop_id="power",
+        objective="How is that encoder head powered?",
+        query="How is that encoder head powered?",
+        strategy="structural",
+        depends_on=["model"],
+    )
+
+    assert LlamaIndexAgenticController._route_tool(hop, ["CA-EN100H"]) == "structural"
 
 
 def test_model_planners_split_multi_product_reported_clauses(monkeypatch):
@@ -383,7 +439,10 @@ def test_verifier_rejects_model_citations_that_were_not_retrieved(monkeypatch):
         query="ALPHA-1 corrective action",
     )
 
-    def fake_chat_json(**_kwargs):
+    verifier_kwargs = {}
+
+    def fake_chat_json(**kwargs):
+        verifier_kwargs.update(kwargs)
         return (
             {
                 "trust_state": "confirmed",
@@ -408,6 +467,7 @@ def test_verifier_rejects_model_citations_that_were_not_retrieved(monkeypatch):
     assert result["claim_supported"] is False
     assert result["trust_state"] == "unresolved"
     assert result["invalid_citation_ids"] == ["invented-chunk"]
+    assert verifier_kwargs["num_batch"] == settings.ollama_retrieval_verifier_num_batch
 
 
 def test_verifier_deterministically_confirms_condition_aligned_warning(monkeypatch):
@@ -975,6 +1035,135 @@ def test_scope_gate_accepts_series_suffix_alias_without_prefix_matching_models()
     assert supported is False
 
 
+def test_scope_gate_uses_legacy_family_when_product_model_is_document_title():
+    matching = _result(
+        "lj-x-series",
+        "lj-x-doc",
+        "Standard Angle specifies the start angle for blob numbering.",
+    )
+    matching.metadata.update(
+        {
+            "product_model": "User's Manual (3D mode)",
+            "product_family": "LJ: X8000 Series",
+            "product_models": ["LJ-X8000"],
+        }
+    )
+
+    supported, assessment = _assess_hop_evidence(
+        "For LJ-X8000, what does the Standard Angle setting control?",
+        [matching],
+    )
+
+    assert supported is True
+    assert assessment["supporting_chunk_ids"] == ["lj-x-series"]
+
+    conflicting = _result("lj-s", "lj-s-doc", "Standard Angle details.")
+    conflicting.metadata.update(
+        {
+            "product_model": "LJ-S8000",
+            "product_family": "LJ: X8000 Series",
+            "product_models": ["LJ-X8000"],
+        }
+    )
+    supported, _assessment = _assess_hop_evidence(
+        "For LJ-X8000, what does the Standard Angle setting control?",
+        [conflicting],
+    )
+    assert supported is False
+
+
+def test_named_setting_control_verification_confirms_one_definition_and_rejects_ambiguity():
+    query = "For MOD-600, what does the Standard Angle setting control?"
+    hop = RetrievalHop(hop_id="setting", objective=query, query=query, strategy="structural")
+    numbering = _result(
+        "numbering",
+        "manual",
+        "Column headers: Settings; Row headers: Standard Angle; Cell value: "
+        "Specifies the start angle for blob numbering.; Row: 1; Column: 1",
+    )
+    numbering.metadata["product_model"] = "MOD-600"
+    preliminary = {
+        "claim_supported": True,
+        "supporting_chunk_ids": ["numbering"],
+    }
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [numbering],
+        preliminary,
+        use_llm=False,
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["numbering"]
+
+    exclusion = _result(
+        "exclusion",
+        "manual",
+        "Column headers: Settings; Row headers: Standard Angle; Cell value: "
+        "Select the reference angle of the proximity exclusion angle.; Row: 2; Column: 1",
+    )
+    exclusion.metadata["product_model"] = "MOD-600"
+    ambiguous = verify_retrieval_claim(
+        hop,
+        query,
+        [numbering, exclusion],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": ["numbering", "exclusion"],
+        },
+        use_llm=False,
+    )
+
+    assert ambiguous["trust_state"] == "conflicting"
+    assert set(ambiguous["conflicting_chunk_ids"]) == {"numbering", "exclusion"}
+
+
+def test_structured_compatibility_mapping_confirms_applicability_without_model():
+    query = "Which encoder head model is compatible with the CA-EN100U?"
+    hop = RetrievalHop(hop_id="compatibility", objective=query, query=query, strategy="structural")
+    mapping = _result(
+        "compatibility-row",
+        "encoder-manual",
+        "Model: Supported encoder head; CA-EN100U: CA-EN100H",
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [mapping],
+        {"claim_supported": True, "supporting_chunk_ids": ["compatibility-row"]},
+        use_llm=False,
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["applicability"] == "applicable"
+    assert verified["supporting_chunk_ids"] == ["compatibility-row"]
+
+
+def test_structured_power_source_mapping_confirms_powered_by_without_model():
+    query = "How is that encoder head powered; constrain the lookup to CA-EN100H, CA-EN100U?"
+    hop = RetrievalHop(hop_id="power", objective=query, query=query, strategy="structural")
+    mapping = _result(
+        "power-row",
+        "encoder-manual",
+        "Column headers: CA-EN100H; Row headers: Power-supply; "
+        "Cell value: Supply from CA-EN100U; Row: 8; Column: 1",
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [mapping],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["power-row"]
+
+
 def test_verifier_normalizes_single_list_wrapped_object(monkeypatch):
     hop = RetrievalHop(
         hop_id="lookup",
@@ -1500,6 +1689,76 @@ def test_dependent_hop_is_refined_from_prior_evidence():
     ]
     assert output["evidence_ledger"]["find_tolerance"]["executed_query"] == executed_queries[1]
     assert output["sufficient"] is True
+
+
+def test_source_audited_encoder_head_dependency_binds_discovered_model():
+    plan = RetrievalPlan(
+        mode="dependent",
+        hops=[
+            RetrievalHop(
+                hop_id="identify_encoder_head",
+                objective="Identify the encoder head supported by CA-EN100U",
+                query="Which encoder head model is compatible with the CA-EN100U?",
+                strategy="sparse",
+            ),
+            RetrievalHop(
+                hop_id="find_power_source",
+                objective="Find how the compatible encoder head is powered",
+                query="How is the compatible encoder head powered?",
+                strategy="hybrid",
+                depends_on=["identify_encoder_head"],
+            ),
+        ],
+    )
+    executed_queries: list[str] = []
+
+    def retrieve(query, _corpus_ids, _filters, _strategy, _limit):
+        executed_queries.append(query)
+        if len(executed_queries) == 1:
+            return [
+                _result(
+                    "5441e6e3-1a1c-5f15-b8b9-aa0bee45b4c3",
+                    "1a6783bf-01ae-4dde-8876-687064704e8c",
+                    "Model: Supported encoder head; CA-EN100U: CA-EN100H",
+                )
+            ]
+        assert "CA-EN100H" in query
+        return [
+            _result(
+                "e050241a-00cd-539b-b306-576a34d1ccd6",
+                "1a6783bf-01ae-4dde-8876-687064704e8c",
+                "Model: Power-supply; CA-EN100H: Supply from CA-EN100U",
+            )
+        ]
+
+    def verify(_hop, _query, results, _assessment):
+        return {
+            "trust_state": "confirmed",
+            "claim_supported": True,
+            "supporting_chunk_ids": [results[0].chunk_id],
+            "conflicting_chunk_ids": [],
+            "applicability": "applicable",
+            "scope_entity": None,
+            "rationale": "The source-audited table row directly supports this hop.",
+        }
+
+    for factory, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        executed_queries.clear()
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+            verifier=verify,
+        )
+        output = _invoke(factory, controller, max_hops=2)
+
+        assert len(executed_queries) == 2
+        assert "CA-EN100H" in executed_queries[1]
+        assert output["sufficient"] is True
+        assert output["retrieval_trace"]["context_assembly"]["all_required_claims_retained"] is True
 
 
 def test_deterministic_dependency_refinement_keeps_concrete_identifiers_only():

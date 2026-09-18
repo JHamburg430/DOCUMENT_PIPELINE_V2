@@ -3696,6 +3696,30 @@ def test_summarize_results_keeps_small_structured_evidence_set_separate(monkeypa
     assert all(summary["summary_source"] == "direct_evidence" for summary in summaries)
 
 
+def test_summarize_results_recognizes_legacy_chunk_family_as_structured(monkeypatch):
+    result = SearchResult(
+        chunk_id="legacy-table-row",
+        score=1.0,
+        title="LJ-X8000 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[278],
+        section_path=["Settings"],
+        content="Setting item: Standard Angle; Settings: Specifies the start angle for blob numbering.",
+        metadata={"chunk_family": "table_record"},
+    )
+
+    def fail_chat_json(**_kwargs):
+        raise AssertionError("legacy structured evidence should not call the model")
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fail_chat_json)
+
+    summaries = summarize_results_for_answer("What does Standard Angle control?", [result])
+
+    assert summaries[0]["summary_source"] == "direct_evidence"
+    assert "Standard Angle" in summaries[0]["summary"]
+
+
 def test_prioritize_results_preserves_comparison_evidence_before_model_pruning(monkeypatch):
     results = [
         SearchResult(
@@ -3738,6 +3762,50 @@ def test_prioritize_results_preserves_comparison_evidence_before_model_pruning(m
     assert [result.chunk_id for result in prioritized["prioritized_results"][:2]] == [
         "controller-a-cause",
         "controller-b-cause",
+    ]
+
+
+def test_prioritize_results_deduplicates_overlapping_protected_routes(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="controller-a-setting",
+            score=0.9,
+            title="Controller A Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[20],
+            section_path=["Settings"],
+            content="Setting item: Condition list; Settings: Controls reference conditions.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="controller-b-setting",
+            score=0.8,
+            title="Controller B Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[30],
+            section_path=["Settings"],
+            content="Setting item: Standard Angle; Settings: Controls blob numbering start angle.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.judge_retrieval_relevance",
+        lambda _query, _results: [
+            {"chunk_id": result.chunk_id, "verdict": "relevant", "reason": "Direct."}
+            for result in results
+        ],
+    )
+
+    prioritized = prioritize_results_for_answer(
+        "Compare the Condition list and Standard Angle settings.",
+        results,
+    )["prioritized_results"]
+
+    assert [result.chunk_id for result in prioritized] == [
+        "controller-a-setting",
+        "controller-b-setting",
     ]
 
 
@@ -8714,6 +8782,65 @@ def test_dependent_fallback_does_not_claim_complete_answer_for_one_fact():
     answer = generator_module._fallback_answer(query, [result])
     assert answer.insufficient_evidence
     assert answer.confidence == "low"
+
+
+def test_multi_part_question_does_not_short_circuit_to_one_structured_cell(monkeypatch):
+    query = (
+        "Which encoder head model is compatible with the CA-EN100U, and how is that "
+        "encoder head powered?"
+    )
+    results = [
+        SearchResult(
+            chunk_id="model",
+            score=1.0,
+            title="Encoder manual",
+            document_version_id="v1",
+            source_document_id="doc",
+            pages=[3],
+            section_path=[],
+            content=(
+                "Column headers: CA-EN100U; Row headers: Supported encoder head; "
+                "Cell value: CA-EN100H; Row: 1; Column: 1"
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="power",
+            score=0.9,
+            title="Encoder manual",
+            document_version_id="v1",
+            source_document_id="doc",
+            pages=[3],
+            section_path=[],
+            content="Model: Power-supply; CA-EN100H: Supply from CA-EN100U",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    def fake_chat_json(**kwargs):
+        raise AssertionError(f"dependency mapping should not call a model: {kwargs['purpose']}")
+
+    monkeypatch.setattr(generator_module, "chat_json", fake_chat_json)
+    answer, trace = generate_answer_with_trace(
+        query,
+        results,
+        prioritized_results=results,
+        summarized_evidence=[
+            {"chunk_id": "model", "summary": results[0].content},
+            {"chunk_id": "power", "summary": results[1].content},
+        ],
+    )
+
+    assert "powered by CA-EN100U" in answer.answer
+    assert len(answer.citations) == 2
+    assert answer.insufficient_evidence is False
+    assert trace["final_answer"]["answer_source"] == "deterministic_dependency_mapping"
+
+    generic_answer, _support = generator_module._concise_dependency_mapping_answer(
+        "Which sensor model is compatible with the CA-EN100U, and how is that sensor powered?",
+        results,
+    )
+    assert generic_answer.startswith("The compatible sensor is CA-EN100H")
 
 
 def test_abstention_does_not_get_an_invented_top_citation():

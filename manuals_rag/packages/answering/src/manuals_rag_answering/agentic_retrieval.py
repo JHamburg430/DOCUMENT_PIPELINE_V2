@@ -247,7 +247,7 @@ must reference earlier hop_id values. Do not provide the answer or invent manual
 def _parallel_scope_plan(query: str) -> RetrievalPlan | None:
     """Recognize a common, document-general comparison shape without an LLM."""
     match = re.match(
-        r"^\s*for\s+(?P<scopes>.+?),\s*(?P<request>(?:what|which|how|where|when)\b.+)$",
+        r"^\s*for\s+(?P<scopes>.+?),\s*(?P<request>(?:(?:what|which|how|where|when)|compare)\b.+)$",
         query,
         flags=re.I,
     )
@@ -258,6 +258,30 @@ def _parallel_scope_plan(query: str) -> RetrievalPlan | None:
         return None
 
     request = match.group("request").strip()
+    named_setting_comparison = re.match(
+        r"^compare\s+what\s+the\s+(?P<left>.+?)\s+and\s+(?P<right>.+?)\s+"
+        r"settings?\s+(?P<verb>control|do|mean|represent|specify|configure|determine)[?.]*$",
+        request,
+        flags=re.I,
+    )
+    if named_setting_comparison and len(scopes) == 2:
+        verb = named_setting_comparison.group("verb")
+        details = [named_setting_comparison.group("left"), named_setting_comparison.group("right")]
+        hops = [
+            RetrievalHop(
+                hop_id=f"side_{index + 1}",
+                objective=f"For {scope}, what does the {details[index]} setting {verb}?",
+                query=f"For {scope}, what does the {details[index]} setting {verb}?",
+                strategy="structural",
+            )
+            for index, scope in enumerate(scopes)
+        ]
+        return RetrievalPlan(
+            mode="parallel",
+            rationale="The comparison pairs independently retrievable named settings with explicit scopes.",
+            hops=hops,
+        )
+
     detail_match = re.match(r"(?P<prefix>.+?\bfor\s+)(?P<details>.+?)\??$", request, flags=re.I)
     details: list[str] = []
     if detail_match:
@@ -451,6 +475,36 @@ def _coordinate_question_plan(query: str) -> RetrievalPlan | None:
         f"{scope} {branch}".strip(" ,.;?") + "?"
         for branch in branches
     ]
+    discovered_entity = re.match(
+        r"^which\s+(?P<referent>.+?)\s+(?:is|are|was|were)\b",
+        first,
+        flags=re.I,
+    )
+    demonstrative_reference = re.search(r"\bthat\s+(?P<reference>.+)$", second, flags=re.I)
+    if discovered_entity and demonstrative_reference:
+        referent_terms = set(re.findall(r"[a-z0-9]+", discovered_entity.group("referent").lower()))
+        reference_terms = set(re.findall(r"[a-z0-9]+", demonstrative_reference.group("reference").lower()))
+        ignored = {"the", "that", "this", "what", "which", "how", "where", "when", "why"}
+        if (referent_terms - ignored).intersection(reference_terms - ignored):
+            return RetrievalPlan(
+                mode="dependent",
+                rationale="The second interrogative depends on the entity discovered by the first.",
+                hops=[
+                    RetrievalHop(
+                        hop_id="facet_1",
+                        objective=queries[0],
+                        query=queries[0],
+                        strategy=_claim_strategy(queries[0]),
+                    ),
+                    RetrievalHop(
+                        hop_id="facet_2",
+                        objective=queries[1],
+                        query=queries[1],
+                        strategy=_claim_strategy(queries[1]),
+                        depends_on=["facet_1"],
+                    ),
+                ],
+            )
     return RetrievalPlan(
         mode="parallel",
         rationale="The request contains independent interrogative claim facets.",
@@ -589,6 +643,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _comparison_facet_plan(query)
         or _coordinate_question_plan(query)
         or _reported_clause_plan(query)
+        or _parallel_scope_plan(query)
         or _labelled_lookup_plan(query)
     )
     if forced_plan is not None:
@@ -617,7 +672,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
 
 def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
     """Subquestion-oriented fallback that is intentionally independent of LangGraph planning."""
-    base = _labelled_lookup_plan(query) or _heuristic_plan(query)
+    base = _parallel_scope_plan(query) or _labelled_lookup_plan(query) or _heuristic_plan(query)
     hops: list[RetrievalHop] = []
     for index, hop in enumerate(base.hops, start=1):
         strategy = hop.strategy
@@ -648,6 +703,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _comparison_facet_plan(query) is not None
         or _coordinate_question_plan(query) is not None
         or _reported_clause_plan(query) is not None
+        or _parallel_scope_plan(query) is not None
         or _labelled_lookup_plan(query) is not None
     ):
         return _llamaindex_heuristic_plan(query)
@@ -1019,22 +1075,40 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
 
     requested = {compact(identifier) for identifier in identifiers if compact(identifier)}
-    authoritative_values: list[str] = []
-    for key in ("routing_product_models", "product_model"):
-        value = metadata.get(key)
-        if isinstance(value, (list, tuple, set)):
-            authoritative_values.extend(str(item) for item in value if item)
-        elif value:
-            authoritative_values.append(str(value))
-    authoritative = {compact(value) for value in authoritative_values if compact(value)}
-    if authoritative:
+    def matches_requested(values: list[str]) -> bool:
+        candidates = {compact(value) for value in values if compact(value)}
         return any(
             requested_value == authoritative_value
             or requested_value + "series" == authoritative_value
             or authoritative_value + "series" == requested_value
             for requested_value in requested
-            for authoritative_value in authoritative
+            for authoritative_value in candidates
         )
+
+    routing_values = [
+        str(value)
+        for value in metadata.get("routing_product_models") or []
+        if value
+    ]
+    if routing_values:
+        return matches_requested(routing_values)
+
+    product_model = str(metadata.get("product_model") or "").strip()
+    if product_model and analyze_query(product_model).product_identifiers:
+        # A concrete conflicting primary model remains authoritative.  Generic
+        # legacy labels such as "User's Manual (3D mode)" fall through to the
+        # structured family/model lists below instead of shadowing them.
+        return matches_requested([product_model])
+
+    legacy_scope_values: list[str] = []
+    for key in ("product_models", "product_family", "product_families"):
+        value = metadata.get(key)
+        if isinstance(value, (list, tuple, set)):
+            legacy_scope_values.extend(str(item) for item in value if item)
+        elif value:
+            legacy_scope_values.append(str(value))
+    if legacy_scope_values:
+        return matches_requested(legacy_scope_values)
 
     # A verified part-number match can establish scope, but unrelated part
     # numbers are not product identity and therefore cannot create a conflict.
@@ -1259,7 +1333,7 @@ def _direct_structured_setting_support(
     """Confirm an exact named-setting behavior bound in one structured row."""
     label_match = re.search(
         r"\bwhat\s+does\s+(?:the\s+)?(?P<label>.+?)\s+setting\s+"
-        r"(?P<behavior>add|do|enable|disable|change|set)\b",
+        r"(?P<behavior>add|do|enable|disable|change|set|control)\b",
         query,
         flags=re.IGNORECASE,
     )
@@ -1285,38 +1359,104 @@ def _direct_structured_setting_support(
         "disable": r"\bdisabl(?:e|ed|es|ing)\b",
         "change": r"\bchang(?:e|ed|es|ing)\b",
         "set": r"\bset(?:s|ting)?\b",
+        "control": r"\S",
     }[behavior]
     preliminary_ids = {
         str(chunk_id)
         for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
     }
-    matches: list[tuple[int, int, int, str]] = []
+    matches: list[tuple[int, int, int, str, str]] = []
     for result_index, result in enumerate(results):
         if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
             continue
         content = str(result.content or "")
-        row_match = re.search(
-            r"Row\s+headers:\s*(?P<label>.*?);\s*Cell\s+value:\s*(?P<value>.*?)"
-            r"(?:;\s*Row:\s*\d+|$)",
-            content,
-            flags=re.IGNORECASE | re.DOTALL,
+        rows = list(
+            re.finditer(
+                r"Row\s+headers:\s*(?P<label>.*?);\s*Cell\s+value:\s*(?P<value>.*?)"
+                r"(?:;\s*Row:\s*\d+|$)",
+                content,
+                flags=re.IGNORECASE | re.DOTALL,
+            )
         )
-        if not row_match:
-            continue
-        row_label = re.sub(r"[^a-z0-9]+", " ", row_match.group("label").lower()).strip()
-        value = re.sub(r"\s+", " ", row_match.group("value")).strip()
-        if row_label != label or not re.search(behavior_pattern, value, flags=re.IGNORECASE):
-            continue
-        if re.search(r"\bwhen\s+(?:it\s+is\s+)?enabled\b", query, flags=re.IGNORECASE) and not re.search(
-            r"\bwhen\s+enabled\b", value, flags=re.IGNORECASE
-        ):
-            continue
-        chunk_type = str(result.metadata.get("chunk_type") or "")
-        bounded = int(chunk_type in {"table_record", "spec_record", "atomic_text"})
-        matches.append((bounded, -len(content), -result_index, result.chunk_id))
+        rows.extend(
+            re.finditer(
+                r"Setting\s+item:\s*(?P<label>.*?);\s*Settings:\s*(?P<value>.*?)"
+                r"(?=\s+Setting\s+item:|$)",
+                content,
+                flags=re.IGNORECASE | re.DOTALL,
+            )
+        )
+        for row_match in rows:
+            row_label = re.sub(r"[^a-z0-9]+", " ", row_match.group("label").lower()).strip()
+            value = re.sub(r"\s+", " ", row_match.group("value")).strip()
+            if row_label != label or not re.search(behavior_pattern, value, flags=re.IGNORECASE):
+                continue
+            if re.search(r"\bwhen\s+(?:it\s+is\s+)?enabled\b", query, flags=re.IGNORECASE) and not re.search(
+                r"\bwhen\s+enabled\b", value, flags=re.IGNORECASE
+            ):
+                continue
+            chunk_type = str(result.metadata.get("chunk_type") or "")
+            bounded = int(chunk_type in {"table_record", "spec_record", "atomic_text"})
+            normalized_value = re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+            matches.append((bounded, -len(content), -result_index, result.chunk_id, normalized_value))
     if not matches:
         return []
-    return [max(matches, key=lambda item: item[:3])[-1]]
+    if behavior == "control" and len({item[4] for item in matches}) > 1:
+        # A repeated label can name different settings in different tool
+        # contexts.  Without a disambiguating qualifier, do not arbitrarily
+        # promote one definition to confirmed evidence.
+        return []
+    return [max(matches, key=lambda item: item[:3])[3]]
+
+
+def _ambiguous_named_setting_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Return exact-label chunks when an unqualified setting has distinct definitions."""
+    label_match = re.search(
+        r"\bwhat\s+does\s+(?:the\s+)?(?P<label>.+?)\s+setting\s+control\b",
+        query,
+        flags=re.I,
+    )
+    if not label_match:
+        return []
+    label = re.sub(r"[^a-z0-9]+", " ", label_match.group("label").lower()).strip()
+    preliminary_ids = {
+        str(chunk_id) for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    definitions: dict[str, set[str]] = {}
+    for result in results:
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = str(result.content or "")
+        rows = list(
+            re.finditer(
+                r"Row\s+headers:\s*(?P<label>.*?);\s*Cell\s+value:\s*(?P<value>.*?)"
+                r"(?:;\s*Row:\s*\d+|$)",
+                content,
+                flags=re.I | re.S,
+            )
+        )
+        rows.extend(
+            re.finditer(
+                r"Setting\s+item:\s*(?P<label>.*?);\s*Settings:\s*(?P<value>.*?)"
+                r"(?=\s+Setting\s+item:|$)",
+                content,
+                flags=re.I | re.S,
+            )
+        )
+        for row in rows:
+            row_label = re.sub(r"[^a-z0-9]+", " ", row.group("label").lower()).strip()
+            if row_label != label:
+                continue
+            value = re.sub(r"[^a-z0-9]+", " ", row.group("value").lower()).strip()
+            if value:
+                definitions.setdefault(value, set()).add(result.chunk_id)
+    if len(definitions) <= 1:
+        return []
+    return sorted({chunk_id for chunk_ids in definitions.values() for chunk_id in chunk_ids})
 
 
 def _direct_structured_lookup_support(
@@ -1436,6 +1576,101 @@ def _direct_menu_mapping_support(
             continue
         matches.append((len(item_terms), len(label_terms), -result_index, result.chunk_id))
     return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
+def _direct_structured_compatibility_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an explicit supported/compatible model mapping in one structured row."""
+    if not re.search(r"\b(?:compatib(?:le|ility)|works?\s+with|supported\s+(?:by|with))\b", query, flags=re.I):
+        return []
+    requested = {
+        re.sub(r"[^a-z0-9]", "", identifier.lower())
+        for identifier in analyze_query(query).product_identifiers or []
+    }
+    preliminary_ids = {
+        str(chunk_id) for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    mappings: list[tuple[str, str, str]] = []
+    for result in results:
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = str(result.content or "")
+        cells = list(
+            re.finditer(
+                r"Column\s+headers:\s*(?P<source>.*?);\s*Row\s+headers:\s*(?P<label>.*?);\s*"
+                r"Cell\s+value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+|$)",
+                content,
+                flags=re.I | re.S,
+            )
+        )
+        cells.extend(
+            re.finditer(
+                r"Model:\s*(?P<label>.*?);\s*(?P<source>[A-Z][A-Z0-9:-]+):\s*"
+                r"(?P<value>.*?)(?=\s+Model:|$)",
+                content,
+                flags=re.I | re.S,
+            )
+        )
+        for cell in cells:
+            label = re.sub(r"[^a-z0-9]+", " ", cell.group("label").lower()).strip()
+            source = re.sub(r"[^a-z0-9]", "", cell.group("source").lower())
+            if "supported" not in label and "compatible" not in label:
+                continue
+            if requested and source not in requested:
+                continue
+            target_ids = re.findall(r"\b[A-Z]{1,8}(?:-[A-Z0-9]{2,})+\b", cell.group("value"))
+            if target_ids:
+                mappings.append((result.chunk_id, source, target_ids[0]))
+    if not mappings or len({(source, target) for _chunk, source, target in mappings}) != 1:
+        return []
+    return [mappings[0][0]]
+
+
+def _direct_structured_power_source_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm an exact model -> power-source mapping for a powered-by question."""
+    if not re.search(r"\bhow\s+(?:is|are)\b.{0,120}\bpowered\b", query, flags=re.I):
+        return []
+    requested = {
+        re.sub(r"[^a-z0-9]", "", identifier.lower())
+        for identifier in analyze_query(query).product_identifiers or []
+    }
+    mappings: list[tuple[str, str, str]] = []
+    for result in results:
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = str(result.content or "")
+        cells = list(
+            re.finditer(
+                r"Column\s+headers:\s*(?P<target>[A-Z][A-Z0-9:-]+);\s*"
+                r"Row\s+headers:.*?Power[- ]?supply;\s*Cell\s+value:\s*"
+                r"Supply\s+from\s+(?P<source>[A-Z][A-Z0-9:-]+)",
+                content,
+                flags=re.I | re.S,
+            )
+        )
+        cells.extend(
+            re.finditer(
+                r"Model:\s*Power[- ]?supply;\s*(?P<target>[A-Z][A-Z0-9:-]+):\s*"
+                r"Supply\s+from\s+(?P<source>[A-Z][A-Z0-9:-]+)",
+                content,
+                flags=re.I,
+            )
+        )
+        for cell in cells:
+            target = re.sub(r"[^a-z0-9]", "", cell.group("target").lower())
+            source = re.sub(r"[^a-z0-9]", "", cell.group("source").lower())
+            if requested and target not in requested:
+                continue
+            mappings.append((result.chunk_id, target, source))
+    if not mappings or len({(target, source) for _chunk, target, source in mappings}) != 1:
+        return []
+    return [mappings[0][0]]
 
 
 def _direct_structured_troubleshooting_support(
@@ -1628,6 +1863,49 @@ def verify_retrieval_claim(
             rationale="No retrieval evidence was supplied to the verifier.",
         ).model_dump()
 
+    direct_compatibility_support = _direct_structured_compatibility_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_compatibility_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_compatibility_support,
+            applicability="applicable",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic compatibility verification matched one explicit source-model to "
+                "supported-model mapping in a scoped structured row."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_power_source_support = _direct_structured_power_source_support(
+        hop.objective,
+        results,
+    )
+    if direct_power_source_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_power_source_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic power-source verification matched one exact model to supply-source "
+                "mapping in a scoped structured row."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
     if not applicability_required:
         direct_troubleshooting_support = _direct_structured_troubleshooting_support(
             hop.objective,
@@ -1707,6 +1985,27 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic named-reference verification matched the requested artifact "
                     "and its scoped source phrase in one passage."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        ambiguous_setting_support = _ambiguous_named_setting_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if ambiguous_setting_support:
+            return EvidenceVerification(
+                trust_state="conflicting",
+                claim_supported=False,
+                conflicting_chunk_ids=ambiguous_setting_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "The same unqualified setting label has multiple distinct definitions in "
+                    "the scoped manual evidence; an additional tool or section qualifier is required."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
@@ -1853,6 +2152,7 @@ def verify_retrieval_claim(
                 num_predict=420,
                 purpose="agentic_retrieval.verify_claim",
                 num_ctx=16384,
+                num_batch=settings.ollama_retrieval_verifier_num_batch,
             )
             if isinstance(payload, dict):
                 normalized_payload = dict(payload)
@@ -2515,6 +2815,11 @@ class LlamaIndexAgenticController:
         if hop.recovery_for:
             return hop.strategy
         if dependency_anchors:
+            if hop.strategy == "structural":
+                # The discovered identifier narrows the subject, but a table
+                # predicate such as power source still needs structural row
+                # retrieval rather than identifier-frequency-only search.
+                return "structural"
             return "sparse"
         analysis = analyze_query(hop.query)
         # An identifier alone benefits from exact lexical lookup. Once the

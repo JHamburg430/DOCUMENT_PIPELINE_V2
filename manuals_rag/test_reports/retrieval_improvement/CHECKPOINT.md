@@ -179,3 +179,28 @@ other Ollama consumers remain unchanged. Focused common+metadata suite108pass.
 Forced CA-EN100U no-write extraction then completed planned/exit0 in
 retrieval_improvement/metadata_batch64_probe_20260918_000619.json with no corpus
 mutation. Production OFF. Next gate: controlled live oracle/dependency experiment.
+
+2026-09-17 LOCAL CONTROLLED RETRIEVAL GATE: direct-source and scoped live probes
+are complete in `team_oracle_probe.json` and `team_retrieval_planner_probe.json`.
+General repairs cover legacy-family scope, duplicate summaries, named-setting
+table retrieval, scoped comparison planning, exact compatibility/power-source
+verification, dependent demonstrative references, LlamaIndex structural routing,
+and complete multipart synthesis. Frozen case6's unqualified LJ-X8000 `Standard
+Angle` anchor is ambiguous: live retrieval found distinct blob-numbering and
+proximity-exclusion definitions, so both planners correctly abstain. Clean
+CA-EN100U→CA-EN100H→power-source dependency passes both backends with exact hop-2
+binding, both required claims retained, complete grounded answer, and runtimes
+127.15s/119.13s. Affected suites:501pass/36warnings. U6/T6/T7 complete.
+Production/agentic retrieval OFF. NEXT: unchanged frozen48 matrix with explicit
+exit artifact, then source-audited failure review; do not relabel the frozen set.
+
+2026-09-18: Frozen-matrix diagnostic coverage is complete across three durable
+segments (1 + 22 + 25 cases); IDs exactly match all 48 frozen cases and the final
+segment exited 0. Raw matrix passes: LangGraph 12/48, LlamaIndex 10/48. The run is
+not an acceptance result: 43 verifier calls timed out while NVIDIA discovery
+reported an unknown GPU error and the 9B verifier loaded with zero VRAM. This
+blocked later parallel/dependent hops and contaminated candidate/document scores.
+Added `OLLAMA_RETRIEVAL_VERIFIER_NUM_BATCH=64`; affected suites 501 pass/37
+warnings; full unit suite 1044 pass/77 warnings. T8 remains open pending
+healthy-GPU affected-case and full-matrix reruns. Audit:
+`agent_matrix_controlled_20260917_audit.md`. Production remains OFF.

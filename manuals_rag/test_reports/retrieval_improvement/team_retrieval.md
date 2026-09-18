@@ -82,3 +82,38 @@ Adjacent regression verification: **191 passed** in7.92s across
 Task-specific runnable oracle: `team_oracle_probe.py`, writes
 `team_oracle_probe.json` after each stage. It has not yet been run (GPU lease
 reserved by the extraction pilot). Coordinator should use an external timeout.
+
+## Controlled live result — 2026-09-17
+
+The oracle and planner probe is complete. Direct-source CV-X and LJ-X evidence
+was retained after scope/deduplication repairs. Scoped live retrieval confirmed
+the CV-X482 `Condition list` definition but found two legitimate LJ-X8000
+definitions for the unqualified `Standard Angle` label. That frozen question is
+ambiguous; the exact-label conflict gate makes both backends abstain instead of
+selecting a definition by rank.
+
+A separate source-audited dependency uses the CA-EN100U table: hop one discovers
+`CA-EN100H`; hop two uses that identifier to retrieve `Power-supply: Supply from
+CA-EN100U`. Both backends execute the dependency, retain the two required claims,
+and return the complete grounded answer. LangGraph completed in127.15s and
+LlamaIndex in119.13s. Artifact: `team_retrieval_planner_probe.json`. Full affected
+suites:501 passed. These are extracted-text/assistant results, not human/PDF
+adjudication or held-out accuracy. Production remains OFF; next is the unchanged
+frozen48-case matrix.
+
+## Frozen matrix diagnostic — 2026-09-17/18
+
+All 48 frozen IDs completed across three checkpointed segments with unchanged
+dataset SHA; the final segment exited 0. Raw passes were 12/48 LangGraph and
+10/48 LlamaIndex. Do not use those rates as acceptance: 43 verifier calls timed
+out after GPU discovery failed and the 9B verifier loaded on CPU. Timeouts fail
+closed before later branches or dependent hops can execute, contaminating many
+candidate/document scores. The cable dependency itself now plans correctly in
+both backends (dependent, two hops, one edge), but hop-1 verification timed out.
+The separate CA-EN100U dependency remains the clean live proof.
+
+Verifier inference now receives `num_batch=64`, matching metadata stabilization.
+Affected tests: 501 passed, 37 warnings; full unit suite: 1044 passed, 77
+warnings. T8 stays open until healthy-GPU affected cases and then the full matrix
+are rerun. See
+`agent_matrix_controlled_20260917_audit.md`. Production remains OFF.

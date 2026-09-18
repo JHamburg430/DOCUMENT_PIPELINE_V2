@@ -60,6 +60,16 @@ def test_initial_output_polarity_adds_manual_table_label_aliases():
     assert {"selection", "initial", "npn", "pnp"}.issubset(terms)
 
 
+def test_dependent_power_source_lookup_adds_structured_table_aliases():
+    query = "How is that encoder head powered; constrain the lookup to CA-EN100H?"
+    analysis = analyze_query(query)
+
+    terms = retriever._lexical_table_terms(query, analysis)
+
+    assert {"power", "supply", "powersupply"}.issubset(terms)
+    assert retriever._structured_prompt_phrase(query) == "powersupply"
+
+
 def test_default_spec_lookup_promotes_exact_structured_table_rows():
     generic = SearchResult(
         chunk_id="generic-output",
@@ -350,6 +360,85 @@ def test_named_setting_promotion_keeps_explicit_multiword_parameter_row():
     )
 
     assert promoted[0].chunk_id == "rough-feature-reduction"
+    assert promoted[0].metadata["retrieval_stage"] == "named_setting_promoted"
+
+
+def test_named_setting_configuration_query_enables_exact_table_lexical_route():
+    query = "For CV-X482, what does the Condition list setting control?"
+    analysis = analyze_query(query)
+
+    terms = retriever._lexical_table_terms(query, analysis)
+    phrase = retriever._structured_prompt_phrase(query)
+
+    assert "configuration" in analysis.query_types
+    assert {"condition", "list", "cvx482"}.issubset(set(terms))
+    assert phrase == "conditionlist"
+
+    answer_row = {
+        "content": (
+            "Column headers: Settings; Row headers: Condition list; "
+            "Cell value: A maximum of 16 reference conditions can be set."
+        ),
+        "metadata_json": {
+            "table_cell": True,
+            "table_row_headers": ["Condition list"],
+            "table_column_headers": ["Settings"],
+            "product_model": "CV-X482",
+        },
+        "priority_score": 13.0,
+    }
+    label_only_cell = {
+        "content": "Column headers: Setting item; Cell value: Condition list",
+        "metadata_json": {
+            "table_cell": True,
+            "table_row_headers": [],
+            "table_column_headers": ["Setting item"],
+            "product_model": "CV-X482",
+        },
+        "priority_score": 13.0,
+    }
+
+    assert retriever._table_lexical_score(answer_row, terms, phrase) > retriever._table_lexical_score(
+        label_only_cell,
+        terms,
+        phrase,
+    )
+
+
+def test_named_setting_promotion_accepts_leading_product_scope():
+    wrong = SearchResult(
+        chunk_id="condition-label-only",
+        score=1.0,
+        title="CV-X Manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[459],
+        section_path=["Settings"],
+        content="Column headers: Setting item; Cell value: Condition list",
+        metadata={"chunk_type": "table_record", "product_model": "CV-X482"},
+    )
+    exact = SearchResult(
+        chunk_id="condition-list-value",
+        score=0.8,
+        title="CV-X Manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[459],
+        section_path=["Settings"],
+        content=(
+            "Setting item: Condition list; Settings: A maximum of 16 reference "
+            "conditions can be set."
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "CV-X482"},
+    )
+
+    promoted = retriever._promote_named_setting_candidates(
+        [wrong],
+        [wrong, exact],
+        "For CV-X482, what does the Condition list setting control?",
+    )
+
+    assert promoted[0].chunk_id == "condition-list-value"
     assert promoted[0].metadata["retrieval_stage"] == "named_setting_promoted"
 
 

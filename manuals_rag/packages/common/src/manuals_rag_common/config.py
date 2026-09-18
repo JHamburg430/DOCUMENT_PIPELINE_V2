@@ -47,6 +47,9 @@ class Settings:
         "OLLAMA_RETRIEVAL_VERIFIER_MODEL",
         "qwen3.5:9b",
     )
+    ollama_retrieval_verifier_num_batch: int = int(
+        os.getenv("OLLAMA_RETRIEVAL_VERIFIER_NUM_BATCH", "64")
+    )
     ollama_answer_model: str = os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b")
     ollama_answer_num_predict: int = int(os.getenv("OLLAMA_ANSWER_NUM_PREDICT", "1024"))
     agentic_retrieval_enabled: bool = _as_bool(os.getenv("AGENTIC_RETRIEVAL_ENABLED"), False)

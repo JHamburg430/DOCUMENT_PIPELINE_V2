@@ -25,7 +25,7 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   applicability. Comparisons use separate entity branches and union evidence.
 - [x] U5: Replace fixed verifier truncation with bounded claim-specific evidence
   packing, complete evidence units, source IDs, and explicit omission tracking.
-- [ ] U6: Preserve real dependency links in planning; resolve follow-up queries
+- [x] U6: Preserve real dependency links in planning; resolve follow-up queries
   using supported intermediate facts and target recovery at missing claims.
 - [ ] U7: Retain structured conditions, table-row bindings, and complete procedure
   evidence through synthesis and verification; never weaken support checks to
@@ -50,10 +50,10 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
 - [x] T5: Verifier evidence tests include relevant material beyond character 900,
   supporting evidence beyond rank four, full table rows/procedures, competing
   products, bounded payloads, and explicit omissions with no invented citations.
-- [ ] T6: Source-audited oracle-evidence experiment separates synthesis/verifier
+- [x] T6: Source-audited oracle-evidence experiment separates synthesis/verifier
   failures from retrieval failures. Correct-scope/dependency experiment isolates
   planning. Record incorrect answers, correct complete answers, abstentions.
-- [ ] T7: Cross-document and dependent retrieval tests prove intermediate facts
+- [x] T7: Cross-document and dependent retrieval tests prove intermediate facts
   drive subsequent queries; unresolved dependencies cannot silently pass.
 - [ ] T8: Frozen 48-case matrix completes both backends with explicit exit status;
   compare each gate and category to baseline, adjudicate failures against source
@@ -266,3 +266,45 @@ by the current test results.
   `OLLAMA_METADATA_NUM_BATCH` (default 64); unrelated Ollama calls are unchanged.
   A forced CA-EN100U no-write extraction completed successfully with no corpus
   mutation in `test_reports/retrieval_improvement/metadata_batch64_probe_20260918_000619.json`.
+
+### Controlled oracle and dependency gate — 2026-09-17
+
+- Direct-source case `curated_cross_document_v2::6` confirmed the CV-X482
+  `Condition list` fact after repairing legacy-family scope and duplicate direct
+  summaries. Live scoped retrieval found two distinct LJ-X8000 settings named
+  `Standard Angle` in different tool contexts. The unqualified frozen question
+  is therefore an ambiguous oracle anchor, not a retrieval failure; both planners
+  now fail closed instead of choosing one definition.
+- The combined comparison is deterministically decomposed into independently
+  scoped setting branches before model planning. Exact named-setting retrieval,
+  structured compatibility/power-source verification, and multipart synthesis
+  are covered without product-specific answer hard-coding.
+- Clean dependent query: identify the encoder head supported by `CA-EN100U`, then
+  determine how that discovered head is powered. Both LangGraph and LlamaIndex
+  bound `CA-EN100H` into hop two, confirmed the exact structured rows, retained
+  both required claims, and answered that CA-EN100H is powered by CA-EN100U.
+  Runtimes were 127.15s and 119.13s respectively.
+- Controlled artifact:
+  `test_reports/retrieval_improvement/team_retrieval_planner_probe.json`.
+  This is an assistant audit of extracted text, not human/PDF or held-out
+  adjudication. Full affected suites: **501 passed, 36 warnings**.
+- Production and agentic retrieval remain OFF. Next gate: unchanged frozen
+  48-case matrix with explicit exit status and source-audited failure review.
+
+### Frozen matrix diagnostic run — 2026-09-17/18
+
+- The frozen dataset SHA remained
+  `51028f6b5ea6b09515ac361d2b747feb998aaa5098dca710c7e6f4a972871a65`.
+  Three checkpointed segments cover all 48 unique case IDs in exact dataset
+  order; the final segment exited 0.
+- Raw passes were 12/48 LangGraph and 10/48 LlamaIndex, but this is not an
+  acceptance result: 43 verifier calls timed out after NVIDIA discovery failed
+  and the 9B verifier loaded with zero VRAM.
+- The timeout fails closed before later branches/hops can be certified, so many
+  apparent cross-document and dependency misses are downstream artifacts.
+- Added verifier-only `OLLAMA_RETRIEVAL_VERIFIER_NUM_BATCH=64`, matching the
+  proven metadata batch stabilization. Affected unit suites: 501 passed; full
+  unit suite: 1044 passed with 77 warnings.
+- Full adjudication: `test_reports/retrieval_improvement/agent_matrix_controlled_20260917_audit.md`.
+- T8 remains open until GPU discovery is healthy, affected cases are rerun, and
+  a clean full-matrix comparison completes. Production remains OFF.

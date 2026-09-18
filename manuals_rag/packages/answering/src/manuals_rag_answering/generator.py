@@ -1009,6 +1009,74 @@ def _concise_structured_table_answer(
     return answer, [result]
 
 
+def _concise_dependency_mapping_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Answer a supported-model -> power-source dependency from explicit rows."""
+    if not (
+        re.search(r"\bwhich\b.{0,100}\bcompatib(?:le|ility)\b", query, flags=re.I)
+        and re.search(r"\bhow\b.{0,100}\bpowered\b", query, flags=re.I)
+    ):
+        return "", []
+    subject_match = re.search(
+        r"\bwhich\s+(?P<subject>.+?)\s+(?:is\s+)?compatib(?:le|ility)\b",
+        query,
+        flags=re.I,
+    )
+    subject = (
+        re.sub(r"\s+model$", "", subject_match.group("subject"), flags=re.I).strip()
+        if subject_match
+        else "model"
+    )
+    mappings: list[tuple[str, str, SearchResult]] = []
+    for result in results:
+        content = str(result.content or "")
+        cell = re.search(
+            r"Column\s+headers:\s*(?P<source>[A-Z][A-Z0-9:-]+).*?"
+            r"Row\s+headers:.*?Supported.*?;\s*Cell\s+value:\s*"
+            r"(?P<target>[A-Z][A-Z0-9:-]+)",
+            content,
+            flags=re.I | re.S,
+        )
+        keyed = re.search(
+            r"Model:\s*Supported.*?;\s*(?P<source>[A-Z][A-Z0-9:-]+):\s*"
+            r"(?P<target>[A-Z][A-Z0-9:-]+)",
+            content,
+            flags=re.I | re.S,
+        )
+        match = cell or keyed
+        if match:
+            mappings.append((match.group("source"), match.group("target"), result))
+    for source, target, mapping_result in mappings:
+        source_pattern = re.escape(source)
+        target_pattern = re.escape(target)
+        for power_result in results:
+            content = str(power_result.content or "")
+            keyed_power = re.search(
+                rf"Model:\s*Power[- ]?supply;\s*{target_pattern}:\s*"
+                rf"Supply\s+from\s+{source_pattern}\b",
+                content,
+                flags=re.I,
+            )
+            table_power = re.search(
+                rf"Model\s*\|\s*{target_pattern}\b.*?Power[- ]?supply\s*\|\s*"
+                rf"Supply\s+from\s+{source_pattern}\b",
+                content,
+                flags=re.I | re.S,
+            )
+            if not (keyed_power or table_power):
+                continue
+            support = [mapping_result]
+            if power_result.chunk_id != mapping_result.chunk_id:
+                support.append(power_result)
+            return (
+                f"The compatible {subject} is {target}, and it is powered by {source}.",
+                support,
+            )
+    return "", []
+
+
 def _troubleshooting_context_text(result: SearchResult) -> str:
     parts: list[str] = []
     for text in [
@@ -1987,6 +2055,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         )
     multipart = _multi_part_evidence_clauses(query)
     concise_answer, concise_results = _concise_troubleshooting_answer(query, results)
+    dependency_answer, dependency_results = _concise_dependency_mapping_answer(query, results)
     if _is_troubleshooting_query(query) and _query_troubleshooting_anchor(query) and not concise_answer:
         return AnswerResponse(
             answer="I could not find a troubleshooting entry matching the stated error in the retrieved evidence.",
@@ -2009,8 +2078,16 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         and _quantity_terms(query)
     ):
         table_answer = ""
-    fallback_results = concise_results or location_results or table_results or _fallback_evidence_results(query, results)
-    incomplete = bool(multipart) and not (concise_answer or location_answer)  # Generic extracts cannot certify compound claims.
+    fallback_results = (
+        concise_results
+        or dependency_results
+        or location_results
+        or table_results
+        or _fallback_evidence_results(query, results)
+    )
+    incomplete = bool(multipart) and not (
+        concise_answer or dependency_answer or location_answer
+    )  # Generic extracts cannot certify compound claims.
     if _is_comparison_query(query):
         sides = _comparison_side_clauses(query)
         matches = _comparison_troubleshooting_side_matches(query, results)
@@ -2018,6 +2095,8 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     top = fallback_results[0]
     if concise_answer:
         answer_text = concise_answer
+    elif dependency_answer:
+        answer_text = dependency_answer
     elif location_answer:
         answer_text = location_answer
     elif table_answer:
@@ -7234,10 +7313,38 @@ def generate_answer_with_trace(
             }
         )
         return answer, trace
+    dependency_answer, dependency_results = _concise_dependency_mapping_answer(query, results)
+    if dependency_answer:
+        answer = validate_answer(
+            _fallback_answer(query, dependency_results),
+            dependency_results,
+            query=query,
+        )
+        answer.answer = dependency_answer
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "dependency_mapping"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "dependency_mapping",
+                "used_fallback": False,
+                "answer_source": "deterministic_dependency_mapping",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
     table_answer, table_results = _concise_structured_table_answer(query, results)
     if (
         table_answer
         and not _is_configuration_location_query(query)
+        and not _multi_part_evidence_clauses(query)
         and not use_precomputed_model_path
     ):
         answer = validate_answer(_fallback_answer(query, table_results), table_results, query=query)
@@ -7500,6 +7607,9 @@ def prioritize_results_for_answer(query: str, candidate_results: list[SearchResu
             *location_evidence,
         ]
     ]
+    prioritized_results = list(
+        {result.chunk_id: result for result in prioritized_results}.values()
+    )
     prioritized_results.extend(
         result
         for result in candidate_results
@@ -7776,7 +7886,11 @@ def _fallback_summary(query: str, result: SearchResult) -> str:
 
 
 def _direct_evidence_summary(query: str, result: SearchResult) -> str | None:
-    chunk_type = str(result.metadata.get("chunk_type") or "")
+    chunk_type = str(
+        result.metadata.get("chunk_type")
+        or result.metadata.get("chunk_family")
+        or ""
+    )
     if chunk_type not in {"table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
         return None
     evidence = (_focused_table_record_answer_text(query, result) or _fallback_answer_text(result)).strip()
