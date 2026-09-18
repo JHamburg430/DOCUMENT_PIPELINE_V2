@@ -8843,6 +8843,57 @@ def test_multi_part_question_does_not_short_circuit_to_one_structured_cell(monke
     assert generic_answer.startswith("The compatible sensor is CA-EN100H")
 
 
+def test_dependency_mapping_answers_serial_cable_orientation_without_model(monkeypatch):
+    query = (
+        "Which cable model connects the LJ-X8000 RS-232C port, then what is that "
+        "cable's connector orientation?"
+    )
+    results = [
+        SearchResult(
+            chunk_id="port",
+            score=1.0,
+            title="LJ-X8000 manual",
+            document_version_id="v1",
+            source_document_id="doc",
+            pages=[30],
+            section_path=["NOTICE"],
+            content="The port to connect RS: 232C cable (OP-26487: 2.5 m, sold separately).",
+            metadata={"chunk_type": "atomic_text"},
+        ),
+        SearchResult(
+            chunk_id="description",
+            score=0.9,
+            title="LJ-X8000 manual",
+            document_version_id="v1",
+            source_document_id="doc",
+            pages=[664],
+            section_path=["Accessories"],
+            content=(
+                "Model name: OP-84384; Description: D-sub 9-pin connector (SYSMAC)\n"
+                "Model name: OP-26487; Description: Serial connection cable (2.5 m, straight)"
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    monkeypatch.setattr(
+        generator_module,
+        "chat_json",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError(f"cable dependency mapping should not call a model: {kwargs['purpose']}")
+        ),
+    )
+    answer, trace = generate_answer_with_trace(
+        query,
+        results,
+    )
+
+    assert answer.answer == "The cable model is OP-26487, and its connector orientation is straight."
+    assert [citation["chunk_id"] for citation in answer.citations] == ["port", "description"]
+    assert answer.insufficient_evidence is False
+    assert trace["final_answer"]["answer_source"] == "deterministic_dependency_mapping"
+
+
 def test_abstention_does_not_get_an_invented_top_citation():
     result = SearchResult(chunk_id="unrelated", score=1, title="Other manual",
                           document_version_id="v1", source_document_id="d1", pages=[1],

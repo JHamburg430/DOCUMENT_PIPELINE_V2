@@ -204,3 +204,15 @@ Added `OLLAMA_RETRIEVAL_VERIFIER_NUM_BATCH=64`; affected suites 501 pass/37
 warnings; full unit suite 1044 pass/77 warnings. T8 remains open pending
 healthy-GPU affected-case and full-matrix reruns. Audit:
 `agent_matrix_controlled_20260917_audit.md`. Production remains OFF.
+
+2026-09-18 BALANCED-GATEWAY FOLLOW-UP: compose defaults now route API/shared/UI
+Ollama traffic to the maintained 11437 gateway and pass verifier batch64 through
+API/shared workers; the running stack was not recreated. The final targeted
+RS-232C cable replay `agent_matrix_cable_gateway_batch64_v8_20260918.json`
+completed exit0. Both backends planned the explicit `then` dependency, retained
+2/2 evidence, confirmed both claims, and grounded `OP-26487` + `straight` with
+two citations. All correctness layers passed. Only latency/token-cost failed:
+4606/4571 measured tokens versus the frozen4000 ceiling. This is now classified
+as a performance gate; T8 and production remain OFF pending cost work and a
+healthy full48 rerun. Modified modules324pass; full unit1046pass/77warnings;
+compose config and diff checks pass.

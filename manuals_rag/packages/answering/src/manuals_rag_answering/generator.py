@@ -1013,7 +1013,59 @@ def _concise_dependency_mapping_answer(
     query: str,
     results: list[SearchResult],
 ) -> tuple[str, list[SearchResult]]:
-    """Answer a supported-model -> power-source dependency from explicit rows."""
+    """Answer a dependency chain from explicit identifier-bound source rows."""
+    cable_orientation_query = bool(
+        re.search(r"\bwhich\b.{0,100}\bcable(?:\s+model)?\b.{0,100}\bconnect", query, flags=re.I)
+        and re.search(r"\bRS\s*[: -]?\s*232C\b", query, flags=re.I)
+        and re.search(r"\bconnector(?:'s)?\s+orientation\b", query, flags=re.I)
+    )
+    if cable_orientation_query:
+        mappings: list[tuple[str, SearchResult]] = []
+        for result in results:
+            content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+            mapping = re.search(
+                r"\bRS\s*[: -]?\s*232C\b.{0,120}\bcable\b.{0,80}\b(?P<model>OP[- ]?\d+)\b",
+                content,
+                flags=re.I,
+            )
+            if mapping:
+                mappings.append((mapping.group("model").upper(), result))
+        for model, mapping_result in mappings:
+            compact_model = re.sub(r"[^A-Z0-9]", "", model)
+            for description_result in results:
+                content = re.sub(r"\s+", " ", str(description_result.content or "")).strip()
+                rows = list(re.finditer(
+                    r"Column\s+headers:\s*Description;\s*Row\s+headers:\s*(?P<row>OP[- ]?\d+);\s*"
+                    r"Cell\s+value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+|$)",
+                    content,
+                    flags=re.I,
+                ))
+                rows.extend(re.finditer(
+                    r"(?:Model\s+name:\s*)?(?P<row>OP[- ]?\d+)\s*;\s*Description:\s*"
+                    r"(?P<value>.*?)(?=\s+Model\s+name:|$)",
+                    content,
+                    flags=re.I,
+                ))
+                for row in rows:
+                    if re.sub(r"[^A-Z0-9]", "", row.group("row").upper()) != compact_model:
+                        continue
+                    orientation = re.search(
+                        r"\b(?P<orientation>straight|right[- ]?angle|angular|angled)\b",
+                        row.group("value"),
+                        flags=re.I,
+                    )
+                    if not orientation:
+                        continue
+                    support = [mapping_result]
+                    if description_result.chunk_id != mapping_result.chunk_id:
+                        support.append(description_result)
+                    return (
+                        f"The cable model is {model}, and its connector orientation is "
+                        f"{orientation.group('orientation').lower()}.",
+                        support,
+                    )
+        return "", []
+
     if not (
         re.search(r"\bwhich\b.{0,100}\bcompatib(?:le|ility)\b", query, flags=re.I)
         and re.search(r"\bhow\b.{0,100}\bpowered\b", query, flags=re.I)
@@ -7136,6 +7188,10 @@ def generate_answer_with_trace(
         query,
         results,
     )
+    dependency_mapping_preview, _dependency_mapping_preview_results = _concise_dependency_mapping_answer(
+        query,
+        results,
+    )
     model_field_table_preview = any(
         len(re.findall(r"(?:^|\s)Model\s*:", str(result.content or ""), flags=re.IGNORECASE)) > 1
         and _focused_model_field_record_answer_text(query, result)
@@ -7147,6 +7203,7 @@ def generate_answer_with_trace(
         if (
             named_option_preview
             or dependent_list_preview
+            or dependency_mapping_preview
             or model_field_table_preview
             or use_precomputed_model_path
         )

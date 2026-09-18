@@ -8,6 +8,7 @@ from manuals_rag_answering.agentic_retrieval import (
     plan_retrieval,
     plan_llamaindex_retrieval,
     refine_dependent_query,
+    refine_llamaindex_subquestion,
     insufficient_agent_answer,
     query_requires_visual_evidence,
     visual_evidence_unavailable_answer,
@@ -214,7 +215,10 @@ def test_model_planners_make_demonstrative_coordinate_question_dependent(monkeyp
         "encoder head powered?"
     )
 
+    planner_calls = []
+
     def fail_if_called(**_kwargs):
+        planner_calls.append(_kwargs)
         raise AssertionError("deterministic dependency safety must run before model planning")
 
     monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", fail_if_called)
@@ -226,6 +230,62 @@ def test_model_planners_make_demonstrative_coordinate_question_dependent(monkeyp
     assert langgraph.hops[1].depends_on == ["facet_1"]
     assert llamaindex.mode == "dependent"
     assert llamaindex.hops[1].depends_on == ["subquestion_1"]
+
+    cable_query = (
+        "Which cable model connects the LJ-X8000 RS-232C port, then what is that "
+        "cable's connector orientation?"
+    )
+    cable_langgraph = plan_retrieval(cable_query, use_llm=True)
+    cable_llamaindex = plan_llamaindex_retrieval(cable_query, use_llm=True)
+    assert cable_langgraph.mode == "dependent"
+    assert cable_langgraph.hops[1].depends_on == ["hop_1"]
+    assert cable_llamaindex.mode == "dependent"
+    assert cable_llamaindex.hops[1].depends_on == ["subquestion_1"]
+    assert planner_calls == []
+
+
+def test_verifier_deterministically_confirms_serial_cable_mapping_and_orientation(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+    cable = _result(
+        "cable",
+        "ljx-doc",
+        "The port to connect RS: 232C cable (OP-26487: 2.5 m, sold separately).",
+    )
+    cable.metadata["product_models"] = ["LJ-X8000"]
+    cable_output = verify_retrieval_claim(
+        RetrievalHop(
+            hop_id="cable",
+            objective="Which cable model connects the LJ-X8000 RS-232C port?",
+            query="Which cable model connects the LJ-X8000 RS-232C port?",
+        ),
+        "Which cable model connects the LJ-X8000 RS-232C port?",
+        [cable],
+        {"claim_supported": True, "supporting_chunk_ids": ["cable"]},
+    )
+    assert cable_output["trust_state"] == "confirmed"
+    assert cable_output["supporting_chunk_ids"] == ["cable"]
+
+    orientation = _result(
+        "orientation",
+        "ljx-doc",
+        "Column headers: Description; Row headers: OP-26487; "
+        "Cell value: Serial connection cable (2.5 m, straight); Row: 14; Column: 1",
+    )
+    orientation_output = verify_retrieval_claim(
+        RetrievalHop(
+            hop_id="orientation",
+            objective="What is that cable's connector orientation?",
+            query="What is that cable's connector orientation?",
+        ),
+        "What is the Description for OP-26487, including the cable connector orientation?",
+        [orientation],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+    assert orientation_output["trust_state"] == "confirmed"
+    assert orientation_output["supporting_chunk_ids"] == ["orientation"]
 
 
 def test_llamaindex_keeps_structural_tool_for_dependency_predicate():
@@ -1776,9 +1836,8 @@ def test_deterministic_dependency_refinement_keeps_concrete_identifiers_only():
 
     refined = refine_dependent_query(hop, [prior], use_llm=False)
 
-    assert refined == (
-        "What is that cable's connector orientation. Relevant prior-hop identifiers: RS-232C, OP26487"
-    )
+    assert refined == "What is the Description for OP26487, including the cable connector orientation?"
+    assert refine_llamaindex_subquestion(hop, [prior], use_llm=True) == refined
     assert "bus-powered" not in refined
     assert "and/or" not in refined
 
@@ -1933,11 +1992,11 @@ def test_dependent_sufficiency_requires_answer_signal_with_anchor():
     assert output["retrieval_trace"]["completed_hops"] == [
         "identify_cable",
         "find_orientation",
-        "find_orientation_recovery",
     ]
-    assert output["evidence_ledger"]["find_orientation"]["sufficient"] is False
+    assert output["evidence_ledger"]["find_orientation"]["sufficient"] is True
+    assert output["evidence_ledger"]["find_orientation"]["strategy"] == "structural"
     assert output["evidence_ledger"]["find_orientation"]["assessment"]["dependency_anchors"] == ["OP-26487"]
-    assert output["evidence_ledger"]["find_orientation_recovery"]["sufficient"] is True
+    assert "find_orientation_recovery" not in output["evidence_ledger"]
 
 
 def test_claim_sufficiency_rejects_cross_chunk_keyword_collage():

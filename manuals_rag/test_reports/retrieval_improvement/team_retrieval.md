@@ -117,3 +117,15 @@ Affected tests: 501 passed, 37 warnings; full unit suite: 1044 passed, 77
 warnings. T8 stays open until healthy-GPU affected cases and then the full matrix
 are rerun. See
 `agent_matrix_controlled_20260917_audit.md`. Production remains OFF.
+
+## Balanced-gateway affected-case proof — 2026-09-18
+
+Compose defaults were corrected from Ollama 11434 to the maintained balanced
+gateway on 11437 for API/shared workers/UI, with verifier batch64 propagated to
+API/shared workers. The final frozen cable-case replay is
+`agent_matrix_cable_gateway_batch64_v8_20260918.json` (exit 0). Both planners
+used a dependent plan, retained 2/2 evidence, confirmed both claims, and returned
+the grounded two-citation OP-26487 / straight answer. All correctness layers
+passed; only the 4,000-token cost ceiling failed (4,606 / 4,571). T8 remains open
+as a performance and clean-full-matrix gate. Modified modules324pass; full unit
+1046pass/77warnings; compose and diff checks pass. Production remains OFF.

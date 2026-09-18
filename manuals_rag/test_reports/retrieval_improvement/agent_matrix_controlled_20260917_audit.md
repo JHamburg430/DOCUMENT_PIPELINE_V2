@@ -71,3 +71,35 @@ contaminated by inference infrastructure failure:
   cross-document, cable-dependency, and unanswerable cases first. Only then rerun
   the full frozen matrix and compare a clean report.
 - Production and agentic retrieval remain off.
+
+## Balanced-gateway affected-case replay — 2026-09-18
+
+The saved compose topology was also stale: API, shared workers, and UI still
+defaulted to the local Ollama endpoint on port 11434 while the maintained
+balanced gateway is on port 11437. The compose defaults now route those clients
+to 11437 and expose the verifier batch-64 setting to API/shared workers. The
+running stack was not recreated; controlled replays used explicit container
+environment overrides.
+
+The frozen RS-232C dependency case was replayed at offset 46 after separating
+its failures by layer. The final artifact is
+`agent_matrix_cable_gateway_batch64_v8_20260918.json` (exit 0). Both backends:
+
+- forced the explicit `then` request to a dependent plan;
+- retained 2/2 answer-bearing evidence units, including the equivalent grouped
+  description row for OP-26487;
+- confirmed both required claims and produced the grounded answer
+  `The cable model is OP-26487, and its connector orientation is straight.`;
+- cited both the port mapping and description evidence; and
+- passed tool, candidate, document, dependency, sufficiency, and grounded-answer
+  cells.
+
+The only failed cell was the frozen latency/token-cost guard: LangGraph used
+4,606 measured tokens and LlamaIndex 4,571 against the 4,000-token ceiling.
+This is a clean performance failure, not a retrieval, dependency, verifier, or
+answer-grounding failure. T8 therefore remains open pending cost reduction and a
+healthy full-matrix rerun.
+
+Post-fix verification: both modified unit modules passed 324 tests; the complete
+unit suite passed 1,046 tests with 77 warnings; compose configuration validation
+and `git diff --check` passed.

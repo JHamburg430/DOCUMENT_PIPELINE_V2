@@ -308,3 +308,21 @@ by the current test results.
 - Full adjudication: `test_reports/retrieval_improvement/agent_matrix_controlled_20260917_audit.md`.
 - T8 remains open until GPU discovery is healthy, affected cases are rerun, and
   a clean full-matrix comparison completes. Production remains OFF.
+
+### Balanced-gateway cable dependency replay — 2026-09-18
+
+- Corrected compose defaults for API/shared workers/UI from local Ollama 11434
+  to the maintained balanced gateway on 11437; verifier batch64 is now passed to
+  API/shared workers. No running-service recreation was performed during the
+  controlled gate.
+- Final affected-case artifact:
+  `test_reports/retrieval_improvement/agent_matrix_cable_gateway_batch64_v8_20260918.json`
+  with explicit exit 0.
+- LangGraph and LlamaIndex each passed candidate recall (2/2), document
+  retention, dependent-hop structure, evidence sufficiency, and grounded answer.
+  Both returned OP-26487 / straight with two valid citations.
+- Both still failed the frozen cost cell at 4,606 and 4,571 measured tokens
+  versus the 4,000 ceiling. Treat this as performance work; do not relabel it as
+  a retrieval miss or close T8 before the clean full-matrix rerun.
+- Verification: modified modules **324 passed**; full unit suite **1,046 passed,
+  77 warnings**; compose configuration and diff checks passed.

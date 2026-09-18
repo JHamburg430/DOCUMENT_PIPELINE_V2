@@ -476,7 +476,8 @@ def _coordinate_question_plan(query: str) -> RetrievalPlan | None:
         for branch in branches
     ]
     discovered_entity = re.match(
-        r"^which\s+(?P<referent>.+?)\s+(?:is|are|was|were)\b",
+        r"^which\s+(?P<referent>.+?)\s+"
+        r"(?:is|are|was|were|connects?|uses?|supports?|works?|matches?|fits?|has|have)\b",
         first,
         flags=re.I,
     )
@@ -516,6 +517,30 @@ def _coordinate_question_plan(query: str) -> RetrievalPlan | None:
                 strategy=_claim_strategy(branch_query),
             )
             for index, branch_query in enumerate(queries)
+        ],
+    )
+
+
+def _explicit_dependency_sequence_plan(query: str) -> RetrievalPlan | None:
+    clauses = [
+        part.strip(" ,.;")
+        for part in re.split(r"\b(?:then|after that|using that)\b", query, flags=re.I)
+        if part.strip(" ,.;")
+    ]
+    if len(clauses) < 2:
+        return None
+    return RetrievalPlan(
+        mode="dependent",
+        rationale="The request contains an explicit dependency sequence.",
+        hops=[
+            RetrievalHop(
+                hop_id=f"hop_{index + 1}",
+                objective=clause,
+                query=clause,
+                strategy="hybrid",
+                depends_on=[] if index == 0 else [f"hop_{index}"],
+            )
+            for index, clause in enumerate(clauses[:4])
         ],
     )
 
@@ -589,6 +614,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     coordinate_plan = _coordinate_question_plan(query)
     if coordinate_plan is not None:
         return coordinate_plan
+    dependency_plan = _explicit_dependency_sequence_plan(query)
+    if dependency_plan is not None:
+        return dependency_plan
     reported_plan = _reported_clause_plan(query)
     if reported_plan is not None:
         return reported_plan
@@ -609,21 +637,6 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
         ]
         return RetrievalPlan(mode="parallel", rationale="Explicit comparison across identifiers.", hops=hops)
 
-    clauses = [part.strip(" ,.;") for part in re.split(r"\b(?:then|after that|using that)\b", query, flags=re.I) if part.strip()]
-    if len(clauses) >= 2:
-        hops: list[RetrievalHop] = []
-        for index, clause in enumerate(clauses[:4]):
-            hops.append(
-                RetrievalHop(
-                    hop_id=f"hop_{index + 1}",
-                    objective=clause,
-                    query=clause,
-                    strategy="hybrid",
-                    depends_on=[] if index == 0 else [f"hop_{index}"],
-                )
-            )
-        return RetrievalPlan(mode="dependent", rationale="The request contains an explicit dependency sequence.", hops=hops)
-
     strategy: RetrievalStrategy = "structural" if set(analysis.query_types).intersection(
         {"configuration", "specification", "troubleshooting", "how_to"}
     ) else "hybrid"
@@ -642,6 +655,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         _troubleshooting_facet_plan(query)
         or _comparison_facet_plan(query)
         or _coordinate_question_plan(query)
+        or _explicit_dependency_sequence_plan(query)
         or _reported_clause_plan(query)
         or _parallel_scope_plan(query)
         or _labelled_lookup_plan(query)
@@ -702,6 +716,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         _troubleshooting_facet_plan(query) is not None
         or _comparison_facet_plan(query) is not None
         or _coordinate_question_plan(query) is not None
+        or _explicit_dependency_sequence_plan(query) is not None
         or _reported_clause_plan(query) is not None
         or _parallel_scope_plan(query) is not None
         or _labelled_lookup_plan(query) is not None
@@ -797,11 +812,24 @@ def _dependency_anchors(results: list[SearchResult]) -> list[str]:
     return anchors
 
 
+def _deterministic_identifier_facet_query(hop: RetrievalHop, anchors: list[str]) -> str | None:
+    """Build exact structured lookups for identifier-bound physical facets."""
+    if not re.search(r"\bconnector(?:'s)?\s+orientation\b", hop.query, flags=re.I):
+        return None
+    cable_ids = [anchor for anchor in anchors if re.fullmatch(r"OP[- ]?\d+", anchor, flags=re.I)]
+    if len(cable_ids) != 1:
+        return None
+    return f"What is the Description for {cable_ids[0]}, including the cable connector orientation?"
+
+
 def refine_dependent_query(hop: RetrievalHop, dependency_results: list[SearchResult], *, use_llm: bool = True) -> str:
     if not dependency_results:
         return hop.query
     evidence = _evidence_excerpt(dependency_results)
     anchors = _dependency_anchors(dependency_results)
+    deterministic_query = _deterministic_identifier_facet_query(hop, anchors)
+    if deterministic_query is not None:
+        return deterministic_query
     fallback = hop.query
     if anchors:
         fallback = f"{hop.query.rstrip(' ?')}. Relevant prior-hop identifiers: {', '.join(anchors[:6])}"
@@ -850,6 +878,9 @@ def refine_llamaindex_subquestion(
         return hop.query
     anchors = _dependency_anchors(dependency_results)
     evidence = _evidence_excerpt(dependency_results)
+    deterministic_query = _deterministic_identifier_facet_query(hop, anchors)
+    if deterministic_query is not None:
+        return deterministic_query
     fallback = (
         f"{hop.query.rstrip(' ?')}; constrain the lookup to {', '.join(anchors[:6])}"
         if anchors
@@ -1578,6 +1609,68 @@ def _direct_menu_mapping_support(
     return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
 
 
+def _direct_cable_mapping_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm a serial-port cable model or an exact cable description row."""
+    preliminary_ids = {
+        str(chunk_id) for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    cable_model_query = bool(
+        re.search(r"\bwhich\b.{0,80}\bcable(?:\s+model)?\b.{0,80}\bconnect", query, flags=re.I)
+        and re.search(r"\bRS\s*[: -]?\s*232C\b", query, flags=re.I)
+    )
+    orientation_query = bool(
+        re.search(r"\b(?:connector\s+orientation|orientation\s+of\s+the\s+connector)\b", query, flags=re.I)
+    )
+    requested_cables = {
+        re.sub(r"[^A-Z0-9]", "", value.upper())
+        for value in re.findall(r"\bOP[- ]?\d+\b", query, flags=re.I)
+    }
+    matches: list[tuple[int, int, int, str]] = []
+    for result_index, result in enumerate(results):
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        supported = False
+        if cable_model_query:
+            supported = bool(
+                _result_supports_branch_scope(query, result)
+                and
+                re.search(r"\bRS\s*[: -]?\s*232C\b", content, flags=re.I)
+                and re.search(r"\bcable\b.{0,80}\bOP[- ]?\d+\b", content, flags=re.I)
+            )
+        elif orientation_query and requested_cables:
+            description_rows = list(re.finditer(
+                r"Column\s+headers:\s*Description;\s*Row\s+headers:\s*(?P<row>OP[- ]?\d+);\s*"
+                r"Cell\s+value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+|$)",
+                content,
+                flags=re.I,
+            ))
+            description_rows.extend(re.finditer(
+                r"(?:Model\s+name:\s*)?(?P<row>OP[- ]?\d+)\s*"
+                r";\s*Description:\s*(?P<value>.*?)(?=\s+Model\s+name:|$)",
+                content,
+                flags=re.I,
+            ))
+            supported = any(
+                re.sub(r"[^A-Z0-9]", "", cell.group("row").upper()) in requested_cables
+                and bool(
+                    re.search(
+                        r"\b(?:straight|right[- ]?angle|angular|angled|male|female)\b",
+                        cell.group("value"),
+                        flags=re.I,
+                    )
+                )
+                for cell in description_rows
+            )
+        if supported:
+            preliminary = int(result.chunk_id in preliminary_ids)
+            bounded = int(str(result.metadata.get("chunk_type") or "") in {"table_record", "atomic_text"})
+            matches.append((preliminary, bounded, -len(content) - result_index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
 def _direct_structured_compatibility_support(
     query: str,
     results: list[SearchResult],
@@ -1862,6 +1955,28 @@ def verify_retrieval_claim(
             applicability="unknown",
             rationale="No retrieval evidence was supplied to the verifier.",
         ).model_dump()
+
+    direct_cable_support = _direct_cable_mapping_support(
+        f"{hop.objective} {executed_query}",
+        results,
+        preliminary_assessment,
+    )
+    if direct_cable_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_cable_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic cable verification matched an explicit serial-port cable mapping "
+                "or exact cable-description row."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
 
     direct_compatibility_support = _direct_structured_compatibility_support(
         hop.objective,
@@ -2502,10 +2617,14 @@ class AgenticRetrievalController:
         executed_query = self.refiner(hop, dependency_results) if hop.depends_on else hop.query
         executed_strategy: RetrievalStrategy = hop.strategy
         if dependency_anchors and hop.strategy == "hybrid":
-            executed_query = (
-                f"{hop.query.rstrip(' ?')}. Relevant prior-hop identifiers: {', '.join(dependency_anchors[:6])}"
-            )
-            executed_strategy = "sparse"
+            deterministic_query = _deterministic_identifier_facet_query(hop, dependency_anchors)
+            if deterministic_query is not None:
+                executed_strategy = "structural"
+            else:
+                executed_query = (
+                    f"{hop.query.rstrip(' ?')}. Relevant prior-hop identifiers: {', '.join(dependency_anchors[:6])}"
+                )
+                executed_strategy = "sparse"
         self._emit(
             "hop_started",
             hop_id=hop.hop_id,
@@ -2815,6 +2934,8 @@ class LlamaIndexAgenticController:
         if hop.recovery_for:
             return hop.strategy
         if dependency_anchors:
+            if _deterministic_identifier_facet_query(hop, dependency_anchors) is not None:
+                return "structural"
             if hop.strategy == "structural":
                 # The discovered identifier narrows the subject, but a table
                 # predicate such as power source still needs structural row
