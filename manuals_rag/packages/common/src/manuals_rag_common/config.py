@@ -41,6 +41,7 @@ class Settings:
     ollama_metadata_timeout_seconds: float = float(
         os.getenv("OLLAMA_METADATA_TIMEOUT_SECONDS", "300")
     )
+    ollama_metadata_num_batch: int = int(os.getenv("OLLAMA_METADATA_NUM_BATCH", "64"))
     ollama_fast_model: str = os.getenv("OLLAMA_FAST_MODEL", "qwen3.5:4b")
     ollama_retrieval_verifier_model: str = os.getenv(
         "OLLAMA_RETRIEVAL_VERIFIER_MODEL",

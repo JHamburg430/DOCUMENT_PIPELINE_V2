@@ -38,6 +38,7 @@ def test_infer_document_metadata_from_model_response(monkeypatch):
         assert kwargs["purpose"].startswith("metadata_extraction")
         assert "properties" in kwargs["json_schema"]
         assert kwargs["num_ctx"] == METADATA_NUM_CTX
+        assert kwargs["num_batch"] == settings.ollama_metadata_num_batch
         return (
             {
                 "manufacturer": "Keyence",

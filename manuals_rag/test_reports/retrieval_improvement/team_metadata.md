@@ -124,3 +124,13 @@ sample-only persistence. Production remains off.
   open pending human visual-PDF adjudication.
 - A live Ollama 9B probe terminated in the runner. No extraction retry or unrelated
   GPU workload disruption followed. Production remains disabled.
+
+## 2026-09-18 low-memory metadata runtime proof
+
+- Logs tied the failure to the 16K/default-batch-512 load: CUDA OOM followed stale
+  GPU-memory discovery. A batch-64 probe succeeded in 10.35 seconds with other
+  workloads still resident.
+- Added configurable `OLLAMA_METADATA_NUM_BATCH` with default 64 to metadata
+  warmup and all metadata chat calls only. Focused common/metadata suite: 108 passed.
+- Forced CA-EN100U no-write extraction completed successfully with no corpus
+  mutation: `metadata_batch64_probe_20260918_000619.json`.

@@ -120,6 +120,7 @@ def _chat_options(
     json_mode: bool,
     num_predict: int | None = None,
     num_ctx: int | None = None,
+    num_batch: int | None = None,
 ) -> dict[str, Any]:
     family = model_family(model)
     if family == "qwen":
@@ -131,6 +132,8 @@ def _chat_options(
             options["num_predict"] = num_predict
         if num_ctx is not None:
             options["num_ctx"] = num_ctx
+        if num_batch is not None:
+            options["num_batch"] = num_batch
         return options
     if json_mode:
         options = {"temperature": 0.0}
@@ -140,6 +143,8 @@ def _chat_options(
         options["num_predict"] = num_predict
     if num_ctx is not None:
         options["num_ctx"] = num_ctx
+    if num_batch is not None:
+        options["num_batch"] = num_batch
     return options
 
 
@@ -153,6 +158,7 @@ def build_chat_payload(
     stream: bool = False,
     num_predict: int | None = None,
     num_ctx: int | None = None,
+    num_batch: int | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "model": model,
@@ -163,6 +169,7 @@ def build_chat_payload(
             json_mode=json_schema is not None,
             num_predict=num_predict,
             num_ctx=num_ctx,
+            num_batch=num_batch,
         ),
     }
     if keep_alive is not None:
@@ -233,6 +240,7 @@ def ensure_model_loaded(
     force_reload: bool = False,
     purpose: str | None = None,
     num_ctx: int | None = None,
+    num_batch: int | None = None,
 ) -> None:
     available = _available_models(client)
     if model not in available:
@@ -250,7 +258,11 @@ def ensure_model_loaded(
             "prompt": "",
             "stream": False,
             "keep_alive": keep_alive,
-            "options": {"temperature": 0.0, **({"num_ctx": num_ctx} if num_ctx is not None else {})},
+            "options": {
+                "temperature": 0.0,
+                **({"num_ctx": num_ctx} if num_ctx is not None else {}),
+                **({"num_batch": num_batch} if num_batch is not None else {}),
+            },
         },
     )
     response.raise_for_status()
@@ -268,6 +280,7 @@ def _post_chat(
     purpose: str | None = None,
     num_predict: int | None = None,
     num_ctx: int | None = None,
+    num_batch: int | None = None,
 ) -> dict[str, Any]:
     loaded_before = sorted(_loaded_models(client))
     request_payload = build_chat_payload(
@@ -278,6 +291,7 @@ def _post_chat(
         keep_alive=keep_alive,
         num_predict=num_predict,
         num_ctx=num_ctx,
+        num_batch=num_batch,
     )
     _record_call(
         {
@@ -402,9 +416,17 @@ def chat_json(
     purpose: str | None = None,
     num_predict: int | None = None,
     num_ctx: int | None = None,
+    num_batch: int | None = None,
 ) -> tuple[dict[str, Any] | list[Any], str]:
     with httpx.Client(base_url=settings.ollama_url, timeout=load_timeout) as client:
-        ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose, num_ctx=num_ctx)
+        ensure_model_loaded(
+            client=client,
+            model=model,
+            keep_alive=keep_alive,
+            purpose=purpose,
+            num_ctx=num_ctx,
+            num_batch=num_batch,
+        )
         # Model loading may legitimately need longer than inference. Do not let
         # that load allowance silently override the caller's inference budget.
         client.timeout = httpx.Timeout(max(1.0, timeout))
@@ -419,6 +441,7 @@ def chat_json(
                 purpose=purpose,
                 num_predict=num_predict,
                 num_ctx=num_ctx,
+                num_batch=num_batch,
             )
         except Exception as exc:
             if isinstance(exc, httpx.TimeoutException):
@@ -429,7 +452,15 @@ def chat_json(
             logger.warning("Ollama chat_json failed for model=%s; reloading and retrying once: %s", model, exc)
             _record_call({"kind": "chat_error", "model": model, "purpose": purpose, "error": str(exc)})
             client.timeout = httpx.Timeout(max(1.0, load_timeout))
-            ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, force_reload=True, purpose=purpose, num_ctx=num_ctx)
+            ensure_model_loaded(
+                client=client,
+                model=model,
+                keep_alive=keep_alive,
+                force_reload=True,
+                purpose=purpose,
+                num_ctx=num_ctx,
+                num_batch=num_batch,
+            )
             client.timeout = httpx.Timeout(max(1.0, timeout))
             body = _post_chat(
                 client=client,
@@ -441,6 +472,7 @@ def chat_json(
                 purpose=purpose,
                 num_predict=num_predict,
                 num_ctx=num_ctx,
+                num_batch=num_batch,
             )
     content = extract_chat_content(body)
     if not content.strip():

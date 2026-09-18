@@ -170,3 +170,12 @@ metadata/backfill/audit tests:95pass. U3/T3 complete. Ollama live probe failed
 with llama runner termination, so no GPU extraction was retried and downstream
 live oracle/matrix gates remain open. Broad non-live unit suite:1017pass,
 58warnings,459.79s, with live pipeline health excluded and CUDA hidden. Production OFF.
+
+2026-09-18 00:06 UTC: Ollama logs confirmed the failed metadata load used16K
+context/batch512, requested8.7GiB, then hit CUDA OOM after stale GPU discovery.
+Batch64 loaded and answered in10.35s without unloading other workloads. Added
+OLLAMA_METADATA_NUM_BATCH default64 consistently to metadata warmup and chat;
+other Ollama consumers remain unchanged. Focused common+metadata suite108pass.
+Forced CA-EN100U no-write extraction then completed planned/exit0 in
+retrieval_improvement/metadata_batch64_probe_20260918_000619.json with no corpus
+mutation. Production OFF. Next gate: controlled live oracle/dependency experiment.

@@ -24,6 +24,7 @@ def test_qwen_payload_disables_thinking_and_uses_json_schema():
         think=False,
         num_predict=-1,
         num_ctx=8192,
+        num_batch=64,
     )
     assert payload["think"] is False
     assert payload["format"] == {"type": "object"}
@@ -31,6 +32,7 @@ def test_qwen_payload_disables_thinking_and_uses_json_schema():
     assert payload["options"]["presence_penalty"] == 1.5
     assert payload["options"]["num_predict"] == -1
     assert payload["options"]["num_ctx"] == 8192
+    assert payload["options"]["num_batch"] == 64
 
 
 def test_gpt_oss_payload_omits_think_control():
@@ -117,6 +119,7 @@ def test_chat_json_warms_requested_model_before_chat(monkeypatch):
         messages=[{"role": "user", "content": "Hi"}],
         json_schema={"type": "object"},
         num_ctx=8192,
+        num_batch=64,
     )
 
     assert parsed == {"ok": True}
@@ -126,7 +129,10 @@ def test_chat_json_warms_requested_model_before_chat(monkeypatch):
     assert "/api/chat" in call_paths
     assert calls[2][2]["model"] == "gpt-oss:20b"
     assert calls[2][2]["options"]["num_ctx"] == 8192
-    assert next(c[2] for c in calls if c[1] == "/api/chat")["options"]["num_ctx"] == 8192
+    assert calls[2][2]["options"]["num_batch"] == 64
+    chat_options = next(c[2] for c in calls if c[1] == "/api/chat")["options"]
+    assert chat_options["num_ctx"] == 8192
+    assert chat_options["num_batch"] == 64
 
 
 def test_chat_json_reloads_and_retries_after_chat_failure(monkeypatch):

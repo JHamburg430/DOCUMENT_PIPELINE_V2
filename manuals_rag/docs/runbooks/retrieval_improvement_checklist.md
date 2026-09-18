@@ -258,3 +258,11 @@ by the current test results.
   1017 tests with 58 warnings in 459.79 seconds. U3/T3 are complete. T2 remains
   conservatively unchecked because this is an assistant source-text audit, not
   human visual-PDF adjudication. Production remains disabled.
+
+- Ollama diagnostics showed the 9B/16K metadata runner failing at the default
+  batch 512 with CUDA OOM and stale GPU discovery while other approved workloads
+  remained resident. A bounded batch-64 probe loaded and answered in 10.35 seconds.
+  Metadata warmup and every metadata chat now use the configurable
+  `OLLAMA_METADATA_NUM_BATCH` (default 64); unrelated Ollama calls are unchanged.
+  A forced CA-EN100U no-write extraction completed successfully with no corpus
+  mutation in `test_reports/retrieval_improvement/metadata_batch64_probe_20260918_000619.json`.

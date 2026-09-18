@@ -802,6 +802,7 @@ def _extract_scalar_metadata(filename: str, text: str) -> ScalarMetadataExtracti
                 purpose="metadata_extraction",
                 num_predict=_metadata_token_budget(320),
                 num_ctx=METADATA_NUM_CTX,
+                num_batch=settings.ollama_metadata_num_batch,
             )
             return ScalarMetadataExtraction.model_validate(_normalize_object_response(parsed))
         except Exception as exc:
@@ -830,6 +831,7 @@ def _extract_printed_title(text: str) -> str | None:
                 purpose="metadata_extraction.document_title",
                 num_predict=_metadata_token_budget(160),
                 num_ctx=METADATA_NUM_CTX,
+                num_batch=settings.ollama_metadata_num_batch,
             )
             candidate = TitleMetadataExtraction.model_validate(parsed).title
             if candidate is None:
@@ -934,6 +936,7 @@ def _extract_list_field(field_name: str, filename: str, text: str) -> list[str]:
                 purpose=f"metadata_extraction.{field_name}",
                 num_predict=_metadata_token_budget(1024),
                 num_ctx=METADATA_NUM_CTX,
+                num_batch=settings.ollama_metadata_num_batch,
             )
             if isinstance(parsed, list):
                 parsed = {field_name: parsed}
@@ -1291,6 +1294,7 @@ def _call_scoped_model(
                 purpose=purpose,
                 num_predict=_metadata_token_budget(METADATA_SCOPED_NUM_PREDICT),
                 num_ctx=METADATA_NUM_CTX,
+                num_batch=settings.ollama_metadata_num_batch,
             )
             if verification_candidates and isinstance(parsed, list) and parsed and isinstance(parsed[0], dict) and "claim_id" in parsed[0]:
                 parsed = {"decisions": parsed}
