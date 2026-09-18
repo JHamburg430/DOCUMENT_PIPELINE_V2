@@ -1,0 +1,24 @@
+[
+  {
+    "document_id": "14879385-0608-44ee-85fc-0b79ac5c1d96",
+    "version_id": "99a0ce95-f748-46d0-b7a4-851fd687e667",
+    "source_filename": "CA-EN100U_Datasheet.pdf",
+    "status": "skipped_current",
+    "metadata": null,
+    "error": null,
+    "chunk_count": 0,
+    "embed_enqueued": false,
+    "warning": null
+  },
+  {
+    "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+    "version_id": "7411c343-b08b-4195-8c3b-b22334f7e80a",
+    "source_filename": "VJ-H500CX_Datasheet.pdf",
+    "status": "skipped_current",
+    "metadata": null,
+    "error": null,
+    "chunk_count": 0,
+    "embed_enqueued": false,
+    "warning": null
+  }
+]

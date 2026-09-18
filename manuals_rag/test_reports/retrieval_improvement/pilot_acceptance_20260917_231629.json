@@ -29,5 +29,13 @@
     "skipped_current": 2,
     "writes": 0,
     "embed_enqueues": 0
+  },
+  "interrupted_resume": {
+    "report": "test_reports/retrieval_improvement/pilot_interrupted_resume_20260917_235305.json",
+    "checkpointed_documents_retained": 1,
+    "remaining_documents_completed": 1,
+    "writes": 0,
+    "embed_enqueues": 0,
+    "deterministic_cli_interruption_test": true
   }
 }

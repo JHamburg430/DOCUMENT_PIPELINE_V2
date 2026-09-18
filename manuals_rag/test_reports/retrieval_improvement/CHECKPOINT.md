@@ -156,3 +156,17 @@ compatibility warning remains non-blocking. Production and agentic retrieval OFF
 NEXT: verify an intentionally interrupted sample-resume path before checking T3;
 then controlled live oracle/dependency experiments, frozen48 matrix with explicit
 exit, clean held-out source audit, UI live-success flow, and rollout decision.
+
+2026-09-17 23:53 UTC SUPERSEDES: backfill checkpoints can now be reopened with
+--resume-report. Resume acceptance is mode- and database-aware: no-write accepts
+planned/skipped entries; apply accepts only a matching current persisted version;
+enqueue-current accepts only a confirmed prior enqueue. Duplicate document/version
+entries and malformed reports fail closed. A deterministic CLI regression wrote
+document A, interrupted while B began, then resumed without re-extracting A and
+completed B. A real database-backed no-write continuation also resumed CA-EN100U
+and added VJ-H500CX with zero writes/enqueues; artifact
+retrieval_improvement/pilot_interrupted_resume_20260917_235305.json. Focused
+metadata/backfill/audit tests:95pass. U3/T3 complete. Ollama live probe failed
+with llama runner termination, so no GPU extraction was retried and downstream
+live oracle/matrix gates remain open. Broad non-live unit suite:1017pass,
+58warnings,459.79s, with live pipeline health excluded and CUDA hidden. Production OFF.

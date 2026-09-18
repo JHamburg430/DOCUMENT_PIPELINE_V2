@@ -108,3 +108,19 @@ sample-only persistence. Production remains off.
 - Production remains disabled. Interrupted-resume proof and all downstream live
   answer-quality gates remain open; these results are metadata/index consistency,
   not end-to-end answer accuracy.
+
+## 2026-09-17 interrupted-resume gate
+
+- Added explicit `--resume-report` support with fail-closed report parsing,
+  duplicate rejection, document-version matching, and mode-aware completion rules.
+- Deterministic CLI coverage checkpoints the first document, interrupts during the
+  second, then proves resume retains the first result and retries only the second.
+- Database-backed no-write continuation resumed CA-EN100U and added VJ-H500CX as
+  current without writes or embedding enqueues. Artifact:
+  `pilot_interrupted_resume_20260917_235305.json`.
+- Focused metadata/backfill/pilot-role/persisted-audit suite: **95 passed**. U3 and
+  T3 are complete; broader non-live unit suite: **1017 passed, 58 warnings in
+  459.79 seconds**, with live pipeline health excluded and CUDA hidden. T2 remains
+  open pending human visual-PDF adjudication.
+- A live Ollama 9B probe terminated in the runner. No extraction retry or unrelated
+  GPU workload disruption followed. Production remains disabled.

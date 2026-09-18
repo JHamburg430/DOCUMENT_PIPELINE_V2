@@ -15,7 +15,7 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
 - [x] U1: Preserve baseline and define separate implementation/test checklists.
 - [x] U2: Inventory metadata fields end-to-end: extraction, PostgreSQL document,
   chunk payload, Qdrant document selector, retrieval, verifier; expose gaps.
-- [ ] U3: Re-extract 5–10 representative documents with current MRV schema;
+- [x] U3: Re-extract 5–10 representative documents with current MRV schema;
   audit grounded identity, aliases, roles, versions, and completeness before
   applying the sample. Synchronize every chunk and both retrieval indexes;
   verify idempotent resume and pipeline-version consistency.
@@ -42,7 +42,7 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
 - [x] T1: Field-consumer inventory identifies all unused/stale fields with evidence.
 - [ ] T2: Sample audit passes for each selected document; quotes/pages grounded,
   no external-to-primary leakage, no footer routing, no omitted critical batches.
-- [ ] T3: PostgreSQL/Qdrant sample consistency: all active chunks and selector
+- [x] T3: PostgreSQL/Qdrant sample consistency: all active chunks and selector
   payloads current; second backfill is idempotent; interrupted resume verified.
 - [ ] T4: Structured retrieval regressions cover normalized aliases, exact/unknown
   models, multi-entity comparisons, version boundaries/conflicts/unknowns,
@@ -248,6 +248,13 @@ by the current test results.
   all refresh jobs completed. A second ordinary backfill skipped the two newly
   applied documents as current with zero writes or enqueues.
 - Focused metadata/backfill/audit tests: 84 passed. Full unit suite: 1019 passed.
-- U3/T3 remain unchecked until intentional interrupted-resume recovery is proved.
-  T2 also remains conservatively unchecked because this is an assistant source-text
-  audit, not human visual-PDF adjudication. Production remains disabled.
+- Explicit checkpoint recovery is now implemented with `--resume-report`. A
+  deterministic CLI test interrupts during the second document, then proves the
+  first completed document is not re-extracted and the unfinished document is
+  retried. A database-backed two-document no-write run also resumed the first
+  current document and added the second with zero writes or embedding enqueues;
+  artifact: `test_reports/retrieval_improvement/pilot_interrupted_resume_20260917_235305.json`.
+  Focused verification passed 95 tests; the broader non-live unit suite passed
+  1017 tests with 58 warnings in 459.79 seconds. U3/T3 are complete. T2 remains
+  conservatively unchecked because this is an assistant source-text audit, not
+  human visual-PDF adjudication. Production remains disabled.
