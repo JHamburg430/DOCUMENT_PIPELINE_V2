@@ -1658,3 +1658,130 @@ dd {
     max-height: 300px;
   }
 }
+
+/* OpenClaw Hub theme */
+:root {
+  color-scheme: dark;
+  --bg: #07111f;
+  --panel: rgba(14, 27, 45, 0.82);
+  --ink: #f4f8fc;
+  --muted: #9baec4;
+  --line: rgba(153, 187, 222, 0.16);
+  --accent: #6fbfff;
+  --accent-dark: #438fdb;
+  --pass: #45d69a;
+  --fail: #ff6d78;
+  --warn: #f5c76c;
+}
+
+body {
+  background: radial-gradient(circle at 18% -10%, rgba(35, 109, 191, .18), transparent 40%),
+    radial-gradient(circle at 105% 80%, rgba(91, 66, 179, .15), transparent 38%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+.topbar h1 { letter-spacing: -.035em; }
+
+button,
+input,
+select,
+textarea,
+.tab,
+.secondary-button,
+.agent-chat-suggestions button {
+  border-color: var(--line);
+  border-radius: 11px;
+  background: rgba(12, 25, 42, .78);
+  color: var(--ink);
+}
+
+button { background: #256aa7; border-color: #438fdb; }
+button:hover,
+.secondary-button:hover,
+.agent-chat-suggestions button:hover {
+  background: rgba(111, 191, 255, .15);
+  border-color: rgba(111, 191, 255, .36);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid rgba(111, 191, 255, .65);
+  outline-offset: 2px;
+}
+
+.panel {
+  border-radius: 16px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .18);
+  backdrop-filter: blur(12px);
+}
+
+pre,
+.debug-log,
+.model-output {
+  background: #08111d;
+  color: #dce9f6;
+}
+
+th { background: rgba(111, 191, 255, .09); color: #b8cadc; }
+
+.agent-chat-message,
+.agent-chat-hop,
+.agent-run-heading,
+.agent-plan,
+.agent-evidence,
+.agent-verdict,
+.metric,
+.badge,
+.ingestion-upload,
+.ingestion-step,
+.ingestion-step-detail,
+.detail-grid.nested,
+.matrix-generation-controls,
+.matrix-column-options,
+.matrix-stat,
+.question-type,
+.matrix-cell,
+.matrix-cell-detail,
+.progress-row,
+.progress-details,
+.progress-summary span,
+.progress-empty,
+.progress-answer,
+.progress-payload,
+.model-call,
+.trace-card,
+.empty-state,
+.question,
+.answer-text,
+tr {
+  background: rgba(12, 25, 42, .72);
+  border-color: var(--line);
+}
+
+.agent-chat-message.user-message,
+.selected-row,
+.ingestion-step.active,
+.clickable.selected {
+  background: rgba(111, 191, 255, .12);
+}
+
+.status-pill.running,
+.badge.pending,
+.matrix-grid tr.current-run-row td,
+.matrix-cell.current-run-cell {
+  background: rgba(245, 199, 108, .12);
+  border-color: rgba(245, 199, 108, .35);
+}
+
+.badge.pass,
+.matrix-cell.pass { background: rgba(69, 214, 154, .11); border-color: rgba(69, 214, 154, .3); }
+.badge.fail,
+.matrix-cell.fail { background: rgba(255, 109, 120, .11); border-color: rgba(255, 109, 120, .3); }
+.question-type.multi-step { background: rgba(166, 140, 255, .13); border-color: rgba(166, 140, 255, .3); color: #c8baff; }
+.question-type.multi-doc { background: rgba(75, 215, 223, .11); border-color: rgba(75, 215, 223, .3); color: #85e8ed; }
+.matrix-bar { background: rgba(153, 187, 222, .12); }
+.tab.active { background: #256aa7; border-color: #438fdb; }
