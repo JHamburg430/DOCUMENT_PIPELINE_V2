@@ -139,6 +139,37 @@ def test_model_planners_cannot_mark_primary_claims_optional(monkeypatch):
         assert plan.hops[0].required is True
 
 
+def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
+    original = (
+        "On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?"
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "mode": "single",
+                "rationale": "One lookup.",
+                "hops": [
+                    {
+                        "hop_id": "lookup",
+                        "objective": "Find the output mapping for command 0028 on CV-X482",
+                        "query": "CV-X482 command 0028 output mapping",
+                        "strategy": "sparse",
+                        "depends_on": [],
+                        "required": True,
+                    }
+                ],
+            },
+            "{}",
+        ),
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(original, use_llm=True)
+        assert plan.hops[0].objective == original
+        assert plan.hops[0].query == original
+
+
 def test_planners_add_canonical_camera_trigger_light_menu_label(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",

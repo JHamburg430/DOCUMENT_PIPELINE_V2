@@ -677,7 +677,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
             num_predict=700,
             purpose="agentic_retrieval_plan",
         )
-        plan = _normalize_primary_plan(RetrievalPlan.model_validate(payload))
+        plan = _normalize_primary_plan(RetrievalPlan.model_validate(payload), original_query=query)
         _validate_plan(plan)
         return plan
     except Exception:
@@ -737,7 +737,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
             num_predict=700,
             purpose="llamaindex_subquestion_plan",
         )
-        plan = _normalize_primary_plan(RetrievalPlan.model_validate(payload))
+        plan = _normalize_primary_plan(RetrievalPlan.model_validate(payload), original_query=query)
         _validate_plan(plan)
         return plan
     except Exception:
@@ -768,12 +768,26 @@ def _validate_plan(plan: RetrievalPlan) -> None:
         seen.add(hop.hop_id)
 
 
-def _normalize_primary_plan(plan: RetrievalPlan) -> RetrievalPlan:
-    """Treat every planner-created claim as required; only controller recoveries are optional."""
+def _normalize_primary_plan(
+    plan: RetrievalPlan,
+    *,
+    original_query: str | None = None,
+) -> RetrievalPlan:
+    """Preserve mandatory claims and prevent lossy rewriting of a single lookup."""
+    preserve_single = plan.mode == "single" and len(plan.hops) == 1 and original_query
     return plan.model_copy(
         update={
             "hops": [
-                hop.model_copy(update={"required": True})
+                hop.model_copy(
+                    update={
+                        "required": True,
+                        **(
+                            {"objective": original_query, "query": original_query}
+                            if preserve_single
+                            else {}
+                        ),
+                    }
+                )
                 if hop.recovery_for is None
                 else hop
                 for hop in plan.hops
