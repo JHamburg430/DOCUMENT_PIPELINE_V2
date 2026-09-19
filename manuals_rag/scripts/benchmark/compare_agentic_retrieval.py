@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import signal
 from collections import Counter, defaultdict
 from pathlib import Path
 from statistics import mean
@@ -98,6 +99,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
     for raw_case in raw_cases:
         case = RetrievalEvalCase(**raw_case)
+        if getattr(args, "progress_jsonl", False):
+            print(json.dumps({"event": "agent_case_started", "case_id": case.case_id,
+                              "question_number": len(items) + 1}), flush=True)
         evidence_graph = build_expected_evidence_graph(raw_case)
         filters = build_filters(case.query, {})
         baseline_started = perf_counter()
@@ -144,6 +148,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             },
         }
         for backend in ("langgraph", "llamaindex"):
+            if getattr(args, "progress_jsonl", False):
+                print(json.dumps({"event": "answer_started", "case_id": case.case_id,
+                                  "backend": backend}), flush=True)
             output = comparison[backend]
             evaluation = score_search_results(case, output["results"], top_k=10)
             with capture_ollama_usage() as answer_usage_events:
@@ -194,6 +201,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "agent_evaluation": agent_evaluation,
             }
         items.append(item)
+        if getattr(args, "output", None):
+            partial = args.output.with_suffix(".partial.json")
+            partial.parent.mkdir(parents=True, exist_ok=True)
+            temporary = partial.with_suffix(".tmp")
+            temporary.write_text(json.dumps({"complete": False, "completed_cases": len(items),
+                                            "expected_cases": len(raw_cases), "items": items}, indent=2))
+            temporary.replace(partial)
         if getattr(args, "progress_jsonl", False):
             print(
                 json.dumps(
@@ -239,14 +253,31 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--progress-jsonl", action="store_true")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--exit-file", type=Path, help="Write process exit status, including graceful timeout termination.")
     args = parser.parse_args()
-    report = run(args)
-    rendered = json.dumps(report, indent=2)
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(rendered + "\n", encoding="utf-8")
-    if not args.quiet:
-        print(rendered)
+    exit_code = 1
+    def terminated(signum, frame):
+        raise SystemExit(128 + signum)
+    previous_handler = signal.signal(signal.SIGTERM, terminated)
+    try:
+        report = run(args)
+        rendered = json.dumps(report, indent=2)
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            temporary = args.output.with_suffix(".tmp")
+            temporary.write_text(rendered + "\n", encoding="utf-8")
+            temporary.replace(args.output)
+        if not args.quiet:
+            print(rendered)
+        exit_code = 0
+    except SystemExit as exc:
+        exit_code = exc.code if isinstance(exc.code, int) else 1
+        raise
+    finally:
+        signal.signal(signal.SIGTERM, previous_handler)
+        if args.exit_file:
+            args.exit_file.parent.mkdir(parents=True, exist_ok=True)
+            args.exit_file.write_text(str(exit_code) + "\n")
 
 
 if __name__ == "__main__":

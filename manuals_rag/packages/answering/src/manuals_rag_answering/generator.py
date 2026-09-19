@@ -5,8 +5,11 @@ import logging
 import re
 from typing import Any
 
+from manuals_rag_common.claim_relations import answer_relations_supported
 from manuals_rag_common.config import settings
 from manuals_rag_common.ollama import chat_json
+from manuals_rag_retrieval.retriever import result_matches_requested_mode
+from manuals_rag_retrieval.applicability import assess_metadata_applicability
 from manuals_rag_schemas.documents import AnswerResponse, SearchResult
 
 logger = logging.getLogger(__name__)
@@ -173,6 +176,13 @@ def _query_model_scope(query: str) -> tuple[set[str], set[str]]:
     series_prefixes: set[str] = set()
     if re.search(r"\b(series|family)\b", query, flags=re.IGNORECASE):
         series_prefixes = {prefix for model in explicit_models if (prefix := _series_prefix(model))}
+    # Bare named families (e.g. AB Series) need no numeric model suffix.
+    # Preserve the separator so AB does not match an unrelated ABC family.
+    series_prefixes.update(
+        match.group(1).upper().rstrip("-:") + "-"
+        for match in re.finditer(r"\b([A-Z][A-Z0-9:-]{1,20})\s+(?i:series|family)\b", query)
+        if not any(char.isdigit() for char in match.group(1))
+    )
     return explicit_models, series_prefixes
 
 
@@ -999,6 +1009,126 @@ def _concise_structured_table_answer(
     return answer, [result]
 
 
+def _concise_dependency_mapping_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Answer a dependency chain from explicit identifier-bound source rows."""
+    cable_orientation_query = bool(
+        re.search(r"\bwhich\b.{0,100}\bcable(?:\s+model)?\b.{0,100}\bconnect", query, flags=re.I)
+        and re.search(r"\bRS\s*[: -]?\s*232C\b", query, flags=re.I)
+        and re.search(r"\bconnector(?:'s)?\s+orientation\b", query, flags=re.I)
+    )
+    if cable_orientation_query:
+        mappings: list[tuple[str, SearchResult]] = []
+        for result in results:
+            content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+            mapping = re.search(
+                r"\bRS\s*[: -]?\s*232C\b.{0,120}\bcable\b.{0,80}\b(?P<model>OP[- ]?\d+)\b",
+                content,
+                flags=re.I,
+            )
+            if mapping:
+                mappings.append((mapping.group("model").upper(), result))
+        for model, mapping_result in mappings:
+            compact_model = re.sub(r"[^A-Z0-9]", "", model)
+            for description_result in results:
+                content = re.sub(r"\s+", " ", str(description_result.content or "")).strip()
+                rows = list(re.finditer(
+                    r"Column\s+headers:\s*Description;\s*Row\s+headers:\s*(?P<row>OP[- ]?\d+);\s*"
+                    r"Cell\s+value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+|$)",
+                    content,
+                    flags=re.I,
+                ))
+                rows.extend(re.finditer(
+                    r"(?:Model\s+name:\s*)?(?P<row>OP[- ]?\d+)\s*;\s*Description:\s*"
+                    r"(?P<value>.*?)(?=\s+Model\s+name:|$)",
+                    content,
+                    flags=re.I,
+                ))
+                for row in rows:
+                    if re.sub(r"[^A-Z0-9]", "", row.group("row").upper()) != compact_model:
+                        continue
+                    orientation = re.search(
+                        r"\b(?P<orientation>straight|right[- ]?angle|angular|angled)\b",
+                        row.group("value"),
+                        flags=re.I,
+                    )
+                    if not orientation:
+                        continue
+                    support = [mapping_result]
+                    if description_result.chunk_id != mapping_result.chunk_id:
+                        support.append(description_result)
+                    return (
+                        f"The cable model is {model}, and its connector orientation is "
+                        f"{orientation.group('orientation').lower()}.",
+                        support,
+                    )
+        return "", []
+
+    if not (
+        re.search(r"\bwhich\b.{0,100}\bcompatib(?:le|ility)\b", query, flags=re.I)
+        and re.search(r"\bhow\b.{0,100}\bpowered\b", query, flags=re.I)
+    ):
+        return "", []
+    subject_match = re.search(
+        r"\bwhich\s+(?P<subject>.+?)\s+(?:is\s+)?compatib(?:le|ility)\b",
+        query,
+        flags=re.I,
+    )
+    subject = (
+        re.sub(r"\s+model$", "", subject_match.group("subject"), flags=re.I).strip()
+        if subject_match
+        else "model"
+    )
+    mappings: list[tuple[str, str, SearchResult]] = []
+    for result in results:
+        content = str(result.content or "")
+        cell = re.search(
+            r"Column\s+headers:\s*(?P<source>[A-Z][A-Z0-9:-]+).*?"
+            r"Row\s+headers:.*?Supported.*?;\s*Cell\s+value:\s*"
+            r"(?P<target>[A-Z][A-Z0-9:-]+)",
+            content,
+            flags=re.I | re.S,
+        )
+        keyed = re.search(
+            r"Model:\s*Supported.*?;\s*(?P<source>[A-Z][A-Z0-9:-]+):\s*"
+            r"(?P<target>[A-Z][A-Z0-9:-]+)",
+            content,
+            flags=re.I | re.S,
+        )
+        match = cell or keyed
+        if match:
+            mappings.append((match.group("source"), match.group("target"), result))
+    for source, target, mapping_result in mappings:
+        source_pattern = re.escape(source)
+        target_pattern = re.escape(target)
+        for power_result in results:
+            content = str(power_result.content or "")
+            keyed_power = re.search(
+                rf"Model:\s*Power[- ]?supply;\s*{target_pattern}:\s*"
+                rf"Supply\s+from\s+{source_pattern}\b",
+                content,
+                flags=re.I,
+            )
+            table_power = re.search(
+                rf"Model\s*\|\s*{target_pattern}\b.*?Power[- ]?supply\s*\|\s*"
+                rf"Supply\s+from\s+{source_pattern}\b",
+                content,
+                flags=re.I | re.S,
+            )
+            if not (keyed_power or table_power):
+                continue
+            support = [mapping_result]
+            if power_result.chunk_id != mapping_result.chunk_id:
+                support.append(power_result)
+            return (
+                f"The compatible {subject} is {target}, and it is powered by {source}.",
+                support,
+            )
+    return "", []
+
+
 def _troubleshooting_context_text(result: SearchResult) -> str:
     parts: list[str] = []
     for text in [
@@ -1027,6 +1157,11 @@ def _is_troubleshooting_query(query: str) -> bool:
         )
         or re.search(r"\bwhat should i do\b", query, flags=re.IGNORECASE)
         or re.search(r"\bhow do i stop\b.+\bfrom\b", query, flags=re.IGNORECASE)
+        or re.search(
+            r"\bwhat\s+adjustment\s+is\s+recommended\s+when\b",
+            query,
+            flags=re.IGNORECASE,
+        )
     )
 
 
@@ -1054,6 +1189,165 @@ def _is_procedure_rule_query(query: str) -> bool:
     )
 
 
+def _concise_flowchart_rule_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Extract the sentence that binds a flowchart branch to its condition."""
+    if not (
+        _is_procedure_rule_query(query)
+        and re.search(r"\bflowchart\b", query, flags=re.I)
+        and re.search(r"\b(?:branch(?:ed|ing)?|condition|rule)\b", query, flags=re.I)
+    ):
+        return "", []
+    query_terms = _material_claim_terms(query)
+    candidates: list[tuple[int, int, int, str, SearchResult]] = []
+    for result_index, result in enumerate(results[:10]):
+        evidence = _fallback_answer_text(result)
+        segments = [
+            re.sub(r"\s+", " ", segment).strip(" -|•·▪\t\r\n")
+            for segment in re.split(r"(?<=[.!?])\s+|\n+", evidence)
+        ]
+        for segment in segments:
+            if not (
+                re.search(r"\bflowchart\b", segment, flags=re.I)
+                and re.search(r"\bbranch(?:ed|ing|es)?\b|\bbranch\s+condition\b", segment, flags=re.I)
+                and re.search(r"\b(?:status|condition|must|should|required|specified)\b", segment, flags=re.I)
+            ):
+                continue
+            overlap = len(query_terms.intersection(_material_claim_terms(segment)))
+            relation_strength = sum(
+                bool(re.search(pattern, segment, flags=re.I))
+                for pattern in (r"\bpassing\s+status\b", r"\bbranch\s+condition\b", r"\bmust\b")
+            )
+            candidates.append((relation_strength, overlap, -result_index, segment, result))
+    if not candidates:
+        return "", []
+    _strength, _overlap, _index, answer, result = max(candidates, key=lambda item: item[:3])
+    return answer, [result]
+
+
+def _concise_named_reference_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Return the exact scoped phrase naming a requested chart or section."""
+    artifact_match = re.search(
+        r"\b(?P<artifact>(?:timing\s+)?(?:chart|screen|chapter|section|page))\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not artifact_match or not re.search(r"\b(?:what|which)\b", query, flags=re.I):
+        return "", []
+    artifact = re.sub(r"\s+", r"\\s+", artifact_match.group("artifact"))
+    query_terms = _material_claim_terms(query).difference(
+        {"check", "for", "i", "should", "what", "which"}
+    )
+    candidates: list[tuple[int, int, int, str, SearchResult]] = []
+    for result_index, result in enumerate(results[:10]):
+        for segment in re.split(r"(?<=[.!?])\s+|\n+", _fallback_answer_text(result)):
+            segment = re.sub(r"\s+", " ", segment).strip(" -|•·▪\t\r\n")
+            if not segment or not re.search(rf"\b{artifact}\b", segment, flags=re.I):
+                continue
+            overlap = len(query_terms.intersection(_material_claim_terms(segment)))
+            if overlap < min(4, max(2, len(query_terms))):
+                continue
+            bounded = int(
+                str(result.metadata.get("chunk_type") or "")
+                in {"atomic_text", "procedure_record", "table_record"}
+            )
+            candidates.append((bounded, overlap, -result_index, segment, result))
+    if not candidates:
+        return "", []
+    _bounded, _overlap, _index, answer, result = max(candidates, key=lambda item: item[:3])
+    return answer, [result]
+
+
+def _concise_menu_mapping_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Answer a direct menu/setting -> feature mapping from one table record."""
+    if _is_troubleshooting_query(query):
+        return "", []
+    if not re.search(r"\b(?:what|which)\b", query, flags=re.I):
+        return "", []
+
+    def terms(text: str) -> set[str]:
+        output: set[str] = set()
+        for token in re.findall(r"[a-z0-9]+", text.lower()):
+            if len(token) < 2 or token in {"and", "for", "in", "is", "of", "on", "the", "to", "what", "which", "page"}:
+                continue
+            token = {
+                "lighting": "light",
+                "configuration": "setting",
+                "settings": "setting",
+            }.get(token, token)
+            if not token.isdigit():
+                output.add(token)
+        return output
+
+    query_terms = terms(query)
+    candidates: list[tuple[int, int, int, str, str, SearchResult]] = []
+    for result_index, result in enumerate(results[:10]):
+        if not result_matches_requested_mode(result, query):
+            continue
+        content = re.sub(r"\s+", " ", _fallback_answer_text(result)).strip()
+        mapping = re.match(r"(?P<label>[^;:]{3,220}):\s*(?P<item>[^;]{3,180});", content)
+        if not mapping:
+            continue
+        label_terms = terms(mapping.group("label"))
+        item_terms = terms(mapping.group("item"))
+        if len(label_terms.intersection(query_terms)) < min(4, len(label_terms)):
+            continue
+        if len(item_terms.intersection(query_terms)) < min(3, len(item_terms)):
+            continue
+        label = re.sub(r"\s*\(Page\s+[^)]+\)", "", mapping.group("label"), flags=re.I).strip()
+        item = re.sub(r"\s*\(Page\s+[^)]+\)", "", mapping.group("item"), flags=re.I).strip()
+        candidates.append((len(item_terms), len(label_terms), -result_index, label, item, result))
+    if not candidates:
+        return "", []
+    _item_score, _label_score, _index, label, item, result = max(
+        candidates, key=lambda candidate: candidate[:3]
+    )
+    return f"{item} is listed under {label}.", [result]
+
+
+def _concise_scoped_yes_no_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Return the directly matching source sentence for a scoped ``can`` query."""
+    if not re.search(r"^\s*for\s+.+?,\s*can\b", query, flags=re.I):
+        return "", []
+    def canonical(term: str) -> str:
+        value = re.sub(r"[^a-z0-9-]+", "", term.lower())
+        value = re.sub(r"^asynchronous(?:ly)?$", "asynchronous", value)
+        value = re.sub(r"^plac(?:e|ed|ing)$", "place", value)
+        return value
+
+    query_terms = {
+        canonical(term)
+        for term in _material_claim_terms(query).difference({"can", "for", "the", "with"})
+    }
+    query_numbers = _quantity_terms(query)
+    candidates: list[tuple[float, int, int, str, SearchResult]] = []
+    for result_index, result in enumerate(results[:10]):
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", _fallback_answer_text(result)):
+            sentence = re.sub(r"\s+", " ", sentence).strip(" -|•·▪\t\r\n")
+            if not sentence or not re.search(r"\bcan(?:not|'t)?\b", sentence, flags=re.I):
+                continue
+            terms = {canonical(term) for term in _material_claim_terms(sentence)}
+            overlap = len(query_terms.intersection(terms)) / max(1, len(query_terms))
+            if overlap < 0.6 or (query_numbers and not query_numbers.issubset(_quantity_terms(sentence))):
+                continue
+            candidates.append((overlap, -len(sentence), -result_index, sentence, result))
+    if not candidates:
+        return "", []
+    _overlap, _length, _index, answer, result = max(candidates, key=lambda item: item[:3])
+    return answer, [result]
+
+
 def _is_configuration_location_query(query: str) -> bool:
     if re.search(
         r"\bwhat\s+screen\s+(?:resolution|size|dimensions?|technology|type|format)\b",
@@ -1077,8 +1371,10 @@ def _query_troubleshooting_anchor(query: str) -> str:
     if quoted:
         return quoted.group(1).strip(" .?\"'")
     patterns = (
+        r"\bwhat\s+adjustment\s+is\s+recommended\s+when\s+(.+?)\s*\?*$",
         r"\bhow do i\s+(?:fix|resolve|correct)\s+(?:the\s+)?(.+?)\s+error\s+(?:on|for|with)\b",
         r"\bhow should i\s+(?:fix|resolve|correct)\s+(?:the\s+)?(.+?)\s+(?:on|for|with)\b",
+        r"\bwhat causes\s+(?:the\s+error\s+that\s+says\s+)?(.+?)\s*,?\s+and\s+what\s+should\s+i\s+do",
         r"\bwhat causes\s+(.+?)\s+for\s+.+?\b(?:and|,)\s+how should",
         r"\bwhat causes\s+(.+?)\s*,?\s+and how should",
         r"\bwhat causes\s+(.+?)\s+for\s+.+?\s*\?*$",
@@ -1177,7 +1473,7 @@ def _comparison_side_clauses(query: str) -> list[str]:
     normalized = re.sub(r"^\s*compare\s+", "", normalized, flags=re.IGNORECASE)
     parts = [
         part.strip(" ,.;:?")
-        for part in re.split(r"\b(?:with|versus|vs\.?|whereas|while)\b", normalized, flags=re.IGNORECASE)
+        for part in re.split(r"\b(?:(?i:with|versus|whereas|while)|vs\.?)\b", normalized)
         if part.strip(" ,.;:?")
     ]
     if len(parts) < 2:
@@ -1198,6 +1494,9 @@ def _meaningful_comparison_clause_terms(clause: str) -> set[str]:
         "series",
         "system",
     }
+    # Model scope is validated separately. Counting its tokens again makes
+    # otherwise matching rows fail when the row omits the document's model.
+    clause = MODEL_TOKEN_RE.sub(" ", clause)
     terms = {
         term
         for term in _material_claim_terms(clause)
@@ -1311,8 +1610,8 @@ def _row_action_text(row: str) -> str:
 
 
 _TROUBLESHOOTING_FIELD_PATTERN = re.compile(
-    r"(?:^|[.;]\s*)(Error Number|Error Code|Error Messages?|Message|Display|Cause|Solution|Corrective Action|Remedy|Column headers|Row headers|Cell value|Row|Column):\s*"
-    r"(.*?)(?=[.;]\s*(?:Error Number|Error Code|Error Messages?|Message|Display|Cause|Solution|Corrective Action|Remedy|Column headers|Row headers|Cell value|Row|Column):|$)",
+    r"(?:^|[.;]\s*)(Error Number|Error Code|Error Messages?|Message|Status|Display|Cause|Solution|Corrective Action|Remedy|Column headers|Row headers|Cell value|Row|Column):\s*"
+    r"(.*?)(?=[.;]\s*(?:Error Number|Error Code|Error Messages?|Message|Status|Display|Cause|Solution|Corrective Action|Remedy|Column headers|Row headers|Cell value|Row|Column):|$)",
     flags=re.IGNORECASE | re.DOTALL,
 )
 
@@ -1348,6 +1647,8 @@ def _troubleshooting_fields(text: str) -> dict[str, str]:
             fields.setdefault("error message", cell)
     if fields.get("display"):
         fields.setdefault("error message", fields["display"])
+    if fields.get("status"):
+        fields.setdefault("error message", fields["status"])
     if fields.get("solution"):
         fields.setdefault("corrective action", fields["solution"])
     return fields
@@ -1356,7 +1657,7 @@ def _troubleshooting_fields(text: str) -> dict[str, str]:
 def _troubleshooting_field_records(text: str) -> list[dict[str, str]]:
     source = text or ""
     if re.match(
-        r"\s*(?:Error Messages?|Message):\s*",
+        r"\s*(?:Error Messages?|Message|Status):\s*",
         source,
         flags=re.IGNORECASE,
     ):
@@ -1364,7 +1665,7 @@ def _troubleshooting_field_records(text: str) -> list[dict[str, str]]:
         # code label detaches that code from its message/cause/action fields.
         # Start a new record only when the next message label begins.
         blocks = re.split(
-            r"(?=(?<![A-Za-z])(?:Error Messages?|Message):\s*)",
+            r"(?=(?<![A-Za-z])(?:Error Messages?|Message|Status):\s*)",
             source,
             flags=re.IGNORECASE,
         )
@@ -1379,7 +1680,7 @@ def _troubleshooting_field_records(text: str) -> list[dict[str, str]]:
             flags=re.IGNORECASE,
         )
     else:
-        blocks = re.split(r"(?=(?:Error Messages?|Message):\s*)", source, flags=re.IGNORECASE)
+        blocks = re.split(r"(?=(?:Error Messages?|Message|Status):\s*)", source, flags=re.IGNORECASE)
     records = [_troubleshooting_fields(block) for block in blocks if block.strip()]
     return [record for record in records if record]
 
@@ -1421,8 +1722,8 @@ def _troubleshooting_anchor_match_score(anchor: str, evidence: str) -> float:
         return 0.0
     anchor_tokens = normalized_anchor.split()
     evidence_tokens_list = normalized_evidence.split()
-    anchor_terms = set(anchor_tokens)
-    evidence_terms = set(evidence_tokens_list)
+    anchor_terms = {"not" if token == "no" else token for token in anchor_tokens}
+    evidence_terms = {"not" if token == "no" else token for token in evidence_tokens_list}
     if normalized_anchor == normalized_evidence:
         return 100.0
     if normalized_evidence.endswith(normalized_anchor):
@@ -1580,7 +1881,7 @@ def _concise_troubleshooting_answer(
         anchor_evidence = (
             evidence
             if requested_display
-            else (matching_row or _fallback_answer_text(result))
+            else (matching_row or str(result.content or "") or _fallback_answer_text(result))
         )
         row_key = _troubleshooting_table_row_key(result)
         row_is_exact = row_key is not None and row_key in exact_row_keys
@@ -1650,6 +1951,7 @@ def _concise_troubleshooting_answer(
             candidates.append((match_score, coverage, -result_index, fields, result))
 
     selected_values: dict[str, str] = {}
+    selected_subjects: dict[str, str] = {}
     selected_results: list[SearchResult] = []
     for field_name, wanted in (("cause", wants_cause), ("corrective action", wants_action)):
         if not wanted:
@@ -1658,14 +1960,33 @@ def _concise_troubleshooting_answer(
         for match_score, coverage, result_order, fields, result in candidates:
             value = fields.get(field_name) or (fields.get("remedy") if field_name == "corrective action" else "")
             if value:
-                matching.append((match_score, coverage, result_order, value, result))
+                column_headers = {
+                    _normalized_phrase(str(header))
+                    for header in result.metadata.get("table_column_headers") or []
+                    if header
+                }
+                expected_headers = (
+                    {"cause"}
+                    if field_name == "cause"
+                    else {"corrective action", "remedy", "countermeasure"}
+                )
+                exact_field_cell = int(bool(column_headers.intersection(expected_headers)))
+                matching.append(
+                    (exact_field_cell, match_score, coverage, result_order, value, result)
+                )
         if not matching:
             continue
-        _match_score, _coverage, _result_order, value, result = max(
+        _exact_field_cell, _match_score, _coverage, _result_order, value, result = max(
             matching,
-            key=lambda item: (item[0], item[1], item[2]),
+            key=lambda item: (item[0], item[1], item[2], item[3]),
         )
         selected_values[field_name] = value
+        selected_subjects[field_name] = (
+            fields.get("error message")
+            or fields.get("message")
+            or fields.get("status")
+            or ""
+        )
         selected_results.append(result)
 
     lines: list[str] = []
@@ -1674,7 +1995,16 @@ def _concise_troubleshooting_answer(
         lines.append(f"Cause: {cause if cause.endswith(('.', '!', '?')) else cause + '.'}")
     if wants_action and selected_values.get("corrective action"):
         action = selected_values["corrective action"]
-        lines.append(f"Corrective action: {action if action.endswith(('.', '!', '?')) else action + '.'}")
+        action_sentence = action if action.endswith((".", "!", "?")) else action + "."
+        subject = selected_subjects.get("corrective action", "")
+        if subject and re.search(
+            r"\bwhat\s+adjustment\s+is\s+recommended\s+when\b",
+            query,
+            flags=re.IGNORECASE,
+        ):
+            lines.append(f"When {subject.rstrip('.!?')}, {action_sentence[0].lower() + action_sentence[1:]}")
+        else:
+            lines.append(f"Corrective action: {action_sentence}")
     if not lines and wants_action:
         # Some manuals state a symptom and its remedy as prose rather than as
         # labeled Cause/Remedy cells.  Select the imperative sentence from the
@@ -1775,7 +2105,9 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             followup_questions=[],
             insufficient_evidence=True,
         )
+    multipart = _multi_part_evidence_clauses(query)
     concise_answer, concise_results = _concise_troubleshooting_answer(query, results)
+    dependency_answer, dependency_results = _concise_dependency_mapping_answer(query, results)
     if _is_troubleshooting_query(query) and _query_troubleshooting_anchor(query) and not concise_answer:
         return AnswerResponse(
             answer="I could not find a troubleshooting entry matching the stated error in the retrieved evidence.",
@@ -1789,7 +2121,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     location_answer, location_results = _concise_configuration_location_answer(query, results)
     table_answer, table_results = (
         ("", [])
-        if _is_comparison_query(query)
+        if _is_comparison_query(query) or multipart
         else _concise_structured_table_answer(query, results)
     )
     if (
@@ -1798,10 +2130,25 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         and _quantity_terms(query)
     ):
         table_answer = ""
-    fallback_results = concise_results or location_results or table_results or _fallback_evidence_results(query, results)
+    fallback_results = (
+        concise_results
+        or dependency_results
+        or location_results
+        or table_results
+        or _fallback_evidence_results(query, results)
+    )
+    incomplete = bool(multipart) and not (
+        concise_answer or dependency_answer or location_answer
+    )  # Generic extracts cannot certify compound claims.
+    if _is_comparison_query(query):
+        sides = _comparison_side_clauses(query)
+        matches = _comparison_troubleshooting_side_matches(query, results)
+        incomplete = len(sides) > 1 and len(matches) < len(sides)
     top = fallback_results[0]
     if concise_answer:
         answer_text = concise_answer
+    elif dependency_answer:
+        answer_text = dependency_answer
     elif location_answer:
         answer_text = location_answer
     elif table_answer:
@@ -1835,7 +2182,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         )
     return AnswerResponse(
         answer=answer_text,
-        confidence="medium",
+        confidence="low" if incomplete else "medium",
         used_documents=[
             {
                 "document_id": result.source_document_id,
@@ -1855,9 +2202,9 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             }
             for result in fallback_results
         ],
-        warnings=[],
+        warnings=["Only partial evidence is available; the complete multi-part answer is not established."] if incomplete else [],
         followup_questions=[],
-        insufficient_evidence=False,
+        insufficient_evidence=incomplete,
     )
 
 
@@ -1867,6 +2214,9 @@ def _fallback_answer_from_summaries(
     results: list[SearchResult],
 ) -> AnswerResponse | None:
     """Recover a concise grounded answer when structured model output is malformed."""
+    if _multi_part_evidence_clauses(query) or _is_comparison_query(query):
+        # Picking one best sentence cannot establish every requested branch.
+        return None
     query_terms = _material_claim_terms(query)
     query_quantities = _quantity_terms(query)
     requested_models = _model_tokens(query)
@@ -3074,6 +3424,74 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
     return score
 
 
+def _concise_warning_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Return one query-aligned warning from the most bounded source chunk.
+
+    Manuals often repeat the same warning in a summary or appendix.  When an
+    atomic warning and a much larger section window both contain that text,
+    citing the larger duplicate can bind the answer to the wrong physical
+    page.  Prefer the smallest direct source only after the warning sentence
+    itself has strong condition overlap with the question.
+    """
+    if not re.search(r"\b(?:warning|caution)\b", query, flags=re.IGNORECASE):
+        return "", []
+
+    query_terms = _material_claim_terms(query).difference(
+        {"what", "which", "warning", "caution", "applies"}
+    )
+    requested_models = _model_tokens(query)
+    candidates: list[tuple[int, int, int, int, int, int, str, SearchResult]] = []
+    for result_index, result in enumerate(results):
+        direct_evidence = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not direct_evidence:
+            continue
+        for sentence in re.split(r"(?<=[.!?])\s+", direct_evidence):
+            sentence = sentence.strip(" -|;:")
+            if not sentence or not re.search(
+                r"\b(?:warning|caution|be\s+careful|do\s+not|must\s+not|"
+                r"never|avoid|risk|damage|hazard)\b",
+                sentence,
+                flags=re.IGNORECASE,
+            ):
+                continue
+            overlap = len(query_terms.intersection(_material_claim_terms(sentence)))
+            if overlap < min(4, max(2, len(query_terms))):
+                continue
+            model_alignment = sum(
+                1 for model in requested_models if _result_mentions_model(result, model)
+            )
+            chunk_type = str(result.metadata.get("chunk_type") or "")
+            bounded_source = int(
+                chunk_type
+                in {
+                    "atomic_text",
+                    "warning_record",
+                    "procedure_record",
+                    "table_record",
+                }
+            )
+            warning_source = int(chunk_type == "warning_record")
+            candidates.append(
+                (
+                    model_alignment,
+                    bounded_source,
+                    warning_source,
+                    overlap,
+                    -len(direct_evidence),
+                    -result_index,
+                    sentence,
+                    result,
+                )
+            )
+    if not candidates:
+        return "", []
+    *_scores, sentence, result = max(candidates, key=lambda item: item[:6])
+    return sentence if sentence.endswith((".", "!", "?")) else f"{sentence}.", [result]
+
+
 def _structured_fact_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
     asks_named_setting = bool(
         re.search(
@@ -3862,7 +4280,7 @@ def _concise_structured_fact_answer(
             )
             return f"{value} of additional free disk space is required.", [result]
 
-    direct_model_field_candidates: list[tuple[int, int, int, int, int, str, SearchResult]] = []
+    direct_model_field_candidates: list[tuple[int, int, int, int, int, int, int, str, SearchResult]] = []
     if _model_tokens(query):
         query_terms = _material_claim_terms(query)
         requested_field_match = re.search(
@@ -3887,6 +4305,9 @@ def _concise_structured_fact_answer(
             flags=re.IGNORECASE,
         )
         count_subject = count_subject_match.group("subject") if count_subject_match else ""
+        asks_mapping = bool(
+            re.search(r"\bmap(?:s|ped|ping)?\s+to\b", query, flags=re.IGNORECASE)
+        )
         for result_index, result in enumerate(results[:12]):
             direct_answer = (
                 _focused_labeled_table_cell_answer_text(query, result)
@@ -3913,10 +4334,36 @@ def _concise_structured_fact_answer(
                     )
                 )
             )
+            mapping_label_fit = 0
+            mapping_value_novelty = 0
+            if asks_mapping and str(result.metadata.get("chunk_type") or "") == "table_record":
+                table_cell = re.search(
+                    r"Column headers:\s*(?P<column>.*?);\s*Row headers:\s*(?P<row>.*?);\s*"
+                    r"Cell value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+;\s*Column:\s*\d+)?\s*$",
+                    str(result.content or ""),
+                    flags=re.IGNORECASE | re.DOTALL,
+                )
+                if table_cell:
+                    canonical_query_terms = {
+                        re.sub(r"[^a-z0-9]+", "", term.lower()) for term in query_terms
+                    }
+                    canonical_label_terms = {
+                        re.sub(r"[^a-z0-9]+", "", term.lower())
+                        for term in _material_claim_terms(
+                            f"{table_cell.group('row')} {table_cell.group('column')}"
+                        )
+                    }
+                    mapping_label_fit = len(
+                        canonical_query_terms.intersection(canonical_label_terms)
+                    )
+                    value_terms = _material_claim_terms(table_cell.group("value"))
+                    mapping_value_novelty = len(value_terms.difference(query_terms))
             direct_model_field_candidates.append(
                 (
                     count_fit,
                     requested_fit,
+                    mapping_label_fit,
+                    mapping_value_novelty,
                     overlap,
                     -len(direct_answer),
                     -result_index,
@@ -4702,9 +5149,19 @@ def _concise_structured_fact_answer(
             ]
             or direct_model_field_candidates
         )
-        _count_fit, _requested_fit, _overlap, _specificity, _negative_index, answer, result = max(
+        (
+            _count_fit,
+            _requested_fit,
+            _mapping_label_fit,
+            _mapping_value_novelty,
+            _overlap,
+            _specificity,
+            _negative_index,
+            answer,
+            result,
+        ) = max(
             ranked_direct_candidates,
-            key=lambda item: item[:5],
+            key=lambda item: item[:7],
         )
         return answer, [result]
 
@@ -5428,7 +5885,7 @@ def _multi_part_evidence_clauses(query: str) -> list[str]:
         return []
     parts = [
         part.strip(" ,.;:?")
-        for part in re.split(r"\b(?:and|plus|as well as)\s+(?=(?:what|which|where|when|how)\b)", normalized, flags=re.IGNORECASE)
+        for part in re.split(r"\b(?:and(?:\s+then)?|then|plus|as well as)\s+(?=(?:what|which|where|when|how)\b)", normalized, flags=re.IGNORECASE)
         if part.strip(" ,.;:?")
     ]
     if len(parts) < 2:
@@ -5474,10 +5931,11 @@ def _multi_part_fallback_evidence_results(query: str, ordered_results: list[Sear
 
 
 def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
-    ordered_results = _comparison_scoped_troubleshooting_results(
-        query,
-        _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results)),
-    )
+    # A global troubleshooting anchor belongs to only one comparison side.
+    # Keep the pool intact until each side has selected its own evidence.
+    ordered = _order_troubleshooting_results(query, results)
+    candidates = ordered if _is_comparison_query(query) else _focused_troubleshooting_results(query, ordered)
+    ordered_results = _comparison_scoped_troubleshooting_results(query, candidates)
     if not _is_comparison_query(query):
         multi_part_results = _multi_part_fallback_evidence_results(query, ordered_results)
         if multi_part_results:
@@ -5756,6 +6214,25 @@ def _citation_quotes_are_supported(citations: list[dict[str, Any]], results: lis
     return True
 
 
+def _answer_relations_are_supported(
+    answer: str,
+    citations: list[dict[str, Any]],
+    results: list[SearchResult],
+) -> bool:
+    result_by_chunk_id = {result.chunk_id: result for result in results}
+    cited_results = [
+        result_by_chunk_id[str(citation.get("chunk_id") or "")]
+        for citation in citations
+        if str(citation.get("chunk_id") or "") in result_by_chunk_id
+    ]
+    evidence_results = cited_results or results[:5]
+    supported, _details = answer_relations_supported(
+        answer,
+        (_citation_evidence_text(result) for result in evidence_results),
+    )
+    return supported
+
+
 def _answer_addresses_configuration_location(
     answer: str,
     query: str,
@@ -5838,12 +6315,18 @@ def _clean_final_answer_text(text: str, query: str) -> str:
 
 
 def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: str = "") -> AnswerResponse:
+    if answer.insufficient_evidence and query and not any(
+        _location_terms(query).intersection(_location_terms(result.content)) for result in results
+    ):
+        # A retrieval score alone cannot overturn an abstention with unrelated text.
+        return answer
     if results and (
         not _answer_supported_by_results(answer.answer, results)
         or _structured_answer_is_too_terse(answer.answer, results)
         or (answer.insufficient_evidence and len(_fallback_evidence_results(query, results)) > 1)
         or _comparison_answer_is_overcautious(answer, query, results)
         or not _citation_quotes_are_supported(list(answer.citations), results)
+        or not _answer_relations_are_supported(answer.answer, list(answer.citations), results)
         or not _answer_addresses_troubleshooting_anchor(answer.answer, query, list(answer.citations), results)
         or not _answer_uses_matching_troubleshooting_row(answer.answer, query, results)
         or not _answer_uses_comparison_troubleshooting_side_rows(answer.answer, query, results)
@@ -5879,7 +6362,17 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
     insufficient_evidence = answer.insufficient_evidence
     confidence = answer.confidence
 
-    if results and not citations:
+    cited_ids = {item.get("chunk_id") for item in citations}
+    relevant_results = [result for result in results if result.chunk_id in cited_ids] or results
+    applicability = [assess_metadata_applicability(query, result.metadata or {}) for result in relevant_results]
+    if any(item["state"] == "conflicting" for item in applicability):
+        warnings.append("The cited metadata conflicts with the requested version; applicability is not established.")
+        insufficient_evidence = True
+        confidence = "low"
+    elif any(item["state"] == "unknown" for item in applicability):
+        warnings.append("Applicability to the requested firmware/software version could not be verified.")
+
+    if results and not citations and not insufficient_evidence:
         top = results[0]
         citations.append(
             {
@@ -5891,8 +6384,10 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         )
         warnings.append("Citations were reconstructed from top retrieval evidence.")
 
-    version_ids = {result.document_version_id for result in results}
-    if len(version_ids) > 1:
+    versions_by_document: dict[str, set[str]] = {}
+    for result in results:
+        versions_by_document.setdefault(result.source_document_id, set()).add(result.document_version_id)
+    if any(len(versions) > 1 for versions in versions_by_document.values()):
         warnings.append("Retrieved evidence spans multiple document versions; verify revision-specific details.")
 
     if results:
@@ -6045,6 +6540,152 @@ def generate_answer_with_trace(
                 "num_predict": None,
                 "used_fallback": False,
                 "answer_source": "deterministic_temporal_effect",
+            }
+        )
+        return answer, trace
+    yes_no_answer, yes_no_results = _concise_scoped_yes_no_answer(
+        query,
+        prioritized_results or results,
+    )
+    if yes_no_answer:
+        answer = validate_answer(
+            _fallback_answer(query, yes_no_results),
+            yes_no_results,
+            query=query,
+        )
+        answer.answer = _clean_final_answer_text(yes_no_answer, query)
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "scoped_yes_no"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "scoped_yes_no",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_scoped_yes_no",
+            }
+        )
+        return answer, trace
+    mapping_answer, mapping_results = _concise_menu_mapping_answer(
+        query,
+        prioritized_results or results,
+    )
+    if mapping_answer:
+        answer = validate_answer(
+            _fallback_answer(query, mapping_results),
+            mapping_results,
+            query=query,
+        )
+        answer.answer = _clean_final_answer_text(mapping_answer, query)
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "menu_mapping"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "menu_mapping",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_menu_mapping",
+            }
+        )
+        return answer, trace
+    reference_answer, reference_results = _concise_named_reference_answer(
+        query,
+        prioritized_results or results,
+    )
+    if reference_answer:
+        answer = validate_answer(
+            _fallback_answer(query, reference_results),
+            reference_results,
+            query=query,
+        )
+        answer.answer = _clean_final_answer_text(reference_answer, query)
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "named_reference"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "named_reference",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_named_reference",
+            }
+        )
+        return answer, trace
+    flowchart_answer, flowchart_results = _concise_flowchart_rule_answer(
+        query,
+        prioritized_results or results,
+    )
+    if flowchart_answer:
+        answer = validate_answer(
+            _fallback_answer(query, flowchart_results),
+            flowchart_results,
+            query=query,
+        )
+        answer.answer = _clean_final_answer_text(flowchart_answer, query)
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "flowchart_rule"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "flowchart_rule",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_flowchart_rule",
+            }
+        )
+        return answer, trace
+    warning_evidence = prioritized_results or results
+    if prioritized_results:
+        prioritized_ids = {result.chunk_id for result in prioritized_results}
+        warning_evidence = [
+            *prioritized_results,
+            *(result for result in results if result.chunk_id not in prioritized_ids),
+        ]
+    warning_answer, warning_results = _concise_warning_answer(query, warning_evidence)
+    if warning_answer:
+        answer = validate_answer(
+            _fallback_answer(query, warning_results),
+            warning_results,
+            query=query,
+        )
+        answer.answer = _clean_final_answer_text(warning_answer, query)
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "warning"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "warning",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_warning",
+                "fallback_reason": None,
+                "summarized_evidence": [],
             }
         )
         return answer, trace
@@ -6547,6 +7188,10 @@ def generate_answer_with_trace(
         query,
         results,
     )
+    dependency_mapping_preview, _dependency_mapping_preview_results = _concise_dependency_mapping_answer(
+        query,
+        results,
+    )
     model_field_table_preview = any(
         len(re.findall(r"(?:^|\s)Model\s*:", str(result.content or ""), flags=re.IGNORECASE)) > 1
         and _focused_model_field_record_answer_text(query, result)
@@ -6558,6 +7203,7 @@ def generate_answer_with_trace(
         if (
             named_option_preview
             or dependent_list_preview
+            or dependency_mapping_preview
             or model_field_table_preview
             or use_precomputed_model_path
         )
@@ -6724,10 +7370,38 @@ def generate_answer_with_trace(
             }
         )
         return answer, trace
+    dependency_answer, dependency_results = _concise_dependency_mapping_answer(query, results)
+    if dependency_answer:
+        answer = validate_answer(
+            _fallback_answer(query, dependency_results),
+            dependency_results,
+            query=query,
+        )
+        answer.answer = dependency_answer
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "dependency_mapping"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "dependency_mapping",
+                "used_fallback": False,
+                "answer_source": "deterministic_dependency_mapping",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
     table_answer, table_results = _concise_structured_table_answer(query, results)
     if (
         table_answer
         and not _is_configuration_location_query(query)
+        and not _multi_part_evidence_clauses(query)
         and not use_precomputed_model_path
     ):
         answer = validate_answer(_fallback_answer(query, table_results), table_results, query=query)
@@ -6990,6 +7664,9 @@ def prioritize_results_for_answer(query: str, candidate_results: list[SearchResu
             *location_evidence,
         ]
     ]
+    prioritized_results = list(
+        {result.chunk_id: result for result in prioritized_results}.values()
+    )
     prioritized_results.extend(
         result
         for result in candidate_results
@@ -7138,12 +7815,27 @@ def _relevance_prompt(query: str, evidence: list[dict[str, Any]], *, strict: boo
     )
 
 
+def _json_object_response(raw_response: str) -> dict[str, Any]:
+    response_text = (raw_response or "{}").strip()
+    fenced = re.fullmatch(
+        r"```(?:json)?\s*(?P<payload>.*?)\s*```",
+        response_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if fenced:
+        response_text = fenced.group("payload").strip()
+    generated = json.loads(response_text or "{}")
+    if not isinstance(generated, dict):
+        raise ValueError("JSON response is not an object")
+    return generated
+
+
 def _parse_relevance_response(
     raw_response: str,
     query: str,
     results: list[SearchResult],
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
-    generated = json.loads(raw_response or "{}")
+    generated = _json_object_response(raw_response)
     items = generated.get("items", [])
     if not isinstance(items, list):
         raise ValueError("Invalid relevance payload: items is not a list")
@@ -7208,6 +7900,7 @@ def judge_retrieval_relevance(query: str, results: list[SearchResult]) -> list[d
                 think=False,
                 timeout=90.0,
                 purpose="relevance_review",
+                num_predict=max(512, min(2048, len(results) * 160)),
             )
             try:
                 parsed, diagnostics = _parse_relevance_response(raw_response, query, results)
@@ -7237,7 +7930,7 @@ def judge_retrieval_relevance(query: str, results: list[SearchResult]) -> list[d
 
 
 def _extract_json_summary(raw_response: str) -> str:
-    generated = json.loads(raw_response or "{}")
+    generated = _json_object_response(raw_response)
     summary = str(generated.get("summary") or "").strip()
     if not summary:
         raise ValueError("Missing summary")
@@ -7250,7 +7943,11 @@ def _fallback_summary(query: str, result: SearchResult) -> str:
 
 
 def _direct_evidence_summary(query: str, result: SearchResult) -> str | None:
-    chunk_type = str(result.metadata.get("chunk_type") or "")
+    chunk_type = str(
+        result.metadata.get("chunk_type")
+        or result.metadata.get("chunk_family")
+        or ""
+    )
     if chunk_type not in {"table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
         return None
     evidence = (_focused_table_record_answer_text(query, result) or _fallback_answer_text(result)).strip()
@@ -7302,6 +7999,7 @@ def _summarize_chunk(query: str, result: SearchResult) -> dict[str, Any]:
             think=False,
             timeout=60.0,
             purpose="chunk_summary",
+            num_predict=384,
         )
         summary = _extract_json_summary(raw)
         summary_source = "model"
@@ -7374,6 +8072,7 @@ def _merge_summary_batch(query: str, batch: list[dict[str, Any]]) -> dict[str, A
             think=False,
             timeout=60.0,
             purpose="recursive_summary",
+            num_predict=512,
         )
         summary = _extract_json_summary(raw)
     except Exception as exc:

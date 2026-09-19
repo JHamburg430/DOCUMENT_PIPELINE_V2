@@ -120,6 +120,7 @@ def _chat_options(
     json_mode: bool,
     num_predict: int | None = None,
     num_ctx: int | None = None,
+    num_batch: int | None = None,
 ) -> dict[str, Any]:
     family = model_family(model)
     if family == "qwen":
@@ -131,6 +132,8 @@ def _chat_options(
             options["num_predict"] = num_predict
         if num_ctx is not None:
             options["num_ctx"] = num_ctx
+        if num_batch is not None:
+            options["num_batch"] = num_batch
         return options
     if json_mode:
         options = {"temperature": 0.0}
@@ -140,6 +143,8 @@ def _chat_options(
         options["num_predict"] = num_predict
     if num_ctx is not None:
         options["num_ctx"] = num_ctx
+    if num_batch is not None:
+        options["num_batch"] = num_batch
     return options
 
 
@@ -153,6 +158,7 @@ def build_chat_payload(
     stream: bool = False,
     num_predict: int | None = None,
     num_ctx: int | None = None,
+    num_batch: int | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "model": model,
@@ -163,6 +169,7 @@ def build_chat_payload(
             json_mode=json_schema is not None,
             num_predict=num_predict,
             num_ctx=num_ctx,
+            num_batch=num_batch,
         ),
     }
     if keep_alive is not None:
@@ -182,6 +189,33 @@ def extract_chat_content(payload: dict[str, Any]) -> str:
     # Defensive cleanup in case a thinking-capable model leaks inline reasoning markup.
     content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL | re.IGNORECASE)
     return content.strip()
+
+
+def parse_json_content(content: str) -> dict[str, Any] | list[Any]:
+    """Parse model JSON while tolerating wrappers and raw string controls.
+
+    Structured-output models occasionally prepend a short explanation or wrap the
+    JSON in a Markdown fence despite receiving an explicit schema. Extract exactly
+    one leading JSON value and ignore only surrounding non-JSON text; schema
+    validation remains the caller's responsibility.
+    """
+    stripped = (content or "").strip()
+    if not stripped:
+        return {}
+    try:
+        return json.loads(stripped, strict=False)
+    except json.JSONDecodeError as original_error:
+        starts = [index for index, character in enumerate(stripped) if character in "{["]
+        if not starts:
+            raise original_error
+        for start in starts:
+            try:
+                value, _end = json.JSONDecoder(strict=False).raw_decode(stripped[start:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, (dict, list)):
+                return value
+        raise original_error
 
 
 def _available_models(client: httpx.Client) -> set[str]:
@@ -205,6 +239,8 @@ def ensure_model_loaded(
     keep_alive: str = DEFAULT_KEEP_ALIVE,
     force_reload: bool = False,
     purpose: str | None = None,
+    num_ctx: int | None = None,
+    num_batch: int | None = None,
 ) -> None:
     available = _available_models(client)
     if model not in available:
@@ -222,7 +258,11 @@ def ensure_model_loaded(
             "prompt": "",
             "stream": False,
             "keep_alive": keep_alive,
-            "options": {"temperature": 0.0},
+            "options": {
+                "temperature": 0.0,
+                **({"num_ctx": num_ctx} if num_ctx is not None else {}),
+                **({"num_batch": num_batch} if num_batch is not None else {}),
+            },
         },
     )
     response.raise_for_status()
@@ -240,6 +280,7 @@ def _post_chat(
     purpose: str | None = None,
     num_predict: int | None = None,
     num_ctx: int | None = None,
+    num_batch: int | None = None,
 ) -> dict[str, Any]:
     loaded_before = sorted(_loaded_models(client))
     request_payload = build_chat_payload(
@@ -250,6 +291,7 @@ def _post_chat(
         keep_alive=keep_alive,
         num_predict=num_predict,
         num_ctx=num_ctx,
+        num_batch=num_batch,
     )
     _record_call(
         {
@@ -374,9 +416,20 @@ def chat_json(
     purpose: str | None = None,
     num_predict: int | None = None,
     num_ctx: int | None = None,
-) -> tuple[dict[str, Any], str]:
-    with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
-        ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose)
+    num_batch: int | None = None,
+) -> tuple[dict[str, Any] | list[Any], str]:
+    with httpx.Client(base_url=settings.ollama_url, timeout=load_timeout) as client:
+        ensure_model_loaded(
+            client=client,
+            model=model,
+            keep_alive=keep_alive,
+            purpose=purpose,
+            num_ctx=num_ctx,
+            num_batch=num_batch,
+        )
+        # Model loading may legitimately need longer than inference. Do not let
+        # that load allowance silently override the caller's inference budget.
+        client.timeout = httpx.Timeout(max(1.0, timeout))
         try:
             body = _post_chat(
                 client=client,
@@ -388,11 +441,27 @@ def chat_json(
                 purpose=purpose,
                 num_predict=num_predict,
                 num_ctx=num_ctx,
+                num_batch=num_batch,
             )
         except Exception as exc:
+            if isinstance(exc, httpx.TimeoutException):
+                # A busy model is not evidence of a broken load. Reloading on a
+                # deadline breach creates duplicate work and defeats hop budgets.
+                _record_call({"kind": "chat_error", "model": model, "purpose": purpose, "error": str(exc)})
+                raise
             logger.warning("Ollama chat_json failed for model=%s; reloading and retrying once: %s", model, exc)
             _record_call({"kind": "chat_error", "model": model, "purpose": purpose, "error": str(exc)})
-            ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, force_reload=True, purpose=purpose)
+            client.timeout = httpx.Timeout(max(1.0, load_timeout))
+            ensure_model_loaded(
+                client=client,
+                model=model,
+                keep_alive=keep_alive,
+                force_reload=True,
+                purpose=purpose,
+                num_ctx=num_ctx,
+                num_batch=num_batch,
+            )
+            client.timeout = httpx.Timeout(max(1.0, timeout))
             body = _post_chat(
                 client=client,
                 model=model,
@@ -403,9 +472,12 @@ def chat_json(
                 purpose=purpose,
                 num_predict=num_predict,
                 num_ctx=num_ctx,
+                num_batch=num_batch,
             )
     content = extract_chat_content(body)
-    return json.loads(content or "{}"), content
+    if not content.strip():
+        raise ValueError("Ollama returned empty structured output")
+    return parse_json_content(content), content
 
 
 def chat_json_stream(
@@ -421,9 +493,9 @@ def chat_json_stream(
     purpose: str | None = None,
     num_predict: int | None = None,
     num_ctx: int | None = None,
-) -> tuple[dict[str, Any], str]:
+) -> tuple[dict[str, Any] | list[Any], str]:
     with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
-        ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose)
+        ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose, num_ctx=num_ctx)
         body = _post_chat_stream(
             client=client,
             model=model,
@@ -437,7 +509,9 @@ def chat_json_stream(
             num_ctx=num_ctx,
         )
     content = extract_chat_content(body)
-    return json.loads(content or "{}"), content
+    if not content.strip():
+        raise ValueError("Ollama returned empty structured output")
+    return parse_json_content(content), content
 
 
 def chat_text(
@@ -453,7 +527,7 @@ def chat_text(
     num_ctx: int | None = None,
 ) -> tuple[str, dict[str, Any]]:
     with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
-        ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose)
+        ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose, num_ctx=num_ctx)
         try:
             body = _post_chat(
                 client=client,
@@ -468,7 +542,7 @@ def chat_text(
         except Exception as exc:
             logger.warning("Ollama chat_text failed for model=%s; reloading and retrying once: %s", model, exc)
             _record_call({"kind": "chat_error", "model": model, "purpose": purpose, "error": str(exc)})
-            ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, force_reload=True, purpose=purpose)
+            ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, force_reload=True, purpose=purpose, num_ctx=num_ctx)
             body = _post_chat(
                 client=client,
                 model=model,

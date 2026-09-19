@@ -9,6 +9,8 @@ from typing import Iterable
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import fetch_all
 from manuals_rag_schemas.documents import SearchResult
+from manuals_rag_retrieval.applicability import rank_by_applicability
+from manuals_rag_retrieval.document_metadata import select_grounded_metadata_evidence
 from manuals_rag_retrieval.embeddings import tokenize
 from manuals_rag_retrieval.query_analysis import QueryAnalysis, analyze_query
 from manuals_rag_retrieval.qdrant_store import QdrantStore
@@ -391,8 +393,24 @@ def _compact_identifier(text: str) -> str:
 
 
 def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
-    if not {"structured_lookup", "spec_lookup", "part_lookup"}.intersection(analysis.query_types) and not (
-        "comparison" in analysis.query_types and analysis.product_identifiers
+    named_setting_lookup = bool(
+        "configuration" in analysis.query_types
+        and re.search(
+            r"\bwhat\s+does\s+(?:the\s+)?[^?]{1,120}\s+settings?\s+"
+            r"(?:control|do|mean|represent)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    power_source_lookup = bool(
+        re.search(r"\bhow\s+(?:is|are)\b.{0,100}\bpowered\b", query, flags=re.I)
+        or re.search(r"\bwhat\b.{0,100}\bpower(?:-|\s*)supply\b", query, flags=re.I)
+    )
+    if (
+        not {"structured_lookup", "spec_lookup", "part_lookup"}.intersection(analysis.query_types)
+        and not ("comparison" in analysis.query_types and analysis.product_identifiers)
+        and not named_setting_lookup
+        and not power_source_lookup
     ):
         return []
     terms: list[str] = []
@@ -424,6 +442,10 @@ def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
                     terms.append(piece)
     if re.search(r"\bhow\s+long\b", query, flags=re.IGNORECASE) and "length" not in terms:
         terms.append("length")
+    if power_source_lookup:
+        for alias in ("power", "supply", "powersupply"):
+            if alias not in terms:
+                terms.append(alias)
     if (
         re.search(r"\b(?:output\s+)?polarity\b", query, flags=re.IGNORECASE)
         and re.search(r"\b(?:out\s+of\s+the\s+box|out\s+of\s+box|default|initial)\b", query, flags=re.IGNORECASE)
@@ -515,6 +537,15 @@ def _structured_prompt_phrase(query: str) -> str:
             r"\bwhat\s+(?:value|setting|number\s+format|initial\s+value|upper\s+limit(?:\s+value)?|"
             r"lower\s+limit(?:\s+value)?|decimal\s+digits|integer\s+digits|referenceable)\b"
             r".+\b(?:listed|specified|shown|given|configured|set)\s+for\s+(?P<phrase>.+?)\??$",
+            query,
+            flags=re.IGNORECASE,
+        )
+    if not match and re.search(r"\bhow\s+(?:is|are)\b.{0,100}\bpowered\b", query, flags=re.I):
+        return "powersupply"
+    if not match:
+        match = re.search(
+            r"\bwhat\s+does\s+(?:the\s+)?(?P<phrase>.+?)\s+settings?\s+"
+            r"(?:control|do|mean|represent)\b",
             query,
             flags=re.IGNORECASE,
         )
@@ -1999,16 +2030,14 @@ def _protocol_alignment_adjustment(result: SearchResult, query: str) -> float:
 def _requested_mode_phrases(query: str) -> set[str]:
     phrases: set[str] = set()
     lowered = query.lower()
-    for token in tokenize(lowered):
-        # Hyphenated product identifiers (for example IV4-G600CA) are not
-        # operating modes and are scored through product alignment instead.
-        if len(token) >= 4 and "-" in token and not any(char.isdigit() for char in token):
-            phrases.add(_compact_identifier(token))
     for match in re.finditer(
         r"\b([a-z0-9][a-z0-9_\-./]*(?:\s+[a-z0-9][a-z0-9_\-./]*){0,3})\s+(?:mode|type)\b",
         lowered,
     ):
-        phrase = _compact_identifier(match.group(0))
+        phrase_text = re.sub(
+            r"^(?:in|on|for|the)\s+", "", match.group(0), flags=re.IGNORECASE
+        )
+        phrase = _compact_identifier(phrase_text)
         if len(phrase) >= 5:
             phrases.add(phrase)
     for match in re.finditer(
@@ -2034,10 +2063,39 @@ def _declared_mode_phrases(text: str) -> set[str]:
     return phrases
 
 
+def _parenthetical_mode_phrases(text: str) -> set[str]:
+    return {
+        _compact_identifier(match)
+        for match in re.findall(
+            r"\(([^()]*(?:mode|type))\)", text, flags=re.IGNORECASE
+        )
+        if len(_compact_identifier(match)) >= 5
+    }
+
+
 def _mode_phrase_alignment_adjustment(result: SearchResult, query: str) -> float:
     requested_phrases = {phrase for phrase in _requested_mode_phrases(query) if len(phrase) >= 5}
     if not requested_phrases:
         return 0.0
+    page_context = str(result.metadata.get("page_context") or "")
+    if page_context:
+        compact_page_context = _compact_identifier(page_context)
+        page_matches = {
+            phrase for phrase in requested_phrases if phrase in compact_page_context
+        }
+        # A page-local heading is more authoritative than a broad/stale
+        # section path. Manuals often repeat identical table rows in adjacent
+        # operating modes, and parser section paths can span the transition.
+        if not page_matches:
+            declared_page_modes = (
+                _requested_mode_phrases(page_context)
+                | _parenthetical_mode_phrases(page_context)
+            )
+            if declared_page_modes:
+                return -5.0
+            return -0.25
+        return min(0.7, len(page_matches) * 0.7)
+
     evidence_text = " ".join(
         str(part)
         for part in [
@@ -2063,6 +2121,18 @@ def _mode_phrase_alignment_adjustment(result: SearchResult, query: str) -> float
     ):
         score -= 0.45
     return score
+
+
+def result_matches_requested_mode(result: SearchResult, query: str) -> bool:
+    """Reject evidence whose page-local heading declares a different mode.
+
+    Unknown or absent mode context remains eligible. A page-local explicit
+    conflict is the only hard rejection because section paths can lag across
+    adjacent manual modes.
+    """
+    if not _requested_mode_phrases(query):
+        return True
+    return _mode_phrase_alignment_adjustment(result, query) > -1.0
 
 
 def _safety_action_terms(query: str) -> set[str]:
@@ -2559,7 +2629,8 @@ def _promote_named_setting_candidates(
 ) -> list[SearchResult]:
     """Retain the table row whose setting label is explicitly named by the query."""
     match = re.search(
-        r"^\s*(?:how|what)\s+does\s+(?:the\s+)?(?P<label>.+?)\s+setting\b",
+        r"^\s*(?:for\s+.+?,\s*)?(?:how|what)\s+does\s+(?:the\s+)?"
+        r"(?P<label>.+?)\s+setting\b",
         query,
         flags=re.IGNORECASE,
     )
@@ -3607,6 +3678,25 @@ def enrich_candidates_for_rerank(results: list[SearchResult], analysis: QueryAna
         """,
         tuple(params),
     )
+    page_keys = {
+        (result.document_version_id, min(result.pages))
+        for result in results[:limit]
+        if result.pages
+    }
+    page_placeholders = ",".join(["(%s,%s)"] * len(page_keys))
+    page_params: list[object] = []
+    for document_version_id, page_from in page_keys:
+        page_params.extend([document_version_id, page_from])
+    page_rows = fetch_all(
+        f"""
+        select document_version_id, section_path_text, chunk_type, chunk_level,
+               page_from, page_to, content, metadata_json
+        from retrieval_chunks
+        where (document_version_id, page_from) in ({page_placeholders})
+          and chunk_type in ('section_window', 'parent_section')
+        """,
+        tuple(page_params),
+    ) if page_keys else []
     section_map: dict[tuple[str, str], list[dict[str, object]]] = {}
     for row in rows:
         key = (str(row["document_version_id"]), str(row["section_path_text"]))
@@ -3620,12 +3710,33 @@ def enrich_candidates_for_rerank(results: list[SearchResult], analysis: QueryAna
                 **dict(row.get("metadata_json") or {}),
             }
         )
+    page_map: dict[tuple[str, int], list[dict[str, object]]] = {}
+    for row in page_rows:
+        key = (str(row["document_version_id"]), int(row["page_from"]))
+        page_map.setdefault(key, []).append(dict(row))
     enriched: list[SearchResult] = []
     for result in results[:limit]:
         section_key = " / ".join(result.section_path) or "Document"
         section_rows = section_map.get((result.document_version_id, section_key), [])
         context_window = next((row["content"] for row in section_rows if int(row["chunk_level"]) == 2 and str(row["chunk_type"]) == "section_window"), None)
         parent_context = next((row["content"] for row in section_rows if int(row["chunk_level"]) == 3 and str(row["chunk_type"]) == "parent_section"), None)
+        page_context_rows = page_map.get(
+            (result.document_version_id, min(result.pages)), []
+        ) if result.pages else []
+        requested_modes = _requested_mode_phrases(analysis.raw_query)
+        page_context = None
+        if page_context_rows:
+            page_context = max(
+                page_context_rows,
+                key=lambda row: (
+                    sum(
+                        phrase in _compact_identifier(str(row.get("content") or ""))
+                        for phrase in requested_modes
+                    ),
+                    int(row.get("chunk_level") or 0) == 2,
+                    -len(str(row.get("content") or "")),
+                ),
+            ).get("content")
         rerank_parts = [str(result.metadata.get("content_for_rerank") or result.content)]
         chunk_type = str(result.metadata.get("chunk_type", ""))
         if chunk_type == "atomic_text":
@@ -3644,6 +3755,8 @@ def enrich_candidates_for_rerank(results: list[SearchResult], analysis: QueryAna
                 rerank_parts.append(str(summary["content"]))
         if parent_context and ("revision_history" in analysis.query_types or chunk_type in {"procedure_record", "table_record"}):
             rerank_parts.append(parent_context)
+        if page_context and page_context not in rerank_parts and chunk_type == "table_record":
+            rerank_parts.append(str(page_context))
         if chunk_type == "atomic_text" and context_window:
             rerank_parts = rerank_parts[:2]
         elif chunk_type == "spec_record":
@@ -3653,6 +3766,7 @@ def enrich_candidates_for_rerank(results: list[SearchResult], analysis: QueryAna
             **result.metadata,
             "context_window": context_window,
             "parent_context": parent_context,
+            "page_context": page_context,
             "rerank_document": rerank_document,
             "rerank_context_strategy": chunk_type,
         }
@@ -3750,6 +3864,7 @@ def assemble_context(results: list[SearchResult], *, limit: int = 10) -> list[Se
 def _attach_document_selection(
     results: list[SearchResult],
     metadata_document_hits: list[dict[str, object]],
+    *, query: str = "",
 ) -> list[SearchResult]:
     if not metadata_document_hits:
         return results
@@ -3763,12 +3878,22 @@ def _attach_document_selection(
         }
         for hit in metadata_document_hits
     ]
+    payloads = {
+        str(hit.get("source_document_id")): hit.get("payload")
+        for hit in metadata_document_hits if isinstance(hit.get("payload"), dict)
+    }
+    def claim_evidence(result: SearchResult) -> list[dict[str, object]]:
+        payload = payloads.get(result.source_document_id) or {}
+        if str(payload.get("document_version_id") or "") != result.document_version_id:
+            return []
+        return select_grounded_metadata_evidence(payload, result.pages, query)
     return [
         result.model_copy(
             update={
                 "metadata": {
                     **result.metadata,
                     "document_selection_stage": "metadata_embedding",
+                    "document_metadata_evidence": claim_evidence(result),
                     "selected_document_metadata_hits": document_selection,
                 }
             }
@@ -3991,7 +4116,7 @@ def _retrieve_once(
             _dedupe_results([*exact_troubleshooting, *siblings], analysis),
             limit=limit,
         )
-        return _attach_document_selection(assembled, metadata_document_hits)
+        return _attach_document_selection(assembled, metadata_document_hits, query=query)
     branch_limit = 60 if force_broad else 40
     dense_results = (
         _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters, limit=branch_limit), "dense")
@@ -4093,12 +4218,12 @@ def _retrieve_once(
     )
     deduped = _dedupe_results(reranked, analysis)
     assembled = assemble_context(deduped, limit=limit)
-    return _attach_document_selection(assembled, metadata_document_hits)
+    return _attach_document_selection(assembled, metadata_document_hits, query=query)
 
 
 def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 10) -> list[SearchResult]:
     """Retrieve once, then perform one broad corrective pass when requested facets are absent."""
-    primary_results = _retrieve_once(query, corpus_ids, filters, limit=limit)
+    primary_results = rank_by_applicability(query, _retrieve_once(query, corpus_ids, filters, limit=limit))
     primary_assessment = assess_evidence_sufficiency(query, primary_results)
     if primary_assessment.sufficient:
         return _attach_corrective_trace(
@@ -4125,7 +4250,7 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     analysis = analyze_query(query)
     enriched = enrich_candidates_for_rerank(fused, analysis, limit=30)
     reranked = rerank_results(enriched, query, limit=max(limit, 12))
-    final_results = assemble_context(_dedupe_results(reranked, analysis), limit=limit)
+    final_results = rank_by_applicability(query, assemble_context(_dedupe_results(reranked, analysis), limit=limit))
     candidate_assessment = assess_evidence_sufficiency(query, final_results)
     correction_improved = (
         len(candidate_assessment.missing_facets) < len(primary_assessment.missing_facets)
@@ -4176,7 +4301,7 @@ def retrieve_with_strategy(
             force_broad=True,
             candidate_pool_limit=60,
         )
-        return _attach_agent_strategy(results[:limit], strategy)
+        return _attach_agent_strategy(rank_by_applicability(query, results)[:limit], strategy)
 
     store = QdrantStore()
     analysis = analyze_query(query)
@@ -4208,9 +4333,13 @@ def retrieve_with_strategy(
         raise ValueError(f"Unsupported retrieval strategy: {strategy}")
 
     enriched = enrich_candidates_for_rerank(candidates, analysis, limit=30)
-    reranked = rerank_results(enriched, query, limit=max(limit, 12))
+    # Structural retrieval needs a wider reranker handoff so deterministic
+    # scope/alignment scoring can rescue exact rows that a semantic reranker
+    # places below visually similar neighboring table records.
+    rerank_limit = 30 if strategy == "structural" else max(limit, 12)
+    reranked = rerank_results(enriched, query, limit=rerank_limit)
     assembled = assemble_context(_dedupe_results(reranked, analysis), limit=limit)
-    return _attach_agent_strategy(assembled, strategy)
+    return _attach_agent_strategy(rank_by_applicability(query, assembled), strategy)
 
 
 def assemble_agent_context(

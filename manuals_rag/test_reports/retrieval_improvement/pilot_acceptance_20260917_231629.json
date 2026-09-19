@@ -1,0 +1,41 @@
+{
+  "audit": "assistant source-text and metadata-role audit; not human or visual-PDF adjudication",
+  "accepted": true,
+  "sample_documents": 5,
+  "bracket_report": "test_reports/document_metadata_backfill_20260917_231629.json",
+  "bracket_compatibility": {
+    "expected": 36,
+    "confirmed": 36,
+    "missing": [],
+    "extra": [],
+    "duplicates": [],
+    "nonliteral_quotes": [],
+    "compatible_primary_overlap": [],
+    "subjects": {
+      "GL-FB1000": 12,
+      "GL-FB1400": 15,
+      "GL-FB1900": 6,
+      "GL-FB2400": 3
+    }
+  },
+  "postgres_audit": "test_reports/retrieval_improvement/pilot_postgres_audit_all5_20260917_231629.json",
+  "qdrant_audit": "test_reports/retrieval_improvement/pilot_qdrant_audit_all5_20260917_231629.json",
+  "postgres_passed": 5,
+  "qdrant_passed": 5,
+  "active_chunks_verified": 383,
+  "document_selectors_verified": 5,
+  "idempotent_reentry": {
+    "report": "test_reports/document_metadata_backfill_20260917_232034.json",
+    "skipped_current": 2,
+    "writes": 0,
+    "embed_enqueues": 0
+  },
+  "interrupted_resume": {
+    "report": "test_reports/retrieval_improvement/pilot_interrupted_resume_20260917_235305.json",
+    "checkpointed_documents_retained": 1,
+    "remaining_documents_completed": 1,
+    "writes": 0,
+    "embed_enqueues": 0,
+    "deterministic_cli_interruption_test": true
+  }
+}

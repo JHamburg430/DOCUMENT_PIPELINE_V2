@@ -1,0 +1,156 @@
+{
+  "generated_at": "2026-09-17T23:20:13.219143+00:00",
+  "pipeline": "evidence_map_reduce_verify_v4",
+  "document_count": 5,
+  "passed": 5,
+  "failed": 0,
+  "checks_passed": true,
+  "scope_failures": [],
+  "documents": [
+    {
+      "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+      "source_filename": "AS_147320_LJ-S8000_SG_K47GB_WW_GB_2094_1.pdf",
+      "title": "LJ: S8000 Series Easy Configuration Manual",
+      "claim_counts": {
+        "confirmed": 15
+      },
+      "routing_product_models": [
+        "LJ-S015",
+        "LJ-S025",
+        "LJ-S040",
+        "LJ-S080",
+        "LJ-S8000",
+        "LJ-S"
+      ],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [
+        "ethernet"
+      ],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 153,
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "9faae21a-84b7-41ee-aa34-253cf69e118f",
+      "source_filename": "AS_149074_SZ-V_GL-R_L_689034_KA_US_2114_1.pdf",
+      "title": "SZ: V Series robust floor mounting bracket : SZ-FB31",
+      "claim_counts": {
+        "confirmed": 49
+      },
+      "routing_product_models": [
+        "GL-FB1000",
+        "GL-FB1400",
+        "GL-FB1900",
+        "GL-FB2400",
+        "GL-R63F",
+        "GL-R32H",
+        "GL-R16L",
+        "GL-R71F",
+        "GL-R36H",
+        "GL-R18L",
+        "GL-R79F",
+        "GL-R40H",
+        "GL-R20L",
+        "GL-R87F",
+        "GL-R44H",
+        "GL-R22L",
+        "GL-R95F",
+        "GL-R48H",
+        "GL-R24L",
+        "GL-R103F",
+        "GL-R52H",
+        "GL-R26L",
+        "GL-R111F",
+        "GL-R56H",
+        "GL-R28L",
+        "GL-R119F",
+        "GL-R60H",
+        "GL-R30L",
+        "GL-R127F",
+        "GL-R64H",
+        "GL-R32L",
+        "GL-R143F",
+        "GL-R72H",
+        "GL-R159F",
+        "GL-R80H",
+        "GL-R175F",
+        "GL-R88H",
+        "GL-R191F",
+        "GL-R96H",
+        "GL-R207F",
+        "GL-R",
+        "SZ-V"
+      ],
+      "routing_part_numbers": [
+        "SZ-FB31"
+      ],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 72,
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "14879385-0608-44ee-85fc-0b79ac5c1d96",
+      "source_filename": "CA-EN100U_Datasheet.pdf",
+      "title": "Data Sheet",
+      "claim_counts": {
+        "confirmed": 5
+      },
+      "routing_product_models": [
+        "CA-EN100U"
+      ],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 4,
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "d88f593a-8d50-4f54-baaa-39fcc5020833",
+      "source_filename": "LuaScriptManual_en.pdf",
+      "title": "Lua Script Manual",
+      "claim_counts": {
+        "confirmed": 19,
+        "rejected": 1
+      },
+      "routing_product_models": [
+        "XG-7000",
+        "XG-8000"
+      ],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [
+        "ethernet",
+        "rs-232c"
+      ],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 105,
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+      "source_filename": "VJ-H500CX_Datasheet.pdf",
+      "title": "VJ-H500CX",
+      "claim_counts": {
+        "confirmed": 5
+      },
+      "routing_product_models": [
+        "VJ-H500CX"
+      ],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 49,
+      "checks_passed": true,
+      "failures": []
+    }
+  ]
+}

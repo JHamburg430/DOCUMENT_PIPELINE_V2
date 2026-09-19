@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260908-agent-sync" />
+    <link rel="stylesheet" href="/styles.css?v=20260911-agent-chat" />
   </head>
   <body>
     <main class="app-shell">
@@ -15,6 +15,7 @@
         </div>
         <nav class="tabs" aria-label="Views">
           <button class="tab active" data-tab="matrix">Eval Matrix</button>
+          <button class="tab" data-tab="agent-chat">Agent</button>
           <button class="tab" data-tab="search">Search</button>
           <button class="tab" data-tab="agent-lab">Agent Lab</button>
           <button class="tab" data-tab="ingestion">Ingestion</button>
@@ -143,6 +144,67 @@
           <div id="matrix-summary" class="matrix-summary empty-state">No evaluation loaded.</div>
           <div id="matrix-table"></div>
           <div id="matrix-detail"></div>
+        </section>
+      </section>
+
+      <section id="agent-chat" class="tab-panel">
+        <section class="agent-chat-shell" aria-label="Manuals agent">
+          <header class="panel agent-chat-header">
+            <div>
+              <h2>Manuals Agent</h2>
+              <p class="muted">Ask a technical question and get a grounded answer with source citations. Each question is independently verified against the selected corpus.</p>
+            </div>
+            <div class="agent-chat-actions">
+              <span id="agent-chat-status" class="status-pill">Ready</span>
+              <button id="agent-chat-new" class="secondary-button" type="button">New conversation</button>
+            </div>
+          </header>
+
+          <details class="panel agent-chat-settings">
+            <summary>Agent settings</summary>
+            <div class="agent-chat-settings-grid">
+              <label>
+                Corpus IDs
+                <input id="agent-chat-corpus" value="manuals_vendor_keyence" />
+              </label>
+              <label>
+                Backend
+                <select id="agent-chat-backend">
+                  <option value="langgraph_agent">LangGraph</option>
+                  <option value="llamaindex_agent">LlamaIndex</option>
+                </select>
+              </label>
+              <label>
+                Maximum hops
+                <input id="agent-chat-max-hops" type="number" min="1" max="8" value="4" />
+              </label>
+              <label class="inline-check agent-chat-trace-toggle">
+                <input id="agent-chat-show-trace" type="checkbox" checked />
+                <span>Show live retrieval trace</span>
+              </label>
+            </div>
+          </details>
+
+          <section id="agent-chat-messages" class="agent-chat-messages" aria-live="polite">
+            <div class="agent-chat-welcome">
+              <h3>What do you need to find?</h3>
+              <p>Ask about setup, wiring, specifications, troubleshooting, compatibility, or procedures in the indexed manuals.</p>
+              <div class="agent-chat-suggestions">
+                <button type="button" data-agent-suggestion="Which cable model connects the LJ-X8000 RS-232C port, and what is its connector orientation?">Find a cable and orientation</button>
+                <button type="button" data-agent-suggestion="Compare the key commissioning requirements for the SV2 and LJ-S8000 systems.">Compare two products</button>
+                <button type="button" data-agent-suggestion="What should I check when a trigger signal error occurs?">Troubleshoot an error</button>
+              </div>
+            </div>
+          </section>
+
+          <form id="agent-chat-form" class="panel agent-chat-composer">
+            <label for="agent-chat-query">Ask the manuals agent</label>
+            <div class="agent-chat-compose-row">
+              <textarea id="agent-chat-query" rows="3" placeholder="Describe the product, task, symptom, or version you are working with…"></textarea>
+              <button id="agent-chat-send" type="submit">Send</button>
+            </div>
+            <small class="muted">Enter to send · Shift+Enter for a new line</small>
+          </form>
         </section>
       </section>
 
@@ -304,6 +366,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260908-agent-sync"></script>
+    <script src="/app.js?v=20260911-agent-chat"></script>
   </body>
 </html>

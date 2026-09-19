@@ -13,6 +13,54 @@ client = TestClient(app)
 USER_HEADERS = {"Authorization": "Bearer user-token"}
 
 
+def test_agentic_query_safely_declines_visual_dependency_before_retrieval(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "settings",
+        SimpleNamespace(**{**vars(main.settings), "agentic_retrieval_enabled": True}),
+    )
+
+    response = client.post(
+        "/query",
+        headers=USER_HEADERS,
+        json={
+            "query": "Which pin in the wiring diagram carries output 4?",
+            "corpus_ids": ["manuals"],
+            "retrieval_orchestrator": "langgraph_agent",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["insufficient_evidence"] is True
+    assert payload["citations"] == []
+    assert payload["retrieval_trace"]["stop_reason"] == "visual_evidence_not_enabled"
+
+
+def test_confirmed_claim_reducer_revalidates_action_polarity(monkeypatch):
+    result = main.SearchResult(
+        chunk_id="setup-values",
+        score=0.9,
+        title="Controller manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[4],
+        section_path=["Setup"],
+        content="Set voltage to 5 volts and current to 10 amps.",
+        metadata={},
+    )
+    monkeypatch.setattr(
+        main,
+        "chat_json",
+        lambda **_kwargs: ({"answer": "Do not set voltage to 5 volts or current to 10 amps."}, "{}"),
+    )
+
+    answer = main._answer_confirmed_claim("What voltage and current should I set?", [result], "supported")
+
+    assert "Do not set" not in answer.answer
+    assert any("not sufficiently supported" in warning for warning in answer.warnings)
+
+
 @pytest.mark.parametrize(
     ("orchestrator", "attribute"),
     [
@@ -22,6 +70,12 @@ USER_HEADERS = {"Authorization": "Bearer user-token"}
 )
 def test_query_routes_to_selected_agentic_retriever(monkeypatch, orchestrator, attribute):
     calls = []
+
+    monkeypatch.setattr(
+        main,
+        "settings",
+        SimpleNamespace(**{**vars(main.settings), "agentic_retrieval_enabled": True}),
+    )
 
     class FakeAgenticRetriever:
         def invoke(self, payload):
@@ -113,6 +167,12 @@ def test_agentic_runtime_budget_clamps_invalid_environment_value(monkeypatch):
 
 
 def test_agentic_query_stream_emits_live_trace_and_final_answer(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "settings",
+        SimpleNamespace(**{**vars(main.settings), "agentic_retrieval_enabled": True}),
+    )
+
     class FakeAgenticRetriever:
         def __init__(self, event_callback):
             self.event_callback = event_callback

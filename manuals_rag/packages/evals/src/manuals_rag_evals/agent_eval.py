@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from manuals_rag_common.claim_relations import profile_is_preserved, relation_profile
 from manuals_rag_evals.agent_eval_schema import build_expected_evidence_graph
 
 
@@ -15,6 +16,121 @@ AGENT_EVALUATION_LAYERS = (
     "grounded_answer",
     "latency_token_cost",
 )
+
+_NUMBER_WORDS = {
+    "zero": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+    "eleven": "11",
+    "twelve": "12",
+    "thirteen": "13",
+    "fourteen": "14",
+    "fifteen": "15",
+    "sixteen": "16",
+    "seventeen": "17",
+    "eighteen": "18",
+    "nineteen": "19",
+    "twenty": "20",
+}
+_QUANTITY_ROLES = {
+    "angle",
+    "count",
+    "counts",
+    "current",
+    "distance",
+    "height",
+    "interval",
+    "limit",
+    "line",
+    "lines",
+    "overlap",
+    "overlapping",
+    "pressure",
+    "range",
+    "speed",
+    "temperature",
+    "total",
+    "voltage",
+    "width",
+}
+_VALUE_PATTERN = (
+    r"(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+    r"thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|"
+    r"\d+(?:\.\d+)?)\s*(?:vdc|volts?|v|amps?|ma|a|lines?|mm|ms|%|hz|khz|mhz)?"
+)
+
+
+def _canonical_relation_value(value: str) -> str:
+    tokens = re.findall(r"\d+(?:\.\d+)?|[a-zA-Z%]+", value.lower())
+    unit_aliases = {
+        "volt": "v",
+        "volts": "v",
+        "amp": "a",
+        "amps": "a",
+        "line": "lines",
+    }
+    return " ".join(unit_aliases.get(token, _NUMBER_WORDS.get(token, token)) for token in tokens)
+
+
+def _role_value_relations(text: str) -> dict[str, set[str]]:
+    """Extract quantitative role/value bindings without treating values as a bag."""
+    return {role: set(values) for role, values in relation_profile(text).role_values.items()}
+
+
+def _expected_relation_text(case: dict[str, Any]) -> str:
+    evidence = [item for item in case.get("expected_evidence") or [] if isinstance(item, dict)]
+    if not evidence:
+        return str(case.get("expected_snippet") or "")
+
+    graph = build_expected_evidence_graph(case)
+    required_chunks = {
+        chunk_id
+        for node in graph.nodes
+        if node.required
+        for chunk_id in node.expected_chunk_ids
+    }
+    snippets: list[str] = []
+    for item in evidence:
+        chunk_id = str(item.get("chunk_id") or "")
+        if required_chunks and chunk_id not in required_chunks:
+            continue
+        snippet = str(item.get("snippet") or "").strip()
+        if not snippet:
+            continue
+        if any(marker in snippet for marker in ("Column headers:", "Row headers:", "Cell value:")):
+            # Structured fixture excerpts may be clipped to a character budget.
+            # Only derive semantic relations from cells with an explicit trailing
+            # row/column boundary; expected terms and exact citations continue to
+            # enforce incomplete cells without hallucinating relations from their
+            # truncated prefixes or serialization labels.
+            match = re.search(
+                r"Cell value:\s*(.+?);\s*(?:Row|Column):",
+                snippet,
+                flags=re.I | re.S,
+            )
+            if match:
+                snippets.append(match.group(1).strip())
+            continue
+        snippets.append(snippet)
+    return " ".join(snippets)
+
+
+def _relation_grounding(case: dict[str, Any], answer_text: str) -> dict[str, Any]:
+    expected_profile = relation_profile(_expected_relation_text(case))
+    actual_profile = relation_profile(answer_text)
+    checked = bool(expected_profile.role_values or expected_profile.action_polarities)
+    if not checked:
+        return {"checked": False, "passed": True, "expected": {}, "answer": {}}
+    passed, details = profile_is_preserved(expected_profile, actual_profile)
+    return {"checked": True, "passed": passed, **details}
 
 
 def _cell(status: str, detail: str, **metrics: Any) -> dict[str, Any]:
@@ -46,6 +162,107 @@ def _expected_chunk_ids(case: dict[str, Any]) -> set[str]:
     if source_chunk_id:
         values.add(source_chunk_id)
     return {value for value in values if value}
+
+
+def _page_set(item: dict[str, Any]) -> set[int]:
+    pages = item.get("pages") or []
+    if pages:
+        return {int(page) for page in pages}
+    page_from = item.get("page_from")
+    page_to = item.get("page_to")
+    if page_from is None or page_to is None:
+        return set()
+    return set(range(int(page_from), int(page_to) + 1))
+
+
+def _structured_values(snippet: str) -> list[str]:
+    """Return the values from a compact ``Label: value; Label: value`` row."""
+    values = []
+    for field in re.split(r";\s*", snippet or ""):
+        if ":" not in field:
+            continue
+        _label, value = field.split(":", 1)
+        normalized = _normalized(value)
+        if normalized:
+            values.append(normalized)
+    return values
+
+
+def _result_preserves_expected_evidence(
+    result: dict[str, Any],
+    *,
+    source_document_id: str,
+    expected_pages: set[int],
+    snippet: str,
+) -> bool:
+    """Accept a larger parent chunk only when it demonstrably contains the same evidence.
+
+    Same-document or term overlap alone is intentionally insufficient. A parent must
+    overlap the expected page and either contain the complete normalized snippet or place
+    every value from a structured expected row on one physical row. The only cross-page
+    exception is an atomic chunk whose complete normalized content exactly duplicates the
+    expected snippet; manuals can repeat the same warning verbatim in multiple sections.
+    """
+    if str(result.get("source_document_id") or "") != source_document_id:
+        return False
+    normalized_snippet = _normalized(snippet)
+    if not normalized_snippet:
+        return False
+    content = str(result.get("content") or "")
+    normalized_content = _normalized(content)
+    result_pages = _page_set(result)
+    if expected_pages and (not result_pages or expected_pages.isdisjoint(result_pages)):
+        metadata = result.get("metadata") or {}
+        chunk_type = str(metadata.get("chunk_type") or result.get("chunk_type") or "")
+        return (
+            chunk_type in {"atomic_text", "warning_record"}
+            and normalized_content == normalized_snippet
+        )
+    if normalized_snippet in normalized_content:
+        return True
+    values = _structured_values(snippet)
+    if len(values) < 2:
+        return False
+    return any(
+        all(value in _normalized(line) for value in values)
+        for line in content.splitlines()
+        if line.strip()
+    )
+
+
+def _equivalent_chunk_ids(
+    case: dict[str, Any],
+    results: list[dict[str, Any]],
+) -> dict[str, set[str]]:
+    """Map each expected chunk to strictly verified parent/aggregate alternatives."""
+    expected_pages = set(
+        range(int(case.get("page_from") or 0), int(case.get("page_to") or 0) + 1)
+    ) if case.get("page_from") is not None and case.get("page_to") is not None else set()
+    default_snippet = str(case.get("expected_snippet") or "")
+    default_document = str(case.get("source_document_id") or "")
+    evidence_by_chunk = {
+        str(item.get("chunk_id") or ""): item
+        for item in case.get("expected_evidence") or []
+        if isinstance(item, dict) and item.get("chunk_id")
+    }
+    equivalents: dict[str, set[str]] = {}
+    for expected_chunk in _expected_chunk_ids(case):
+        evidence = evidence_by_chunk.get(expected_chunk, {})
+        source_document_id = str(evidence.get("source_document_id") or default_document)
+        snippet = str(evidence.get("snippet") or default_snippet)
+        pages = _page_set(evidence) or expected_pages
+        equivalents[expected_chunk] = {
+            str(result.get("chunk_id") or "")
+            for result in results
+            if result.get("chunk_id")
+            and _result_preserves_expected_evidence(
+                result,
+                source_document_id=source_document_id,
+                expected_pages=pages,
+                snippet=snippet,
+            )
+        }
+    return equivalents
 
 
 def score_agent_run(
@@ -81,18 +298,28 @@ def score_agent_run(
     )
 
     expected_chunks = _expected_chunk_ids(case)
+    equivalent_chunks = _equivalent_chunk_ids(case, results)
     candidate_chunks = {
         str(chunk_id)
         for item in ledger.values()
         for chunk_id in item.get("chunk_ids") or []
         if chunk_id
     }
-    candidate_hits = expected_chunks.intersection(candidate_chunks)
+    candidate_hits = {
+        chunk_id
+        for chunk_id in expected_chunks
+        if chunk_id in candidate_chunks
+        or bool(equivalent_chunks.get(chunk_id, set()).intersection(candidate_chunks))
+    }
     required_nodes = [node for node in graph.nodes if node.required]
     node_candidate_coverage = {
         node.node_id: (
             not node.expected_chunk_ids
-            or bool(set(node.expected_chunk_ids).intersection(candidate_chunks))
+            or all(
+                chunk_id in candidate_chunks
+                or bool(equivalent_chunks.get(chunk_id, set()).intersection(candidate_chunks))
+                for chunk_id in node.expected_chunk_ids
+            )
         )
         for node in required_nodes
     }
@@ -104,7 +331,8 @@ def score_agent_run(
         f"candidate evidence retained {len(candidate_hits)}/{len(expected_chunks)} expected chunks",
         expected=len(expected_chunks),
         found=len(candidate_hits),
-        missing=sorted(expected_chunks - candidate_chunks),
+        missing=sorted(expected_chunks - candidate_hits),
+        equivalent_chunks={key: sorted(value) for key, value in equivalent_chunks.items() if value},
         claim_coverage=node_candidate_coverage,
     )
 
@@ -125,7 +353,9 @@ def score_agent_run(
     hop_ok = bool(hops)
     expected_edges = sum(len(node.depends_on) for node in graph.nodes)
     if graph.mode in {"parallel", "dependent"}:
-        hop_ok = len(hops) >= len(graph.nodes) and mode == graph.mode
+        # Query-anchor nodes bind requested evidence but do not require a
+        # separate retrieval branch of their own.
+        hop_ok = len(hops) >= len(required_nodes) and mode == graph.mode
     if graph.mode == "dependent":
         hop_ok = hop_ok and dependency_edges >= expected_edges
     if graph.mode == "abstain":
@@ -182,6 +412,7 @@ def score_agent_run(
     )
 
     answer_text = _normalized(answer.get("answer"))
+    relation_grounding = _relation_grounding(case, str(answer.get("answer") or ""))
     expected_terms = [_normalized(value) for value in case.get("expected_terms") or [] if value]
     term_hits = [term for term in expected_terms if term and term in answer_text]
     citation_chunks = {
@@ -189,11 +420,16 @@ def score_agent_run(
         for item in answer.get("citations") or []
         if isinstance(item, dict) and item.get("chunk_id")
     }
+    invalid_citation_chunks = citation_chunks - candidate_chunks
     node_grounding = {
         node.node_id: {
             "terms": all(_normalized(term) in answer_text for term in node.expected_terms if term),
             "citation": not node.expected_chunk_ids
-            or bool(set(node.expected_chunk_ids).intersection(citation_chunks)),
+            or all(
+                chunk_id in citation_chunks
+                or bool(equivalent_chunks.get(chunk_id, set()).intersection(citation_chunks))
+                for chunk_id in node.expected_chunk_ids
+            ),
         }
         for node in required_nodes
     }
@@ -204,6 +440,8 @@ def score_agent_run(
             bool(answer_text)
             and (not expected_terms or len(term_hits) == len(expected_terms))
             and all(item["terms"] and item["citation"] for item in node_grounding.values())
+            and relation_grounding["passed"]
+            and not invalid_citation_chunks
         )
     grounded_cell = _cell(
         "pass" if grounding_ok else "fail",
@@ -211,7 +449,9 @@ def score_agent_run(
         expected_terms=expected_terms,
         matched_terms=term_hits,
         citation_chunks=sorted(citation_chunks),
+        invalid_citation_chunks=sorted(invalid_citation_chunks),
         claim_grounding=node_grounding,
+        relation_grounding=relation_grounding,
         insufficient_evidence=bool(answer.get("insufficient_evidence")),
     )
 

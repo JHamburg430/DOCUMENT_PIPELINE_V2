@@ -74,3 +74,31 @@ def _flatten_metadata_values(value: Any) -> list[str]:
             flattened.extend(_flatten_metadata_values(item))
         return flattened
     return [str(value)]
+
+
+def select_grounded_metadata_evidence(metadata: dict[str, Any], pages: list[int], query: str) -> list[dict[str, Any]]:
+    """Keep source-backed scope/applicability claims; never substitute for chunk quotes."""
+    import re
+    terms = set(re.findall(r'\w+', query.casefold()))
+    candidates = []
+    for item in metadata.get('metadata_claims') or []:
+        if not isinstance(item, dict) or item.get('verification_status') != 'confirmed':
+            continue
+        try:
+            trusted = float(item.get('confidence') or 0) >= .8
+        except (TypeError, ValueError):
+            trusted = False
+        if not (trusted and item.get('grounded') is True and item.get('source_quote') and item.get('page_from') is not None):
+            continue
+        page_match = item['page_from'] in pages
+        overlap = len(terms & set(re.findall(r'\w+', str(item.get('value','')).casefold())))
+        scope_claim = item.get('relation') in {'primary_product','primary_manufacturer','applies_to','compatible_with','accessory_for'}
+        if not (page_match or overlap or scope_claim):
+            continue
+        selected = {key: item.get(key) for key in (
+            'kind','value','subject','relation','source_quote','page_from','page_to',
+            'confidence','grounded','verification_status','source_method',
+        )}
+        candidates.append((int(page_match), overlap, int(scope_claim), selected))
+    candidates.sort(key=lambda entry: entry[:3], reverse=True)
+    return [entry[3] for entry in candidates[:8]]
