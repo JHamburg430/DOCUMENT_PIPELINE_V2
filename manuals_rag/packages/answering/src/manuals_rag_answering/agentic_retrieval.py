@@ -677,7 +677,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
             num_predict=700,
             purpose="agentic_retrieval_plan",
         )
-        plan = RetrievalPlan.model_validate(payload)
+        plan = _normalize_primary_plan(RetrievalPlan.model_validate(payload))
         _validate_plan(plan)
         return plan
     except Exception:
@@ -737,7 +737,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
             num_predict=700,
             purpose="llamaindex_subquestion_plan",
         )
-        plan = RetrievalPlan.model_validate(payload)
+        plan = _normalize_primary_plan(RetrievalPlan.model_validate(payload))
         _validate_plan(plan)
         return plan
     except Exception:
@@ -754,6 +754,8 @@ def _validate_plan(plan: RetrievalPlan) -> None:
         raise ValueError("Dependent plans require explicit dependency links.")
     if plan.mode != "dependent" and has_dependencies:
         raise ValueError("Dependency links require dependent plan mode.")
+    if any(not hop.required for hop in plan.hops if hop.recovery_for is None):
+        raise ValueError("Every primary retrieval hop must be required.")
     ids = [hop.hop_id for hop in plan.hops]
     if len(ids) != len(set(ids)):
         raise ValueError("Retrieval hop IDs must be unique.")
@@ -764,6 +766,20 @@ def _validate_plan(plan: RetrievalPlan) -> None:
         if any(dependency not in seen for dependency in hop.depends_on):
             raise ValueError("Retrieval dependencies must reference earlier hops.")
         seen.add(hop.hop_id)
+
+
+def _normalize_primary_plan(plan: RetrievalPlan) -> RetrievalPlan:
+    """Treat every planner-created claim as required; only controller recoveries are optional."""
+    return plan.model_copy(
+        update={
+            "hops": [
+                hop.model_copy(update={"required": True})
+                if hop.recovery_for is None
+                else hop
+                for hop in plan.hops
+            ]
+        }
+    )
 
 
 def _evidence_excerpt(results: list[SearchResult], *, max_chars: int = 6000) -> str:
@@ -1507,6 +1523,7 @@ def _direct_structured_lookup_support(
     }
 
     def terms(text: str) -> set[str]:
+        text = re.sub(r"\b(\d+)\s*[- ]?bit\b", r"\1bit", text, flags=re.IGNORECASE)
         normalized: set[str] = set()
         for token in re.findall(r"[a-z0-9]+", text.lower()):
             if len(token) < 2 or token in stopwords:
@@ -1539,17 +1556,28 @@ def _direct_structured_lookup_support(
         value_terms = terms(cell_match.group("value"))
         if not column_terms or not row_terms:
             continue
-        if len(column_terms.intersection(query_terms)) < min(2, len(column_terms)):
+        column_overlap = len(column_terms.intersection(query_terms))
+        required_column_overlap = 1 if len(column_terms) >= 4 else min(2, len(column_terms))
+        if column_overlap < required_column_overlap:
             continue
         if len(row_terms.intersection(query_terms)) < min(2, len(row_terms)):
             continue
         value_overlap = len(value_terms.intersection(query_terms))
+        coordinate_numbers = set(
+            re.findall(
+                r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])",
+                f"{cell_match.group('column')} {cell_match.group('row')}",
+            )
+        )
+        coordinate_numbers.update(
+            re.findall(r"\b(\d+)bit\b", cell_match.group("column"), flags=re.IGNORECASE)
+        )
         value_numbers = set(
             re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", cell_match.group("value"))
         )
-        if query_numbers and not query_numbers.issubset(value_numbers):
+        if query_numbers and not query_numbers.issubset(coordinate_numbers | value_numbers):
             continue
-        if value_overlap < 2:
+        if not value_terms:
             continue
         chunk_type = str(result.metadata.get("chunk_type") or "")
         bounded = int(chunk_type in {"table_record", "spec_record", "atomic_text"})

@@ -112,6 +112,33 @@ def test_planner_routes_direct_labelled_lookup_to_structural_without_model(monke
         assert plan.hops[0].strategy == "structural"
 
 
+def test_model_planners_cannot_mark_primary_claims_optional(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "mode": "single",
+                "rationale": "One lookup.",
+                "hops": [
+                    {
+                        "hop_id": "lookup",
+                        "objective": "Explain controller communication behavior",
+                        "query": "controller communication behavior",
+                        "strategy": "dense",
+                        "depends_on": [],
+                        "required": False,
+                    }
+                ],
+            },
+            "{}",
+        ),
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner("Explain controller communication behavior", use_llm=True)
+        assert plan.hops[0].required is True
+
+
 def test_planners_add_canonical_camera_trigger_light_menu_label(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
@@ -714,6 +741,36 @@ def test_verifier_deterministically_confirms_exact_structured_lookup_cell(monkey
     )
     result.metadata["product_model"] = "CV-X482"
     result.metadata["product_family"] = "CV-X Series"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
+def test_verifier_confirms_numeric_row_and_bit_column_mapping(monkeypatch):
+    objective = (
+        "On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    result = _result(
+        "command-result-cell",
+        "cvx-doc",
+        "Column headers: 6bit > 5bit > 4bit > 3bit > 2bit > 1bit > 0bit; "
+        "Row headers: 0028 65.0 > Command output area; Cell value: Command Result; "
+        "Row: 15; Column: 3",
+    )
+    result.metadata["product_model"] = "CV-X482"
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
         lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
