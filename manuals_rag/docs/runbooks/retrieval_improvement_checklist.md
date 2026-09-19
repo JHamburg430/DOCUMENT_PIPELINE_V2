@@ -91,6 +91,32 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   with a fresh run ID and output path. Inspect its launch and one-case contract
   before starting all 48 frozen cases.
 
+### First source-backed repair from the v2 trace — 2026-09-19
+
+- Clean one-case artifact `evaluator-contract-smoke-clean-20260919-01` exposed a
+  fail-open controller state: the model planner marked its only primary hop
+  `required=false`, so an empty required-claim set was treated as sufficient even
+  though the independent verifier rejected the evidence. All planner-created
+  primary hops are now mandatory; only controller-created recovery hops may be
+  optional.
+- Single-hop model plans now preserve the original user query and objective so
+  product, row, value, bit/column, and output-area qualifiers cannot be lost in a
+  lossy planner rewrite.
+- Exact structured table verification now binds numeric row coordinates, bit
+  columns, cell values, and product scope directly. An exact coordinate match may
+  override the generic term-overlap heuristic; scope and coordinate checks remain
+  fail-closed.
+- Focused changed-path gate: **270 passed**. In clean live artifact
+  `agent-matrix-case0-postfix-20260919-02`, LlamaIndex passed all seven layers for
+  frozen case `a7ed6202-8a02-566c-a845-55acfe8c07bb::curated1`. The later
+  LangGraph artifact retrieved the exact anchor during recovery but was blocked by
+  the old preliminary-overlap dependency; replaying that exact persisted record on
+  revision `e75bc05` now returns `confirmed` with supporting chunk
+  `a7ed6202-8a02-566c-a845-55acfe8c07bb`.
+- Do not launch the 48-case matrix yet. First rerun this exact case end-to-end for
+  LangGraph on `e75bc05` or later, then run a small representative slice to expose
+  the next recurring failure class. Production remains disabled.
+
 - Initial inspection: API bind-mounts this working tree; verifier still passes
   four chunks capped at 900 characters. Existing unrelated report deletions and
   generated artifacts will be preserved, not staged wholesale.
