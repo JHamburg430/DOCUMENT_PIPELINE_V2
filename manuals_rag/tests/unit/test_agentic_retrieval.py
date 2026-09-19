@@ -781,7 +781,7 @@ def test_verifier_deterministically_confirms_exact_structured_lookup_cell(monkey
         hop,
         objective,
         [result],
-        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+        {"claim_supported": False, "supporting_chunk_ids": []},
     )
 
     assert output["trust_state"] == "confirmed"

@@ -1526,9 +1526,8 @@ def _direct_structured_lookup_support(
     preliminary_assessment: dict[str, Any],
 ) -> list[str]:
     """Confirm a direct column -> row -> value lookup in one serialized cell."""
+    _ = preliminary_assessment  # Exact coordinate binding is independently sufficient.
     if not re.search(r"\b(?:what|which|map|mapping)\b", query, flags=re.IGNORECASE):
-        return []
-    if not preliminary_assessment.get("claim_supported"):
         return []
 
     stopwords = {
@@ -1547,13 +1546,9 @@ def _direct_structured_lookup_support(
 
     query_terms = terms(query)
     query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
-    preliminary_ids = {
-        str(chunk_id)
-        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
-    }
     matches: list[tuple[int, int, int, str]] = []
     for result_index, result in enumerate(results):
-        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+        if not _result_supports_branch_scope(query, result):
             continue
         content = str(result.content or "")
         cell_match = re.search(
