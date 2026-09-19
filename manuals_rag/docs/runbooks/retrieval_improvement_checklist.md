@@ -31,7 +31,8 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   evidence through synthesis and verification; never weaken support checks to
   increase the pass count.
 - [x] U8: Make test runs diagnosable: per-case progress, bounded execution,
-  exit-status artifact, final backend coverage, and actionable failure groups.
+  exit-status artifact, final backend coverage, immutable run/source/config
+  provenance, stage snapshots, raw judge outcomes, and actionable failure groups.
 - [ ] U9: Present outcome/abstention and metadata applicability clearly in the
   app; verify existing Agent Lab controls, traces, citations and reload behavior.
 - [ ] U10: Commit and push scoped changes, document measured results and rollback;
@@ -69,6 +70,26 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   unmet gate explicitly; successful abstention does not count as a correct answer.
 
 ## Execution record
+
+### Agent matrix artifact contract v2 — 2026-09-19
+
+- `compare_agentic_retrieval.py` now owns its exclusive output lock and immutable
+  run ID. It refuses to overwrite a completed artifact and writes a launch record,
+  atomic partial/final JSON, and atomic exit status.
+- Every artifact records the frozen dataset SHA-256 and ordered dataset-qualified
+  case keys, source revision/branch/dirty-diff hash, backend/model/endpoints,
+  runtime configuration, start/completion timestamps, and process exit status.
+- Baseline, LangGraph, and LlamaIndex records retain full final results plus
+  bounded dense, fusion, rerank, final-context, and corrective-stage snapshots.
+  Verifier records retain the raw response, parsed response, normalized verdict,
+  retry errors, and checked/unchecked status.
+- Disposable one-case contract smoke `evaluator-contract-smoke-20260919-01`
+  completed with exit 0 and exact frozen dataset hash. The artifact contract
+  reconciled, but the semantic case failed evidence, answer, latency, and token
+  gates; this is diagnostic proof only and does not advance T8 or enable production.
+- A production matrix must be launched from a committed clean source revision,
+  with a fresh run ID and output path. Inspect its launch and one-case contract
+  before starting all 48 frozen cases.
 
 - Initial inspection: API bind-mounts this working tree; verifier still passes
   four chunks capped at 900 characters. Existing unrelated report deletions and

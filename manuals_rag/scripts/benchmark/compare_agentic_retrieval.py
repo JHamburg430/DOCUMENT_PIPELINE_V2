@@ -2,10 +2,18 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
+import os
+import platform
 import signal
+import subprocess
+import sys
+import uuid
 from collections import Counter, defaultdict
+from contextlib import contextmanager, nullcontext
+from datetime import UTC, datetime
 from pathlib import Path
 from statistics import mean
 from time import perf_counter
@@ -14,11 +22,144 @@ from typing import Any
 from manuals_rag_answering.agentic_retrieval import compare_agentic_backends, insufficient_agent_answer
 from manuals_rag_answering.generator import generate_answer
 from manuals_rag_common.ollama import capture_ollama_usage, summarize_ollama_usage
+from manuals_rag_common.config import settings
 from manuals_rag_evals.agent_eval_schema import build_expected_evidence_graph
 from manuals_rag_evals.agent_eval import score_agent_run
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase, score_search_results
-from manuals_rag_retrieval.retriever import assess_evidence_sufficiency, build_filters, retrieve
+from manuals_rag_retrieval.retriever import (
+    assess_evidence_sufficiency,
+    build_filters,
+    capture_retrieval_stages,
+    retrieve,
+)
 from manuals_rag_schemas.documents import SearchResult
+
+
+ARTIFACT_SCHEMA_VERSION = "agentic-retrieval-matrix-v2"
+
+
+def _utc_now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _git_output(*args: str) -> str:
+    try:
+        completed = subprocess.run(
+            ["git", *args],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return ""
+    return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
+def _build_provenance(args: argparse.Namespace, raw_cases: list[dict[str, Any]]) -> dict[str, Any]:
+    dataset_bytes = args.dataset.read_bytes()
+    dirty_status = _git_output("status", "--short", "--untracked-files=no")
+    untracked_status = _git_output("status", "--short", "--untracked-files=all")
+    untracked_paths = [line[3:] for line in untracked_status.splitlines() if line.startswith("?? ")]
+    try:
+        dirty_diff = subprocess.run(
+            ["git", "diff", "--binary", "HEAD"],
+            check=False,
+            capture_output=True,
+        ).stdout
+    except FileNotFoundError:
+        dirty_diff = b""
+    dataset_sha256 = hashlib.sha256(dataset_bytes).hexdigest()
+    git_revision = _git_output("rev-parse", "HEAD")
+    source_revision = str(getattr(args, "source_revision", None) or os.getenv("SOURCE_REVISION") or git_revision)
+    source_branch = str(getattr(args, "source_branch", None) or os.getenv("SOURCE_BRANCH") or _git_output("branch", "--show-current"))
+    dirty_override = getattr(args, "source_dirty", None)
+    dirty_state_known = bool(git_revision) or dirty_override is not None
+    source_dirty = bool(dirty_status) if dirty_override is None else bool(dirty_override)
+    dirty_diff_sha256 = str(
+        getattr(args, "source_dirty_diff_sha256", None)
+        or hashlib.sha256(dirty_diff).hexdigest()
+    )
+    missing_provenance = [
+        field
+        for field, value in (
+            ("source.revision", source_revision),
+            ("source.branch", source_branch),
+            ("source.dirty", dirty_state_known),
+        )
+        if not value
+    ]
+    return {
+        "artifact_schema_version": ARTIFACT_SCHEMA_VERSION,
+        "run_id": str(args.run_id),
+        "started_at": str(args.started_at),
+        "dataset": {
+            "path": str(args.dataset.resolve()),
+            "sha256": dataset_sha256,
+            "offset": args.offset,
+            "limit": args.limit,
+            "ordered_case_keys": [
+                f"{dataset_sha256}:{str(case.get('case_id') or '')}" for case in raw_cases
+            ],
+        },
+        "source": {
+            "revision": source_revision,
+            "branch": source_branch,
+            "dirty": source_dirty,
+            "dirty_status": dirty_status.splitlines(),
+            "dirty_diff_sha256": dirty_diff_sha256,
+            "untracked_paths": untracked_paths,
+        },
+        "provenance_complete": not missing_provenance,
+        "missing_provenance": missing_provenance,
+        "runtime": {
+            "python": sys.version,
+            "platform": platform.platform(),
+            "hostname": platform.node(),
+            "pid": os.getpid(),
+        },
+        "configuration": {
+            "corpus_ids": list(args.corpus_id),
+            "backends": ["baseline", "langgraph", "llamaindex"],
+            "max_hops": args.max_hops,
+            "planner": "heuristic" if args.no_llm else "ollama",
+            "ollama_url": settings.ollama_url,
+            "ollama_embed_url": settings.ollama_embed_url,
+            "ollama_embed_model": settings.ollama_embed_model,
+            "ollama_fast_model": settings.ollama_fast_model,
+            "ollama_retrieval_verifier_model": settings.ollama_retrieval_verifier_model,
+            "ollama_answer_model": settings.ollama_answer_model,
+            "qdrant_url": settings.qdrant_url,
+            "rerank_model": settings.haystack_rerank_model,
+            "rerank_device": settings.haystack_rerank_device,
+            "result_limit": settings.agentic_retrieval_result_limit,
+        },
+    }
+
+
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+@contextmanager
+def _exclusive_output_lock(path: Path, run_id: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+", encoding="utf-8") as handle:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError(f"matrix output is already owned by another writer: {path}") from exc
+        handle.seek(0)
+        handle.truncate()
+        handle.write(json.dumps({"run_id": run_id, "pid": os.getpid(), "locked_at": _utc_now()}) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def _read_cases(path: Path, *, limit: int, offset: int) -> list[dict[str, Any]]:
@@ -96,6 +237,7 @@ def _category_summary(items: list[dict[str, Any]], backend: str) -> dict[str, An
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
     raw_cases = _read_cases(args.dataset, limit=args.limit, offset=args.offset)
+    provenance = getattr(args, "provenance", None) or _build_provenance(args, raw_cases)
     items: list[dict[str, Any]] = []
     for raw_case in raw_cases:
         case = RetrievalEvalCase(**raw_case)
@@ -105,7 +247,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         evidence_graph = build_expected_evidence_graph(raw_case)
         filters = build_filters(case.query, {})
         baseline_started = perf_counter()
-        baseline_results = retrieve(case.query, args.corpus_id, filters)
+        with capture_retrieval_stages() as baseline_stage_snapshots:
+            baseline_results = retrieve(case.query, args.corpus_id, filters)
         baseline_elapsed_ms = round((perf_counter() - baseline_started) * 1000, 2)
         baseline_evaluation = score_search_results(
             case,
@@ -143,6 +286,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "stop_reason": "single_pass",
                 "result_chunk_ids": [result.chunk_id for result in baseline_results],
                 "result_document_ids": sorted({result.source_document_id for result in baseline_results}),
+                "results": [result.model_dump() for result in baseline_results],
+                "stage_snapshots": baseline_stage_snapshots,
                 "trace": {"completed_hops": ["baseline"]},
                 "evaluation": baseline_evaluation,
             },
@@ -194,7 +339,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 elapsed_ms=output["elapsed_ms"],
             )
             item[backend] = {
-                key: value for key, value in output.items() if key != "results"
+                key: value for key, value in output.items()
             } | {
                 "evaluation": evaluation,
                 "answer": answer,
@@ -203,11 +348,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         items.append(item)
         if getattr(args, "output", None):
             partial = args.output.with_suffix(".partial.json")
-            partial.parent.mkdir(parents=True, exist_ok=True)
-            temporary = partial.with_suffix(".tmp")
-            temporary.write_text(json.dumps({"complete": False, "completed_cases": len(items),
-                                            "expected_cases": len(raw_cases), "items": items}, indent=2))
-            temporary.replace(partial)
+            _atomic_write_json(
+                partial,
+                {
+                    "artifact_schema_version": ARTIFACT_SCHEMA_VERSION,
+                    "run_id": provenance["run_id"],
+                    "complete": False,
+                    "completed_cases": len(items),
+                    "expected_cases": len(raw_cases),
+                    "completed_case_keys": provenance["dataset"]["ordered_case_keys"][: len(items)],
+                    "provenance": provenance,
+                    "items": items,
+                },
+            )
         if getattr(args, "progress_jsonl", False):
             print(
                 json.dumps(
@@ -224,6 +377,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     dataset_bytes = args.dataset.read_bytes()
     return {
+        "artifact_schema_version": ARTIFACT_SCHEMA_VERSION,
+        "run_id": provenance["run_id"],
+        "complete": True,
+        "provenance": provenance,
         "dataset": str(args.dataset),
         "dataset_sha256": hashlib.sha256(dataset_bytes).hexdigest(),
         "case_count": len(raw_cases),
@@ -253,31 +410,68 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--progress-jsonl", action="store_true")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--run-id", help="Immutable identifier shared by every artifact in this run.")
+    parser.add_argument("--lock-file", type=Path, help="Exclusive writer lock path (defaults beside --output).")
+    parser.add_argument("--source-revision", help="Source commit when Git metadata is unavailable at runtime.")
+    parser.add_argument("--source-branch", help="Source branch when Git metadata is unavailable at runtime.")
+    parser.add_argument("--source-dirty-diff-sha256", help="Hash of the launch-time dirty diff.")
+    parser.add_argument("--source-dirty", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--exit-file", type=Path, help="Write process exit status, including graceful timeout termination.")
     args = parser.parse_args()
+    args.run_id = args.run_id or uuid.uuid4().hex
+    args.started_at = _utc_now()
+    lock_path = args.lock_file or (args.output.with_suffix(".lock") if args.output else None)
     exit_code = 1
     def terminated(signum, frame):
         raise SystemExit(128 + signum)
     previous_handler = signal.signal(signal.SIGTERM, terminated)
-    try:
-        report = run(args)
-        rendered = json.dumps(report, indent=2)
-        if args.output:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            temporary = args.output.with_suffix(".tmp")
-            temporary.write_text(rendered + "\n", encoding="utf-8")
-            temporary.replace(args.output)
-        if not args.quiet:
-            print(rendered)
-        exit_code = 0
-    except SystemExit as exc:
-        exit_code = exc.code if isinstance(exc.code, int) else 1
-        raise
-    finally:
-        signal.signal(signal.SIGTERM, previous_handler)
-        if args.exit_file:
-            args.exit_file.parent.mkdir(parents=True, exist_ok=True)
-            args.exit_file.write_text(str(exit_code) + "\n")
+    lock_context = _exclusive_output_lock(lock_path, args.run_id) if lock_path else nullcontext()
+    with lock_context:
+        artifact_set_reserved = False
+        try:
+            artifact_paths = (
+                [
+                    args.output,
+                    args.output.with_suffix(".launch.json"),
+                    args.output.with_suffix(".partial.json"),
+                ]
+                if args.output
+                else []
+            )
+            artifact_paths.extend([args.exit_file] if args.exit_file else [])
+            collisions = [path for path in artifact_paths if path.exists()]
+            if collisions:
+                raise FileExistsError(
+                    "refusing to overwrite immutable matrix artifact set: "
+                    + ", ".join(str(path) for path in collisions)
+                )
+            artifact_set_reserved = True
+            raw_cases = _read_cases(args.dataset, limit=args.limit, offset=args.offset)
+            args.provenance = _build_provenance(args, raw_cases)
+            if args.output:
+                _atomic_write_json(
+                    args.output.with_suffix(".launch.json"),
+                    {**args.provenance, "state": "launched"},
+                )
+            report = run(args)
+            report["completed_at"] = _utc_now()
+            report["process_exit_status"] = 0
+            rendered = json.dumps(report, indent=2)
+            if args.output:
+                _atomic_write_json(args.output, report)
+            if not args.quiet:
+                print(rendered)
+            exit_code = 0
+        except SystemExit as exc:
+            exit_code = exc.code if isinstance(exc.code, int) else 1
+            raise
+        finally:
+            signal.signal(signal.SIGTERM, previous_handler)
+            if args.exit_file and artifact_set_reserved:
+                args.exit_file.parent.mkdir(parents=True, exist_ok=True)
+                temporary_exit = args.exit_file.with_suffix(args.exit_file.suffix + ".tmp")
+                temporary_exit.write_text(str(exit_code) + "\n", encoding="utf-8")
+                temporary_exit.replace(args.exit_file)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,29 @@ from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.http.models import SparseVector
 
 
+def test_stage_capture_persists_ranked_bounded_evidence():
+    result = SearchResult(
+        chunk_id="chunk-1",
+        score=0.75,
+        title="Manual",
+        document_version_id="version-1",
+        source_document_id="document-1",
+        pages=[3],
+        section_path=["Setup"],
+        content="x" * 1300,
+        metadata={"retrieval_stage": "dense", "stage_rank": 1},
+    )
+
+    with retriever.capture_retrieval_stages() as snapshots:
+        retriever._record_stage_snapshot("dense", "setup query", [result])
+
+    assert snapshots[0]["stage"] == "dense"
+    assert snapshots[0]["results"][0]["rank"] == 1
+    assert snapshots[0]["results"][0]["chunk_id"] == "chunk-1"
+    assert len(snapshots[0]["results"][0]["evidence_text"]) == 1200
+    assert snapshots[0]["results"][0]["evidence_truncated"] is True
+
+
 def test_measurement_promotion_keeps_locally_bound_mode_value_after_rerank():
     generic = SearchResult(
         chunk_id="utility-cap-time",

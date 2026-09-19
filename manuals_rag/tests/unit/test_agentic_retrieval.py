@@ -528,6 +528,9 @@ def test_verifier_rejects_model_citations_that_were_not_retrieved(monkeypatch):
     assert result["trust_state"] == "unresolved"
     assert result["invalid_citation_ids"] == ["invented-chunk"]
     assert verifier_kwargs["num_batch"] == settings.ollama_retrieval_verifier_num_batch
+    assert result["judge"]["status"] == "checked"
+    assert result["judge"]["attempts"][0]["raw_response"] == "{}"
+    assert result["judge"]["attempts"][0]["parsed_response"]["supporting_chunk_ids"] == ["invented-chunk"]
 
 
 def test_verifier_deterministically_confirms_condition_aligned_warning(monkeypatch):
@@ -1586,6 +1589,8 @@ def test_verifier_retries_once_after_malformed_model_response(monkeypatch):
     assert calls == 2
     assert result["trust_state"] == "confirmed"
     assert result["claim_supported"] is True
+    assert result["judge"]["attempts"][0]["error"] == "ValueError: Invalid JSON escape"
+    assert result["judge"]["attempts"][1]["raw_response"] == "{}"
 
 
 def test_coordinate_plan_preserves_first_branch_subject_in_second_claim():

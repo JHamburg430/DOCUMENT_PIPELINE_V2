@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import logging
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Iterable
+from typing import Any, Iterable
 
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import fetch_all
@@ -27,6 +29,9 @@ else:
 
 
 logger = logging.getLogger(__name__)
+_active_stage_capture: ContextVar[list[dict[str, Any]] | None] = ContextVar(
+    "manuals_rag_retrieval_stage_capture", default=None
+)
 FUSED_CANDIDATE_POOL_LIMIT = 30
 DOCUMENT_METADATA_SELECTION_LIMIT = 5
 IDENTIFIER_METADATA_SELECTION_LIMIT = 20
@@ -84,6 +89,48 @@ EVIDENCE_FACET_STOPWORDS = {
     "the", "their", "there", "these", "this", "those", "using", "what", "when",
     "where", "which", "with", "would", "your",
 }
+
+
+@contextmanager
+def capture_retrieval_stages():
+    """Capture bounded, request-local retrieval snapshots for evaluation artifacts."""
+    snapshots: list[dict[str, Any]] = []
+    token = _active_stage_capture.set(snapshots)
+    try:
+        yield snapshots
+    finally:
+        _active_stage_capture.reset(token)
+
+
+def _record_stage_snapshot(stage: str, query: str, results: list[SearchResult]) -> None:
+    capture = _active_stage_capture.get()
+    if capture is None:
+        return
+    capture.append(
+        {
+            "stage": stage,
+            "query": query,
+            "result_count": len(results),
+            "results": [
+                {
+                    "rank": rank,
+                    "chunk_id": result.chunk_id,
+                    "source_document_id": result.source_document_id,
+                    "document_version_id": result.document_version_id,
+                    "score": result.score,
+                    "pages": result.pages,
+                    "section_path": result.section_path,
+                    "evidence_text": result.content[:1200],
+                    "evidence_truncated": len(result.content) > 1200,
+                    "retrieval_stage": result.metadata.get("retrieval_stage"),
+                    "pre_rerank_rank": result.metadata.get("pre_rerank_rank"),
+                    "post_rerank_rank": result.metadata.get("post_rerank_rank"),
+                    "rerank_score": result.metadata.get("rerank_score"),
+                }
+                for rank, result in enumerate(results[:60], start=1)
+            ],
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -4116,6 +4163,10 @@ def _retrieve_once(
             _dedupe_results([*exact_troubleshooting, *siblings], analysis),
             limit=limit,
         )
+        _record_stage_snapshot("dense", query, [])
+        _record_stage_snapshot("fusion", query, exact_troubleshooting)
+        _record_stage_snapshot("rerank", query, [*exact_troubleshooting, *siblings])
+        _record_stage_snapshot("final_context", query, assembled)
         return _attach_document_selection(assembled, metadata_document_hits, query=query)
     branch_limit = 60 if force_broad else 40
     dense_results = (
@@ -4155,6 +4206,8 @@ def _retrieve_once(
         ),
         "fused",
     )
+    _record_stage_snapshot("dense", query, dense_results)
+    _record_stage_snapshot("fusion", query, fused)
     fused = _preserve_identifier_dense_candidates(
         fused,
         dense_results,
@@ -4167,6 +4220,7 @@ def _retrieve_once(
     family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12), "family_selected")
     enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
+    _record_stage_snapshot("rerank", query, reranked)
     troubleshooting_siblings = _troubleshooting_table_siblings(reranked, analysis)
     troubleshooting_supplemental = [*table_lexical_results, *troubleshooting_siblings]
     reranked = _promote_structured_table_candidates(reranked, table_lexical_results, analysis, limit=12)
@@ -4218,6 +4272,7 @@ def _retrieve_once(
     )
     deduped = _dedupe_results(reranked, analysis)
     assembled = assemble_context(deduped, limit=limit)
+    _record_stage_snapshot("final_context", query, assembled)
     return _attach_document_selection(assembled, metadata_document_hits, query=query)
 
 
@@ -4251,6 +4306,9 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     enriched = enrich_candidates_for_rerank(fused, analysis, limit=30)
     reranked = rerank_results(enriched, query, limit=max(limit, 12))
     final_results = rank_by_applicability(query, assemble_context(_dedupe_results(reranked, analysis), limit=limit))
+    _record_stage_snapshot("corrective_fusion", query, fused)
+    _record_stage_snapshot("corrective_rerank", query, reranked)
+    _record_stage_snapshot("corrective_final_context", query, final_results)
     candidate_assessment = assess_evidence_sufficiency(query, final_results)
     correction_improved = (
         len(candidate_assessment.missing_facets) < len(primary_assessment.missing_facets)

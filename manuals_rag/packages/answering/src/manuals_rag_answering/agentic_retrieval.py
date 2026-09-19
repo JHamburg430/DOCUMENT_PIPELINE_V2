@@ -2244,7 +2244,8 @@ def verify_retrieval_claim(
         ).model_dump() | {"verification_evidence_omitted_count": evidence_packet["omitted_count"]}
     verification: EvidenceVerification | None = None
     verification_error: Exception | None = None
-    for _attempt in range(2):
+    judge_attempts: list[dict[str, Any]] = []
+    for attempt in range(2):
         try:
             payload, _raw = chat_json(
                 model=settings.ollama_retrieval_verifier_model,
@@ -2268,6 +2269,13 @@ def verify_retrieval_claim(
                 purpose="agentic_retrieval.verify_claim",
                 num_ctx=16384,
                 num_batch=settings.ollama_retrieval_verifier_num_batch,
+            )
+            judge_attempts.append(
+                {
+                    "attempt": attempt + 1,
+                    "raw_response": _raw,
+                    "parsed_response": payload,
+                }
             )
             if isinstance(payload, dict):
                 normalized_payload = dict(payload)
@@ -2408,6 +2416,12 @@ def verify_retrieval_claim(
             break
         except Exception as exc:
             verification_error = exc
+            judge_attempts.append(
+                {
+                    "attempt": attempt + 1,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+            )
 
     if verification is None:
         fallback = EvidenceVerification(
@@ -2420,6 +2434,13 @@ def verify_retrieval_claim(
         fallback["verification_error"] = (
             f"{type(verification_error).__name__}: {verification_error}"
         )
+        normalized_fallback = dict(fallback)
+        fallback["judge"] = {
+            "mode": "llm",
+            "status": "unchecked",
+            "attempts": judge_attempts,
+            "normalized_verdict": normalized_fallback,
+        }
         return fallback
 
     requested_support = list(dict.fromkeys(verification.supporting_chunk_ids))
@@ -2456,6 +2477,12 @@ def verify_retrieval_claim(
     output["scope_candidate_chunk_ids"] = sorted(scoped_ids)
     output["verification_evidence_chunk_ids"] = sorted(shown_ids)
     output["verification_evidence_omitted_count"] = evidence_packet["omitted_count"]
+    output["judge"] = {
+        "mode": "llm",
+        "status": "checked",
+        "attempts": judge_attempts,
+        "normalized_verdict": verification.model_dump(),
+    }
     return output
 
 
@@ -2666,7 +2693,14 @@ class AgenticRetrievalController:
         if retrieval_error:
             assessment["retrieval_error"] = retrieval_error
             assessment["gap_reason"] = "retrieval_error"
-        verification = self.verifier(hop, executed_query, results, assessment)
+        verification = dict(self.verifier(hop, executed_query, results, assessment))
+        if "judge" not in verification:
+            verification["judge"] = {
+                "mode": "deterministic",
+                "status": "checked",
+                "attempts": [],
+                "normalized_verdict": dict(verification),
+            }
         assessment["preliminary_sufficient"] = preliminary_sufficient
         assessment["verification"] = verification
         assessment["trust_state"] = verification.get("trust_state", "unresolved")
@@ -3017,7 +3051,14 @@ class LlamaIndexAgenticController:
         if retrieval_error:
             assessment["retrieval_error"] = retrieval_error
             assessment["gap_reason"] = "retrieval_error"
-        verification = self.verifier(hop, executed_query, results, assessment)
+        verification = dict(self.verifier(hop, executed_query, results, assessment))
+        if "judge" not in verification:
+            verification["judge"] = {
+                "mode": "deterministic",
+                "status": "checked",
+                "attempts": [],
+                "normalized_verdict": dict(verification),
+            }
         assessment["preliminary_sufficient"] = preliminary_sufficient
         assessment["verification"] = verification
         assessment["trust_state"] = verification.get("trust_state", "unresolved")
@@ -3303,6 +3344,8 @@ def compare_agentic_backends(
     max_hops: int = 4,
     use_llm: bool = True,
 ) -> dict[str, Any]:
+    from manuals_rag_retrieval.retriever import capture_retrieval_stages
+
     outputs: dict[str, Any] = {}
     for backend, factory in (
         ("langgraph", build_langgraph_agentic_retriever),
@@ -3310,14 +3353,15 @@ def compare_agentic_backends(
     ):
         started = perf_counter()
         with capture_ollama_usage() as usage_events:
-            state = factory(use_llm=use_llm).invoke(
-                {
-                    "query": query,
-                    "corpus_ids": corpus_ids,
-                    "filters": filters,
-                    "max_hops": max_hops,
-                }
-            )
+            with capture_retrieval_stages() as stage_snapshots:
+                state = factory(use_llm=use_llm).invoke(
+                    {
+                        "query": query,
+                        "corpus_ids": corpus_ids,
+                        "filters": filters,
+                        "max_hops": max_hops,
+                    }
+                )
         elapsed_ms = round((perf_counter() - started) * 1000, 2)
         usage = summarize_ollama_usage(usage_events)
         trace = dict(state.get("retrieval_trace", {}))
@@ -3335,6 +3379,7 @@ def compare_agentic_backends(
                 {item["source_document_id"] for item in state.get("retrieval_results", [])}
             ),
             "results": list(state.get("retrieval_results", [])),
+            "stage_snapshots": stage_snapshots,
             "trace": trace,
         }
     outputs["equivalent_result_chunks"] = (
