@@ -50,6 +50,15 @@ def test_query_analysis_does_not_attach_single_vendor_manufacturer_filters():
     assert analysis.filter_strictness == "loose"
 
 
+def test_query_analysis_does_not_treat_quantitative_how_as_procedure():
+    analysis = analyze_query(
+        "On IV4-G120, how many objects are counted at one time when the count value is 9?"
+    )
+
+    assert "how_to" not in analysis.query_types
+    assert "procedure_record" not in analysis.preferred_chunk_types
+
+
 def test_query_analysis_treats_contextual_compact_identifier_as_model_not_error_code():
     analysis = analyze_query("How do I fix the uuu error on the W500?")
 

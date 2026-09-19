@@ -57,11 +57,14 @@ def _documents(
     query = """
         select
             sd.id as document_id,
+            sd.corpus_id,
             sd.source_filename,
             sd.current_version_id as version_id,
+            c.permissions_json #>> '{metadata_defaults,manufacturer}' as authoritative_manufacturer,
             dme.document_version_id as extracted_version_id,
             dme.metadata_json ->> 'metadata_pipeline_version' as extracted_pipeline_version
         from source_documents sd
+        join corpora c on c.id = sd.corpus_id
         join document_versions dv on dv.id = sd.current_version_id
         left join document_metadata_extractions dme on dme.source_document_id = sd.id
         where exists (
@@ -112,6 +115,23 @@ def _metadata_payload(metadata: Any) -> dict[str, Any]:
     payload["document_kind"] = metadata.document_kind.value
     payload["revision_date"] = metadata.revision_date.isoformat() if metadata.revision_date else None
     payload["effective_date"] = metadata.effective_date.isoformat() if metadata.effective_date else None
+    return payload
+
+
+def _apply_authoritative_metadata_defaults(
+    document: dict[str, Any], metadata: dict[str, Any]
+) -> dict[str, Any]:
+    """Overlay explicit corpus-owned identity without trusting extracted company mentions."""
+    manufacturer = str(document.get("authoritative_manufacturer") or "").strip()
+    if not manufacturer:
+        return metadata
+    payload = dict(metadata)
+    payload["manufacturer"] = manufacturer
+    payload["companies"] = list(dict.fromkeys([manufacturer, *list(payload.get("companies") or [])]))
+    payload["metadata_authoritative_defaults"] = {
+        "manufacturer": manufacturer,
+        "source": "corpus_configuration",
+    }
     return payload
 
 
@@ -239,6 +259,47 @@ def _write_report(results: list[BackfillResult], *, path: Path | None = None) ->
     return path
 
 
+def _load_report(path: Path) -> list[BackfillResult]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot load resume report {path}: {exc}") from exc
+    if not isinstance(payload, list):
+        raise ValueError(f"resume report {path} must contain a JSON array")
+    results: list[BackfillResult] = []
+    for index, item in enumerate(payload):
+        if not isinstance(item, dict):
+            raise ValueError(f"resume report {path} entry {index} must be an object")
+        try:
+            results.append(BackfillResult(**item))
+        except TypeError as exc:
+            raise ValueError(f"resume report {path} entry {index} is invalid: {exc}") from exc
+    keys = [(result.document_id, result.version_id) for result in results]
+    if len(keys) != len(set(keys)):
+        raise ValueError(f"resume report {path} contains duplicate document/version entries")
+    return results
+
+
+def _can_resume_result(
+    result: BackfillResult,
+    *,
+    apply: bool,
+    enqueue_current: bool,
+    already_current: bool,
+) -> bool:
+    if enqueue_current:
+        return already_current and result.status == "embed_enqueued" and result.embed_enqueued
+    if apply:
+        return already_current and result.status in {"applied", "applied_with_warning", "skipped_current"}
+    if result.status == "skipped_current":
+        return already_current
+    return (
+        result.status == "planned"
+        and isinstance(result.metadata, dict)
+        and result.metadata.get("metadata_pipeline_version") == METADATA_PIPELINE_VERSION
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Backfill model-extracted document metadata.")
     parser.add_argument("--apply", action="store_true", help="Persist metadata changes. Without this, only reports extracted metadata.")
@@ -284,6 +345,12 @@ def main() -> None:
         default=1,
         help="Rewrite the resumable JSON report after this many processed documents.",
     )
+    parser.add_argument(
+        "--resume-report",
+        type=Path,
+        default=None,
+        help="Continue an interrupted run from an existing checkpoint report.",
+    )
     args = parser.parse_args()
 
     if args.max_failures < 0:
@@ -306,14 +373,49 @@ def main() -> None:
         parser.error("mutating the complete corpus requires --all; otherwise use --document-id or --limit")
 
     _ensure_metadata_table()
-    results: list[BackfillResult] = []
-    report_path = _write_report(results)
+    if args.resume_report is not None:
+        report_path = args.resume_report.resolve()
+        try:
+            results = _load_report(report_path)
+        except ValueError as exc:
+            parser.error(str(exc))
+    else:
+        results = []
+        report_path = _write_report(results)
     failure_count = 0
     for document in _documents(limit=args.limit, document_ids=args.document_ids):
+        print(json.dumps({"document_id": str(document["document_id"]), "status": "started"}), flush=True)
         already_current = (
             str(document.get("extracted_version_id") or "") == str(document["version_id"])
             and document.get("extracted_pipeline_version") == METADATA_PIPELINE_VERSION
         )
+        matching_result = next(
+            (
+                result
+                for result in results
+                if result.document_id == str(document["document_id"])
+                and result.version_id == str(document["version_id"])
+            ),
+            None,
+        )
+        if matching_result is not None and _can_resume_result(
+            matching_result,
+            apply=args.apply,
+            enqueue_current=args.enqueue_current,
+            already_current=already_current,
+        ):
+            print(
+                json.dumps(
+                    {
+                        "document_id": str(document["document_id"]),
+                        "status": "resumed_completed",
+                        "checkpoint_status": matching_result.status,
+                    }
+                )
+            )
+            continue
+        if matching_result is not None:
+            results.remove(matching_result)
         if args.enqueue_current:
             if not already_current:
                 results.append(
@@ -362,12 +464,15 @@ def main() -> None:
             continue
         try:
             segments = _document_segments(str(document["version_id"]), node_limit=args.node_limit)
-            metadata = _metadata_payload(
-                infer_document_metadata_from_segments(
-                    str(document["source_filename"]),
-                    segments,
-                    max_segment_chars=args.segment_chars,
-                )
+            metadata = _apply_authoritative_metadata_defaults(
+                document,
+                _metadata_payload(
+                    infer_document_metadata_from_segments(
+                        str(document["source_filename"]),
+                        segments,
+                        max_segment_chars=args.segment_chars,
+                    )
+                ),
             )
             chunk_count = 0
             embed_enqueued = False

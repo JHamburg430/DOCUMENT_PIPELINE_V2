@@ -7,8 +7,10 @@ from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval import retriever
 from manuals_rag_retrieval.retriever import _resolve_rerank_device, fuse_results, rerank_results, run_dense_search, run_sparse_search, run_table_search
 from manuals_rag_retrieval.query_analysis import QueryAnalysis, analyze_query
-from manuals_rag_schemas.documents import SearchResult
+from manuals_rag_schemas.documents import RetrievalChunk, SearchResult
+from manuals_rag_schemas.enums import ChunkType
 from qdrant_client.http.exceptions import UnexpectedResponse
+from qdrant_client.http.models import SparseVector
 
 
 def test_measurement_promotion_keeps_locally_bound_mode_value_after_rerank():
@@ -57,6 +59,16 @@ def test_initial_output_polarity_adds_manual_table_label_aliases():
     terms = retriever._lexical_table_terms(query, analysis)
 
     assert {"selection", "initial", "npn", "pnp"}.issubset(terms)
+
+
+def test_dependent_power_source_lookup_adds_structured_table_aliases():
+    query = "How is that encoder head powered; constrain the lookup to CA-EN100H?"
+    analysis = analyze_query(query)
+
+    terms = retriever._lexical_table_terms(query, analysis)
+
+    assert {"power", "supply", "powersupply"}.issubset(terms)
+    assert retriever._structured_prompt_phrase(query) == "powersupply"
 
 
 def test_default_spec_lookup_promotes_exact_structured_table_rows():
@@ -349,6 +361,85 @@ def test_named_setting_promotion_keeps_explicit_multiword_parameter_row():
     )
 
     assert promoted[0].chunk_id == "rough-feature-reduction"
+    assert promoted[0].metadata["retrieval_stage"] == "named_setting_promoted"
+
+
+def test_named_setting_configuration_query_enables_exact_table_lexical_route():
+    query = "For CV-X482, what does the Condition list setting control?"
+    analysis = analyze_query(query)
+
+    terms = retriever._lexical_table_terms(query, analysis)
+    phrase = retriever._structured_prompt_phrase(query)
+
+    assert "configuration" in analysis.query_types
+    assert {"condition", "list", "cvx482"}.issubset(set(terms))
+    assert phrase == "conditionlist"
+
+    answer_row = {
+        "content": (
+            "Column headers: Settings; Row headers: Condition list; "
+            "Cell value: A maximum of 16 reference conditions can be set."
+        ),
+        "metadata_json": {
+            "table_cell": True,
+            "table_row_headers": ["Condition list"],
+            "table_column_headers": ["Settings"],
+            "product_model": "CV-X482",
+        },
+        "priority_score": 13.0,
+    }
+    label_only_cell = {
+        "content": "Column headers: Setting item; Cell value: Condition list",
+        "metadata_json": {
+            "table_cell": True,
+            "table_row_headers": [],
+            "table_column_headers": ["Setting item"],
+            "product_model": "CV-X482",
+        },
+        "priority_score": 13.0,
+    }
+
+    assert retriever._table_lexical_score(answer_row, terms, phrase) > retriever._table_lexical_score(
+        label_only_cell,
+        terms,
+        phrase,
+    )
+
+
+def test_named_setting_promotion_accepts_leading_product_scope():
+    wrong = SearchResult(
+        chunk_id="condition-label-only",
+        score=1.0,
+        title="CV-X Manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[459],
+        section_path=["Settings"],
+        content="Column headers: Setting item; Cell value: Condition list",
+        metadata={"chunk_type": "table_record", "product_model": "CV-X482"},
+    )
+    exact = SearchResult(
+        chunk_id="condition-list-value",
+        score=0.8,
+        title="CV-X Manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[459],
+        section_path=["Settings"],
+        content=(
+            "Setting item: Condition list; Settings: A maximum of 16 reference "
+            "conditions can be set."
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "CV-X482"},
+    )
+
+    promoted = retriever._promote_named_setting_candidates(
+        [wrong],
+        [wrong, exact],
+        "For CV-X482, what does the Condition list setting control?",
+    )
+
+    assert promoted[0].chunk_id == "condition-list-value"
     assert promoted[0].metadata["retrieval_stage"] == "named_setting_promoted"
 
 
@@ -1793,6 +1884,105 @@ def test_dense_search_returns_empty_on_vector_dimension_mismatch(monkeypatch):
     assert results == []
 
 
+def test_qdrant_vector_query_uses_query_points_for_current_client():
+    captured: dict[str, object] = {}
+
+    class CurrentClient:
+        def query_points(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(points=[SimpleNamespace(id="point-1")])
+
+    store = object.__new__(QdrantStore)
+    store.client = CurrentClient()
+
+    points = store._query_vector(
+        collection_name="manuals_test",
+        vector_name="dense",
+        vector=[0.1, 0.2],
+        query_filter={"must": []},
+        limit=7,
+    )
+
+    assert [point.id for point in points] == ["point-1"]
+    assert captured == {
+        "collection_name": "manuals_test",
+        "query": [0.1, 0.2],
+        "using": "dense",
+        "query_filter": {"must": []},
+        "limit": 7,
+        "with_payload": True,
+    }
+
+
+def test_qdrant_vector_query_keeps_legacy_search_fallback():
+    captured: dict[str, object] = {}
+
+    class LegacyClient:
+        def search(self, **kwargs):
+            captured.update(kwargs)
+            return [SimpleNamespace(id="point-1")]
+
+    store = object.__new__(QdrantStore)
+    store.client = LegacyClient()
+    vector = SparseVector(indices=[1], values=[1.0])
+
+    points = store._query_vector(
+        collection_name="manuals_test",
+        vector_name="sparse",
+        vector=vector,
+        query_filter=None,
+        limit=3,
+    )
+
+    assert [point.id for point in points] == ["point-1"]
+    assert captured["collection_name"] == "manuals_test"
+    assert captured["query_vector"].name == "sparse"
+    assert captured["query_vector"].vector == vector
+    assert captured["limit"] == 3
+
+
+def test_qdrant_chunk_payload_preserves_logical_node_ids(monkeypatch):
+    captured: list[object] = []
+
+    class FakeClient:
+        def upsert(self, target_collection: str, points: list[object]) -> None:
+            assert target_collection == "manuals_manuals_corpus"
+            captured.extend(points)
+
+    store = object.__new__(QdrantStore)
+    store.client = FakeClient()
+    monkeypatch.setattr(store, "ensure_collection", lambda *_args: None)
+    monkeypatch.setattr(
+        "manuals_rag_retrieval.qdrant_store.embed_dense",
+        lambda _texts: [[0.1, 0.2]],
+    )
+    monkeypatch.setattr(
+        "manuals_rag_retrieval.qdrant_store.build_sparse_vector",
+        lambda _text: ([1], [1.0]),
+    )
+    chunk = RetrievalChunk(
+        id="chunk-1",
+        document_version_id="version-1",
+        source_document_id="document-1",
+        logical_node_ids_json=["node-1", "node-2"],
+        chunk_type=ChunkType.table_record,
+        chunk_level=1,
+        title="Table",
+        section_path_text="Options",
+        page_from=13,
+        page_to=13,
+        content="Part row",
+        content_for_sparse="Part row",
+        content_for_dense="Part row",
+        content_for_rerank="Part row",
+        metadata_json={"section_path": ["Options"]},
+    )
+
+    store.upsert_chunks("manuals_corpus", [chunk])
+
+    assert captured[0].payload["logical_node_ids_json"] == ["node-1", "node-2"]
+
+
 def test_enrich_candidates_for_rerank_adds_grouped_procedure_context(monkeypatch):
     result = SearchResult(
         chunk_id="step-1",
@@ -1835,6 +2025,44 @@ def test_enrich_candidates_for_rerank_adds_grouped_procedure_context(monkeypatch
     rerank_document = enriched[0].metadata["rerank_document"]
     assert "Enable power" in rerank_document
     assert "Full procedure block" in rerank_document
+
+
+def test_mode_alignment_prefers_page_local_context_over_stale_parent_section():
+    query = "In Standard Lighting Mode, which simulation capture setting is used?"
+    standard = SearchResult(
+        chunk_id="standard",
+        score=0.5,
+        title="Doc",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[10],
+        section_path=["stale"],
+        content="Simulation Image Capture",
+        metadata={
+            "parent_context": "Standard Lighting Mode and LumiTrax Specular Reflection Mode",
+            "page_context": "Capture Using Line Scan Cameras (Standard Lighting Mode)",
+        },
+    )
+    lumitrax = standard.model_copy(
+        update={
+            "chunk_id": "lumitrax",
+            "metadata": {
+                **standard.metadata,
+                "page_context": "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode)",
+            },
+        }
+    )
+
+    assert retriever._mode_phrase_alignment_adjustment(standard, query) > 0
+    assert retriever._mode_phrase_alignment_adjustment(lumitrax, query) < 0
+
+
+def test_requested_mode_phrases_excludes_hyphenated_product_and_camera_terms():
+    phrases = retriever._requested_mode_phrases(
+        "In Standard Lighting Mode, use the XG-X line-scan camera."
+    )
+
+    assert phrases == {"standardlightingmode"}
 
 
 def test_assemble_context_uses_nearest_table_row_group_for_table_cells(monkeypatch):

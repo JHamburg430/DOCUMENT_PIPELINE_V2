@@ -34,8 +34,10 @@ from manuals_rag_answering.agentic_retrieval import (
     build_langgraph_agentic_retriever,
     build_llamaindex_agentic_retriever,
     insufficient_agent_answer,
+    query_requires_visual_evidence,
+    visual_evidence_unavailable_answer,
 )
-from manuals_rag_answering.generator import generate_answer
+from manuals_rag_answering.generator import generate_answer, validate_answer
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import execute, fetch_all, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
@@ -115,7 +117,7 @@ def _answer_confirmed_claim(
     except Exception:
         return generate_answer(objective, results)
 
-    return AnswerResponse(
+    answer = AnswerResponse(
         answer=answer_text,
         confidence="high",
         used_documents=[
@@ -141,6 +143,7 @@ def _answer_confirmed_claim(
         followup_questions=[],
         insufficient_evidence=False,
     )
+    return validate_answer(answer, results, query=objective)
 
 
 def _generate_agentic_answer(
@@ -1310,6 +1313,15 @@ def query_documents(
             )
         answer = dict(result["answer"])
     else:
+        if query_requires_visual_evidence(request.query):
+            answer = visual_evidence_unavailable_answer(request.query).model_dump()
+            answer["retrieval_orchestrator"] = request.retrieval_orchestrator
+            answer["retrieval_trace"] = {
+                "sufficient": False,
+                "stop_reason": "visual_evidence_not_enabled",
+                "risk_disposition": "abstain",
+            }
+            return JSONResponse(answer)
         agentic_retriever = (
             langgraph_agentic_retriever
             if request.retrieval_orchestrator == "langgraph_agent"
@@ -1362,6 +1374,17 @@ def _stream_agentic_query_events(request: QueryRequest):
     def run() -> None:
         orchestrator = request.retrieval_orchestrator
         try:
+            if query_requires_visual_evidence(request.query):
+                answer = visual_evidence_unavailable_answer(request.query).model_dump()
+                answer["retrieval_orchestrator"] = orchestrator
+                answer["retrieval_trace"] = {
+                    "sufficient": False,
+                    "stop_reason": "visual_evidence_not_enabled",
+                    "risk_disposition": "abstain",
+                }
+                emit({"event": "answer_completed", "answer": answer})
+                emit({"event": "run_completed", "result": answer})
+                return
             emit(
                 {
                     "event": "run_started",

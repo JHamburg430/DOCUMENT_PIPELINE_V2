@@ -15,6 +15,7 @@ from manuals_rag_answering.generator import (
     _configuration_path_labels,
     _configuration_location_subject,
     _fallback_evidence_results,
+    _extract_json_summary,
     _is_comparison_query,
     _parse_relevance_response,
     _query_troubleshooting_anchor,
@@ -1512,6 +1513,84 @@ def test_troubleshooting_descriptive_anchor_matches_cause_when_display_is_symbol
 
     assert validated.answer == "Cause: Excessive current (overcurrent) is flowing through the output wire."
     assert [item.chunk_id for item in support] == ["overcurrent-cause"]
+
+
+def test_troubleshooting_recommended_adjustment_selects_matching_status_row_only():
+    result = SearchResult(
+        chunk_id="grouped-status-rows",
+        score=1.0,
+        title="CV-X Manual",
+        document_version_id="v1",
+        source_document_id="doc-cvx",
+        pages=[104],
+        section_path=["Troubleshooting"],
+        content=(
+            "Status: Status of defect detection is not visible.; Corrective action: Select Contrast.\n"
+            "Status: A large area without defect has been detected erroneously.; Corrective action: "
+            "Adjust the defect strength to increase the level or value.\n"
+            "Status: Detection is performed with Contrast, but NG judgment is not given.; "
+            "Corrective action: Increase the lower limit of Quality Match (%)."
+        ),
+        metadata={"chunk_type": "table_record", "table_row_group": True},
+    )
+    query = (
+        "On CV-X482, what adjustment is recommended when Contrast detection runs "
+        "but no NG judgment is given?"
+    )
+
+    answer, support = _concise_troubleshooting_answer(query, [result])
+
+    assert answer == (
+        "When Detection is performed with Contrast, but NG judgment is not given, "
+        "increase the lower limit of Quality Match (%)."
+    )
+    assert "defect strength" not in answer
+    assert [item.chunk_id for item in support] == ["grouped-status-rows"]
+
+
+def test_warning_answer_prefers_atomic_source_over_wrong_page_duplicate():
+    warning = (
+        "When the [Limit Output] is [OFF] and the intensity is set to 512 or higher, "
+        "be careful not to damage the light through excessive heat generation."
+    )
+    duplicate_section = SearchResult(
+        chunk_id="duplicate-section-window",
+        score=1.0,
+        title="XG-X Manual",
+        document_version_id="v1",
+        source_document_id="doc-xgx",
+        pages=[823],
+        section_path=["Appendix"],
+        content=f"General lighting notes. {warning} Additional unrelated guidance follows.",
+        metadata={"chunk_type": "section_window", "product_model": "XG-X"},
+    )
+    exact_atomic = SearchResult(
+        chunk_id="exact-warning",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="v1",
+        source_document_id="doc-xgx",
+        pages=[84],
+        section_path=["Output limiter"],
+        content=warning,
+        metadata={"chunk_type": "atomic_text", "product_model": "XG-X"},
+    )
+    query = (
+        "What is the XG-X warning when the output limiter is off and light intensity "
+        "is 512 or higher?"
+    )
+
+    answer, trace = generate_answer_with_trace(
+        query,
+        [duplicate_section, exact_atomic],
+        prioritized_results=[duplicate_section, exact_atomic],
+        summarized_evidence=[{"summary": "precomputed"}],
+    )
+
+    assert answer.answer == warning
+    assert [citation["chunk_id"] for citation in answer.citations] == ["exact-warning"]
+    assert trace["final_answer"]["answer_source"] == "deterministic_warning"
+    assert trace["final_answer"]["model"] is None
 
 
 def test_structured_measurement_ignores_header_whose_context_has_neighbor_value():
@@ -3617,6 +3696,30 @@ def test_summarize_results_keeps_small_structured_evidence_set_separate(monkeypa
     assert all(summary["summary_source"] == "direct_evidence" for summary in summaries)
 
 
+def test_summarize_results_recognizes_legacy_chunk_family_as_structured(monkeypatch):
+    result = SearchResult(
+        chunk_id="legacy-table-row",
+        score=1.0,
+        title="LJ-X8000 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[278],
+        section_path=["Settings"],
+        content="Setting item: Standard Angle; Settings: Specifies the start angle for blob numbering.",
+        metadata={"chunk_family": "table_record"},
+    )
+
+    def fail_chat_json(**_kwargs):
+        raise AssertionError("legacy structured evidence should not call the model")
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fail_chat_json)
+
+    summaries = summarize_results_for_answer("What does Standard Angle control?", [result])
+
+    assert summaries[0]["summary_source"] == "direct_evidence"
+    assert "Standard Angle" in summaries[0]["summary"]
+
+
 def test_prioritize_results_preserves_comparison_evidence_before_model_pruning(monkeypatch):
     results = [
         SearchResult(
@@ -3659,6 +3762,50 @@ def test_prioritize_results_preserves_comparison_evidence_before_model_pruning(m
     assert [result.chunk_id for result in prioritized["prioritized_results"][:2]] == [
         "controller-a-cause",
         "controller-b-cause",
+    ]
+
+
+def test_prioritize_results_deduplicates_overlapping_protected_routes(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="controller-a-setting",
+            score=0.9,
+            title="Controller A Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[20],
+            section_path=["Settings"],
+            content="Setting item: Condition list; Settings: Controls reference conditions.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="controller-b-setting",
+            score=0.8,
+            title="Controller B Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[30],
+            section_path=["Settings"],
+            content="Setting item: Standard Angle; Settings: Controls blob numbering start angle.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.judge_retrieval_relevance",
+        lambda _query, _results: [
+            {"chunk_id": result.chunk_id, "verdict": "relevant", "reason": "Direct."}
+            for result in results
+        ],
+    )
+
+    prioritized = prioritize_results_for_answer(
+        "Compare the Condition list and Standard Angle settings.",
+        results,
+    )["prioritized_results"]
+
+    assert [result.chunk_id for result in prioritized] == [
+        "controller-a-setting",
+        "controller-b-setting",
     ]
 
 
@@ -3747,6 +3894,130 @@ def test_prioritize_results_preserves_procedure_rule_evidence_before_model_pruni
     )
 
     assert prioritized["prioritized_results"][0].chunk_id == "flowchart-rule"
+
+
+def test_generate_answer_extracts_flowchart_branch_rule_without_model_calls(monkeypatch):
+    result = SearchResult(
+        chunk_id="flowchart-rule",
+        score=0.9,
+        title="XG-X manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[600],
+        section_path=["Image capture buffer"],
+        content=(
+            "When you use multiple cameras asynchronously, you can also place multiple "
+            "capture units. On a flowchart branched by the passing status of the first "
+            "capture unit, image capture is processed independently for each trigger."
+        ),
+        metadata={"chunk_type": "section_window", "product_family": "XG-X Series"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "For XG-X asynchronous capture with multiple capture units, what flowchart "
+        "branching rule should be followed?",
+        [result],
+    )
+
+    assert "flowchart branched by the passing status" in answer.answer
+    assert [citation["chunk_id"] for citation in answer.citations] == ["flowchart-rule"]
+    assert trace["final_answer"]["answer_source"] == "deterministic_flowchart_rule"
+
+
+def test_generate_answer_returns_scoped_yes_no_source_sentence_without_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="capture-units",
+        score=0.9,
+        title="XG-X manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[600],
+        section_path=["Image capture buffer"],
+        content=(
+            "When you use multiple cameras asynchronously, you can also place multiple "
+            "capture units."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_family": "XG-X Series"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "For XG-X asynchronous capture with multiple cameras, can multiple capture "
+        "units be placed in the flow?",
+        [result],
+    )
+
+    assert answer.answer == result.content
+    assert [citation["chunk_id"] for citation in answer.citations] == ["capture-units"]
+    assert trace["final_answer"]["answer_source"] == "deterministic_scoped_yes_no"
+
+
+def test_generate_answer_returns_named_timing_chart_without_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="timing-chart",
+        score=0.9,
+        title="CV-X manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[853],
+        section_path=["Multi-Capture"],
+        content="Timing chart Control/data output via I/O terminals",
+        metadata={"chunk_type": "atomic_text", "product_family": "CV-X Series"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "For CV-X multi-capture trigger timing, which control/data I/O timing chart "
+        "should I check?",
+        [result],
+    )
+
+    assert answer.answer == result.content
+    assert [citation["chunk_id"] for citation in answer.citations] == ["timing-chart"]
+    assert trace["final_answer"]["answer_source"] == "deterministic_named_reference"
+
+
+def test_generate_answer_returns_menu_mapping_without_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="standard-lighting-menu",
+        score=0.9,
+        title="XG-X manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[978],
+        section_path=["Standard Lighting Mode"],
+        content=(
+            "Camera - Trigger - Light Configuration Settings (Page 7-205): "
+            "Simulation Image Capture (Page 7-213); Camera Settings (Page 7-206)"
+        ),
+        metadata={"chunk_type": "table_record", "product_family": "XG-X Series"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "In Standard Lighting Mode, for XG-X line-scan camera setup, which camera, "
+        "trigger, and lighting settings are tied to simulation image capture?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "Simulation Image Capture is listed under Camera - Trigger - Light Configuration Settings."
+    )
+    assert [citation["chunk_id"] for citation in answer.citations] == [result.chunk_id]
+    assert trace["final_answer"]["answer_source"] == "deterministic_menu_mapping"
 
 
 def test_validate_answer_fallback_uses_matching_troubleshooting_row_from_parent_context():
@@ -4123,6 +4394,56 @@ def test_validate_answer_handles_quantity_units_and_ranges_without_role_swapping
     assert not any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_rejects_negated_action_against_affirmative_evidence():
+    results = [_quantity_result("Set voltage to 5 volts and current to 10 amps.")]
+
+    validated = validate_answer(
+        _quantity_answer("Do not set voltage to 5 volts or current to 10 amps."),
+        results,
+        query="What voltage and current should I set?",
+    )
+
+    assert "Do not set" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_does_not_borrow_negation_from_unrelated_evidence():
+    results = [
+        _quantity_result(
+            "Set voltage to 5 volts and current to 10 amps.",
+            chunk_id="electrical-setting",
+            score=0.9,
+        ),
+        _quantity_result(
+            "Do not increase the unrelated line count above 20.",
+            chunk_id="unrelated-negative-instruction",
+            score=0.8,
+        ),
+    ]
+
+    validated = validate_answer(
+        _quantity_answer("Do not set voltage to 5 volts or current to 10 amps."),
+        results,
+        query="What voltage and current should I set?",
+    )
+
+    assert "Do not set" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_rejects_range_bound_relocated_to_unrelated_role():
+    results = [_quantity_result("Voltage is 5 V to 10 V and current is 2 amps.")]
+
+    validated = validate_answer(
+        _quantity_answer("Voltage is 5 V and current is 2 amps; the menu count is 10."),
+        results,
+        query="What voltage range and current are specified?",
+    )
+
+    assert "menu count" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_ignores_irrelevant_quantity_numbers():
     results = [
         _quantity_result(
@@ -4446,7 +4767,7 @@ def test_troubleshooting_answer_associates_cells_from_the_exact_same_table_row()
                 "Column headers: Error Message; Row headers: Controller: X.X > A head not supported by the controller is connected.; "
                 "Cell value: The camera firmware is not the latest version."
             ),
-            metadata=common_metadata,
+            metadata={**common_metadata, "table_column_headers": ["Error Message"]},
         ),
         SearchResult(
             chunk_id="cause-cell",
@@ -4460,7 +4781,7 @@ def test_troubleshooting_answer_associates_cells_from_the_exact_same_table_row()
                 "Column headers: Cause; Row headers: Controller: X.X > A head not supported by the controller is connected.; "
                 "Cell value: The connected head requires newer camera firmware."
             ),
-            metadata=common_metadata,
+            metadata={**common_metadata, "table_column_headers": ["Cause"]},
         ),
         SearchResult(
             chunk_id="action-cell",
@@ -4474,7 +4795,7 @@ def test_troubleshooting_answer_associates_cells_from_the_exact_same_table_row()
                 "Column headers: Corrective Action; Row headers: Controller: X.X > A head not supported by the controller is connected.; "
                 "Cell value: Turn off the controller and upgrade the firmware."
             ),
-            metadata=common_metadata,
+            metadata={**common_metadata, "table_column_headers": ["Corrective Action"]},
         ),
     ]
 
@@ -4486,6 +4807,62 @@ def test_troubleshooting_answer_associates_cells_from_the_exact_same_table_row()
     assert answer.answer == (
         "Cause: The connected head requires newer camera firmware.\n"
         "Corrective action: Turn off the controller and upgrade the firmware."
+    )
+    assert {citation["chunk_id"] for citation in answer.citations} == {"cause-cell", "action-cell"}
+
+
+def test_troubleshooting_answer_handles_error_that_says_what_should_i_do_phrasing():
+    common_metadata = {
+        "chunk_type": "table_record",
+        "table_row": 8,
+        # Expanded context is prose here rather than a pipe row, matching the
+        # production path where row binding must come from serialized content.
+        "context_window": "Nearby troubleshooting entries without a pipe-delimited row.",
+    }
+    row_header = (
+        "The configuration of the connected expansion units is invalid. Please turn "
+        "off the power temporarily and check the configuration of the expansion units."
+    )
+    cause = SearchResult(
+        chunk_id="cause-cell",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[12],
+        section_path=["Troubleshooting"],
+        content=(
+            f"Column headers: Cause; Row headers: {row_header}; Cell value: "
+            "An expansion unit that cannot be used with the controller is connected.; "
+            "Row: 8; Column: 1"
+        ),
+        metadata={**common_metadata, "table_column_headers": ["Cause"]},
+    )
+    action = SearchResult(
+        chunk_id="action-cell",
+        score=0.8,
+        title="XG-X Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[12],
+        section_path=["Troubleshooting"],
+        content=(
+            f"Column headers: Corrective Action; Row headers: {row_header} > An expansion "
+            "unit that cannot be used with the controller is connected.; Cell value: "
+            "Check the configuration of the expansion unit.; Row: 8; Column: 2"
+        ),
+        metadata={**common_metadata, "table_column_headers": ["Corrective Action"]},
+    )
+
+    answer, _trace = generate_answer_with_trace(
+        "On an XG-X Series controller, what causes the error that says to turn off power "
+        "temporarily and check the configuration of the expansion units, and what should I do?",
+        [cause, action],
+    )
+
+    assert answer.answer == (
+        "Cause: An expansion unit that cannot be used with the controller is connected.\n"
+        "Corrective action: Check the configuration of the expansion unit."
     )
     assert {citation["chunk_id"] for citation in answer.citations} == {"cause-cell", "action-cell"}
 
@@ -5065,6 +5442,38 @@ def test_parse_relevance_response_detects_missing_chunk_ids_and_normalizes_null_
     assert parsed[1]["reason"]
     assert diagnostics["invalid_items"]
     assert diagnostics["missing_chunk_ids"] == []
+
+
+def test_parse_relevance_response_accepts_json_markdown_fence():
+    results = [
+        SearchResult(
+            chunk_id="c1",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[1],
+            section_path=["Counter"],
+            content="When the count is 9, the quantity counted at one time is 7.",
+            metadata={"chunk_type": "atomic_text"},
+        )
+    ]
+
+    parsed, diagnostics = _parse_relevance_response(
+        """```json
+        {"items":[{"chunk_id":"c1","verdict":"relevant","reason":"Direct match."}]}
+        ```""",
+        "When the count is 9, what quantity is counted?",
+        results,
+    )
+
+    assert parsed == [{"chunk_id": "c1", "verdict": "relevant", "reason": "Direct match."}]
+    assert diagnostics["missing_chunk_ids"] == []
+    assert diagnostics["invalid_items"] == []
+
+
+def test_extract_json_summary_accepts_markdown_fence():
+    assert _extract_json_summary('```json\n{"summary":"Bound evidence"}\n```') == "Bound evidence"
 
 
 def test_judge_retrieval_relevance_retries_when_chunk_coverage_is_incomplete(monkeypatch):
@@ -7452,7 +7861,7 @@ def test_generate_answer_with_trace_exposes_summary_input_and_fallback_state(mon
             source_document_id="d1",
             pages=[1],
             section_path=["Tools"],
-            content="Defect Tool setup instructions",
+            content="Use the Defect Tool for setup.",
             metadata={"chunk_type": "atomic_text"},
         )
     ]
@@ -8030,6 +8439,62 @@ def test_validation_fallback_preserves_focused_table_cell_before_context(monkeyp
     assert trace["final_answer"]["answer_source"] == "fallback_validation"
 
 
+def test_structured_fact_mapping_prefers_novel_adjacent_cell_value():
+    results = [
+        SearchResult(
+            chunk_id="neighbor-bit-cell",
+            score=0.98,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[952],
+            section_path=["Command output area"],
+            content=(
+                "Column headers: 7bit; Row headers: 0028 65.0 > Command output area; "
+                "Cell value: 57.0; Row: 15; Column: 2"
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="setting-cell",
+            score=0.95,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[952],
+            section_path=["Command output area"],
+            content=(
+                "Column headers: Setting; Row headers: 0028 65.0; "
+                "Cell value: Command output area; Row: 15; Column: 0"
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="result-cell",
+            score=0.9,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[952],
+            section_path=["Command output area"],
+            content=(
+                "Column headers: 6bit > 5bit > 4bit > 3bit > 2bit > 1bit > 0bit; "
+                "Row headers: 0028 65.0 > Command output area; "
+                "Cell value: Command Result; Row: 15; Column: 3"
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    answer, evidence = _concise_structured_fact_answer(
+        "On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?",
+        results,
+    )
+
+    assert answer.endswith("Command Result")
+    assert [result.chunk_id for result in evidence] == ["result-cell"]
+
+
 def test_validation_fallback_omits_unrequested_neighbor_setting_context(monkeypatch):
     results = [
         SearchResult(
@@ -8275,3 +8740,176 @@ def test_parse_document_docling_artifact_batches_cover_full_page_range():
     assert covered_pages[0] == 1
     assert covered_pages[-1] == result.page_count
     assert covered_pages == list(range(1, result.page_count + 1))
+
+
+def test_uppercase_family_is_not_comparison_operator():
+    query = 'Compare VS Series pattern data with AB-200 startup memory errors.'
+    assert generator_module._comparison_side_clauses(query) == [
+        'VS Series pattern data', 'AB-200 startup memory errors'
+    ]
+    assert generator_module._comparison_side_clauses('Compare AB-200 vs CD-300') == ['AB-200', 'CD-300']
+
+
+def test_named_family_retained_beside_explicit_comparison_model():
+    def result(key, model):
+        return SearchResult(chunk_id=key, source_document_id=key,
+            document_version_id=key, title=model, score=1, pages=[1],
+            section_path=[], content='Cause: memory error',
+            metadata={'product_models': [model]})
+    results = [result('family', 'AB-X100'), result('model', 'CD-200'), result('wrong', 'ABC-X100')]
+    scoped = generator_module._scope_answer_results_to_query_models(
+        'Compare AB Series with CD-200.', results)
+    assert [r.chunk_id for r in scoped] == ['family', 'model']
+
+
+def test_comparison_clause_does_not_require_model_repeated_in_row():
+    result = SearchResult(chunk_id='row', source_document_id='doc', document_version_id='v',
+        title='AB-200', score=1, pages=[1], section_path=[],
+        content='Cause: A memory read error occurred when the sensor started.',
+        metadata={'product_models': ['AB-200'], 'chunk_type': 'table_record'})
+    assert generator_module._result_matches_comparison_side_clause(
+        result, 'the AB-200 cause for a memory read error at sensor startup')
+    assert not generator_module._result_matches_comparison_side_clause(
+        result, 'the CD-300 cause for a memory read error at sensor startup')
+
+
+def test_dependent_fallback_does_not_claim_complete_answer_for_one_fact():
+    result = SearchResult(chunk_id="port", score=1, title="AB-100 manual",
+                          document_version_id="v1", source_document_id="d1", pages=[3],
+                          section_path=[], content="AB-100 uses cable OP-12345.", metadata={})
+    query = "Which cable connects AB-100, then what is its connector orientation?"
+    assert len(generator_module._multi_part_evidence_clauses(query)) == 2
+    answer = generator_module._fallback_answer(query, [result])
+    assert answer.insufficient_evidence
+    assert answer.confidence == "low"
+
+
+def test_multi_part_question_does_not_short_circuit_to_one_structured_cell(monkeypatch):
+    query = (
+        "Which encoder head model is compatible with the CA-EN100U, and how is that "
+        "encoder head powered?"
+    )
+    results = [
+        SearchResult(
+            chunk_id="model",
+            score=1.0,
+            title="Encoder manual",
+            document_version_id="v1",
+            source_document_id="doc",
+            pages=[3],
+            section_path=[],
+            content=(
+                "Column headers: CA-EN100U; Row headers: Supported encoder head; "
+                "Cell value: CA-EN100H; Row: 1; Column: 1"
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="power",
+            score=0.9,
+            title="Encoder manual",
+            document_version_id="v1",
+            source_document_id="doc",
+            pages=[3],
+            section_path=[],
+            content="Model: Power-supply; CA-EN100H: Supply from CA-EN100U",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    def fake_chat_json(**kwargs):
+        raise AssertionError(f"dependency mapping should not call a model: {kwargs['purpose']}")
+
+    monkeypatch.setattr(generator_module, "chat_json", fake_chat_json)
+    answer, trace = generate_answer_with_trace(
+        query,
+        results,
+        prioritized_results=results,
+        summarized_evidence=[
+            {"chunk_id": "model", "summary": results[0].content},
+            {"chunk_id": "power", "summary": results[1].content},
+        ],
+    )
+
+    assert "powered by CA-EN100U" in answer.answer
+    assert len(answer.citations) == 2
+    assert answer.insufficient_evidence is False
+    assert trace["final_answer"]["answer_source"] == "deterministic_dependency_mapping"
+
+    generic_answer, _support = generator_module._concise_dependency_mapping_answer(
+        "Which sensor model is compatible with the CA-EN100U, and how is that sensor powered?",
+        results,
+    )
+    assert generic_answer.startswith("The compatible sensor is CA-EN100H")
+
+
+def test_dependency_mapping_answers_serial_cable_orientation_without_model(monkeypatch):
+    query = (
+        "Which cable model connects the LJ-X8000 RS-232C port, then what is that "
+        "cable's connector orientation?"
+    )
+    results = [
+        SearchResult(
+            chunk_id="port",
+            score=1.0,
+            title="LJ-X8000 manual",
+            document_version_id="v1",
+            source_document_id="doc",
+            pages=[30],
+            section_path=["NOTICE"],
+            content="The port to connect RS: 232C cable (OP-26487: 2.5 m, sold separately).",
+            metadata={"chunk_type": "atomic_text"},
+        ),
+        SearchResult(
+            chunk_id="description",
+            score=0.9,
+            title="LJ-X8000 manual",
+            document_version_id="v1",
+            source_document_id="doc",
+            pages=[664],
+            section_path=["Accessories"],
+            content=(
+                "Model name: OP-84384; Description: D-sub 9-pin connector (SYSMAC)\n"
+                "Model name: OP-26487; Description: Serial connection cable (2.5 m, straight)"
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    monkeypatch.setattr(
+        generator_module,
+        "chat_json",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError(f"cable dependency mapping should not call a model: {kwargs['purpose']}")
+        ),
+    )
+    answer, trace = generate_answer_with_trace(
+        query,
+        results,
+    )
+
+    assert answer.answer == "The cable model is OP-26487, and its connector orientation is straight."
+    assert [citation["chunk_id"] for citation in answer.citations] == ["port", "description"]
+    assert answer.insufficient_evidence is False
+    assert trace["final_answer"]["answer_source"] == "deterministic_dependency_mapping"
+
+
+def test_abstention_does_not_get_an_invented_top_citation():
+    result = SearchResult(chunk_id="unrelated", score=1, title="Other manual",
+                          document_version_id="v1", source_document_id="d1", pages=[1],
+                          section_path=[], content="Unrelated material.", metadata={})
+    answer = AnswerResponse(answer="I cannot establish the requested fact.", confidence="low",
+                            used_documents=[], citations=[], warnings=[], followup_questions=[],
+                            insufficient_evidence=True)
+    validated = validate_answer(answer, [result], query="What is the verified firmware version?")
+    assert validated.insufficient_evidence
+    assert not validated.citations
+
+
+def test_summary_recovery_cannot_override_missing_dependent_fact():
+    query = "Which cable connects AB-100, then what is its connector orientation?"
+    result = SearchResult(chunk_id="port", score=1, title="AB-100 manual",
+                          document_version_id="v1", source_document_id="d1", pages=[3],
+                          section_path=[], content="AB-100 uses cable OP-12345.", metadata={})
+    summaries = [{"chunk_id": "port", "summary": result.content}]
+    assert generator_module._fallback_answer_from_summaries(query, summaries, [result]) is None

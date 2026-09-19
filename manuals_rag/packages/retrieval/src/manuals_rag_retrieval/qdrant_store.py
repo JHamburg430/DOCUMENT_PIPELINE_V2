@@ -10,6 +10,7 @@ from qdrant_client.http.models import (
     FieldCondition,
     Filter,
     FilterSelector,
+    HasIdCondition,
     MatchAny,
     MatchValue,
     NamedSparseVector,
@@ -78,8 +79,9 @@ def document_metadata_collection_name(corpus_id: str) -> str:
 
 
 class QdrantStore:
-    def __init__(self) -> None:
-        self.client = QdrantClient(url=settings.qdrant_url)
+    def __init__(self, *, timeout: float | None = None) -> None:
+        options = {"timeout": timeout} if timeout is not None else {}
+        self.client = QdrantClient(url=settings.qdrant_url, **options)
 
     def ensure_collection(self, corpus_id: str, vector_size: int) -> None:
         name = collection_name(corpus_id)
@@ -116,6 +118,7 @@ class QdrantStore:
                     payload={
                         **chunk.metadata_json,
                         "chunk_id": chunk.id,
+                        "logical_node_ids_json": chunk.logical_node_ids_json,
                         "document_version_id": chunk.document_version_id,
                         "source_document_id": chunk.source_document_id,
                         "chunk_type": chunk.chunk_type.value,
@@ -198,6 +201,7 @@ class QdrantStore:
         source_document_id: str | None = None,
         document_version_id: str | None = None,
         chunk_ids: list[str] | None = None,
+        exclude_chunk_ids: list[str] | None = None,
     ) -> None:
         if not self.client.collection_exists(collection_name(corpus_id)):
             return
@@ -212,7 +216,10 @@ class QdrantStore:
             return
         self.client.delete(
             collection_name=collection_name(corpus_id),
-            points_selector=FilterSelector(filter=Filter(must=must)),
+            points_selector=FilterSelector(filter=Filter(
+                must=must,
+                must_not=[HasIdCondition(has_id=exclude_chunk_ids)] if exclude_chunk_ids else None,
+            )),
             wait=True,
         )
 
@@ -227,6 +234,40 @@ class QdrantStore:
                 must.append({"key": key, "match": {"value": value}})
         return {"must": must} if must else None
 
+    def _query_vector(
+        self,
+        *,
+        collection_name: str,
+        vector_name: str,
+        vector: list[float] | SparseVector,
+        query_filter: dict[str, Any] | None,
+        limit: int,
+    ) -> list[Any]:
+        """Query a named vector across supported qdrant-client versions."""
+        if hasattr(self.client, "query_points"):
+            response = self.client.query_points(
+                collection_name=collection_name,
+                query=vector,
+                using=vector_name,
+                query_filter=query_filter,
+                limit=limit,
+                with_payload=True,
+            )
+            return list(response.points)
+
+        named_vector: NamedVector | NamedSparseVector
+        if isinstance(vector, SparseVector):
+            named_vector = NamedSparseVector(name=vector_name, vector=vector)
+        else:
+            named_vector = NamedVector(name=vector_name, vector=vector)
+        return list(self.client.search(
+            collection_name=collection_name,
+            query_vector=named_vector,
+            query_filter=query_filter,
+            limit=limit,
+            with_payload=True,
+        ))
+
     def search_dense(self, corpus_id: str, query: str, filters: dict[str, Any], limit: int = 40) -> list[SearchResult]:
         dense = embed_dense([query])[0]
         name = collection_name(corpus_id)
@@ -234,12 +275,12 @@ class QdrantStore:
             return []
         query_filter = self._build_filter(filters)
         try:
-            dense_hits = self.client.search(
+            dense_hits = self._query_vector(
                 collection_name=name,
-                query_vector=NamedVector(name="dense", vector=dense),
+                vector_name="dense",
+                vector=dense,
                 query_filter=query_filter,
                 limit=limit,
-                with_payload=True,
             )
         except UnexpectedResponse as exc:
             if "Vector dimension error" in str(exc):
@@ -267,12 +308,12 @@ class QdrantStore:
         dense = embed_dense([query])[0]
         query_filter = self._build_filter(filters)
         try:
-            dense_hits = self.client.search(
+            dense_hits = self._query_vector(
                 collection_name=name,
-                query_vector=NamedVector(name="dense", vector=dense),
+                vector_name="dense",
+                vector=dense,
                 query_filter=query_filter,
                 limit=max(limit * 4, 20),
-                with_payload=True,
             )
         except UnexpectedResponse as exc:
             if "Vector dimension error" in str(exc):
@@ -301,12 +342,12 @@ class QdrantStore:
             return []
         query_filter = self._build_filter(filters)
         try:
-            sparse_hits = self.client.search(
+            sparse_hits = self._query_vector(
                 collection_name=name,
-                query_vector=NamedSparseVector(name="sparse", vector=SparseVector(indices=indices, values=values)),
+                vector_name="sparse",
+                vector=SparseVector(indices=indices, values=values),
                 query_filter=query_filter,
                 limit=limit,
-                with_payload=True,
             )
         except Exception as exc:
             if "Search exceeded per-query timeout" in str(exc):

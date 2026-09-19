@@ -126,20 +126,30 @@ def build_expected_evidence_graph(case: dict[str, Any]) -> ExpectedEvidenceGraph
                 "expected_terms": case.get("expected_terms") or [],
             }
         ]
+    generation = str(case.get("generation_method") or "")
     mode: Literal["single", "parallel", "dependent", "abstain"] = "single"
-    if len(evidence) > 1:
+    contextual_procedure = generation.startswith("contextual_procedure_plus_section_evidence")
+    if len(evidence) > 1 and not contextual_procedure:
         mode = "dependent" if category in {"dependent_multi_hop", "entity_resolution"} else "parallel"
     nodes: list[ExpectedEvidenceNode] = []
     for index, item in enumerate(evidence, start=1):
         node_id = f"claim_{index}"
         field = str(item.get("field") or item.get("evidence_role") or "fact")
         label = str(item.get("label") or item.get("snippet") or f"evidence {index}")
+        field_key = re.sub(r"\s+", " ", field.lower()).strip()
+        anchor_only = (
+            index == 1
+            and generation.startswith("table_sibling_error_cause_action")
+            and field_key in {"error message", "error", "symptom", "status", "display"}
+        )
+        anchor_only = anchor_only or (index == 1 and contextual_procedure)
         nodes.append(
             ExpectedEvidenceNode(
                 node_id=node_id,
                 claim=f"Retrieve {field} evidence for {label}"[:500],
                 answer_facet=field,
                 evidence_role=str(item.get("evidence_role") or "support"),
+                required=not anchor_only,
                 depends_on=[f"claim_{index - 1}"] if mode == "dependent" and index > 1 else [],
                 expected_chunk_ids=[str(item["chunk_id"])] if item.get("chunk_id") else [],
                 expected_document_ids=[str(item["source_document_id"])] if item.get("source_document_id") else [],
@@ -158,8 +168,22 @@ def attach_expected_evidence_graph(case: dict[str, Any]) -> dict[str, Any]:
     graph = build_expected_evidence_graph(case)
     metadata = dict(case.get("source_metadata") or {})
     metadata["agent_case_category"] = graph.category
-    return {
+    output = {
         **case,
         "source_metadata": metadata,
         "expected_evidence_graph": graph.model_dump(),
     }
+    if str(case.get("generation_method") or "").startswith(
+        "table_sibling_error_cause_action"
+    ) or str(case.get("generation_method") or "").startswith(
+        "contextual_procedure_plus_section_evidence"
+    ):
+        output["expected_terms"] = list(
+            dict.fromkeys(
+                term
+                for node in graph.nodes
+                if node.required
+                for term in node.expected_terms
+            )
+        )
+    return output

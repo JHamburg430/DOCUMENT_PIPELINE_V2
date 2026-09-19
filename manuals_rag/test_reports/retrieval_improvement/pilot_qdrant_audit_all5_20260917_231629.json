@@ -1,0 +1,83 @@
+{
+  "document_count": 5,
+  "passed": 5,
+  "failed": 0,
+  "checks_passed": true,
+  "documents": [
+    {
+      "document_id": "3a18df27-6202-48e1-b5ba-f5b9428f0d74",
+      "source_filename": "AS_147320_LJ-S8000_SG_K47GB_WW_GB_2094_1.pdf",
+      "expected_active_chunks": 153,
+      "qdrant_chunks": 153,
+      "chunk_mismatches": [],
+      "qdrant_selectors": 1,
+      "selector_mismatches": [],
+      "latest_job": {
+        "status": "completed",
+        "failure_class": null
+      },
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "9faae21a-84b7-41ee-aa34-253cf69e118f",
+      "source_filename": "AS_149074_SZ-V_GL-R_L_689034_KA_US_2114_1.pdf",
+      "expected_active_chunks": 72,
+      "qdrant_chunks": 72,
+      "chunk_mismatches": [],
+      "qdrant_selectors": 1,
+      "selector_mismatches": [],
+      "latest_job": {
+        "status": "completed",
+        "failure_class": null
+      },
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "14879385-0608-44ee-85fc-0b79ac5c1d96",
+      "source_filename": "CA-EN100U_Datasheet.pdf",
+      "expected_active_chunks": 4,
+      "qdrant_chunks": 4,
+      "chunk_mismatches": [],
+      "qdrant_selectors": 1,
+      "selector_mismatches": [],
+      "latest_job": {
+        "status": "completed",
+        "failure_class": null
+      },
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "d88f593a-8d50-4f54-baaa-39fcc5020833",
+      "source_filename": "LuaScriptManual_en.pdf",
+      "expected_active_chunks": 105,
+      "qdrant_chunks": 105,
+      "chunk_mismatches": [],
+      "qdrant_selectors": 1,
+      "selector_mismatches": [],
+      "latest_job": {
+        "status": "completed",
+        "failure_class": null
+      },
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "38a47a7d-42f7-4788-9f6e-3831b85973a1",
+      "source_filename": "VJ-H500CX_Datasheet.pdf",
+      "expected_active_chunks": 49,
+      "qdrant_chunks": 49,
+      "chunk_mismatches": [],
+      "qdrant_selectors": 1,
+      "selector_mismatches": [],
+      "latest_job": {
+        "status": "completed",
+        "failure_class": null
+      },
+      "checks_passed": true,
+      "failures": []
+    }
+  ]
+}

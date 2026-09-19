@@ -38,6 +38,7 @@ def test_infer_document_metadata_from_model_response(monkeypatch):
         assert kwargs["purpose"].startswith("metadata_extraction")
         assert "properties" in kwargs["json_schema"]
         assert kwargs["num_ctx"] == METADATA_NUM_CTX
+        assert kwargs["num_batch"] == settings.ollama_metadata_num_batch
         return (
             {
                 "manufacturer": "Keyence",
@@ -320,6 +321,17 @@ def test_scoped_metadata_accepts_entity_kind_alias():
     assert extraction.entities[0].kind == "product_model"
 
 
+def test_scoped_metadata_defaults_missing_advisory_confidence():
+    extraction = ScopedMetadataExtraction.model_validate({"entities": [{
+        "value": "EtherNet/IP",
+        "kind": "protocol",
+        "relation": "applies_to",
+        "source_quote": "Protocol | EtherNet/IP",
+    }]})
+
+    assert extraction.entities[0].confidence == 0.5
+
+
 def test_metadata_bisection_splits_dense_single_segment_below_legacy_threshold():
     segment = MetadataSourceSegment("field | value\n" * 80, 7, 7, ("Specifications",))
     split = _bisect_metadata_segments([segment])
@@ -334,6 +346,8 @@ def test_routing_canonicalization_rejects_document_codes_and_cleans_table_values
     assert _canonical_routing_identifier("CA-CF5E (5 m 16.4')", repeated_lines=set()) == "CA-CF5E"
     assert _canonical_routing_identifier("KV-X", repeated_lines=set()) == "KV-X"
     assert _canonical_routing_identifier("CV-X", repeated_lines=set()) == "CV-X"
+    assert _canonical_routing_identifier("KV: X", repeated_lines=set()) == "KV-X"
+    assert _canonical_routing_identifier("LJ: X8000", repeated_lines=set()) == "LJ-X8000"
     assert _canonical_routing_identifier("VS", repeated_lines=set()) is None
     assert _canonical_routing_identifier("LRT-KA-C2-US 2074-3 611C20", repeated_lines=set()) is None
     assert _canonical_routing_identifier("2074-3", repeated_lines=set()) is None
@@ -373,6 +387,103 @@ def test_identifier_like_primary_family_can_be_an_exact_routing_key():
 def test_version_signal_does_not_cross_line_boundaries():
     segments = [MetadataSourceSegment("STUDIO mode, Modbus master/slave\nCC-Link Ver. 2.0", 1, 1)]
     assert _expected_version_kinds(segments) == set()
+
+
+def test_version_completeness_detects_named_editor_and_runtime_statements():
+    for text in (
+        "Using the ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later), upload settings.",
+        "The ExampleLanguage version used in this system is Ver. 5.1.4.",
+    ):
+        assert _expected_version_kinds([MetadataSourceSegment(text, 2, 2)]) == {"software_version"}
+
+
+def test_plain_ethernet_is_harvested_without_collapsing_ethernet_ip():
+    from manuals_rag_parsers.metadata import _deterministic_protocol_evidence
+    claims = _deterministic_protocol_evidence([MetadataSourceSegment("Ethernet and EtherNet/IP", 1, 1)])
+    assert {c["value"] for c in claims} == {"ethernet", "ethernet/ip"}
+    assert all(c["relation"] == "mentioned" for c in claims)
+
+
+def test_software_version_gate_requires_each_explicit_value():
+    from manuals_rag_parsers.metadata import _missing_explicit_software_versions
+    source = [MetadataSourceSegment("ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later)", 3, 3)]
+    assert _missing_explicit_software_versions(source, [{"kind": "software_version", "value": "5.1.0020"}]) == {"4.2.0020"}
+    assert _deterministic_version_evidence([MetadataSourceSegment("The runtime version used in this system is Ver. 5.1.4.", 2, 2)], {"software_version"}) == []
+
+
+def test_grounding_preserves_late_identifier_in_full_table_quote():
+    text = "Model | Specification\n" + "Earlier row | details\n" * 30 + "ZX-2400 | 2400 mm"
+    extracted = ScopedMetadataExtraction.model_validate({"entities": [{
+        "value": "ZX-2400", "kind": "product_model", "relation": "primary_product",
+        "source_quote": text, "confidence": 0.95,
+    }]})
+    claims = _ground_scoped_candidates(extracted, [MetadataSourceSegment(text, 2, 2)])
+    assert len(claims) == 1
+    assert claims[0]["source_quote"] == text
+    assert "ZX-2400" in claims[0]["source_quote"]
+
+
+def test_model_column_coverage_excludes_compatible_products():
+    from manuals_rag_parsers.metadata import (
+        _compatible_model_column_claims,
+        _literal_compatible_model_column_claim_is_confirmed,
+        _model_column_identifiers,
+    )
+    segment = MetadataSourceSegment(
+        "Model | Length | Recommended compatible models\n"
+        "ZX-1000 | 1000 | AB-20 / AB-40\n | | AB-60\nZX-2400 | 2400 | AB-80", 2, 2)
+    assert _model_column_identifiers(segment) == ["ZX-1000", "ZX-2400"]
+    claims = _compatible_model_column_claims([segment])
+    assert [(item["value"], item["subject"]) for item in claims] == [
+        ("AB-20", "ZX-1000"),
+        ("AB-40", "ZX-1000"),
+        ("AB-60", "ZX-1000"),
+        ("AB-80", "ZX-2400"),
+    ]
+    assert all(item["relation"] == "compatible_with" for item in claims)
+    assert "ZX-1000" in claims[2]["source_quote"]
+    assert "Recommended compatible models" in claims[2]["source_quote"]
+    assert "ZX-1000 | 1000 | AB-20 / AB-40\n| | AB-60" in claims[2]["source_quote"]
+    assert " ".join(claims[3]["source_quote"].split()) == " ".join(segment.text.split())
+    assert all(_literal_compatible_model_column_claim_is_confirmed(item) for item in claims)
+    assert _model_column_identifiers(MetadataSourceSegment("Model name | ZX-15 | ZX-25\nRange | 5 | 10", 2, 2)) == ["ZX-15", "ZX-25"]
+
+
+def test_compatibility_bullet_cannot_replace_catalog_title():
+    from manuals_rag_parsers.metadata import _select_document_title
+    title, _ = _select_document_title("catalog.pdf", "■ ZX-900 series integrated model", [
+        MetadataSourceSegment("ZX-900 Series mounting bracket : ZX-FB31\n■ ZX-900 series integrated model", 1, 1)
+    ])
+    assert title == "ZX-900 Series mounting bracket : ZX-FB31"
+
+
+def test_metadata_schema_workaround_preserves_other_model_budgets(monkeypatch):
+    from types import SimpleNamespace
+    from manuals_rag_parsers import metadata as module
+    from manuals_rag_parsers.metadata import _metadata_thinking, _metadata_token_budget
+    monkeypatch.setattr(module, "settings", SimpleNamespace(ollama_metadata_model="qwen3.5:9b"))
+    assert not _metadata_thinking() and _metadata_token_budget(320) == 320
+    monkeypatch.setattr(module, "settings", SimpleNamespace(ollama_metadata_model="different-model:8b"))
+    assert not _metadata_thinking() and _metadata_token_budget(320) == 320
+
+
+def test_dense_identifier_batch_is_split_before_schema_cap_loses_rows(monkeypatch):
+    from manuals_rag_parsers import metadata as module
+    calls = []
+    def extract(filename, messages, *, purpose):
+        content = messages[1]["content"]
+        candidates = json.loads(content.split("classified):\n", 1)[1].split("\n\n", 1)[0])
+        calls.append(len(candidates))
+        return ScopedMetadataExtraction.model_validate({"entities": [
+            {"value": c["value"], "kind": "product_model", "relation": "mentioned",
+             "source_quote": c["source_quote"], "page_from": c["page_from"], "confidence": 0.9}
+            for c in candidates
+        ]})
+    monkeypatch.setattr(module, "_call_scoped_model", extract)
+    segments = [MetadataSourceSegment(f"Model ZX-{1000+i}", i+1, i+1) for i in range(12)]
+    claims = module._extract_scoped_metadata("catalog.pdf", segments)
+    assert len(claims) == 12
+    assert len(calls) > 1 and max(calls) <= module.MAX_SCOPED_ENTITIES
 
 
 def test_explicit_software_version_fallback_is_grounded_but_not_applicability():
@@ -488,6 +599,70 @@ def test_title_selection_does_not_use_a_later_section_heading(monkeypatch):
     )
 
     assert metadata.title == "Vision System User's Manual"
+
+
+def test_title_selection_rejects_download_call_to_action(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(
+            document_kind="datasheet",
+            title="Download CAD file or product manual for larger image/text and more detail.",
+        ),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: (
+            {"title": "Download CAD file or product manual for larger image/text and more detail."}
+            if kwargs["purpose"] == "metadata_extraction.document_title"
+            else {"entities": []},
+            "{}",
+        ),
+    )
+
+    metadata = infer_document_metadata_from_segments(
+        "VJ-H500CX_Datasheet.pdf",
+        [
+            MetadataSourceSegment("Model | VJ-H500CX", 1, 1),
+            MetadataSourceSegment(
+                "Download CAD file or product manual for larger image/text and more detail.",
+                2,
+                2,
+            ),
+        ],
+    )
+
+    assert metadata.title == "VJ-H500CX Datasheet"
+
+
+def test_title_selection_prefers_page_one_identifier_heading_over_preface(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(
+            document_kind="manual",
+            title="Please read the instruction manual carefully in advance.",
+        ),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ({"entities": []}, "{}"),
+    )
+
+    metadata = infer_document_metadata_from_segments(
+        "OP-88310_OP-88381.pdf",
+        [
+            MetadataSourceSegment(
+                "Smart Bracket OP-88310 / OP-88381\n"
+                "Please read the instruction manual carefully in advance.",
+                1,
+                1,
+            )
+        ],
+    )
+
+    assert metadata.title == "Smart Bracket OP-88310 / OP-88381"
+    assert metadata.product_model is None
+    assert metadata.routing_product_models == []
+    assert metadata.routing_part_numbers == ["OP-88310", "OP-88381"]
 
 
 def test_scalar_metadata_normalizes_array_shape_dates_and_kind_synonyms(monkeypatch):
@@ -857,7 +1032,10 @@ def test_opening_pages_are_ordered_by_physical_page_before_title_extraction(monk
     )
 
     def fake_chat_json(**kwargs):
-        if kwargs["purpose"] == "metadata_extraction.scoped_entities":
+        if kwargs["purpose"] in {
+            "metadata_extraction.scoped_entities",
+            "metadata_extraction.claim_verification",
+        }:
             return ({"entities": []}, "{}")
         raise AssertionError(kwargs["purpose"])
 
@@ -1016,6 +1194,72 @@ def test_late_table_primary_label_does_not_replace_document_identity(monkeypatch
     assert "BX-200" not in metadata.routing_product_models
 
 
+def test_late_compatible_model_is_not_a_hard_routing_key():
+    evidence = [
+        {
+            "value": "KV-X",
+            "kind": "product_model",
+            "relation": "primary_product",
+            "page_from": 1,
+            "grounded": True,
+            "verification_status": "confirmed",
+            "confidence": 0.95,
+        },
+        {
+            "value": "CV500",
+            "kind": "product_model",
+            "relation": "compatible_with",
+            "page_from": 43,
+            "grounded": True,
+            "verification_status": "confirmed",
+            "confidence": 0.95,
+        },
+    ]
+
+    assert _values_for_routing(evidence, "product_model") == ["KV-X"]
+
+
+def test_unscoped_table_part_number_is_not_a_hard_routing_key():
+    evidence = [
+        {
+            "value": "SV2-040L2",
+            "kind": "part_number",
+            "relation": "applies_to",
+            "subject": None,
+            "page_from": 60,
+            "grounded": True,
+            "verification_status": "confirmed",
+            "confidence": 0.95,
+        },
+        {
+            "value": "OP-42284",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": "CV-X482",
+            "page_from": 80,
+            "grounded": True,
+            "verification_status": "confirmed",
+            "confidence": 0.95,
+        },
+        {
+            "value": "OP-99999",
+            "kind": "part_number",
+            "relation": "accessory_for",
+            "subject": "External-PLC",
+            "page_from": 81,
+            "grounded": True,
+            "verification_status": "confirmed",
+            "confidence": 0.95,
+        },
+    ]
+
+    assert _values_for_routing(
+        evidence,
+        "part_number",
+        routing_subjects=["CV-X482"],
+    ) == ["OP-42284"]
+
+
 def test_literal_opening_title_model_routes_when_llm_verifier_rejects_it(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_parsers.metadata._extract_metadata_with_model",
@@ -1036,9 +1280,9 @@ def test_literal_opening_title_model_routes_when_llm_verifier_rejects_it(monkeyp
         [MetadataSourceSegment("ZX: 900 Easy Configuration Manual", 1, 1, ("Cover",))],
     )
 
-    assert metadata.product_model == "ZX:900"
-    assert metadata.routing_product_models == ["ZX:900"]
-    claim = next(item for item in metadata.metadata_claims if item["value"] == "ZX:900")
+    assert metadata.product_model == "ZX-900"
+    assert metadata.routing_product_models == ["ZX-900"]
+    claim = next(item for item in metadata.metadata_claims if item["value"] == "ZX-900")
     assert claim["verification_status"] == "confirmed"
     assert claim["confidence"] >= 0.8
 
@@ -1069,6 +1313,33 @@ def test_successful_verifier_rejection_is_distinct_from_unresolved_failure(monke
 
     assert verified[0]["verification_status"] == "rejected"
     assert verified[0]["confidence"] == 0.0
+
+
+def test_verifier_transport_failure_quarantines_entire_document(monkeypatch):
+    claims = reconcile_metadata_claims(
+        [
+            {
+                "value": "ZX-900",
+                "kind": "product_model",
+                "relation": "primary_product",
+                "source_quote": "ZX-900 Controller Manual",
+                "page_from": 1,
+                "grounded": True,
+            }
+        ]
+    )
+
+    def fail_verifier(**kwargs):
+        raise RuntimeError("empty model response")
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fail_verifier)
+
+    with pytest.raises(MetadataExtractionIncomplete, match="Independent claim verification did not complete"):
+        verify_metadata_claims(
+            "manual.pdf",
+            claims,
+            [MetadataSourceSegment("ZX-900 Controller Manual", 1, 1)],
+        )
 
 
 def test_literal_deterministic_version_claim_survives_model_omission(monkeypatch):
@@ -1126,6 +1397,38 @@ def test_filename_prefix_collision_cannot_override_grounded_opening_title_identi
     assert not any(item.get("value") == "MOD-5" for item in metadata.metadata_claims)
 
 
+def test_integration_guide_routes_grounded_upload_products_not_external_cover_title(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(
+            document_kind="manual",
+            title="SIEMENS S7-1500/1200/300 SERIES",
+        ),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ({"entities": []}, "{}"),
+    )
+
+    metadata = infer_document_metadata_from_segments(
+        "AS_SR-1000_SR-2000_SR-PN1_guide.pdf",
+        [
+                MetadataSourceSegment(
+                    "SIEMENS S7-1500/1200/300 SERIES\n"
+                    "Connection Guide: PROFINET Communication\n"
+                    "SR-X300/X100/2000/1000\nSR-PN1",
+                1,
+                1,
+            )
+        ],
+    )
+
+    assert metadata.product_model == "SR-1000"
+    assert metadata.routing_product_models == ["SR-1000", "SR-2000", "SR-PN1"]
+    assert metadata.routing_protocol_terms == ["profinet"]
+    assert "S7-1500" not in metadata.routing_product_models
+
+
 def test_langgraph_workflow_compiles():
     assert build_metadata_extraction_graph() is not None
 
@@ -1172,3 +1475,99 @@ def test_workflow_fails_when_verifier_rejects_all_version_claims(monkeypatch):
                 ),
             ],
         )
+
+
+def test_protocol_support_and_external_example_are_not_scope_contradictions():
+    claims = reconcile_metadata_claims([
+        dict(value='RS-232C', kind='protocol', relation=relation, subject=None,
+             source_quote=quote, page_from=page, grounded=True)
+        for relation, quote, page in [
+            ('compatible_with', 'Controller supports RS-232C communication.', 2),
+            ('external_reference', 'Example external device using RS-232C.', 8),
+            ('mentioned', 'RS-232C communication.', 9),
+        ]
+    ])
+    assert len(claims) == 3
+    assert all(item['verification_status'] == 'unresolved' for item in claims)
+    # Independent verification is still required before any routing promotion.
+
+
+def test_metadata_rejects_garbage_source_before_model(monkeypatch):
+    def no_model(**kwargs):
+        raise AssertionError('Bad source must not invoke a model')
+    monkeypatch.setattr('manuals_rag_parsers.metadata.chat_json', no_model)
+    with pytest.raises(MetadataExtractionIncomplete, match='reparse/OCR'):
+        infer_document_metadata_from_segments('manual.pdf', [MetadataSourceSegment('q', n, n) for n in range(30)])
+
+
+def test_claim_id_verdict_preserves_original_grounded_claim(monkeypatch):
+    from manuals_rag_parsers.metadata import _verification_prompt_messages
+    claim = dict(value='AB-200', kind='product_model', relation='applies_to', subject=None,
+                 source_quote='This function supports AB-200 controllers.', confidence=.8)
+    messages = _verification_prompt_messages('manual.pdf', [claim], [MetadataSourceSegment(claim['source_quote'],1,1)])
+    monkeypatch.setattr('manuals_rag_parsers.metadata.chat_json', lambda **kwargs: (
+        {'decisions': [{'claim_id':'claim_1','supported':True,'reason':'The source explicitly names the supported controller.'}]}, '{}'))
+    result = _call_scoped_model('manual.pdf', messages, purpose='metadata_extraction.claim_verification')
+    assert result.entities[0].value == 'AB-200'
+    assert result.entities[0].source_quote == claim['source_quote']
+
+
+def test_claim_id_verdict_rejects_duplicate_decisions(monkeypatch):
+    from manuals_rag_parsers.metadata import _verification_prompt_messages
+    claim = dict(value='AB-200',kind='product_model',relation='applies_to',subject=None,
+                 source_quote='AB-200 controllers.',confidence=.8)
+    messages = _verification_prompt_messages('manual.pdf',[claim],[MetadataSourceSegment(claim['source_quote'],1,1)])
+    verdict = {'claim_id':'claim_1','supported':True,'reason':'supported'}
+    monkeypatch.setattr('manuals_rag_parsers.metadata.chat_json',lambda **kwargs: ({'decisions':[verdict,verdict]},'{}'))
+    with pytest.raises(MetadataExtractionIncomplete):
+        _call_scoped_model('manual.pdf',messages,purpose='metadata_extraction.claim_verification')
+
+
+def test_scoped_model_rejects_missing_collection(monkeypatch):
+    monkeypatch.setattr('manuals_rag_parsers.metadata.chat_json', lambda **kwargs: ({}, '{}'))
+    with pytest.raises(MetadataExtractionIncomplete, match='omitted its entities'):
+        _call_scoped_model('manual.pdf', [{'role':'user','content':'Extract entities'}],
+                           purpose='metadata_extraction.scoped_entities')
+
+
+def test_runtime_version_does_not_become_firmware_without_firmware_evidence():
+    text = "The Lua version used in this system is Ver. 5.1.4."
+    extracted = ScopedMetadataExtraction.model_validate({"entities": [{
+        "value": "5.1.4", "kind": "firmware_version", "relation": "applies_to",
+        "subject": "Lua", "source_quote": text, "confidence": 0.95,
+    }]})
+    assert _ground_scoped_candidates(extracted, [MetadataSourceSegment(text, 2, 2)]) == []
+
+
+def test_version_coverage_accepts_printed_version_prefix_without_losing_values():
+    from manuals_rag_parsers.metadata import _missing_explicit_software_versions
+    source = [MetadataSourceSegment("ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later)",3,3)]
+    claims = [{"kind":"software_version","value":"Ver. 5.1.0020"},
+              {"kind":"software_version","value":"Version 4.2.0020"}]
+    assert _missing_explicit_software_versions(source, claims) == set()
+    assert _missing_explicit_software_versions(source, claims[:1]) == {"4.2.0020"}
+
+
+def test_explicit_parenthesized_version_list_is_mentions_only():
+    from manuals_rag_parsers.metadata import (
+        _deterministic_version_evidence, _literal_deterministic_version_claim_is_confirmed,
+        _parenthesized_version_mentions,
+    )
+    source = [MetadataSourceSegment("Using the ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later), upload settings.", 3, 3)]
+    claims = _deterministic_version_evidence(source, {"software_version"})
+    assert {(c["subject"], c["value"]) for c in claims} == {
+        ("ExampleEditor", "5.1.0020"), ("ExampleEditor", "4.2.0020")}
+    for claim in claims:
+        claim["source_method"] = claim["source"]
+        assert claim["relation"] == "mentioned"
+        assert _literal_deterministic_version_claim_is_confirmed(claim)
+        assert not _literal_deterministic_version_claim_is_confirmed({**claim, "relation": "applies_to"})
+    assert not _parenthesized_version_mentions("ExampleEditor(Ver.5.1, OtherEditor Ver.4.2)")
+
+
+def test_grounding_rejects_unquoted_subject_even_for_mentions():
+    from manuals_rag_parsers.metadata import _ground_scoped_candidates, ScopedMetadataExtraction
+    extraction = ScopedMetadataExtraction.model_validate({"entities": [{
+        "kind": "protocol", "value": "Ethernet", "relation": "mentioned",
+        "subject": "invented_manual.pdf", "source_quote": "Ethernet communication", "confidence": 0.9}]})
+    assert not _ground_scoped_candidates(extraction, [MetadataSourceSegment("Ethernet communication", 1, 1)])

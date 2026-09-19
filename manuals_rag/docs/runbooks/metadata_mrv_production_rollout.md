@@ -27,6 +27,12 @@ successful retrieval scenarios are too small to justify a one-step rollout.
 - Three extraction failures stop a run by default; `--max-failures` changes that
   budget and zero disables it.
 - Metadata persistence and embedding refresh can be staged separately.
+- Corpus-owned identity can be pinned under
+  `permissions_json.metadata_defaults.manufacturer`; backfill overlays that
+  value after model extraction so third-party examples cannot replace the
+  authoritative manufacturer.
+- Visual-dependent requests are declined with zero citations until a validated
+  visual retriever is production-enabled.
 
 The runtime budget is checked between controller stages. Transport timeouts and
 the deployment proxy/request timeout remain the hard upper bounds for a model or
@@ -40,11 +46,23 @@ Before changing production data:
    operator tooling.
 2. Set `AGENTIC_RETRIEVAL_ENABLED=false` for the initial deployment.
 3. Confirm Qwen3.5 9B is the configured metadata and verification model.
-4. Take a PostgreSQL backup and Qdrant snapshot using the environment's normal
+4. For a single-vendor corpus, configure and verify its authoritative
+   manufacturer default before extraction. For example:
+
+   ```sql
+   update corpora
+   set permissions_json = permissions_json || jsonb_build_object(
+     'metadata_defaults', coalesce(permissions_json -> 'metadata_defaults', '{}'::jsonb)
+       || jsonb_build_object('manufacturer', 'KEYENCE')
+   )
+   where id = 'manuals_vendor_keyence';
+   ```
+
+5. Take a PostgreSQL backup and Qdrant snapshot using the environment's normal
    backup procedure. Record their identifiers in the change ticket.
-5. Confirm the API, PostgreSQL, Redis, Qdrant, object storage, Ollama endpoints,
+6. Confirm the API, PostgreSQL, Redis, Qdrant, object storage, Ollama endpoints,
    and workers are healthy.
-6. Run the focused and full unit gates from the deployed revision.
+7. Run the focused and full unit gates from the deployed revision.
 
 Do not begin a mutating backfill without restorable database and vector-store
 snapshots. The backfill intentionally has no automatic destructive rollback.
@@ -141,6 +159,25 @@ Minimum acceptance criteria:
   broad-query slices;
 - no runtime-budget or controller-error outcome on the normal canary set;
 - p95 latency and model-token use fit the deployment's agreed service budget.
+- every visual-dependent case either uses validated page-region evidence or
+  returns the explicit zero-citation visual abstention;
+- the adversarial relation guard passes at least 5,000 deterministic cases with
+  zero failures;
+- an independent held-out, human-adjudicated bank has enough zero-failure cases
+  to place the one-sided 95% upper bound below the 0.1% unsafe-answer target
+  (2,995 cases minimum; 5,000 or more recommended).
+
+The deterministic relation stress command is:
+
+```bash
+docker compose -f infra/compose/docker-compose.yml exec -T api \
+  sh -lc 'PYTHONPATH=/workspace/manuals_rag:$PYTHONPATH \
+  python scripts/benchmark/stress_claim_relation_guard.py --cases 5000 \
+  --output test_reports/claim_relation_guard_stress.json'
+```
+
+This stress result validates the relation guard only. It never substitutes for
+the independent end-to-end held-out bank.
 
 Do not average away a failure in a safety, version, comparison, or abstention
 slice. Those are hard gates.

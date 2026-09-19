@@ -38,14 +38,21 @@ class Settings:
     )
     ollama_embed_model: str = os.getenv("OLLAMA_EMBED_MODEL", "qwen3-embedding:0.6b")
     ollama_metadata_model: str = os.getenv("OLLAMA_METADATA_MODEL", "qwen3.5:9b")
+    ollama_metadata_timeout_seconds: float = float(
+        os.getenv("OLLAMA_METADATA_TIMEOUT_SECONDS", "300")
+    )
+    ollama_metadata_num_batch: int = int(os.getenv("OLLAMA_METADATA_NUM_BATCH", "64"))
     ollama_fast_model: str = os.getenv("OLLAMA_FAST_MODEL", "qwen3.5:4b")
     ollama_retrieval_verifier_model: str = os.getenv(
         "OLLAMA_RETRIEVAL_VERIFIER_MODEL",
         "qwen3.5:9b",
     )
+    ollama_retrieval_verifier_num_batch: int = int(
+        os.getenv("OLLAMA_RETRIEVAL_VERIFIER_NUM_BATCH", "64")
+    )
     ollama_answer_model: str = os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b")
     ollama_answer_num_predict: int = int(os.getenv("OLLAMA_ANSWER_NUM_PREDICT", "1024"))
-    agentic_retrieval_enabled: bool = _as_bool(os.getenv("AGENTIC_RETRIEVAL_ENABLED"), True)
+    agentic_retrieval_enabled: bool = _as_bool(os.getenv("AGENTIC_RETRIEVAL_ENABLED"), False)
     agentic_retrieval_max_seconds: float = float(os.getenv("AGENTIC_RETRIEVAL_MAX_SECONDS", "180"))
     agentic_retrieval_planner_timeout_seconds: float = float(
         os.getenv("AGENTIC_RETRIEVAL_PLANNER_TIMEOUT_SECONDS", "45")

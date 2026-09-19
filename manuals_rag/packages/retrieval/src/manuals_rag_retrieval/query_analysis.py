@@ -46,7 +46,14 @@ def analyze_query(query: str) -> QueryAnalysis:
             lowered,
         )
     )
-    if any(word in lowered for word in ["how", "steps", "configure", "setup", "install"]) or location_configuration:
+    procedural_how = bool(
+        re.search(r"\bhow\b", lowered)
+        and not re.search(
+            r"\bhow\s+(?:many|much|long|far|deep|wide|high|fast|often)\b",
+            lowered,
+        )
+    )
+    if procedural_how or any(word in lowered for word in ["steps", "configure", "setup", "install"]) or location_configuration:
         types.append("how_to")
         preferred_chunk_types.append("procedure_record")
     if any(word in lowered for word in ["configure", "configuration", "setting", "parameter", "menu"]) or location_configuration:
