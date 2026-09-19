@@ -1512,7 +1512,7 @@ def _direct_structured_lookup_support(
     preliminary_assessment: dict[str, Any],
 ) -> list[str]:
     """Confirm a direct column -> row -> value lookup in one serialized cell."""
-    if not re.search(r"\b(?:what|which)\b", query, flags=re.IGNORECASE):
+    if not re.search(r"\b(?:what|which|map|mapping)\b", query, flags=re.IGNORECASE):
         return []
     if not preliminary_assessment.get("claim_supported"):
         return []

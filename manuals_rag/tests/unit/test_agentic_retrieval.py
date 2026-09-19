@@ -760,7 +760,8 @@ def test_verifier_deterministically_confirms_exact_structured_lookup_cell(monkey
 
 def test_verifier_confirms_numeric_row_and_bit_column_mapping(monkeypatch):
     objective = (
-        "On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?"
+        "Find the mapping for command code 0028 with value 65.0 in the 6-bit "
+        "command output area for device CV-X482."
     )
     hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
     result = _result(
