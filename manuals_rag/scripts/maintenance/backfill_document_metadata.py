@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -101,7 +102,12 @@ def _document_segments(version_id: str, *, node_limit: int | None = None) -> lis
     )
     return [
         MetadataSourceSegment(
-            text=str(row["text_normalized"] or row["text_raw"] or ""),
+            # Metadata provenance is a literal-source contract.  Normalized
+            # parser text is useful for retrieval, but it may rewrite printed
+            # punctuation (for example VJ-3302 -> VJ: 3302), which makes an
+            # otherwise grounded source_quote nonliteral.  Feed the model and
+            # grounding checks the raw extracted text whenever it exists.
+            text=str(row["text_raw"] or row["text_normalized"] or ""),
             page_from=row.get("page_from"),
             page_to=row.get("page_to"),
             section_path=tuple(row.get("section_path_json") or []),
@@ -128,6 +134,24 @@ def _apply_authoritative_metadata_defaults(
     payload = dict(metadata)
     payload["manufacturer"] = manufacturer
     payload["companies"] = list(dict.fromkeys([manufacturer, *list(payload.get("companies") or [])]))
+    authoritative_key = " ".join(manufacturer.casefold().split())
+    for field in ("metadata_evidence", "metadata_claims"):
+        normalized_claims = []
+        for claim in payload.get(field) or []:
+            normalized_claim = dict(claim)
+            if (
+                str(normalized_claim.get("kind") or "").casefold() == "company"
+                and str(normalized_claim.get("relation") or "").casefold()
+                == "primary_manufacturer"
+                and " ".join(str(normalized_claim.get("value") or "").casefold().split())
+                != authoritative_key
+            ):
+                # Keep regional affiliates, distributors, and example vendors
+                # as grounded mentions without allowing them to override the
+                # corpus-owned product manufacturer.
+                normalized_claim["relation"] = "mentioned"
+            normalized_claims.append(normalized_claim)
+        payload[field] = normalized_claims
     payload["metadata_authoritative_defaults"] = {
         "manufacturer": manufacturer,
         "source": "corpus_configuration",
@@ -280,6 +304,33 @@ def _load_report(path: Path) -> list[BackfillResult]:
     return results
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _planned_metadata_for_exact_apply(
+    result: BackfillResult | None,
+    *,
+    document: dict[str, Any],
+) -> dict[str, Any]:
+    if result is None:
+        raise ValueError("exact-report apply requires a matching planned document/version entry")
+    if result.status != "planned" or not isinstance(result.metadata, dict):
+        raise ValueError("exact-report apply requires a planned entry with metadata")
+    if result.metadata.get("metadata_pipeline_version") != METADATA_PIPELINE_VERSION:
+        raise ValueError(
+            "exact-report metadata pipeline does not match the running pipeline: "
+            f"{result.metadata.get('metadata_pipeline_version')!r} != {METADATA_PIPELINE_VERSION!r}"
+        )
+    if result.document_id != str(document["document_id"]) or result.version_id != str(document["version_id"]):
+        raise ValueError("exact-report entry does not match the current document/version")
+    return dict(result.metadata)
+
+
 def _can_resume_result(
     result: BackfillResult,
     *,
@@ -351,6 +402,23 @@ def main() -> None:
         default=None,
         help="Continue an interrupted run from an existing checkpoint report.",
     )
+    parser.add_argument(
+        "--apply-planned-report",
+        action="store_true",
+        help=(
+            "With --apply and --resume-report, persist the exact planned metadata in that report "
+            "without re-running model extraction. Requires --report-sha256."
+        ),
+    )
+    parser.add_argument(
+        "--report-sha256",
+        help="Expected lowercase SHA-256 of --resume-report for an exact planned-report apply.",
+    )
+    parser.add_argument(
+        "--result-report",
+        type=Path,
+        help="Write exact planned-report apply results to this new file, preserving the audited source report.",
+    )
     args = parser.parse_args()
 
     if args.max_failures < 0:
@@ -367,6 +435,16 @@ def main() -> None:
         parser.error("--apply and --enqueue-current are separate stages and cannot be combined")
     if args.no_enqueue_embed and not args.apply:
         parser.error("--no-enqueue-embed requires --apply")
+    if args.apply_planned_report and (not args.apply or args.resume_report is None):
+        parser.error("--apply-planned-report requires --apply and --resume-report")
+    if args.apply_planned_report and not args.report_sha256:
+        parser.error("--apply-planned-report requires --report-sha256")
+    if args.apply_planned_report and args.result_report is None:
+        parser.error("--apply-planned-report requires --result-report")
+    if args.result_report is not None and not args.apply_planned_report:
+        parser.error("--result-report is only valid with --apply-planned-report")
+    if args.report_sha256 and not args.apply_planned_report:
+        parser.error("--report-sha256 is only valid with --apply-planned-report")
     if args.all and (args.document_ids or args.limit is not None):
         parser.error("--all cannot be combined with --document-id or --limit")
     if (args.apply or args.enqueue_current) and not (args.document_ids or args.limit is not None or args.all):
@@ -374,11 +452,21 @@ def main() -> None:
 
     _ensure_metadata_table()
     if args.resume_report is not None:
-        report_path = args.resume_report.resolve()
+        source_report_path = args.resume_report.resolve()
+        if args.apply_planned_report:
+            result_report_path = args.result_report.resolve()
+            if result_report_path.exists():
+                parser.error(f"refusing to overwrite existing result report: {result_report_path}")
+            actual_sha256 = _sha256(source_report_path)
+            if actual_sha256 != str(args.report_sha256).casefold():
+                parser.error(
+                    f"resume report SHA-256 mismatch: expected {args.report_sha256}, got {actual_sha256}"
+                )
         try:
-            results = _load_report(report_path)
+            results = _load_report(source_report_path)
         except ValueError as exc:
             parser.error(str(exc))
+        report_path = result_report_path if args.apply_planned_report else source_report_path
     else:
         results = []
         report_path = _write_report(results)
@@ -415,7 +503,8 @@ def main() -> None:
             )
             continue
         if matching_result is not None:
-            results.remove(matching_result)
+            if not args.apply_planned_report:
+                results.remove(matching_result)
         if args.enqueue_current:
             if not already_current:
                 results.append(
@@ -463,17 +552,21 @@ def main() -> None:
                 _write_report(results, path=report_path)
             continue
         try:
-            segments = _document_segments(str(document["version_id"]), node_limit=args.node_limit)
-            metadata = _apply_authoritative_metadata_defaults(
-                document,
-                _metadata_payload(
-                    infer_document_metadata_from_segments(
-                        str(document["source_filename"]),
-                        segments,
-                        max_segment_chars=args.segment_chars,
-                    )
-                ),
-            )
+            if args.apply_planned_report:
+                metadata = _planned_metadata_for_exact_apply(matching_result, document=document)
+                results.remove(matching_result)
+            else:
+                segments = _document_segments(str(document["version_id"]), node_limit=args.node_limit)
+                metadata = _apply_authoritative_metadata_defaults(
+                    document,
+                    _metadata_payload(
+                        infer_document_metadata_from_segments(
+                            str(document["source_filename"]),
+                            segments,
+                            max_segment_chars=args.segment_chars,
+                        )
+                    ),
+                )
             chunk_count = 0
             embed_enqueued = False
             warning = None

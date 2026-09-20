@@ -216,3 +216,32 @@ two citations. All correctness layers passed. Only latency/token-cost failed:
 as a performance gate; T8 and production remain OFF pending cost work and a
 healthy full48 rerun. Modified modules324pass; full unit1046pass/77warnings;
 compose config and diff checks pass.
+
+2026-09-20 SIX-RECOMMENDATION REVIEW: the clean committed-source 48-case matrix
+`agent_matrix_full48_b20f9a3_20260920_1200.json` completed exit0 and independently
+reconciles 48/48 exact ordered cases; both agent backends have 30/48 full passes.
+It is accepted for diagnostic adjudication only. Production blockers remain a
+separate held-out bank, source-backed failed-answer adjudication, and human visual
+PDF review. V5 metadata rollout was safely proven for VJ-3302 only: exact audited
+report apply, targeted backup, 5 PostgreSQL chunks, matching Qdrant chunks/selectors,
+and skipped-current idempotent re-entry all passed. Full corpus v5 audit is 1 pass /
+52 fail; no broad metadata apply is authorized by this checkpoint.
+
+Indexed Qdrant BM25 improved large-cutoff recall and latency but regressed
+required-all@5, so `INDEXED_BM25_ENABLED=false` remains the default. The initial
+reranker benchmark was invalid because it scored empty persisted snapshot text;
+the benchmark now consumes `evidence_text`, rejects empty candidates, and hashes
+candidate text. Corrected equal-pool evidence keeps MiniLM: at pool12 Qwen improves
+required-any@5 by2.2points but is about6x slower with identical required-all@12
+and loss count. Instructed dense queries remain experimental pending downstream
+held-out answer gates. Planning selectivity recheck passes48/48 for both backends,
+but cross-document full pass stays0/10 and agentic latency remains high, so
+agentic retrieval stays OFF. The performance audit lacks per-stage, queue, route,
+residency, GPU, and verifier-attempt telemetry; no vLLM migration is approved.
+
+Verification: changed-boundary549pass/2 fixture-dependent deselected; broad unit
+execution1138pass with15 container failures rerun on host as82/82pass and three
+temporary-fixture/directory failures explicitly environmental; non-live integration
+1pass/4live deselected; compileall, compose config, diff check, metadata/Qdrant
+reconciliation, and reranker pool-hash reconciliation pass. Summary:
+`six_recommendation_review_20260920.md`. Production and agentic retrieval remain OFF.

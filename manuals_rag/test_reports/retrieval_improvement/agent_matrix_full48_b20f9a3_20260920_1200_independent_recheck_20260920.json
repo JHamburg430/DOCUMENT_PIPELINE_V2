@@ -1,0 +1,1868 @@
+{
+  "accepted_for_diagnostic_adjudication": true,
+  "accepted_for_production_enablement": false,
+  "artifact": {
+    "case_count": 48,
+    "dataset_sha256": "fbff861ca1394d281cba9ce63dff090e4024568f72fca1cf0fd46e7fac04d124",
+    "limit": 48,
+    "offset": 0,
+    "run_id": "agent_matrix_full48_b20f9a3_20260920_1200",
+    "source": {
+      "branch": "release/manuals-rag-agentic-disabled-20260919",
+      "dirty": false,
+      "dirty_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "dirty_status": [],
+      "revision": "b20f9a3",
+      "untracked_paths": []
+    }
+  },
+  "backends": {
+    "langgraph": {
+      "cases": 48,
+      "cell_passes": {
+        "candidate_recall": 35,
+        "document_retention": 48,
+        "evidence_sufficiency": 32,
+        "grounded_answer": 30,
+        "hop_dependencies": 48,
+        "latency_token_cost": 40,
+        "tool_selection": 48
+      },
+      "failure_classifications": {
+        "answer_or_answer_scoring": 2,
+        "candidate_anchor_or_scoring": 8,
+        "dense_retrieval_miss": 3,
+        "evidence_verification": 2,
+        "pass": 30,
+        "reranker_loss": 2,
+        "verifier_contract_failure": 1
+      },
+      "failures": [
+        {
+          "case_id": "37c2ce23-e5ac-5c60-836f-84a4707b925d::curated4",
+          "category": "single_hop_control",
+          "classification": "answer_or_answer_scoring",
+          "failed_cells": [
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [],
+              "final_context": [],
+              "fusion": [],
+              "rerank": []
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 1,
+              "final_context": 1,
+              "fusion": 1,
+              "rerank": 1
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::1",
+          "category": "single_hop_control",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "7ba4e5f2-1885-5368-bb46-6054719f8780"
+                ]
+              ],
+              "final_context": [
+                [
+                  "7ba4e5f2-1885-5368-bb46-6054719f8780"
+                ]
+              ],
+              "fusion": [
+                [
+                  "7ba4e5f2-1885-5368-bb46-6054719f8780"
+                ]
+              ],
+              "rerank": [
+                [
+                  "7ba4e5f2-1885-5368-bb46-6054719f8780"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::4",
+          "category": "single_hop_control",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "781856dd-3726-53a8-ad75-3945fc66fbb5"
+                ]
+              ],
+              "final_context": [
+                [
+                  "781856dd-3726-53a8-ad75-3945fc66fbb5"
+                ]
+              ],
+              "fusion": [
+                [
+                  "781856dd-3726-53a8-ad75-3945fc66fbb5"
+                ]
+              ],
+              "rerank": [
+                [
+                  "781856dd-3726-53a8-ad75-3945fc66fbb5"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "plan_exhausted"
+        },
+        {
+          "case_id": "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::5",
+          "category": "single_hop_control",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "878ea631-da45-5385-8868-5cc5f197b8dc"
+                ]
+              ],
+              "final_context": [
+                [
+                  "878ea631-da45-5385-8868-5cc5f197b8dc"
+                ]
+              ],
+              "fusion": [
+                [
+                  "878ea631-da45-5385-8868-5cc5f197b8dc"
+                ]
+              ],
+              "rerank": [
+                [
+                  "878ea631-da45-5385-8868-5cc5f197b8dc"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::6",
+          "category": "single_hop_control",
+          "classification": "answer_or_answer_scoring",
+          "failed_cells": [
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "3a64a87a-eb90-599e-90e2-05ffe036af7d"
+                ]
+              ],
+              "final_context": [
+                [
+                  "3a64a87a-eb90-599e-90e2-05ffe036af7d"
+                ]
+              ],
+              "fusion": [
+                [
+                  "3a64a87a-eb90-599e-90e2-05ffe036af7d"
+                ]
+              ],
+              "rerank": [
+                [
+                  "3a64a87a-eb90-599e-90e2-05ffe036af7d"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::7",
+          "category": "single_hop_control",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "93d11edf-51b6-50a8-8f6a-5f787588e05f"
+                ]
+              ],
+              "final_context": [
+                [
+                  "93d11edf-51b6-50a8-8f6a-5f787588e05f"
+                ]
+              ],
+              "fusion": [
+                [
+                  "93d11edf-51b6-50a8-8f6a-5f787588e05f"
+                ]
+              ],
+              "rerank": [
+                [
+                  "93d11edf-51b6-50a8-8f6a-5f787588e05f"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "3a9570f2-e15b-5214-82d4-c70ef88c0499::contextual_multi_step::8",
+          "category": "single_hop_control",
+          "classification": "dense_retrieval_miss",
+          "failed_cells": [
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "71bb7b7b-0142-5e4e-9faa-1cbe607516b3",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48"
+                ]
+              ],
+              "final_context": [],
+              "fusion": [],
+              "rerank": []
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 1,
+              "fusion": 1,
+              "rerank": 1
+            }
+          },
+          "stop_reason": "plan_exhausted"
+        },
+        {
+          "case_id": "b2e9c647-ba17-55e6-afc6-ee778d11a9c9::contextual_multi_step::9",
+          "category": "single_hop_control",
+          "classification": "evidence_verification",
+          "failed_cells": [
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "36693926-2eb1-5129-941a-d3a09539040f",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48",
+                  "8f91cb39-359c-5227-b4c6-2baf6eb57099"
+                ]
+              ],
+              "final_context": [
+                [
+                  "36693926-2eb1-5129-941a-d3a09539040f",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48",
+                  "8f91cb39-359c-5227-b4c6-2baf6eb57099"
+                ]
+              ],
+              "fusion": [
+                [
+                  "36693926-2eb1-5129-941a-d3a09539040f",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48",
+                  "8f91cb39-359c-5227-b4c6-2baf6eb57099"
+                ]
+              ],
+              "rerank": [
+                [
+                  "36693926-2eb1-5129-941a-d3a09539040f",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48",
+                  "8f91cb39-359c-5227-b4c6-2baf6eb57099"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "plan_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::1",
+          "category": "cross_document",
+          "classification": "dense_retrieval_miss",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ]
+              ],
+              "final_context": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ]
+              ],
+              "fusion": [
+                [
+                  "0f7e620f-aa43-5d82-8dcf-8dca4cf8cf61",
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ]
+              ],
+              "rerank": [
+                [
+                  "0f7e620f-aa43-5d82-8dcf-8dca4cf8cf61",
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ]
+              ]
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 1,
+              "final_context": 1,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "curated_cross_document_v2::2",
+          "category": "cross_document",
+          "classification": "verifier_contract_failure",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "465e0cff-0aac-5a5c-9eb5-7febc3ba1393"
+                ],
+                [
+                  "89228041-5e5a-5e53-82f1-4c9962f8ae69",
+                  "a1187433-aa94-5de2-b2b5-55402f34b63d"
+                ]
+              ],
+              "final_context": [
+                [
+                  "465e0cff-0aac-5a5c-9eb5-7febc3ba1393"
+                ],
+                [
+                  "89228041-5e5a-5e53-82f1-4c9962f8ae69",
+                  "a1187433-aa94-5de2-b2b5-55402f34b63d"
+                ]
+              ],
+              "fusion": [
+                [
+                  "465e0cff-0aac-5a5c-9eb5-7febc3ba1393"
+                ],
+                [
+                  "89228041-5e5a-5e53-82f1-4c9962f8ae69",
+                  "a1187433-aa94-5de2-b2b5-55402f34b63d"
+                ]
+              ],
+              "rerank": [
+                [
+                  "465e0cff-0aac-5a5c-9eb5-7febc3ba1393"
+                ],
+                [
+                  "89228041-5e5a-5e53-82f1-4c9962f8ae69",
+                  "a1187433-aa94-5de2-b2b5-55402f34b63d"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "runtime_budget_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::3",
+          "category": "cross_document",
+          "classification": "evidence_verification",
+          "failed_cells": [
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "c621f710-bc6c-564f-bba9-1bd3666ad64c"
+                ],
+                [
+                  "46c6c0e8-795a-51db-a846-97560427b34e"
+                ]
+              ],
+              "final_context": [
+                [
+                  "c621f710-bc6c-564f-bba9-1bd3666ad64c"
+                ],
+                [
+                  "46c6c0e8-795a-51db-a846-97560427b34e"
+                ]
+              ],
+              "fusion": [
+                [
+                  "c621f710-bc6c-564f-bba9-1bd3666ad64c"
+                ],
+                [
+                  "46c6c0e8-795a-51db-a846-97560427b34e"
+                ]
+              ],
+              "rerank": [
+                [
+                  "c621f710-bc6c-564f-bba9-1bd3666ad64c"
+                ],
+                [
+                  "46c6c0e8-795a-51db-a846-97560427b34e"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "plan_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::4",
+          "category": "cross_document",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ],
+                [
+                  "15e7e400-60c6-5176-8166-152e4e2e96b1"
+                ]
+              ],
+              "final_context": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ],
+                [
+                  "15e7e400-60c6-5176-8166-152e4e2e96b1"
+                ]
+              ],
+              "fusion": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ],
+                [
+                  "15e7e400-60c6-5176-8166-152e4e2e96b1"
+                ]
+              ],
+              "rerank": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ],
+                [
+                  "15e7e400-60c6-5176-8166-152e4e2e96b1"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "plan_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::5",
+          "category": "cross_document",
+          "classification": "dense_retrieval_miss",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "98198bb3-5852-5a0e-adfc-726130b73550"
+                ]
+              ],
+              "final_context": [
+                [
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "98198bb3-5852-5a0e-adfc-726130b73550"
+                ]
+              ],
+              "fusion": [
+                [
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "98198bb3-5852-5a0e-adfc-726130b73550"
+                ]
+              ],
+              "rerank": [
+                [
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "98198bb3-5852-5a0e-adfc-726130b73550"
+                ]
+              ]
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "curated_cross_document_v2::6",
+          "category": "cross_document",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "7361e08a-84bb-5f53-954c-819d2c179a3e",
+                  "ef735810-2411-549a-9615-b6272f896a27"
+                ],
+                [
+                  "125b3908-de90-53b8-809e-b367bcc83548"
+                ]
+              ],
+              "final_context": [
+                [
+                  "7361e08a-84bb-5f53-954c-819d2c179a3e",
+                  "ef735810-2411-549a-9615-b6272f896a27"
+                ],
+                [
+                  "125b3908-de90-53b8-809e-b367bcc83548"
+                ]
+              ],
+              "fusion": [
+                [
+                  "7361e08a-84bb-5f53-954c-819d2c179a3e",
+                  "ef735810-2411-549a-9615-b6272f896a27"
+                ],
+                [
+                  "125b3908-de90-53b8-809e-b367bcc83548"
+                ]
+              ],
+              "rerank": [
+                [
+                  "7361e08a-84bb-5f53-954c-819d2c179a3e",
+                  "ef735810-2411-549a-9615-b6272f896a27"
+                ],
+                [
+                  "125b3908-de90-53b8-809e-b367bcc83548"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "plan_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::7",
+          "category": "cross_document",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "af1d8a26-c533-50a2-92d7-e5d1ee16598b"
+                ],
+                [
+                  "7469d2a2-b0b6-5b53-aea2-335f61269609"
+                ]
+              ],
+              "final_context": [
+                [
+                  "af1d8a26-c533-50a2-92d7-e5d1ee16598b"
+                ],
+                [
+                  "7469d2a2-b0b6-5b53-aea2-335f61269609"
+                ]
+              ],
+              "fusion": [
+                [
+                  "af1d8a26-c533-50a2-92d7-e5d1ee16598b"
+                ],
+                [
+                  "7469d2a2-b0b6-5b53-aea2-335f61269609"
+                ]
+              ],
+              "rerank": [
+                [
+                  "af1d8a26-c533-50a2-92d7-e5d1ee16598b"
+                ],
+                [
+                  "7469d2a2-b0b6-5b53-aea2-335f61269609"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "runtime_budget_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::8",
+          "category": "cross_document",
+          "classification": "reranker_loss",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [],
+              "final_context": [
+                [
+                  "2fe755de-286b-5f46-9ed7-76f4b950e94a"
+                ]
+              ],
+              "fusion": [],
+              "rerank": [
+                [
+                  "2fe755de-286b-5f46-9ed7-76f4b950e94a"
+                ]
+              ]
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 2,
+              "final_context": 1,
+              "fusion": 2,
+              "rerank": 1
+            }
+          },
+          "stop_reason": "plan_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::9",
+          "category": "cross_document",
+          "classification": "reranker_loss",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [],
+              "final_context": [
+                [
+                  "73da44a7-2e0a-56ce-80b2-88bda317a82b"
+                ]
+              ],
+              "fusion": [],
+              "rerank": [
+                [
+                  "73da44a7-2e0a-56ce-80b2-88bda317a82b"
+                ]
+              ]
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 2,
+              "final_context": 1,
+              "fusion": 2,
+              "rerank": 1
+            }
+          },
+          "stop_reason": "plan_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::10",
+          "category": "cross_document",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "aa013e96-9241-54f8-a6c9-aac5c28e5f10"
+                ],
+                [
+                  "aacb725c-fa7b-51b1-aeec-fa1662318433"
+                ]
+              ],
+              "final_context": [
+                [
+                  "aa013e96-9241-54f8-a6c9-aac5c28e5f10"
+                ],
+                [
+                  "aacb725c-fa7b-51b1-aeec-fa1662318433"
+                ]
+              ],
+              "fusion": [
+                [
+                  "aa013e96-9241-54f8-a6c9-aac5c28e5f10"
+                ],
+                [
+                  "aacb725c-fa7b-51b1-aeec-fa1662318433"
+                ]
+              ],
+              "rerank": [
+                [
+                  "aa013e96-9241-54f8-a6c9-aac5c28e5f10"
+                ],
+                [
+                  "aacb725c-fa7b-51b1-aeec-fa1662318433"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "plan_exhausted"
+        }
+      ],
+      "judge_counts": {
+        "deterministic:checked": 62,
+        "llm:checked": 12,
+        "llm:unchecked": 1
+      },
+      "matrix_failures": 18,
+      "matrix_passes": 30,
+      "required_evidence_groups": 73,
+      "stage_retention": {
+        "dense": {
+          "observed_groups": 14,
+          "retained_groups": 9
+        },
+        "final_context": {
+          "observed_groups": 14,
+          "retained_groups": 9
+        },
+        "fusion": {
+          "observed_groups": 14,
+          "retained_groups": 9
+        },
+        "rerank": {
+          "observed_groups": 14,
+          "retained_groups": 6
+        }
+      }
+    },
+    "llamaindex": {
+      "cases": 48,
+      "cell_passes": {
+        "candidate_recall": 36,
+        "document_retention": 46,
+        "evidence_sufficiency": 32,
+        "grounded_answer": 30,
+        "hop_dependencies": 48,
+        "latency_token_cost": 39,
+        "tool_selection": 48
+      },
+      "failure_classifications": {
+        "answer_or_answer_scoring": 2,
+        "candidate_anchor_or_scoring": 6,
+        "dense_retrieval_miss": 3,
+        "evidence_verification": 3,
+        "pass": 30,
+        "reranker_loss": 2,
+        "verifier_contract_failure": 2
+      },
+      "failures": [
+        {
+          "case_id": "37c2ce23-e5ac-5c60-836f-84a4707b925d::curated4",
+          "category": "single_hop_control",
+          "classification": "answer_or_answer_scoring",
+          "failed_cells": [
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [],
+              "final_context": [],
+              "fusion": [],
+              "rerank": []
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 1,
+              "final_context": 1,
+              "fusion": 1,
+              "rerank": 1
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::2",
+          "category": "single_hop_control",
+          "classification": "evidence_verification",
+          "failed_cells": [
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "0c943b9a-e7a7-5bf1-8254-b51b70b68ff4",
+                  "9c81b132-3be8-5eda-b60e-cdfc6a17003c"
+                ]
+              ],
+              "final_context": [
+                [
+                  "0c943b9a-e7a7-5bf1-8254-b51b70b68ff4",
+                  "9c81b132-3be8-5eda-b60e-cdfc6a17003c"
+                ]
+              ],
+              "fusion": [
+                [
+                  "0c943b9a-e7a7-5bf1-8254-b51b70b68ff4",
+                  "9c81b132-3be8-5eda-b60e-cdfc6a17003c"
+                ]
+              ],
+              "rerank": [
+                [
+                  "0c943b9a-e7a7-5bf1-8254-b51b70b68ff4",
+                  "9c81b132-3be8-5eda-b60e-cdfc6a17003c"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "runtime_budget_exhausted"
+        },
+        {
+          "case_id": "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::4",
+          "category": "single_hop_control",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "781856dd-3726-53a8-ad75-3945fc66fbb5"
+                ]
+              ],
+              "final_context": [
+                [
+                  "781856dd-3726-53a8-ad75-3945fc66fbb5"
+                ]
+              ],
+              "fusion": [
+                [
+                  "781856dd-3726-53a8-ad75-3945fc66fbb5"
+                ]
+              ],
+              "rerank": [
+                [
+                  "781856dd-3726-53a8-ad75-3945fc66fbb5"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::5",
+          "category": "single_hop_control",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "878ea631-da45-5385-8868-5cc5f197b8dc"
+                ]
+              ],
+              "final_context": [
+                [
+                  "878ea631-da45-5385-8868-5cc5f197b8dc"
+                ]
+              ],
+              "fusion": [
+                [
+                  "878ea631-da45-5385-8868-5cc5f197b8dc"
+                ]
+              ],
+              "rerank": [
+                [
+                  "878ea631-da45-5385-8868-5cc5f197b8dc"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::6",
+          "category": "single_hop_control",
+          "classification": "answer_or_answer_scoring",
+          "failed_cells": [
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "3a64a87a-eb90-599e-90e2-05ffe036af7d"
+                ]
+              ],
+              "final_context": [
+                [
+                  "3a64a87a-eb90-599e-90e2-05ffe036af7d"
+                ]
+              ],
+              "fusion": [
+                [
+                  "3a64a87a-eb90-599e-90e2-05ffe036af7d"
+                ]
+              ],
+              "rerank": [
+                [
+                  "3a64a87a-eb90-599e-90e2-05ffe036af7d"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::7",
+          "category": "single_hop_control",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "93d11edf-51b6-50a8-8f6a-5f787588e05f"
+                ]
+              ],
+              "final_context": [
+                [
+                  "93d11edf-51b6-50a8-8f6a-5f787588e05f"
+                ]
+              ],
+              "fusion": [
+                [
+                  "93d11edf-51b6-50a8-8f6a-5f787588e05f"
+                ]
+              ],
+              "rerank": [
+                [
+                  "93d11edf-51b6-50a8-8f6a-5f787588e05f"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "3a9570f2-e15b-5214-82d4-c70ef88c0499::contextual_multi_step::8",
+          "category": "single_hop_control",
+          "classification": "evidence_verification",
+          "failed_cells": [
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "71bb7b7b-0142-5e4e-9faa-1cbe607516b3",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48"
+                ]
+              ],
+              "final_context": [
+                [
+                  "71bb7b7b-0142-5e4e-9faa-1cbe607516b3",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48"
+                ]
+              ],
+              "fusion": [
+                [
+                  "71bb7b7b-0142-5e4e-9faa-1cbe607516b3",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48"
+                ]
+              ],
+              "rerank": [
+                [
+                  "71bb7b7b-0142-5e4e-9faa-1cbe607516b3",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "b2e9c647-ba17-55e6-afc6-ee778d11a9c9::contextual_multi_step::9",
+          "category": "single_hop_control",
+          "classification": "dense_retrieval_miss",
+          "failed_cells": [
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "36693926-2eb1-5129-941a-d3a09539040f",
+                  "868847f1-86d0-5737-ba53-a3baf0f6cb48",
+                  "8f91cb39-359c-5227-b4c6-2baf6eb57099"
+                ]
+              ],
+              "final_context": [],
+              "fusion": [],
+              "rerank": []
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 1,
+            "retained": {
+              "dense": 0,
+              "final_context": 1,
+              "fusion": 1,
+              "rerank": 1
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::1",
+          "category": "cross_document",
+          "classification": "dense_retrieval_miss",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ]
+              ],
+              "final_context": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ]
+              ],
+              "fusion": [
+                [
+                  "0f7e620f-aa43-5d82-8dcf-8dca4cf8cf61",
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ]
+              ],
+              "rerank": [
+                [
+                  "0f7e620f-aa43-5d82-8dcf-8dca4cf8cf61",
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ]
+              ]
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 1,
+              "final_context": 1,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "sufficient"
+        },
+        {
+          "case_id": "curated_cross_document_v2::2",
+          "category": "cross_document",
+          "classification": "verifier_contract_failure",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "465e0cff-0aac-5a5c-9eb5-7febc3ba1393"
+                ],
+                [
+                  "89228041-5e5a-5e53-82f1-4c9962f8ae69",
+                  "a1187433-aa94-5de2-b2b5-55402f34b63d"
+                ]
+              ],
+              "final_context": [
+                [
+                  "465e0cff-0aac-5a5c-9eb5-7febc3ba1393"
+                ],
+                [
+                  "89228041-5e5a-5e53-82f1-4c9962f8ae69",
+                  "a1187433-aa94-5de2-b2b5-55402f34b63d"
+                ]
+              ],
+              "fusion": [
+                [
+                  "465e0cff-0aac-5a5c-9eb5-7febc3ba1393"
+                ],
+                [
+                  "89228041-5e5a-5e53-82f1-4c9962f8ae69",
+                  "a1187433-aa94-5de2-b2b5-55402f34b63d"
+                ]
+              ],
+              "rerank": [
+                [
+                  "465e0cff-0aac-5a5c-9eb5-7febc3ba1393"
+                ],
+                [
+                  "89228041-5e5a-5e53-82f1-4c9962f8ae69",
+                  "a1187433-aa94-5de2-b2b5-55402f34b63d"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::3",
+          "category": "cross_document",
+          "classification": "evidence_verification",
+          "failed_cells": [
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "c621f710-bc6c-564f-bba9-1bd3666ad64c"
+                ],
+                [
+                  "46c6c0e8-795a-51db-a846-97560427b34e"
+                ]
+              ],
+              "final_context": [
+                [
+                  "c621f710-bc6c-564f-bba9-1bd3666ad64c"
+                ],
+                [
+                  "46c6c0e8-795a-51db-a846-97560427b34e"
+                ]
+              ],
+              "fusion": [
+                [
+                  "c621f710-bc6c-564f-bba9-1bd3666ad64c"
+                ],
+                [
+                  "46c6c0e8-795a-51db-a846-97560427b34e"
+                ]
+              ],
+              "rerank": [
+                [
+                  "c621f710-bc6c-564f-bba9-1bd3666ad64c"
+                ],
+                [
+                  "46c6c0e8-795a-51db-a846-97560427b34e"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::4",
+          "category": "cross_document",
+          "classification": "verifier_contract_failure",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ],
+                [
+                  "15e7e400-60c6-5176-8166-152e4e2e96b1"
+                ]
+              ],
+              "final_context": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ],
+                [
+                  "15e7e400-60c6-5176-8166-152e4e2e96b1"
+                ]
+              ],
+              "fusion": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ],
+                [
+                  "15e7e400-60c6-5176-8166-152e4e2e96b1"
+                ]
+              ],
+              "rerank": [
+                [
+                  "1ddc77c5-a675-5ef9-8612-712bc44ce89c"
+                ],
+                [
+                  "15e7e400-60c6-5176-8166-152e4e2e96b1"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::5",
+          "category": "cross_document",
+          "classification": "dense_retrieval_miss",
+          "failed_cells": [
+            "candidate_recall",
+            "document_retention",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "98198bb3-5852-5a0e-adfc-726130b73550"
+                ]
+              ],
+              "final_context": [
+                [
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "98198bb3-5852-5a0e-adfc-726130b73550"
+                ]
+              ],
+              "fusion": [
+                [
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "98198bb3-5852-5a0e-adfc-726130b73550"
+                ]
+              ],
+              "rerank": [
+                [
+                  "6744c005-9875-5b89-b4a2-761ffb1bcbc6"
+                ],
+                [
+                  "98198bb3-5852-5a0e-adfc-726130b73550"
+                ]
+              ]
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::6",
+          "category": "cross_document",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "7361e08a-84bb-5f53-954c-819d2c179a3e",
+                  "ef735810-2411-549a-9615-b6272f896a27"
+                ],
+                [
+                  "125b3908-de90-53b8-809e-b367bcc83548"
+                ]
+              ],
+              "final_context": [
+                [
+                  "7361e08a-84bb-5f53-954c-819d2c179a3e",
+                  "ef735810-2411-549a-9615-b6272f896a27"
+                ],
+                [
+                  "125b3908-de90-53b8-809e-b367bcc83548"
+                ]
+              ],
+              "fusion": [
+                [
+                  "7361e08a-84bb-5f53-954c-819d2c179a3e",
+                  "ef735810-2411-549a-9615-b6272f896a27"
+                ],
+                [
+                  "125b3908-de90-53b8-809e-b367bcc83548"
+                ]
+              ],
+              "rerank": [
+                [
+                  "7361e08a-84bb-5f53-954c-819d2c179a3e",
+                  "ef735810-2411-549a-9615-b6272f896a27"
+                ],
+                [
+                  "125b3908-de90-53b8-809e-b367bcc83548"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::7",
+          "category": "cross_document",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "document_retention",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "af1d8a26-c533-50a2-92d7-e5d1ee16598b"
+                ],
+                [
+                  "7469d2a2-b0b6-5b53-aea2-335f61269609"
+                ]
+              ],
+              "final_context": [
+                [
+                  "af1d8a26-c533-50a2-92d7-e5d1ee16598b"
+                ],
+                [
+                  "7469d2a2-b0b6-5b53-aea2-335f61269609"
+                ]
+              ],
+              "fusion": [
+                [
+                  "af1d8a26-c533-50a2-92d7-e5d1ee16598b"
+                ],
+                [
+                  "7469d2a2-b0b6-5b53-aea2-335f61269609"
+                ]
+              ],
+              "rerank": [
+                [
+                  "af1d8a26-c533-50a2-92d7-e5d1ee16598b"
+                ],
+                [
+                  "7469d2a2-b0b6-5b53-aea2-335f61269609"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::8",
+          "category": "cross_document",
+          "classification": "reranker_loss",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [],
+              "final_context": [
+                [
+                  "2fe755de-286b-5f46-9ed7-76f4b950e94a"
+                ]
+              ],
+              "fusion": [],
+              "rerank": [
+                [
+                  "2fe755de-286b-5f46-9ed7-76f4b950e94a"
+                ]
+              ]
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 2,
+              "final_context": 1,
+              "fusion": 2,
+              "rerank": 1
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::9",
+          "category": "cross_document",
+          "classification": "reranker_loss",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [],
+              "final_context": [
+                [
+                  "73da44a7-2e0a-56ce-80b2-88bda317a82b"
+                ]
+              ],
+              "fusion": [],
+              "rerank": [
+                [
+                  "73da44a7-2e0a-56ce-80b2-88bda317a82b"
+                ]
+              ]
+            },
+            "observed_stages": [
+              "dense",
+              "final_context",
+              "fusion",
+              "rerank"
+            ],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 2,
+              "final_context": 1,
+              "fusion": 2,
+              "rerank": 1
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        },
+        {
+          "case_id": "curated_cross_document_v2::10",
+          "category": "cross_document",
+          "classification": "candidate_anchor_or_scoring",
+          "failed_cells": [
+            "candidate_recall",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost"
+          ],
+          "retention": {
+            "missing": {
+              "dense": [
+                [
+                  "aa013e96-9241-54f8-a6c9-aac5c28e5f10"
+                ],
+                [
+                  "aacb725c-fa7b-51b1-aeec-fa1662318433"
+                ]
+              ],
+              "final_context": [
+                [
+                  "aa013e96-9241-54f8-a6c9-aac5c28e5f10"
+                ],
+                [
+                  "aacb725c-fa7b-51b1-aeec-fa1662318433"
+                ]
+              ],
+              "fusion": [
+                [
+                  "aa013e96-9241-54f8-a6c9-aac5c28e5f10"
+                ],
+                [
+                  "aacb725c-fa7b-51b1-aeec-fa1662318433"
+                ]
+              ],
+              "rerank": [
+                [
+                  "aa013e96-9241-54f8-a6c9-aac5c28e5f10"
+                ],
+                [
+                  "aacb725c-fa7b-51b1-aeec-fa1662318433"
+                ]
+              ]
+            },
+            "observed_stages": [],
+            "required_evidence_groups": 2,
+            "retained": {
+              "dense": 0,
+              "final_context": 0,
+              "fusion": 0,
+              "rerank": 0
+            }
+          },
+          "stop_reason": "subquestions_exhausted"
+        }
+      ],
+      "judge_counts": {
+        "deterministic:checked": 62,
+        "llm:checked": 14,
+        "llm:unchecked": 2
+      },
+      "matrix_failures": 18,
+      "matrix_passes": 30,
+      "required_evidence_groups": 73,
+      "stage_retention": {
+        "dense": {
+          "observed_groups": 15,
+          "retained_groups": 10
+        },
+        "final_context": {
+          "observed_groups": 15,
+          "retained_groups": 10
+        },
+        "fusion": {
+          "observed_groups": 15,
+          "retained_groups": 10
+        },
+        "rerank": {
+          "observed_groups": 15,
+          "retained_groups": 7
+        }
+      }
+    }
+  },
+  "errors": [],
+  "production_blockers": [
+    "source-backed adjudication of failed answers and citations is incomplete",
+    "a separate frozen held-out bank has not passed",
+    "human visual-PDF adjudication is incomplete"
+  ]
+}

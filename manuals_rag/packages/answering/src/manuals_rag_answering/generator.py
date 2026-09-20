@@ -978,8 +978,30 @@ def _concise_structured_table_answer(
     included_answer, included_results = _concise_included_item_answer(query, results)
     if included_answer:
         return included_answer, included_results
-    candidates: list[tuple[int, int, int, str, SearchResult]] = []
     query_terms = _material_claim_terms(query)
+    if re.match(
+        r"^\s*(?:for\s+[^,?]{1,100},\s*)?(?:is|are|does|do)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        for result in results[:10]:
+            if str(result.metadata.get("chunk_type") or "") != "table_record":
+                continue
+            content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+            mapping = re.fullmatch(
+                r"Part number\s*:\s*(?P<part>.+?)\s*;\s*"
+                r"Applicable light\s*:\s*(?P<light>.+)",
+                content,
+                flags=re.IGNORECASE,
+            )
+            if not mapping:
+                continue
+            # This row explicitly binds one part-number field to one applicable-light
+            # field. Preserve the complete mapping instead of letting a model invert
+            # or relabel the relationship in a yes/no answer.
+            if len(query_terms.intersection(_material_claim_terms(content))) >= 2:
+                return f"The manual lists: {content}", [result]
+    candidates: list[tuple[int, int, int, str, SearchResult]] = []
     range_lookup = bool(re.search(r"\b(?:range|distance)\b", query, flags=re.IGNORECASE))
     for index, result in enumerate(results[:10]):
         answer = (
@@ -2106,7 +2128,11 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             insufficient_evidence=True,
         )
     multipart = _multi_part_evidence_clauses(query)
-    concise_answer, concise_results = _concise_troubleshooting_answer(query, results)
+    concise_answer, concise_results = (
+        ("", [])
+        if _is_comparison_query(query)
+        else _concise_troubleshooting_answer(query, results)
+    )
     dependency_answer, dependency_results = _concise_dependency_mapping_answer(query, results)
     if _is_troubleshooting_query(query) and _query_troubleshooting_anchor(query) and not concise_answer:
         return AnswerResponse(
@@ -3490,6 +3516,83 @@ def _concise_warning_answer(
         return "", []
     *_scores, sentence, result = max(candidates, key=lambda item: item[:6])
     return sentence if sentence.endswith((".", "!", "?")) else f"{sentence}.", [result]
+
+
+def _verified_agent_warning_context_answer(
+    query: str,
+    results: list[SearchResult],
+) -> AnswerResponse | None:
+    """Compose two independently verified warning-context claims losslessly."""
+    if not re.search(r"\b(?:warning|caution)\b", query, flags=re.I):
+        return None
+    by_claim: dict[str, SearchResult] = {}
+    for result in results:
+        for reason in result.metadata.get("agent_context_reasons") or []:
+            reason_text = str(reason)
+            if reason_text.startswith("required_claim:"):
+                by_claim[reason_text.split(":", 1)[1]] = result
+    context = by_claim.get("establish_context")
+    warning = by_claim.get("resolve_warning")
+    if context is None or warning is None:
+        verified: list[SearchResult] = []
+        seen_verified: set[str] = set()
+        for result in by_claim.values():
+            if result.chunk_id not in seen_verified:
+                verified.append(result)
+                seen_verified.add(result.chunk_id)
+        warning_candidates = [
+            result
+            for result in verified
+            if str(result.metadata.get("chunk_type") or "") == "warning_record"
+            or re.match(r"^\s*(?:warning|caution)\b", str(result.content or ""), flags=re.I)
+        ]
+        if len(verified) == 2 and len(warning_candidates) == 1:
+            warning = warning_candidates[0]
+            context = next(result for result in verified if result.chunk_id != warning.chunk_id)
+    if context is None or warning is None:
+        return None
+
+    context_text = re.sub(r"\s+", " ", str(context.content or "")).strip(" ;")
+    warning_text = re.sub(r"\s+", " ", str(warning.content or "")).strip(" ;")
+    warning_text = re.sub(
+        r"^(warning|caution)\s*:\s*\1\s+",
+        lambda match: f"{match.group(1).capitalize()}: ",
+        warning_text,
+        flags=re.I,
+    )
+    if not context_text or not warning_text:
+        return None
+    if not context_text.endswith((".", "!", "?")):
+        context_text += "."
+    if not warning_text.endswith((".", "!", "?")):
+        warning_text += "."
+    selected = [context, warning]
+    return AnswerResponse(
+        answer=f"{context_text} {warning_text}",
+        confidence="high",
+        used_documents=[
+            {
+                "document_id": result.source_document_id,
+                "title": result.title,
+                "version": result.document_version_id,
+                "pages": result.pages,
+                "section_path": result.section_path,
+            }
+            for result in selected
+        ],
+        citations=[
+            {
+                "chunk_id": result.chunk_id,
+                "document_id": result.source_document_id,
+                "pages": result.pages,
+                "quote_span": None,
+            }
+            for result in selected
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
 
 
 def _structured_fact_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
@@ -6345,7 +6448,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         )
 
     concise_troubleshooting, concise_results = _concise_troubleshooting_answer(query, results)
-    if concise_troubleshooting and concise_results:
+    if concise_troubleshooting and concise_results and not _is_comparison_query(query):
         normalized = _fallback_answer(query, concise_results)
         answer = answer.model_copy(
             update={
@@ -6655,6 +6758,28 @@ def generate_answer_with_trace(
             }
         )
         return answer, trace
+    verified_warning_answer = _verified_agent_warning_context_answer(
+        query,
+        prioritized_results or results,
+    )
+    if verified_warning_answer is not None:
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "verified_warning_context"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "verified_warning_context",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_verified_warning_context",
+            }
+        )
+        return verified_warning_answer, trace
     warning_evidence = prioritized_results or results
     if prioritized_results:
         prioritized_ids = {result.chunk_id for result in prioritized_results}
@@ -7400,6 +7525,7 @@ def generate_answer_with_trace(
     table_answer, table_results = _concise_structured_table_answer(query, results)
     if (
         table_answer
+        and not _is_comparison_query(query)
         and not _is_configuration_location_query(query)
         and not _multi_part_evidence_clauses(query)
         and not use_precomputed_model_path
@@ -7440,7 +7566,7 @@ def generate_answer_with_trace(
             }
         )
         return answer, trace
-    if _is_troubleshooting_query(query):
+    if _is_troubleshooting_query(query) and not _is_comparison_query(query):
         structured_results = _order_troubleshooting_results(query, results[:10])
         answer = validate_answer(
             _fallback_answer(query, structured_results),
@@ -7876,6 +8002,21 @@ def _parse_relevance_response(
 def judge_retrieval_relevance(query: str, results: list[SearchResult]) -> list[dict[str, str]]:
     if not results:
         return []
+    if all(
+        any(
+            str(reason).startswith("required_claim:")
+            for reason in result.metadata.get("agent_context_reasons") or []
+        )
+        for result in results
+    ):
+        return [
+            {
+                "chunk_id": result.chunk_id,
+                "verdict": "relevant",
+                "reason": "The agent verifier attributed this evidence to a required claim.",
+            }
+            for result in results
+        ]
     evidence = [
         {
             "chunk_id": result.chunk_id,

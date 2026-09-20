@@ -86,6 +86,233 @@ def test_heuristic_planner_decomposes_troubleshooting_facets():
     assert plan.hops[1].query == "How should alarm E17 for ZX-9 be corrected?"
 
 
+def test_llamaindex_planner_decomposes_troubleshooting_before_labelled_lookup(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    query = (
+        "What causes Failed to back up settings to VisionDatabase. for XG-X Series, "
+        "and how should it be corrected?"
+    )
+
+    plan = plan_llamaindex_retrieval(query)
+
+    assert plan.mode == "parallel"
+    assert [hop.hop_id for hop in plan.hops] == ["subquestion_1", "subquestion_2"]
+    assert [hop.objective for hop in plan.hops] == [
+        "Find the documented cause of Failed to back up settings to VisionDatabase. for XG-X Series",
+        "Find the documented corrective action for Failed to back up settings to VisionDatabase. for XG-X Series",
+    ]
+
+
+def test_planners_build_warning_context_dependency_without_model(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    queries = [
+        (
+            "When The controller should be installed in the direction of the circled figure below. "
+            "for User's Manual (3D mode), what warning or caution about Caution on direction "
+            "of controller mounting should be followed?"
+        ),
+        (
+            "What warning or caution about Caution on direction of controller mounting for "
+            "LJ: S8000 Series applies when the controller is designed to be mounted on a DIN rail?"
+        ),
+    ]
+
+    for query in queries:
+        for planner in (plan_retrieval, plan_llamaindex_retrieval):
+            plan = planner(query)
+            assert plan.mode == "dependent"
+            assert len(plan.hops) == 2
+            assert plan.hops[0].depends_on == []
+            assert plan.hops[1].depends_on == [plan.hops[0].hop_id]
+            assert [hop.strategy for hop in plan.hops] == ["structural", "sparse"]
+            assert "Caution on direction of controller mounting" in plan.hops[1].query
+            assert "50 mm" not in plan.hops[1].query
+            assert "DIN rail" not in plan.hops[1].query
+
+
+def test_warning_dependency_hops_verify_from_exact_scoped_atomic_records(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("verifier model must not run")),
+    )
+    query = (
+        "When For proper ventilation, allow a space of 50 mm or more on top of the controller and a spac "
+        "for User's Manual (3D mode), what warning or caution about Caution on direction of controller "
+        "mounting should be followed?"
+    )
+    plan = plan_retrieval(query)
+    context_result = _result(
+        "context",
+        "lj-x8000",
+        "For proper ventilation, allow a space of 50 mm or more on top of the controller and a space "
+        "of 50 mm or more on both sides.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "User's Manual (3D mode)",
+                "product_family": "LJ: X8000 Series",
+            }
+        }
+    )
+    warning_result = _result(
+        "warning",
+        "lj-x8000",
+        "Caution: Caution on direction of controller mounting",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "warning_record",
+                "safety_flag": True,
+                "product_model": "User's Manual (3D mode)",
+                "product_family": "LJ: X8000 Series",
+            }
+        }
+    )
+    warning_action_result = _result(
+        "warning-action",
+        "lj-x8000",
+        "The controller should be installed in the direction of the circled figure below. "
+        "Do not install the controller in any other direction.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "User's Manual (3D mode)",
+                "product_family": "LJ: X8000 Series",
+            }
+        }
+    )
+
+    for hop, results in zip(
+        plan.hops,
+        ([context_result], [warning_action_result, warning_result]),
+        strict=True,
+    ):
+        _sufficient, assessment = _assess_hop_evidence(hop.objective, results)
+        verdict = verify_retrieval_claim(hop, hop.query, results, assessment, use_llm=True)
+        assert verdict["trust_state"] == "confirmed"
+        assert verdict["claim_supported"] is True
+        expected_chunk_id = "context" if hop.hop_id == "establish_context" else "warning"
+        assert verdict["supporting_chunk_ids"] == [expected_chunk_id]
+
+
+def test_warning_dependency_refiners_preserve_exact_title_query(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("refiner model must not run")),
+    )
+    query = (
+        "When Mount the controller in a stable location for User's Manual (3D mode), "
+        "what warning or caution about Caution on direction of controller mounting should be followed?"
+    )
+    warning_hop = plan_retrieval(query).hops[1]
+    dependency_result = _result(
+        "context",
+        "lj-x8000",
+        "Mount the controller in a stable location that is free from vibration.",
+    )
+
+    assert refine_dependent_query(warning_hop, [dependency_result], use_llm=True) == warning_hop.query
+    assert refine_llamaindex_subquestion(warning_hop, [dependency_result], use_llm=True) == warning_hop.query
+
+
+def test_planners_keep_unknown_identifier_value_lookup_sparse_and_single_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    query = "What is the quantum flux calibration value for the ZX-9999 controller?"
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "sparse"
+
+
+def test_verifier_deterministically_rejects_results_outside_requested_identifier_scope(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="identifier_lookup",
+        objective="What is the quantum flux calibration value for the ZX-9999 controller?",
+        query="What is the quantum flux calibration value for the ZX-9999 controller?",
+        strategy="sparse",
+    )
+    unrelated = _result(
+        "unrelated",
+        "other-doc",
+        "The calibration tolerance for LJ-S8000 is 0.2 percent.",
+    )
+    unrelated.metadata["product_model"] = "LJ: S8000 Series"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [unrelated],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert output["trust_state"] == "rejected"
+    assert output["claim_supported"] is False
+    assert output["supporting_chunk_ids"] == []
+    assert output["scope_candidate_chunk_ids"] == []
+
+
+def test_planners_keep_value_applies_to_lookup_structural_and_single_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    query = "What Display Settings Green Lower Limit Value value applies to VS Series Vision System with Built: in AI?"
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "structural"
+
+
+def test_model_planners_reject_unsafe_hop_ids_and_fall_back(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "mode": "single",
+                "rationale": "Malformed identifier.",
+                "hops": [
+                    {
+                        "hop_id": "{0}",
+                        "objective": "controller communication behavior",
+                        "query": "controller communication behavior",
+                        "strategy": "dense",
+                        "depends_on": [],
+                        "required": True,
+                    }
+                ],
+            },
+            "{}",
+        ),
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner("Explain controller communication behavior", use_llm=True)
+        assert len(plan.hops) == 1
+        assert plan.hops[0].hop_id in {"hop_1", "subquestion_1"}
+        assert plan.hops[0].query == "Explain controller communication behavior"
+
+
 def test_planner_decomposes_scoped_troubleshooting_what_should_i_do():
     plan = plan_retrieval(
         "On an XG-X Series controller, what causes the error that says to turn off "
@@ -110,6 +337,92 @@ def test_planner_routes_direct_labelled_lookup_to_structural_without_model(monke
         assert plan.mode == "single"
         assert len(plan.hops) == 1
         assert plan.hops[0].strategy == "structural"
+
+
+def test_model_planners_cannot_mark_primary_claims_optional(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "mode": "single",
+                "rationale": "One lookup.",
+                "hops": [
+                    {
+                        "hop_id": "lookup",
+                        "objective": "Explain controller communication behavior",
+                        "query": "controller communication behavior",
+                        "strategy": "dense",
+                        "depends_on": [],
+                        "required": False,
+                    }
+                ],
+            },
+            "{}",
+        ),
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner("Explain controller communication behavior", use_llm=True)
+        assert plan.hops[0].required is True
+
+
+def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
+    original = (
+        "On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?"
+    )
+    for mode in ("single", "parallel"):
+        monkeypatch.setattr(
+            "manuals_rag_answering.agentic_retrieval.chat_json",
+            lambda **_kwargs: (
+                {
+                    "mode": mode,
+                    "rationale": "One lookup.",
+                    "hops": [
+                        {
+                            "hop_id": "lookup",
+                            "objective": "Find the output mapping for command 0028 on CV-X482",
+                            "query": "CV-X482 command 0028 output mapping",
+                            "strategy": "sparse",
+                            "depends_on": [],
+                            "required": True,
+                        }
+                    ],
+                },
+                "{}",
+            ),
+        )
+
+        for planner in (plan_retrieval, plan_llamaindex_retrieval):
+            plan = planner(original, use_llm=True)
+            assert plan.hops[0].objective == original
+            assert plan.hops[0].query == original
+            assert plan.hops[0].strategy == "hybrid"
+
+
+def test_model_planners_route_exact_count_and_accessory_lookups_to_hybrid(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model planner must not run")),
+    )
+    queries = {
+        (
+            "On IV4-G120, how many objects are counted at one time when the count "
+            "value is 9 and ON equals the set value?"
+        ): "hybrid",
+        "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?": "hybrid",
+        (
+            "On CV-X482, what adjustment is recommended when Contrast detection "
+            "runs but no NG judgment is given?"
+        ): "structural",
+    }
+
+    for query, expected_strategy in queries.items():
+        for planner in (plan_retrieval, plan_llamaindex_retrieval):
+            plan = planner(query, use_llm=True)
+            assert plan.mode == "single"
+            assert len(plan.hops) == 1
+            assert plan.hops[0].query == query
+            assert plan.hops[0].strategy == expected_strategy
 
 
 def test_planners_add_canonical_camera_trigger_light_menu_label(monkeypatch):
@@ -298,6 +611,18 @@ def test_llamaindex_keeps_structural_tool_for_dependency_predicate():
     )
 
     assert LlamaIndexAgenticController._route_tool(hop, ["CA-EN100H"]) == "structural"
+
+
+def test_llamaindex_routes_exact_dependent_cable_facet_broadly_once():
+    hop = RetrievalHop(
+        hop_id="orientation",
+        objective="What is that cable's connector orientation?",
+        query="What is that cable's connector orientation?",
+        strategy="hybrid",
+        depends_on=["identify_cable"],
+    )
+
+    assert LlamaIndexAgenticController._route_tool(hop, ["OP-26487"]) == "broad"
 
 
 def test_model_planners_split_multi_product_reported_clauses(monkeypatch):
@@ -528,6 +853,9 @@ def test_verifier_rejects_model_citations_that_were_not_retrieved(monkeypatch):
     assert result["trust_state"] == "unresolved"
     assert result["invalid_citation_ids"] == ["invented-chunk"]
     assert verifier_kwargs["num_batch"] == settings.ollama_retrieval_verifier_num_batch
+    assert result["judge"]["status"] == "checked"
+    assert result["judge"]["attempts"][0]["raw_response"] == "{}"
+    assert result["judge"]["attempts"][0]["parsed_response"]["supporting_chunk_ids"] == ["invented-chunk"]
 
 
 def test_verifier_deterministically_confirms_condition_aligned_warning(monkeypatch):
@@ -720,12 +1048,280 @@ def test_verifier_deterministically_confirms_exact_structured_lookup_cell(monkey
         hop,
         objective,
         [result],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
+def test_verifier_rejects_structured_lookup_tied_across_sibling_coordinates(monkeypatch):
+    objective = "What Display Settings Green Lower Limit Value applies to VS Series Vision System?"
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    results = []
+    for chunk_id, leaf in (
+        ("mask", "Input.Graphic.Region.Mask.ColorFail.Green"),
+        ("target", "Input.Graphic.TargetPosition.ColorFail.Green"),
+    ):
+        result = _result(
+            chunk_id,
+            "vs-doc",
+            "Column headers: Lower Limit Value; Row headers: Display Settings > Green > "
+            f"{leaf}; Cell value: 0; Row: 5; Column: 5",
+        )
+        result.metadata.update(
+            {
+                "chunk_type": "table_record",
+                "product_model": "VS-L160MX/VS-L320MX",
+                "product_family": "VS Series Vision System with Built: in AI",
+            }
+        )
+        results.append(result)
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        results,
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id for result in results]},
+    )
+
+    assert output["trust_state"] == "conflicting"
+    assert set(output["conflicting_chunk_ids"]) == {"mask", "target"}
+
+
+def test_verifier_confirms_exact_leaf_coordinate_with_not_applicable_literal(monkeypatch):
+    objective = (
+        "What Scaling Target value applies to Position X Minimum.Absolute Measured Value "
+        "for VS Series Vision System?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    result = _result(
+        "scaling-target",
+        "vs-doc",
+        "Column headers: Scaling Target; Row headers: Position X Minimum.Absolute Measured Value; "
+        "Cell value: -; Row: 16; Column: 6",
+    )
+    result.metadata.update(
+        {
+            "chunk_type": "table_record",
+            "product_model": "VS-L160MX/VS-L320MX",
+            "product_family": "VS Series Vision System with Built: in AI",
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["scaling-target"]
+
+
+def test_verifier_distinguishes_single_letter_structured_axes(monkeypatch):
+    objective = (
+        "What Scaling Target value applies to Position X Minimum.Absolute Measured Value "
+        "for VS Series Vision System?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    results = []
+    for chunk_id, axis in (("wrong-y", "Y"), ("right-x", "X")):
+        result = _result(
+            chunk_id,
+            "vs-doc",
+            f"Column headers: Scaling Target; Row headers: Position {axis} "
+            "Minimum.Absolute Measured Value; Cell value: -; Row: 16; Column: 6",
+        )
+        result.metadata.update(
+            {
+                "chunk_type": "table_record",
+                "product_model": "VS-L160MX/VS-L320MX",
+                "product_family": "VS Series Vision System with Built: in AI",
+            }
+        )
+        results.append(result)
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        results,
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id for result in results]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["right-x"]
+
+
+def test_verifier_confirms_exact_structured_property_path(monkeypatch):
+    objective = "What Image Enhance Input.ImageEnhancement value applies to VS Series Vision System?"
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    result = _result(
+        "image-enhance",
+        "vs-doc",
+        "Image Enhance | Image Enhance | Input.ImageEnhancement | See Image Enhance",
+    )
+    result.metadata.update(
+        {
+            "chunk_type": "table_record",
+            "product_model": "VS-L160MX/VS-L320MX",
+            "product_family": "VS Series Vision System with Built: in AI",
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["image-enhance"]
+
+
+def test_verifier_confirms_numeric_row_and_bit_column_mapping(monkeypatch):
+    objective = (
+        "Find the mapping for command code 0028 with value 65.0 in the 6-bit "
+        "command output area for device CV-X482."
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    result = _result(
+        "command-result-cell",
+        "cvx-doc",
+        "Column headers: 6bit > 5bit > 4bit > 3bit > 2bit > 1bit > 0bit; "
+        "Row headers: 0028 65.0 > Command output area; Cell value: Command Result; "
+        "Row: 15; Column: 3",
+    )
+    result.metadata["product_model"] = "CV-X482"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
         {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
     )
 
     assert output["trust_state"] == "confirmed"
     assert output["claim_supported"] is True
     assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
+def test_verifier_confirms_exact_count_relation_cell(monkeypatch):
+    objective = (
+        "On IV4-G120 in latching output mode, how many objects are counted at one time when the count "
+        "value is 9 and ON equals the set value?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    result = _result(
+        "exact-count-cell",
+        "iv4-doc",
+        "Column headers: Quantity counted at one time; Row headers: ON when = "
+        "Set value > Count value= 9; Cell value: 3; Row: 4; Column: 3",
+    )
+    result.metadata.update({"chunk_type": "table_record", "product_model": "IV4-G120"})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
+def test_verifier_rejects_neighboring_count_relation_cell():
+    objective = (
+        "On IV4-G120, how many objects are counted at one time when the count "
+        "value is 9 and ON equals the set value?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    neighbor = _result(
+        "neighbor-count-cell",
+        "iv4-doc",
+        "Column headers: Quantity counted at one time; Row headers: ON when >= "
+        "Set value > Count value >= 9; Cell value: 2; Row: 3; Column: 3",
+    )
+    neighbor.metadata.update({"chunk_type": "table_record", "product_model": "IV4-G120"})
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [neighbor],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert output["claim_supported"] is False
+    assert output["trust_state"] == "unresolved"
+
+
+def test_verifier_marks_duplicate_count_coordinates_with_different_values_conflicting():
+    objective = (
+        "On IV4-G120, how many objects are counted at one time when the count "
+        "value is 9 and ON equals the set value?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    results = []
+    for row, value in ((3, 2), (4, 3)):
+        result = _result(
+            f"count-row-{row}",
+            "iv4-doc",
+            "Column headers: Quantity counted at one time; Row headers: ON when = "
+            f"Set value > Count value= 9; Cell value: {value}; Row: {row}; Column: 3",
+        )
+        result.metadata.update({"chunk_type": "table_record", "product_model": "IV4-G120"})
+        results.append(result)
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        results,
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id for result in results]},
+        use_llm=False,
+    )
+
+    assert output["trust_state"] == "conflicting"
+    assert output["claim_supported"] is False
+    assert set(output["conflicting_chunk_ids"]) == {"count-row-3", "count-row-4"}
+
+    sampled_output = verify_retrieval_claim(
+        hop,
+        objective,
+        results[:1],
+        {"claim_supported": True, "supporting_chunk_ids": [results[0].chunk_id]},
+        use_llm=False,
+    )
+    assert sampled_output["trust_state"] == "conflicting"
+    assert sampled_output["claim_supported"] is False
 
 
 def test_verifier_deterministically_confirms_exact_menu_mapping(monkeypatch):
@@ -1071,6 +1667,103 @@ def test_verifier_rejects_neighboring_structured_troubleshooting_row(monkeypatch
     assert output["claim_supported"] is False
 
 
+def test_verifier_confirms_atomic_status_to_corrective_action(monkeypatch):
+    objective = (
+        "On CV-X482 in Presence/Absence Quality Learning, what adjustment is recommended when Contrast detection "
+        "runs but no NG judgment is given?"
+    )
+    hop = RetrievalHop(hop_id="adjustment", objective=objective, query=objective)
+    result = _result(
+        "contrast-action",
+        "cvx-doc",
+        "Status: Detection is performed with Contrast, but NG judgment is not given.; "
+        "Corrective action: Increase the lower limit of Quality Match (%).",
+    )
+    result.metadata.update({"chunk_type": "table_record", "product_model": "CV-X482"})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
+def test_verifier_rejects_different_atomic_troubleshooting_status():
+    objective = (
+        "On CV-X482, what adjustment is recommended when Contrast detection "
+        "runs but no NG judgment is given?"
+    )
+    hop = RetrievalHop(hop_id="adjustment", objective=objective, query=objective)
+    neighbor = _result(
+        "focus-action",
+        "cvx-doc",
+        "Status: Detection is performed with Focus, but NG judgment is not given.; "
+        "Corrective action: Increase the edge strength limit.",
+    )
+    neighbor.metadata.update({"chunk_type": "table_record", "product_model": "CV-X482"})
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [neighbor],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert output["claim_supported"] is False
+
+
+def test_verifier_marks_same_troubleshooting_status_with_different_actions_conflicting():
+    objective = (
+        "On CV-X482, what adjustment is recommended when Contrast detection "
+        "runs but no NG judgment is given?"
+    )
+    hop = RetrievalHop(hop_id="adjustment", objective=objective, query=objective)
+    results = []
+    for chunk_id, action in (
+        ("presence-action", "Increase the lower limit of Quality Match (%)."),
+        ("flaw-action", "Reduce the upper limit value of defect size."),
+    ):
+        result = _result(
+            chunk_id,
+            "cvx-doc",
+            "Status: Detection is performed with Contrast, but NG judgment is not given.; "
+            f"Corrective action: {action}",
+        )
+        result.metadata.update({"chunk_type": "table_record", "product_model": "CV-X482"})
+        results.append(result)
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        results,
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id for result in results]},
+        use_llm=False,
+    )
+
+    assert output["trust_state"] == "conflicting"
+    assert output["claim_supported"] is False
+    assert set(output["conflicting_chunk_ids"]) == {"presence-action", "flaw-action"}
+
+    sampled_output = verify_retrieval_claim(
+        hop,
+        objective,
+        results[:1],
+        {"claim_supported": True, "supporting_chunk_ids": [results[0].chunk_id]},
+        use_llm=False,
+    )
+    assert sampled_output["trust_state"] == "conflicting"
+    assert sampled_output["claim_supported"] is False
+
+
 def test_scope_gate_accepts_series_suffix_alias_without_prefix_matching_models():
     matching = _result(
         "lj-series",
@@ -1091,6 +1784,130 @@ def test_scope_gate_accepts_series_suffix_alias_without_prefix_matching_models()
     supported, _assessment = _assess_hop_evidence(
         "What does the ALPHA-1 setting add?",
         [different],
+    )
+    assert supported is False
+
+
+def test_verifier_canonicalizes_vendor_prefixed_scope_for_exact_warning_title(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="resolve_warning",
+        objective=(
+            "Resolve the warning or caution about Caution on direction of controller "
+            "mounting for LJ: S8000 Series"
+        ),
+        query=(
+            "For LJ: S8000 Series, retrieve the warning or caution titled: "
+            "Caution on direction of controller mounting."
+        ),
+    )
+    matching = _result(
+        "s8000-warning",
+        "s8000-doc",
+        "Caution: Caution on direction of controller mounting",
+    )
+    matching.metadata.update(
+        {
+            "chunk_type": "warning_record",
+            "safety_flag": True,
+            "product_model": "LJ: S8000 Series",
+            "product_family": "LJ-S8000 Series",
+        }
+    )
+    neighboring = _result(
+        "x8000-warning",
+        "x8000-doc",
+        "Caution: Caution on direction of controller mounting",
+    )
+    neighboring.metadata.update(
+        {
+            "chunk_type": "warning_record",
+            "safety_flag": True,
+            "product_model": "LJ: X8000 Series",
+            "product_family": "LJ-X8000 Series",
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [neighboring, matching],
+        {"claim_supported": True, "supporting_chunk_ids": [matching.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["s8000-warning"]
+    assert "x8000-warning" not in output["scope_candidate_chunk_ids"]
+
+
+def test_verifier_preserves_colon_in_vendor_prefixed_context_scope(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="establish_context",
+        objective=(
+            "Establish the documented installation context for LJ: S8000 Series: "
+            "Mounting the Head Be sure to read the installation cautions carefully"
+        ),
+        query=(
+            "For LJ: S8000 Series, find this documented installation context: "
+            "Mounting the Head Be sure to read the installation cautions carefully."
+        ),
+    )
+    matching = _result(
+        "s8000-context",
+        "s8000-doc",
+        "Mounting the Head Be sure to read the installation cautions carefully "
+        "and install the head correctly.",
+    )
+    matching.metadata.update(
+        {
+            "chunk_type": "atomic_text",
+            "product_model": "LJ: S8000 Series",
+            "product_family": "LJ-S8000 Series",
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [matching],
+        {"claim_supported": True, "supporting_chunk_ids": [matching.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["s8000-context"]
+
+
+def test_scope_gate_allows_family_query_for_enumerated_member_models():
+    matching = _result(
+        "vs-row",
+        "vs-doc",
+        "Column headers: Lower Limit Value; Row headers: Display Settings > Green; Cell value: 0",
+    )
+    matching.metadata.update(
+        {
+            "product_model": "VS-L160MX/VS-L320MX/VS-L500MX",
+            "product_family": "VS Series Vision System with Built: in AI",
+        }
+    )
+
+    supported, assessment = _assess_hop_evidence(
+        "What Display Settings Green Lower Limit Value applies to VS Series Vision System?",
+        [matching],
+    )
+
+    assert supported is True
+    assert assessment["supporting_chunk_ids"] == ["vs-row"]
+
+    supported, _assessment = _assess_hop_evidence(
+        "What Display Settings Green Lower Limit Value applies to LJ: X8000 Series?",
+        [matching],
     )
     assert supported is False
 
@@ -1200,6 +2017,52 @@ def test_structured_compatibility_mapping_confirms_applicability_without_model()
     assert verified["trust_state"] == "confirmed"
     assert verified["applicability"] == "applicable"
     assert verified["supporting_chunk_ids"] == ["compatibility-row"]
+
+
+def test_structured_accessory_mapping_confirms_exact_part_and_light(monkeypatch):
+    query = "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?"
+    hop = RetrievalHop(hop_id="accessory", objective=query, query=query)
+    mapping = _result(
+        "accessory-row",
+        "light-manual",
+        'Part number: 19.69" OP-42284; Applicable light: CA-DRx9',
+    )
+    mapping.metadata.update({"chunk_type": "table_record", "product_model": "CA-DRM10X"})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [mapping],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["accessory-row"]
+
+
+def test_structured_accessory_mapping_rejects_neighboring_light():
+    query = "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?"
+    hop = RetrievalHop(hop_id="accessory", objective=query, query=query)
+    neighbor = _result(
+        "accessory-neighbor",
+        "light-manual",
+        'Part number: 19.69" OP-42284; Applicable light: CA-DRx8',
+    )
+    neighbor.metadata.update({"chunk_type": "table_record", "product_model": "CA-DRM10X"})
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [neighbor],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert verified["claim_supported"] is False
 
 
 def test_structured_power_source_mapping_confirms_powered_by_without_model():
@@ -1586,6 +2449,8 @@ def test_verifier_retries_once_after_malformed_model_response(monkeypatch):
     assert calls == 2
     assert result["trust_state"] == "confirmed"
     assert result["claim_supported"] is True
+    assert result["judge"]["attempts"][0]["error"] == "ValueError: Invalid JSON escape"
+    assert result["judge"]["attempts"][1]["raw_response"] == "{}"
 
 
 def test_coordinate_plan_preserves_first_branch_subject_in_second_claim():
@@ -1874,6 +2739,98 @@ def test_insufficient_hop_gets_one_broad_recovery_within_budget():
     assert output["retrieval_trace"]["completed_hops"] == ["primary", "primary_recovery"]
 
 
+def test_conflicting_structured_evidence_stops_without_recovery():
+    query = (
+        "On IV4-G120, how many objects are counted at one time when the count "
+        "value is 9 and ON equals the set value?"
+    )
+    plan = RetrievalPlan(
+        hops=[RetrievalHop(hop_id="lookup", objective=query, query=query, strategy="hybrid")]
+    )
+    results = []
+    for row, value in ((3, 2), (4, 3)):
+        result = _result(
+            f"count-row-{row}",
+            "iv4-doc",
+            "Column headers: Quantity counted at one time; Row headers: ON when = "
+            f"Set value > Count value= 9; Cell value: {value}; Row: {row}; Column: 3",
+        )
+        result.metadata.update({"chunk_type": "table_record", "product_model": "IV4-G120"})
+        results.append(result)
+
+    for factory, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        retrieval_calls = 0
+
+        def retrieve(*_args):
+            nonlocal retrieval_calls
+            retrieval_calls += 1
+            return results
+
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+        )
+        output = _invoke(factory, controller, max_hops=4)
+
+        assert retrieval_calls == 1
+        assert output["sufficient"] is False
+        assert output["evidence_ledger"]["lookup"]["assessment"]["trust_state"] == "conflicting"
+        assert list(output["evidence_ledger"]) == ["lookup"]
+
+
+def test_verifier_only_failure_stops_without_futile_retrieval_recovery():
+    plan = RetrievalPlan(
+        hops=[
+            RetrievalHop(
+                hop_id="lookup",
+                objective="Find the corrective action for alarm E17",
+                query="What corrective action resolves alarm E17?",
+                strategy="structural",
+            )
+        ]
+    )
+    result = _result(
+        "alarm-row",
+        "alarm-doc",
+        "Alarm E17 corrective action: replace the failed pressure transducer.",
+    )
+
+    for factory, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        retrieval_calls = 0
+
+        def retrieve(*_args):
+            nonlocal retrieval_calls
+            retrieval_calls += 1
+            return [result]
+
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+            verifier=lambda *_args: {
+                "trust_state": "unresolved",
+                "claim_supported": False,
+                "supporting_chunk_ids": [],
+                "conflicting_chunk_ids": [],
+                "applicability": "not_requested",
+                "scope_entity": None,
+                "rationale": "Independent verification did not resolve.",
+            },
+        )
+        output = _invoke(factory, controller, max_hops=4)
+
+        assert retrieval_calls == 1
+        assert output["sufficient"] is False
+        assert list(output["evidence_ledger"]) == ["lookup"]
+
+
 def test_hop_budget_stops_non_improving_recovery():
     plan = RetrievalPlan(
         hops=[
@@ -1994,7 +2951,7 @@ def test_dependent_sufficiency_requires_answer_signal_with_anchor():
         "find_orientation",
     ]
     assert output["evidence_ledger"]["find_orientation"]["sufficient"] is True
-    assert output["evidence_ledger"]["find_orientation"]["strategy"] == "structural"
+    assert output["evidence_ledger"]["find_orientation"]["strategy"] == "broad"
     assert output["evidence_ledger"]["find_orientation"]["assessment"]["dependency_anchors"] == ["OP-26487"]
     assert "find_orientation_recovery" not in output["evidence_ledger"]
 
@@ -2087,6 +3044,7 @@ def test_context_reserves_attributed_support_instead_of_first_result():
     assert output["retrieval_results"][0]["metadata"]["agent_context_reasons"] == [
         "required_claim:lookup"
     ]
+    assert [item["chunk_id"] for item in output["retrieval_results"]] == ["support"]
     assert output["retrieval_trace"]["context_assembly"]["all_required_claims_retained"] is True
 
 

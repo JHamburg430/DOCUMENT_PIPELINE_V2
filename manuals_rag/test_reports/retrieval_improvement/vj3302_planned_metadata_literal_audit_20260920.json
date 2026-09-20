@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-09-20T15:54:48.926306+00:00",
+  "source_report": "test_reports/document_metadata_backfill_20260920_154824.json",
+  "pipeline": "evidence_map_reduce_verify_v5",
+  "checks_passed": true,
+  "documents": [
+    {
+      "document_id": "80cc9bf7-297a-488e-aa15-5ccd9418ac68",
+      "version_id": "1db89b64-47de-4dd6-b640-c79cfdb18bae",
+      "source_filename": "VJ-3302_Datasheet.pdf",
+      "audited_grounded_items": 9,
+      "nonliteral_items": [],
+      "checks_passed": true,
+      "failures": []
+    }
+  ]
+}

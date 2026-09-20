@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import httpx
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.http.models import (
@@ -13,6 +14,7 @@ from qdrant_client.http.models import (
     HasIdCondition,
     MatchAny,
     MatchValue,
+    Modifier,
     NamedSparseVector,
     NamedVector,
     PointStruct,
@@ -63,7 +65,7 @@ except ImportError:  # pragma: no cover - dependency fallback for existing worke
 
 from manuals_rag_common.config import settings
 from manuals_rag_schemas.documents import RetrievalChunk, SearchResult
-from manuals_rag_retrieval.embeddings import build_sparse_vector, embed_dense, tokenize
+from manuals_rag_retrieval.embeddings import build_sparse_vector, embed_dense, embed_query_dense, tokenize
 
 
 COLLECTION_PREFIX = "manuals_"
@@ -76,6 +78,10 @@ def collection_name(corpus_id: str) -> str:
 
 def document_metadata_collection_name(corpus_id: str) -> str:
     return f"{COLLECTION_PREFIX}{corpus_id}_document_metadata"
+
+
+def bm25_collection_name(corpus_id: str) -> str:
+    return f"{COLLECTION_PREFIX}{corpus_id}_bm25"
 
 
 class QdrantStore:
@@ -103,6 +109,38 @@ class QdrantStore:
             sparse_vectors_config={"sparse": SparseVectorParams()},
         )
 
+    def ensure_bm25_collection(self, corpus_id: str) -> None:
+        name = bm25_collection_name(corpus_id)
+        if self.client.collection_exists(name):
+            return
+        self.client.create_collection(
+            collection_name=name,
+            vectors_config={},
+            sparse_vectors_config={
+                "bm25": SparseVectorParams(modifier=Modifier.IDF),
+            },
+        )
+
+    @staticmethod
+    def _chunk_payload(chunk: RetrievalChunk) -> dict[str, Any]:
+        return {
+            **chunk.metadata_json,
+            "chunk_id": chunk.id,
+            "logical_node_ids_json": chunk.logical_node_ids_json,
+            "document_version_id": chunk.document_version_id,
+            "source_document_id": chunk.source_document_id,
+            "chunk_type": chunk.chunk_type.value,
+            "chunk_level": chunk.chunk_level,
+            "title": chunk.title,
+            "page_from": chunk.page_from,
+            "page_to": chunk.page_to,
+            "section_path": chunk.metadata_json.get("section_path", []),
+            "content": chunk.content,
+            "content_for_rerank": chunk.content_for_rerank,
+            "priority_score": chunk.priority_score,
+            "is_active": chunk.is_active,
+        }
+
     def upsert_chunks(self, corpus_id: str, chunks: list[RetrievalChunk]) -> None:
         if not chunks:
             return
@@ -115,27 +153,41 @@ class QdrantStore:
                 PointStruct(
                     id=chunk.id,
                     vector={"dense": dense, "sparse": SparseVector(indices=indices, values=values)},
-                    payload={
-                        **chunk.metadata_json,
-                        "chunk_id": chunk.id,
-                        "logical_node_ids_json": chunk.logical_node_ids_json,
-                        "document_version_id": chunk.document_version_id,
-                        "source_document_id": chunk.source_document_id,
-                        "chunk_type": chunk.chunk_type.value,
-                        "chunk_level": chunk.chunk_level,
-                        "title": chunk.title,
-                        "page_from": chunk.page_from,
-                        "page_to": chunk.page_to,
-                        "section_path": chunk.metadata_json.get("section_path", []),
-                        "content": chunk.content,
-                        "content_for_rerank": chunk.content_for_rerank,
-                        "priority_score": chunk.priority_score,
-                        "is_active": chunk.is_active,
-                    },
+                    payload=self._chunk_payload(chunk),
                 )
             )
         for index in range(0, len(points), 64):
             self.client.upsert(collection_name(corpus_id), points[index : index + 64])
+
+    def upsert_bm25_chunks(self, corpus_id: str, chunks: list[RetrievalChunk]) -> None:
+        """Index true BM25 vectors in an isolated collection using Qdrant server inference."""
+        if not chunks:
+            return
+        self.ensure_bm25_collection(corpus_id)
+        name = bm25_collection_name(corpus_id)
+        with httpx.Client(base_url=settings.qdrant_url, timeout=120) as client:
+            for index in range(0, len(chunks), 64):
+                batch = chunks[index : index + 64]
+                response = client.put(
+                    f"/collections/{name}/points",
+                    params={"wait": "true"},
+                    json={
+                        "points": [
+                            {
+                                "id": chunk.id,
+                                "vector": {
+                                    "bm25": {
+                                        "text": chunk.content_for_sparse,
+                                        "model": "qdrant/bm25",
+                                    }
+                                },
+                                "payload": self._chunk_payload(chunk),
+                            }
+                            for chunk in batch
+                        ]
+                    },
+                )
+                response.raise_for_status()
 
     def upsert_document_metadata(self, corpus_id: str, documents: list[dict[str, Any]]) -> None:
         if not documents:
@@ -223,6 +275,29 @@ class QdrantStore:
             wait=True,
         )
 
+    def delete_bm25_document_chunks(
+        self,
+        corpus_id: str,
+        *,
+        source_document_id: str,
+        document_version_id: str,
+        exclude_chunk_ids: list[str],
+    ) -> None:
+        name = bm25_collection_name(corpus_id)
+        if not self.client.collection_exists(name):
+            return
+        self.client.delete(
+            collection_name=name,
+            points_selector=FilterSelector(filter=Filter(
+                must=[
+                    FieldCondition(key="source_document_id", match=MatchValue(value=source_document_id)),
+                    FieldCondition(key="document_version_id", match=MatchValue(value=document_version_id)),
+                ],
+                must_not=[HasIdCondition(has_id=exclude_chunk_ids)],
+            )),
+            wait=True,
+        )
+
     def _build_filter(self, filters: dict[str, Any]) -> dict[str, Any] | None:
         must = []
         for key, value in filters.items():
@@ -268,8 +343,20 @@ class QdrantStore:
             with_payload=True,
         ))
 
-    def search_dense(self, corpus_id: str, query: str, filters: dict[str, Any], limit: int = 40) -> list[SearchResult]:
-        dense = embed_dense([query])[0]
+    def search_dense(
+        self,
+        corpus_id: str,
+        query: str,
+        filters: dict[str, Any],
+        limit: int = 40,
+        *,
+        query_instruction: str | None = None,
+    ) -> list[SearchResult]:
+        dense = (
+            embed_query_dense(query, instruction=query_instruction)
+            if query_instruction
+            else embed_dense([query])[0]
+        )
         name = collection_name(corpus_id)
         if hasattr(self.client, "collection_exists") and not self.client.collection_exists(name):
             return []
@@ -334,6 +421,10 @@ class QdrantStore:
         return self._fuse_document_metadata_hits([dense_results, sparse_results], limit=limit)
 
     def search_sparse(self, corpus_id: str, query: str, filters: dict[str, Any], limit: int = 40) -> list[SearchResult]:
+        if settings.indexed_bm25_enabled:
+            bm25_results = self.search_bm25(corpus_id=corpus_id, query=query, filters=filters, limit=limit)
+            if bm25_results:
+                return bm25_results
         name = collection_name(corpus_id)
         if hasattr(self.client, "collection_exists") and not self.client.collection_exists(name):
             return []
@@ -355,6 +446,33 @@ class QdrantStore:
             logger.warning("Native sparse search failed for corpus_id=%s; falling back to local BM25 scroll: %s", corpus_id, exc)
             return self._search_sparse_bm25(corpus_id=corpus_id, query=query, filters=filters, limit=limit)
         return self._hits_to_results(sparse_hits)
+
+    def search_bm25(self, corpus_id: str, query: str, filters: dict[str, Any], limit: int = 40) -> list[SearchResult]:
+        """Query the isolated, genuine BM25 index; return empty when it is not built."""
+        name = bm25_collection_name(corpus_id)
+        if not self.client.collection_exists(name):
+            return []
+        payload: dict[str, Any] = {
+            "query": {"text": query, "model": "qdrant/bm25"},
+            "using": "bm25",
+            "limit": limit,
+            "with_payload": True,
+        }
+        query_filter = self._build_filter(filters)
+        if query_filter:
+            payload["filter"] = query_filter
+        with httpx.Client(base_url=settings.qdrant_url, timeout=60) as client:
+            response = client.post(f"/collections/{name}/points/query", json=payload)
+            response.raise_for_status()
+            points = response.json().get("result", {}).get("points", [])
+        return [
+            self._payload_to_result(
+                chunk_id=str(point["id"]),
+                payload=point.get("payload") or {},
+                score=float(point.get("score") or 0.0),
+            )
+            for point in points
+        ]
 
     def _search_sparse_bm25(self, corpus_id: str, query: str, filters: dict[str, Any], limit: int = 40) -> list[SearchResult]:
         points = self._scroll_points(corpus_id=corpus_id, filters=filters)

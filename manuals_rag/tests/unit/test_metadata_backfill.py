@@ -33,10 +33,52 @@ def test_documents_can_target_multiple_document_ids(monkeypatch):
     assert "authoritative_manufacturer" in captured["query"]
 
 
+def test_document_segments_prefer_literal_raw_text_for_provenance(monkeypatch):
+    monkeypatch.setattr(
+        _MODULE,
+        "fetch_all",
+        lambda *_args, **_kwargs: [
+            {
+                "text_raw": "VJ-3302 Image processing unit",
+                "text_normalized": "VJ: 3302 Image processing unit",
+                "page_from": 1,
+                "page_to": 1,
+                "section_path_json": ["Cover"],
+            }
+        ],
+    )
+
+    segments = _MODULE._document_segments("version-1")
+
+    assert len(segments) == 1
+    assert segments[0].text == "VJ-3302 Image processing unit"
+    assert segments[0].page_from == 1
+    assert segments[0].section_path == ("Cover",)
+
+
 def test_authoritative_corpus_manufacturer_overrides_extracted_company_noise():
     metadata = {
         "manufacturer": "Intel Corporation",
         "companies": ["Intel Corporation", "Example PLC Vendor"],
+        "metadata_evidence": [
+            {
+                "kind": "company",
+                "value": "KEYENCE AMERICA",
+                "relation": "primary_manufacturer",
+            }
+        ],
+        "metadata_claims": [
+            {
+                "kind": "company",
+                "value": "KEYENCE",
+                "relation": "primary_manufacturer",
+            },
+            {
+                "kind": "company",
+                "value": "Example PLC Vendor",
+                "relation": "primary_manufacturer",
+            },
+        ],
     }
 
     result = _MODULE._apply_authoritative_metadata_defaults(
@@ -50,7 +92,11 @@ def test_authoritative_corpus_manufacturer_overrides_extracted_company_noise():
         "manufacturer": "KEYENCE",
         "source": "corpus_configuration",
     }
+    assert result["metadata_evidence"][0]["relation"] == "mentioned"
+    assert result["metadata_claims"][0]["relation"] == "primary_manufacturer"
+    assert result["metadata_claims"][1]["relation"] == "mentioned"
     assert metadata["manufacturer"] == "Intel Corporation"
+    assert metadata["metadata_evidence"][0]["relation"] == "primary_manufacturer"
 
 
 def test_checkpoint_report_reuses_explicit_path(monkeypatch, tmp_path):
@@ -281,3 +327,105 @@ def test_apply_metadata_commits_document_payload_atomically_before_enqueue(monke
     assert len(connections[0].cursor_instance.queries) == 4
     assert connections[0].commits == 1
     assert queued[0][0] == "embed_jobs"
+
+
+def test_exact_planned_report_apply_uses_report_metadata_without_reextracting(monkeypatch, tmp_path):
+    document = {
+        "document_id": "doc-a",
+        "version_id": "v1",
+        "source_filename": "a.pdf",
+        "extracted_version_id": None,
+        "extracted_pipeline_version": None,
+    }
+    metadata = {
+        "title": "Audited title",
+        "metadata_pipeline_version": _MODULE.METADATA_PIPELINE_VERSION,
+    }
+    report_path = tmp_path / "planned.json"
+    report_path.write_text(
+        json.dumps([
+            {
+                "document_id": "doc-a",
+                "version_id": "v1",
+                "source_filename": "a.pdf",
+                "status": "planned",
+                "metadata": metadata,
+                "error": None,
+                "chunk_count": 0,
+                "embed_enqueued": False,
+                "warning": None,
+            }
+        ]),
+        encoding="utf-8",
+    )
+    report_sha256 = _MODULE._sha256(report_path)
+    result_path = tmp_path / "applied.json"
+    applied = []
+
+    monkeypatch.setattr(_MODULE, "_ensure_metadata_table", lambda: None)
+    monkeypatch.setattr(_MODULE, "_documents", lambda **_kwargs: [document])
+    monkeypatch.setattr(
+        _MODULE,
+        "infer_document_metadata_from_segments",
+        lambda *_args, **_kwargs: pytest.fail("exact report apply must not re-extract"),
+    )
+    monkeypatch.setattr(
+        _MODULE,
+        "_apply_metadata",
+        lambda doc, payload, **_kwargs: (applied.append((doc, payload)) or (5, True, None)),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "backfill_document_metadata.py",
+            "--apply",
+            "--document-id",
+            "doc-a",
+            "--resume-report",
+            str(report_path),
+            "--apply-planned-report",
+            "--report-sha256",
+            report_sha256,
+            "--result-report",
+            str(result_path),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        _MODULE.main()
+
+    assert exc_info.value.code == 0
+    assert applied == [(document, metadata)]
+    assert json.loads(report_path.read_text(encoding="utf-8"))[0]["status"] == "planned"
+    saved = json.loads(result_path.read_text(encoding="utf-8"))
+    assert saved[0]["status"] == "applied"
+    assert saved[0]["metadata"] == metadata
+
+
+def test_exact_planned_report_apply_rejects_hash_mismatch(monkeypatch, tmp_path):
+    report_path = tmp_path / "planned.json"
+    report_path.write_text("[]", encoding="utf-8")
+    monkeypatch.setattr(_MODULE, "_ensure_metadata_table", lambda: None)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "backfill_document_metadata.py",
+            "--apply",
+            "--limit",
+            "1",
+            "--resume-report",
+            str(report_path),
+            "--apply-planned-report",
+            "--report-sha256",
+            "0" * 64,
+            "--result-report",
+            str(tmp_path / "applied.json"),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        _MODULE.main()
+
+    assert exc_info.value.code == 2

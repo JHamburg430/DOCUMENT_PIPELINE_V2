@@ -139,3 +139,11 @@ def embed_dense(texts: list[str]) -> list[list[float]]:
                 for text in batch:
                     vectors.append(_embed_one_with_fallbacks(client, text))
         return vectors
+
+
+def embed_query_dense(query: str, *, instruction: str | None = None) -> list[float]:
+    """Embed one query, optionally using Qwen3's documented query instruction shape."""
+    text = query
+    if instruction:
+        text = f"Instruct: {instruction.strip()}\nQuery:{query}"
+    return embed_dense([text])[0]

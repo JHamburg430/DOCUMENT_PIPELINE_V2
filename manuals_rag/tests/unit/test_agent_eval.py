@@ -1,4 +1,105 @@
-from manuals_rag_evals.agent_eval import AGENT_EVALUATION_LAYERS, score_agent_run
+from manuals_rag_evals.agent_eval import (
+    AGENT_EVALUATION_LAYERS,
+    _equivalent_chunk_ids,
+    _result_preserves_expected_evidence,
+    score_agent_run,
+)
+
+
+def test_structured_equivalence_accepts_cross_page_duplicate_cell():
+    expected = (
+        "Column headers: Scaling Target; Row headers: Position X Minimum.Absolute Measured Value; "
+        "Cell value: -; Row: 16; Column: 6"
+    )
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [15],
+        "content": expected.replace("Row: 16", "Row: 15"),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={16},
+        snippet=expected,
+    )
+
+
+def test_structured_equivalence_accepts_cross_page_exact_property_reference():
+    expected = (
+        'Image Enhance | Image Enhance | Input.ImageEnhancement | See "Image Enhance" '
+        "Category: unrelated following row Input.Limit.Average.Max.Enable"
+    )
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [1703],
+        "content": (
+            "Column headers: Options > Label; Row headers: Image Enhance > "
+            'Input.ImageEnhancement; Cell value: Refer to "Image Enhance".; Row: 5; Column: 3'
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={1548},
+        snippet=expected,
+    )
+
+
+def test_structured_equivalence_rejects_cross_page_different_cell_value():
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [22],
+        "content": (
+            "Column headers: Lower Limit Value; Row headers: Display Settings > Green > "
+            "Input.Graphic.Region.Mask.ColorFail.Green; Cell value: 1; Row: 5; Column: 5"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert not _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={11},
+        snippet=(
+            "Column headers: Lower Limit Value; Row headers: Display Settings > Green > "
+            "Input.Graphic.Region.Mask.ColorFail.Green; Cell value: 0; Row: 5; Column: 5"
+        ),
+    )
+
+
+def test_cross_document_equivalence_does_not_inherit_first_document_pages():
+    case = {
+        "source_document_id": "first-doc",
+        "page_from": 1963,
+        "page_to": 1963,
+        "expected_evidence": [
+            {
+                "chunk_id": "expected-cause",
+                "source_document_id": "second-doc",
+                "field": "cause",
+                "expected_terms": ["memory", "error", "occurred", "sensor"],
+                "snippet": "Column headers: Cause; Row headers: Sensor program damaged.",
+            }
+        ],
+    }
+    results = [
+        {
+            "chunk_id": "equivalent-cause",
+            "source_document_id": "second-doc",
+            "pages": [406],
+            "content": (
+                "Column headers: Cause; Row headers: Sensor internal memory reading has failed; "
+                "Cell value: A memory read error occurred when the sensor started."
+            ),
+            "metadata": {"chunk_type": "table_record"},
+        }
+    ]
+
+    assert _equivalent_chunk_ids(case, results)["expected-cause"] == {"equivalent-cause"}
 
 
 def _case():

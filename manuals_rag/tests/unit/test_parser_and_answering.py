@@ -3444,6 +3444,72 @@ def test_validate_answer_comparison_fallback_when_generated_answer_cites_only_on
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_comparison_fallback_keeps_second_distinct_document_when_only_one_side_match_is_exact():
+    answer = AnswerResponse(
+        answer="A memory read error occurred when the sensor started.",
+        confidence="low",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "iv-memory-cause",
+                "document_id": "iv-document",
+                "pages": [406],
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=True,
+    )
+    results = [
+        SearchResult(
+            chunk_id="vs-pattern-cause",
+            score=1.0,
+            title="VS Series manual",
+            document_version_id="v1",
+            source_document_id="vs-document",
+            pages=[1968],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Pattern Data; "
+                "Cell value: The format of the pattern data file is invalid.; Row: 4; Column: 3"
+            ),
+            metadata={"chunk_type": "table_record", "product_family": "VS Series"},
+        ),
+        SearchResult(
+            chunk_id="iv-memory-cause",
+            score=0.9,
+            title="IV-HG500CA manual",
+            document_version_id="v1",
+            source_document_id="iv-document",
+            pages=[406],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Sensor internal memory reading has failed; "
+                "Cell value: A memory read error occurred when the sensor started.; Row: 2; Column: 1"
+            ),
+            metadata={"chunk_type": "table_record", "product_model": "IV-HG500CA"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "Compare the documented cause for a VS Series pattern data file being invalid with the "
+            "IV-HG500CA cause for a memory read error at sensor startup."
+        ),
+    )
+
+    assert "format of the pattern data file is invalid" in validated.answer
+    assert "memory read error occurred when the sensor started" in validated.answer
+    assert {citation["chunk_id"] for citation in validated.citations} == {
+        "vs-pattern-cause",
+        "iv-memory-cause",
+    }
+    assert validated.insufficient_evidence is False
+
+
 def test_comparison_side_coverage_rejects_unrelated_only_citations():
     results = [
         SearchResult(
@@ -5407,6 +5473,28 @@ def test_validate_answer_expands_terse_structured_table_answer():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_structured_table_answer_preserves_exact_labeled_mapping():
+    result = SearchResult(
+        chunk_id="mapping-row",
+        score=1.0,
+        title="CA lighting manual",
+        document_version_id="version-1",
+        source_document_id="document-1",
+        pages=[13],
+        section_path=["Accessories"],
+        content='Part number: 19.69" OP-42284; Applicable light: CA-DRx9',
+        metadata={"chunk_type": "table_record", "product_model": "CA-DRM10X"},
+    )
+
+    answer, evidence = _concise_structured_table_answer(
+        "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?",
+        [result],
+    )
+
+    assert answer == 'The manual lists: Part number: 19.69" OP-42284; Applicable light: CA-DRx9'
+    assert evidence == [result]
+
+
 def test_parse_relevance_response_detects_missing_chunk_ids_and_normalizes_null_fields():
     results = [
         SearchResult(
@@ -5554,6 +5642,87 @@ def test_judge_retrieval_relevance_retries_when_chunk_coverage_is_incomplete(mon
     assert judgments[1]["verdict"] == "potentially_relevant"
     assert len(prompts) == 2
     assert "Required chunk_ids in order" in prompts[1]
+
+
+def test_judge_retrieval_relevance_accepts_verified_required_claim_context(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("relevance model must not run")),
+    )
+    results = [
+        SearchResult(
+            chunk_id="context",
+            score=0.9,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[42],
+            section_path=["Installation"],
+            content="Allow a space of 50 mm or more for proper ventilation.",
+            metadata={"agent_context_reasons": ["required_claim:establish_context"]},
+        ),
+        SearchResult(
+            chunk_id="warning",
+            score=0.8,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[41],
+            section_path=["NOTICE"],
+            content="Caution on direction of controller mounting.",
+            metadata={"agent_context_reasons": ["required_claim:resolve_warning"]},
+        ),
+    ]
+
+    judgments = judge_retrieval_relevance("What warning applies for this ventilation context?", results)
+
+    assert [item["chunk_id"] for item in judgments] == ["context", "warning"]
+    assert all(item["verdict"] == "relevant" for item in judgments)
+
+
+def test_verified_agent_warning_context_composes_both_claims_without_model(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model must not run")),
+    )
+    results = [
+        SearchResult(
+            chunk_id="warning",
+            score=0.9,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[41],
+            section_path=["NOTICE"],
+            content="Caution: Caution on direction of controller mounting",
+            metadata={
+                "chunk_type": "warning_record",
+                "agent_context_reasons": ["required_claim:subquestion_2"],
+            },
+        ),
+        SearchResult(
+            chunk_id="context",
+            score=0.8,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[42],
+            section_path=["Installation"],
+            content="For proper ventilation, allow a space of 50 mm or more on both sides.",
+            metadata={"agent_context_reasons": ["required_claim:subquestion_1"]},
+        ),
+    ]
+
+    answer, trace = generate_answer_with_trace(
+        "When proper ventilation is required, what warning or caution should be followed?",
+        results,
+    )
+
+    assert "proper ventilation" in answer.answer
+    assert "direction of controller mounting" in answer.answer
+    assert [citation["chunk_id"] for citation in answer.citations] == ["context", "warning"]
+    assert answer.insufficient_evidence is False
+    assert trace["final_answer"]["answer_source"] == "deterministic_verified_warning_context"
 
 
 def test_answer_prioritization_excludes_wrong_model_family_table_rows(monkeypatch):

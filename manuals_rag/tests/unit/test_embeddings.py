@@ -1,5 +1,11 @@
 from manuals_rag_common.config import settings
-from manuals_rag_retrieval.embeddings import EMBED_BATCH_SIZE, embed_dense, normalize_for_embedding
+from manuals_rag_retrieval.embeddings import (
+    EMBED_BATCH_SIZE,
+    MAX_EMBED_CHARS,
+    embed_dense,
+    embed_query_dense,
+    normalize_for_embedding,
+)
 
 
 def test_normalize_for_embedding_clips_long_text():
@@ -13,6 +19,26 @@ def test_normalize_for_embedding_adds_search_term_variants():
     normalized = normalize_for_embedding("Find CA-EN100U 1-line cross-section values.")
     assert "ca en100u" in normalized.lower()
     assert "1 line" in normalized.lower()
+
+
+def test_default_embedding_clip_is_bounded_and_omits_trailing_content():
+    text = ("alpha " * 1200) + "UNREACHABLE_TRAILING_EVIDENCE"
+    normalized = normalize_for_embedding(text)
+    assert len(normalized) <= MAX_EMBED_CHARS
+    assert "UNREACHABLE_TRAILING_EVIDENCE" not in normalized
+
+
+def test_embed_query_dense_uses_documented_qwen_instruction_shape(monkeypatch):
+    captured = []
+    monkeypatch.setattr(
+        "manuals_rag_retrieval.embeddings.embed_dense",
+        lambda texts: captured.append(texts) or [[0.1, 0.2]],
+    )
+
+    vector = embed_query_dense("Where is VJ-3302 configured?", instruction="Retrieve manual evidence.")
+
+    assert vector == [0.1, 0.2]
+    assert captured == [["Instruct: Retrieve manual evidence.\nQuery:Where is VJ-3302 configured?"]]
 
 
 def test_embed_dense_batches_requests(monkeypatch):

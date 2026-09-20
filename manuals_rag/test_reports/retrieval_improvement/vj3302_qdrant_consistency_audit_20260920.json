@@ -1,0 +1,10 @@
+{
+  "generated_at": "2026-09-20T15:56:09.939827+00:00",
+  "document_id": "80cc9bf7-297a-488e-aa15-5ccd9418ac68",
+  "pipeline": "evidence_map_reduce_verify_v5",
+  "postgres_active_chunks": 5,
+  "qdrant_chunks": 5,
+  "qdrant_selectors": 1,
+  "checks_passed": true,
+  "failures": []
+}

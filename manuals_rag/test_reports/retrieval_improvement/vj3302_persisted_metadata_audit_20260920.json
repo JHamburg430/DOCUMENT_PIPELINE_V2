@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-09-20T15:55:28.056418+00:00",
+  "pipeline": "evidence_map_reduce_verify_v5",
+  "document_count": 1,
+  "passed": 1,
+  "failed": 0,
+  "checks_passed": true,
+  "scope_failures": [],
+  "documents": [
+    {
+      "document_id": "80cc9bf7-297a-488e-aa15-5ccd9418ac68",
+      "source_filename": "VJ-3302_Datasheet.pdf",
+      "title": "VJ-3302 Image processing unit",
+      "claim_counts": {
+        "confirmed": 3
+      },
+      "routing_product_models": [
+        "VJ-3302"
+      ],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 5,
+      "checks_passed": true,
+      "failures": []
+    }
+  ]
+}
