@@ -2716,6 +2716,7 @@ def test_context_reserves_attributed_support_instead_of_first_result():
     assert output["retrieval_results"][0]["metadata"]["agent_context_reasons"] == [
         "required_claim:lookup"
     ]
+    assert [item["chunk_id"] for item in output["retrieval_results"]] == ["support"]
     assert output["retrieval_trace"]["context_assembly"]["all_required_claims_retained"] is True
 
 

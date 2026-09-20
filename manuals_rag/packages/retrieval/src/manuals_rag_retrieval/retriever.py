@@ -4473,7 +4473,18 @@ def assemble_agent_context(
             seen.add(best.chunk_id)
             support_reasons.setdefault(best.chunk_id, []).append(f"hop_representative:{hop_id}")
 
-    ordered = [*reserved, *assembled, *(result for _hop_id, results in nonempty for result in results)]
+    supported_required_hops = {
+        reason.split(":", 1)[1]
+        for reasons in support_reasons.values()
+        for reason in reasons
+        if reason.startswith("required_claim:")
+    }
+    all_required_attributed = bool(required) and required.issubset(supported_required_hops)
+    ordered = (
+        reserved
+        if all_required_attributed
+        else [*reserved, *assembled, *(result for _hop_id, results in nonempty for result in results)]
+    )
     final: list[SearchResult] = []
     for result in ordered:
         if result.chunk_id in {item.chunk_id for item in final}:

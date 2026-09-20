@@ -1506,7 +1506,7 @@ def _direct_context_sentence_support(
 ) -> list[str]:
     """Confirm a planner-generated context hop from one strongly aligned sentence."""
     match = re.match(
-        r"^Establish the documented installation context for .+?:\s*(?P<context>.+)$",
+        r"^Establish the documented installation context for (?P<scope>.+?):\s*(?P<context>.+)$",
         query,
         flags=re.I,
     )
@@ -1516,6 +1516,7 @@ def _direct_context_sentence_support(
         "a", "an", "and", "for", "from", "in", "is", "of", "on", "or", "the", "to", "with",
     }
     context = match.group("context").strip(" ,.;?")
+    scope = match.group("scope").strip(" ,.;?")
     context_terms = {
         term
         for term in re.findall(r"[a-z0-9]+", context.lower())
@@ -1529,7 +1530,11 @@ def _direct_context_sentence_support(
     candidate_ids = preliminary_ids or {result.chunk_id for result in results}
     matches: list[tuple[float, int, int, str]] = []
     for index, result in enumerate(results):
-        if result.chunk_id not in candidate_ids or not _result_supports_branch_scope(query, result):
+        if (
+            result.chunk_id not in candidate_ids
+            or not _result_supports_branch_scope(query, result)
+            or not _metadata_scope_matches_label(scope, result)
+        ):
             continue
         if str(result.metadata.get("chunk_type") or "") not in {
             "atomic_text", "procedure_record", "warning_record",
@@ -1552,7 +1557,7 @@ def _direct_titled_warning_support(
 ) -> list[str]:
     """Confirm an exact warning title only from a scoped safety record."""
     match = re.search(
-        r"warning\s+or\s+caution\s+about\s+(?P<title>.+?)\s+for\s+.+$",
+        r"warning\s+or\s+caution\s+about\s+(?P<title>.+?)\s+for\s+(?P<scope>.+)$",
         query,
         flags=re.I,
     )
@@ -1564,6 +1569,7 @@ def _direct_titled_warning_support(
 
     title = normalized(match.group("title"))
     title = re.sub(r"^(?:warning|caution)\s*", "", title).strip()
+    scope = match.group("scope").strip(" ,.;?")
     preliminary_ids = {
         str(chunk_id)
         for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
@@ -1571,7 +1577,11 @@ def _direct_titled_warning_support(
     candidate_ids = preliminary_ids or {result.chunk_id for result in results}
     matches: list[tuple[int, int, str]] = []
     for index, result in enumerate(results):
-        if result.chunk_id not in candidate_ids or not _result_supports_branch_scope(query, result):
+        if (
+            result.chunk_id not in candidate_ids
+            or not _result_supports_branch_scope(query, result)
+            or not _metadata_scope_matches_label(scope, result)
+        ):
             continue
         metadata = result.metadata or {}
         if not (
@@ -1584,6 +1594,27 @@ def _direct_titled_warning_support(
         if title and (title in content or content in title):
             matches.append((-len(content), -index, result.chunk_id))
     return [max(matches)[-1]] if matches else []
+
+
+def _metadata_scope_matches_label(scope: str, result: SearchResult) -> bool:
+    """Match an explicit planner scope against authoritative result metadata."""
+    normalized_scope = re.sub(r"[^a-z0-9]+", " ", scope.lower()).strip()
+    if not normalized_scope:
+        return False
+    metadata = result.metadata or {}
+    candidates: list[str] = []
+    for key in ("product_model", "product_family", "product_models", "product_families"):
+        value = metadata.get(key)
+        if isinstance(value, (list, tuple, set)):
+            candidates.extend(str(item) for item in value if item)
+        elif value:
+            candidates.append(str(value))
+    normalized_candidates = {
+        re.sub(r"[^a-z0-9]+", " ", candidate.lower()).strip()
+        for candidate in candidates
+        if candidate
+    }
+    return normalized_scope in normalized_candidates
 
 
 def _direct_named_reference_support(
