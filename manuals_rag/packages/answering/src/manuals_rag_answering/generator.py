@@ -3508,6 +3508,22 @@ def _verified_agent_warning_context_answer(
     context = by_claim.get("establish_context")
     warning = by_claim.get("resolve_warning")
     if context is None or warning is None:
+        verified: list[SearchResult] = []
+        seen_verified: set[str] = set()
+        for result in by_claim.values():
+            if result.chunk_id not in seen_verified:
+                verified.append(result)
+                seen_verified.add(result.chunk_id)
+        warning_candidates = [
+            result
+            for result in verified
+            if str(result.metadata.get("chunk_type") or "") == "warning_record"
+            or re.match(r"^\s*(?:warning|caution)\b", str(result.content or ""), flags=re.I)
+        ]
+        if len(verified) == 2 and len(warning_candidates) == 1:
+            warning = warning_candidates[0]
+            context = next(result for result in verified if result.chunk_id != warning.chunk_id)
+    if context is None or warning is None:
         return None
 
     context_text = re.sub(r"\s+", " ", str(context.content or "")).strip(" ;")

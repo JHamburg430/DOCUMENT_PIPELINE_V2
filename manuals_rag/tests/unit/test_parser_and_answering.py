@@ -5607,7 +5607,10 @@ def test_verified_agent_warning_context_composes_both_claims_without_model(monke
             pages=[41],
             section_path=["NOTICE"],
             content="Caution: Caution on direction of controller mounting",
-            metadata={"agent_context_reasons": ["required_claim:resolve_warning"]},
+            metadata={
+                "chunk_type": "warning_record",
+                "agent_context_reasons": ["required_claim:subquestion_2"],
+            },
         ),
         SearchResult(
             chunk_id="context",
@@ -5618,7 +5621,7 @@ def test_verified_agent_warning_context_composes_both_claims_without_model(monke
             pages=[42],
             section_path=["Installation"],
             content="For proper ventilation, allow a space of 50 mm or more on both sides.",
-            metadata={"agent_context_reasons": ["required_claim:establish_context"]},
+            metadata={"agent_context_reasons": ["required_claim:subquestion_1"]},
         ),
     ]
 
