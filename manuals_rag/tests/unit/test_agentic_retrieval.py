@@ -175,37 +175,27 @@ def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
 def test_model_planners_route_exact_count_and_accessory_lookups_to_hybrid(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
-        lambda **_kwargs: (
-            {
-                "mode": "single",
-                "rationale": "One lookup.",
-                "hops": [
-                    {
-                        "hop_id": "lookup",
-                        "objective": "lossy lookup",
-                        "query": "lossy lookup",
-                        "strategy": "sparse",
-                        "depends_on": [],
-                        "required": True,
-                    }
-                ],
-            },
-            "{}",
-        ),
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model planner must not run")),
     )
-    queries = [
+    queries = {
         (
             "On IV4-G120, how many objects are counted at one time when the count "
             "value is 9 and ON equals the set value?"
-        ),
-        "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?",
-    ]
+        ): "hybrid",
+        "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?": "hybrid",
+        (
+            "On CV-X482, what adjustment is recommended when Contrast detection "
+            "runs but no NG judgment is given?"
+        ): "structural",
+    }
 
-    for query in queries:
+    for query, expected_strategy in queries.items():
         for planner in (plan_retrieval, plan_llamaindex_retrieval):
             plan = planner(query, use_llm=True)
+            assert plan.mode == "single"
+            assert len(plan.hops) == 1
             assert plan.hops[0].query == query
-            assert plan.hops[0].strategy == "hybrid"
+            assert plan.hops[0].strategy == expected_strategy
 
 
 def test_planners_add_canonical_camera_trigger_light_menu_label(monkeypatch):

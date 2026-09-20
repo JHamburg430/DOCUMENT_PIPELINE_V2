@@ -604,7 +604,40 @@ def _reported_clause_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
+    """Keep exact structured lookups in one lossless, deterministic hop."""
+    strategy: RetrievalStrategy | None = None
+    if re.search(
+        r"\bhow\s+many\b.+\bcount\s+value\b.+\bset\s+value\b",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    elif re.search(
+        r"\bwhat\s+adjustment\s+is\s+recommended\s+when\b",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.search(
+        r"\bis\s+OP[- ]?\d+\s+(?:the\s+)?accessory\s+code\s+for\b.+\blight\b",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    if strategy is None:
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request is one exact structured lookup whose qualifiers must remain intact.",
+        hops=[RetrievalHop(hop_id="structured_lookup", objective=query, query=query, strategy=strategy)],
+    )
+
+
 def _heuristic_plan(query: str) -> RetrievalPlan:
+    exact_structured_plan = _exact_structured_single_plan(query)
+    if exact_structured_plan is not None:
+        return exact_structured_plan
     troubleshooting_plan = _troubleshooting_facet_plan(query)
     if troubleshooting_plan is not None:
         return troubleshooting_plan
@@ -652,7 +685,8 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     # Enforce this invariant before model planning so one broad hop cannot blend
     # evidence from multiple products or silently satisfy only one side.
     forced_plan = (
-        _troubleshooting_facet_plan(query)
+        _exact_structured_single_plan(query)
+        or _troubleshooting_facet_plan(query)
         or _comparison_facet_plan(query)
         or _coordinate_question_plan(query)
         or _explicit_dependency_sequence_plan(query)
@@ -713,7 +747,8 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
 
 def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     if (
-        _troubleshooting_facet_plan(query) is not None
+        _exact_structured_single_plan(query) is not None
+        or _troubleshooting_facet_plan(query) is not None
         or _comparison_facet_plan(query) is not None
         or _coordinate_question_plan(query) is not None
         or _explicit_dependency_sequence_plan(query) is not None
