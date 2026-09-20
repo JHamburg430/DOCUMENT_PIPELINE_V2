@@ -1129,6 +1129,44 @@ def test_verifier_confirms_exact_leaf_coordinate_with_not_applicable_literal(mon
     assert output["supporting_chunk_ids"] == ["scaling-target"]
 
 
+def test_verifier_distinguishes_single_letter_structured_axes(monkeypatch):
+    objective = (
+        "What Scaling Target value applies to Position X Minimum.Absolute Measured Value "
+        "for VS Series Vision System?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    results = []
+    for chunk_id, axis in (("wrong-y", "Y"), ("right-x", "X")):
+        result = _result(
+            chunk_id,
+            "vs-doc",
+            f"Column headers: Scaling Target; Row headers: Position {axis} "
+            "Minimum.Absolute Measured Value; Cell value: -; Row: 16; Column: 6",
+        )
+        result.metadata.update(
+            {
+                "chunk_type": "table_record",
+                "product_model": "VS-L160MX/VS-L320MX",
+                "product_family": "VS Series Vision System with Built: in AI",
+            }
+        )
+        results.append(result)
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        results,
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id for result in results]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["right-x"]
+
+
 def test_verifier_confirms_exact_structured_property_path(monkeypatch):
     objective = "What Image Enhance Input.ImageEnhancement value applies to VS Series Vision System?"
     hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)

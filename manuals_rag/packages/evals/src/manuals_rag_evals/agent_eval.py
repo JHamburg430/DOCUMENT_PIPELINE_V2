@@ -188,6 +188,64 @@ def _structured_values(snippet: str) -> list[str]:
     return values
 
 
+def _structured_cell_signature(text: str) -> tuple[str, str, str, frozenset[str]] | None:
+    match = re.search(
+        r"Column\s+headers:\s*(?P<column>.*?);\s*"
+        r"Row\s+headers:\s*(?P<row>.*?);\s*"
+        r"Cell\s+value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+|$)",
+        text,
+        flags=re.I | re.S,
+    )
+    if not match:
+        return None
+    row = match.group("row")
+    properties = frozenset(
+        re.sub(r"[^a-z0-9]", "", value.lower())
+        for value in re.findall(r"\b(?:Input|Output)\.[A-Za-z0-9_.\[\]-]+", row)
+    )
+    return (
+        _normalized(match.group("column")),
+        _normalized(row),
+        _normalized(match.group("value")),
+        properties,
+    )
+
+
+def _primary_structured_reference(text: str) -> tuple[frozenset[str], frozenset[str]]:
+    for line in text.splitlines() or [text]:
+        properties = frozenset(
+            re.sub(r"[^a-z0-9]", "", value.lower())
+            for value in re.findall(r"\b(?:Input|Output)\.[A-Za-z0-9_.\[\]-]+", line)
+        )
+        quoted_targets = frozenset(_normalized(value) for value in re.findall(r'"([^"]+)"', line))
+        if properties:
+            return properties, quoted_targets
+    return frozenset(), frozenset()
+
+
+def _structured_evidence_equivalent(expected: str, actual: str) -> bool:
+    expected_cell = _structured_cell_signature(expected)
+    actual_cell = _structured_cell_signature(actual)
+    if expected_cell and actual_cell:
+        expected_column, expected_row, expected_value, expected_properties = expected_cell
+        actual_column, actual_row, actual_value, actual_properties = actual_cell
+        if expected_column != actual_column or expected_value != actual_value:
+            return False
+        if expected_row == actual_row:
+            return True
+        if expected_properties and expected_properties == actual_properties:
+            return True
+
+    expected_properties, expected_targets = _primary_structured_reference(expected)
+    actual_properties, actual_targets = _primary_structured_reference(actual)
+    return bool(
+        expected_properties
+        and expected_properties == actual_properties
+        and expected_targets
+        and expected_targets.intersection(actual_targets)
+    )
+
+
 def _result_preserves_expected_evidence(
     result: dict[str, Any],
     *,
@@ -214,6 +272,8 @@ def _result_preserves_expected_evidence(
     if expected_pages and (not result_pages or expected_pages.isdisjoint(result_pages)):
         metadata = result.get("metadata") or {}
         chunk_type = str(metadata.get("chunk_type") or result.get("chunk_type") or "")
+        if chunk_type == "table_record" and _structured_evidence_equivalent(snippet, content):
+            return True
         return (
             chunk_type in {"atomic_text", "warning_record"}
             and normalized_content == normalized_snippet

@@ -1,4 +1,73 @@
-from manuals_rag_evals.agent_eval import AGENT_EVALUATION_LAYERS, score_agent_run
+from manuals_rag_evals.agent_eval import (
+    AGENT_EVALUATION_LAYERS,
+    _result_preserves_expected_evidence,
+    score_agent_run,
+)
+
+
+def test_structured_equivalence_accepts_cross_page_duplicate_cell():
+    expected = (
+        "Column headers: Scaling Target; Row headers: Position X Minimum.Absolute Measured Value; "
+        "Cell value: -; Row: 16; Column: 6"
+    )
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [15],
+        "content": expected.replace("Row: 16", "Row: 15"),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={16},
+        snippet=expected,
+    )
+
+
+def test_structured_equivalence_accepts_cross_page_exact_property_reference():
+    expected = (
+        'Image Enhance | Image Enhance | Input.ImageEnhancement | See "Image Enhance"\n'
+        "Category: unrelated following row"
+    )
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [1703],
+        "content": (
+            "Column headers: Options > Label; Row headers: Image Enhance > "
+            'Input.ImageEnhancement; Cell value: Refer to "Image Enhance".; Row: 5; Column: 3'
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={1548},
+        snippet=expected,
+    )
+
+
+def test_structured_equivalence_rejects_cross_page_different_cell_value():
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [22],
+        "content": (
+            "Column headers: Lower Limit Value; Row headers: Display Settings > Green > "
+            "Input.Graphic.Region.Mask.ColorFail.Green; Cell value: 1; Row: 5; Column: 5"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert not _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={11},
+        snippet=(
+            "Column headers: Lower Limit Value; Row headers: Display Settings > Green > "
+            "Input.Graphic.Region.Mask.ColorFail.Green; Cell value: 0; Row: 5; Column: 5"
+        ),
+    )
 
 
 def _case():

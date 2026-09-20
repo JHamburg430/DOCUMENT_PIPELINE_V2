@@ -1843,12 +1843,13 @@ def _direct_structured_lookup_support(
         text = re.sub(r"\b(\d+)\s*[- ]?bit\b", r"\1bit", text, flags=re.IGNORECASE)
         normalized: set[str] = set()
         for token in re.findall(r"[a-z0-9]+", text.lower()):
-            if len(token) < 2 or token in stopwords:
+            if (len(token) < 2 and token not in {"x", "y", "z"}) or token in stopwords:
                 continue
             normalized.add(token[:-1] if token.endswith("s") and len(token) > 3 else token)
         return normalized
 
     query_terms = terms(query)
+    query_axes = set(re.findall(r"\b([xyz])\b", query.lower()))
     query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
     matches: list[tuple[int, int, int, str]] = []
     for result_index, result in enumerate(results):
@@ -1874,6 +1875,9 @@ def _direct_structured_lookup_support(
         if column_overlap < required_column_overlap:
             continue
         if len(row_terms.intersection(query_terms)) < min(2, len(row_terms)):
+            continue
+        row_axes = set(re.findall(r"\b([xyz])\b", cell_match.group("row").lower()))
+        if query_axes and row_axes and query_axes.isdisjoint(row_axes):
             continue
         value_overlap = len(value_terms.intersection(query_terms))
         coordinate_numbers = set(
@@ -1942,7 +1946,7 @@ def _ambiguous_structured_lookup_support(
         return {
             token
             for token in re.findall(r"[a-z0-9]+", text.lower())
-            if len(token) >= 2 and token not in stopwords
+            if (len(token) >= 2 or token in {"x", "y", "z"}) and token not in stopwords
         }
 
     query_terms = terms(query)
@@ -2888,26 +2892,6 @@ def verify_retrieval_claim(
                 "out_of_scope_chunk_ids": [],
                 "scope_candidate_chunk_ids": sorted(scoped_ids),
             }
-        ambiguous_lookup_support = _ambiguous_structured_lookup_support(
-            hop.objective,
-            results,
-        )
-        if ambiguous_lookup_support:
-            return EvidenceVerification(
-                trust_state="conflicting",
-                claim_supported=False,
-                conflicting_chunk_ids=ambiguous_lookup_support,
-                applicability="not_requested",
-                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
-                rationale=(
-                    "The stated structured coordinates tie across multiple sibling cells; "
-                    "a leaf row or column qualifier is required."
-                ),
-            ).model_dump() | {
-                "invalid_citation_ids": [],
-                "out_of_scope_chunk_ids": [],
-                "scope_candidate_chunk_ids": sorted(scoped_ids),
-            }
         direct_property_support = _direct_structured_property_support(
             hop.objective,
             results,
@@ -2922,6 +2906,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic structured-property verification matched the exact Input/Output "
                     "property path in one scoped table record."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        ambiguous_lookup_support = _ambiguous_structured_lookup_support(
+            hop.objective,
+            results,
+        )
+        if ambiguous_lookup_support:
+            return EvidenceVerification(
+                trust_state="conflicting",
+                claim_supported=False,
+                conflicting_chunk_ids=ambiguous_lookup_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "The stated structured coordinates tie across multiple sibling cells; "
+                    "a leaf row or column qualifier is required."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
