@@ -131,6 +131,57 @@ def test_planners_build_warning_context_dependency_without_model(monkeypatch):
             assert plan.hops[0].depends_on == []
             assert plan.hops[1].depends_on == [plan.hops[0].hop_id]
             assert all(hop.strategy == "structural" for hop in plan.hops)
+            assert "Caution on direction of controller mounting" in plan.hops[1].query
+            assert "50 mm" not in plan.hops[1].query
+            assert "DIN rail" not in plan.hops[1].query
+
+
+def test_warning_dependency_hops_verify_from_exact_scoped_atomic_records(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("verifier model must not run")),
+    )
+    query = (
+        "When For proper ventilation, allow a space of 50 mm or more on top of the controller and a spac "
+        "for User's Manual (3D mode), what warning or caution about Caution on direction of controller "
+        "mounting should be followed?"
+    )
+    plan = plan_retrieval(query)
+    context_result = _result(
+        "context",
+        "lj-x8000",
+        "For proper ventilation, allow a space of 50 mm or more on top of the controller and a space "
+        "of 50 mm or more on both sides.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "User's Manual (3D mode)",
+                "product_family": "LJ: X8000 Series",
+            }
+        }
+    )
+    warning_result = _result(
+        "warning",
+        "lj-x8000",
+        "Caution: Caution on direction of controller mounting",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "warning_record",
+                "safety_flag": True,
+                "product_model": "User's Manual (3D mode)",
+                "product_family": "LJ: X8000 Series",
+            }
+        }
+    )
+
+    for hop, results in zip(plan.hops, ([context_result], [warning_result]), strict=True):
+        _sufficient, assessment = _assess_hop_evidence(hop.objective, results)
+        verdict = verify_retrieval_claim(hop, hop.query, results, assessment, use_llm=True)
+        assert verdict["trust_state"] == "confirmed"
+        assert verdict["claim_supported"] is True
+        assert verdict["supporting_chunk_ids"] == [results[0].chunk_id]
 
 
 def test_planners_keep_unknown_identifier_value_lookup_sparse_and_single_hop(monkeypatch):

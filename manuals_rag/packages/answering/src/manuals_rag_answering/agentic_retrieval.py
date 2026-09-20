@@ -674,9 +674,7 @@ def _warning_dependency_plan(query: str) -> RetrievalPlan | None:
             RetrievalHop(
                 hop_id="resolve_warning",
                 objective=f"Resolve the warning or caution about {warning} for {scope}",
-                query=(
-                    f"For {scope}, what warning or caution about {warning} applies when {condition}?"
-                ),
+                query=f"For {scope}, retrieve the warning or caution titled: {warning}.",
                 strategy="structural",
                 depends_on=["establish_context"],
             ),
@@ -1494,6 +1492,93 @@ def _direct_warning_support(
         return []
     best = max(matches, key=lambda item: item[:4])
     return [best[-1]]
+
+
+def _direct_context_sentence_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm a planner-generated context hop from one strongly aligned sentence."""
+    match = re.match(
+        r"^Establish the documented installation context for .+?:\s*(?P<context>.+)$",
+        query,
+        flags=re.I,
+    )
+    if not match:
+        return []
+    stopwords = {
+        "a", "an", "and", "for", "from", "in", "is", "of", "on", "or", "the", "to", "with",
+    }
+    context = match.group("context").strip(" ,.;?")
+    context_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", context.lower())
+        if len(term) > 2 and term not in stopwords
+    }
+    context_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", context))
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    candidate_ids = preliminary_ids or {result.chunk_id for result in results}
+    matches: list[tuple[float, int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in candidate_ids or not _result_supports_branch_scope(query, result):
+            continue
+        if str(result.metadata.get("chunk_type") or "") not in {
+            "atomic_text", "procedure_record", "warning_record",
+        }:
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        content_terms = set(re.findall(r"[a-z0-9]+", content.lower()))
+        overlap = len(context_terms.intersection(content_terms)) / max(1, len(context_terms))
+        content_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", content))
+        if overlap < 0.7 or (context_numbers and not context_numbers.issubset(content_numbers)):
+            continue
+        matches.append((overlap, -len(content), -index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
+def _direct_titled_warning_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an exact warning title only from a scoped safety record."""
+    match = re.search(
+        r"warning\s+or\s+caution\s+about\s+(?P<title>.+?)\s+for\s+.+$",
+        query,
+        flags=re.I,
+    )
+    if not match:
+        return []
+
+    def normalized(value: str) -> str:
+        return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+    title = normalized(match.group("title"))
+    title = re.sub(r"^(?:warning|caution)\s*", "", title).strip()
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    candidate_ids = preliminary_ids or {result.chunk_id for result in results}
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in candidate_ids or not _result_supports_branch_scope(query, result):
+            continue
+        metadata = result.metadata or {}
+        if not (
+            metadata.get("safety_flag")
+            or str(metadata.get("chunk_type") or "") == "warning_record"
+        ):
+            continue
+        content = normalized(str(result.content or ""))
+        content = re.sub(r"^(?:warning|caution)\s*", "", content).strip()
+        if title and (title in content or content in title):
+            matches.append((-len(content), -index, result.chunk_id))
+    return [max(matches)[-1]] if matches else []
 
 
 def _direct_named_reference_support(
@@ -2438,6 +2523,48 @@ def verify_retrieval_claim(
         }
 
     if not applicability_required:
+        direct_context_support = _direct_context_sentence_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_context_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_context_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic context verification matched one scoped atomic sentence with "
+                    "the requested terms and numeric anchors."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_titled_warning_support = _direct_titled_warning_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_titled_warning_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_titled_warning_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic warning verification matched the exact requested title in one "
+                    "scoped safety record."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
         ambiguous_troubleshooting_support = _ambiguous_structured_troubleshooting_support(
             hop.objective,
             results,
