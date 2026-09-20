@@ -3623,7 +3623,7 @@ class LlamaIndexAgenticController:
             return hop.strategy
         if dependency_anchors:
             if _deterministic_identifier_facet_query(hop, dependency_anchors) is not None:
-                return "structural"
+                return "broad"
             if hop.strategy == "structural":
                 # The discovered identifier narrows the subject, but a table
                 # predicate such as power source still needs structural row

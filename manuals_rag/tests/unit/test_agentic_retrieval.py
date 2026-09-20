@@ -613,6 +613,18 @@ def test_llamaindex_keeps_structural_tool_for_dependency_predicate():
     assert LlamaIndexAgenticController._route_tool(hop, ["CA-EN100H"]) == "structural"
 
 
+def test_llamaindex_routes_exact_dependent_cable_facet_broadly_once():
+    hop = RetrievalHop(
+        hop_id="orientation",
+        objective="What is that cable's connector orientation?",
+        query="What is that cable's connector orientation?",
+        strategy="hybrid",
+        depends_on=["identify_cable"],
+    )
+
+    assert LlamaIndexAgenticController._route_tool(hop, ["OP-26487"]) == "broad"
+
+
 def test_model_planners_split_multi_product_reported_clauses(monkeypatch):
     query = (
         "Prepare a commissioning note that states the VJ-H500CX weight and whether it includes the lens, "
