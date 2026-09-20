@@ -779,12 +779,23 @@ def _normalize_primary_plan(
         and plan.hops[0].recovery_for is None
         and original_query
     )
+    structured_coordinate_lookup = bool(
+        preserve_single
+        and re.search(r"\b(?:what|which|map|mapping)\b", original_query, flags=re.I)
+        and len(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", original_query)) >= 2
+        and re.search(
+            r"\b(?:address|bits?|columns?|commands?|output\s+area|parameters?|rows?)\b",
+            original_query,
+            flags=re.I,
+        )
+    )
     return plan.model_copy(
         update={
             "hops": [
                 hop.model_copy(
                     update={
                         "required": True,
+                        **({"strategy": "hybrid"} if structured_coordinate_lookup else {}),
                         **(
                             {"objective": original_query, "query": original_query}
                             if preserve_single

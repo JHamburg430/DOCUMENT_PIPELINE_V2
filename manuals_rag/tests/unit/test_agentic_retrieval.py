@@ -169,6 +169,7 @@ def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
             plan = planner(original, use_llm=True)
             assert plan.hops[0].objective == original
             assert plan.hops[0].query == original
+            assert plan.hops[0].strategy == "hybrid"
 
 
 def test_planners_add_canonical_camera_trigger_light_menu_label(monkeypatch):
