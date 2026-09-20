@@ -2484,6 +2484,24 @@ def verify_retrieval_claim(
             rationale="No retrieval evidence was supplied to the verifier.",
         ).model_dump()
 
+    requested_identifiers = list(analyze_query(hop.objective).product_identifiers)
+    if requested_identifiers and not scoped_ids:
+        return EvidenceVerification(
+            trust_state="rejected",
+            claim_supported=False,
+            supporting_chunk_ids=[],
+            applicability="unknown",
+            scope_entity=requested_identifiers[0],
+            rationale=(
+                "Deterministic scope verification found no retrieved evidence whose authoritative "
+                "product identity matches the requested identifier."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": sorted(allowed_results),
+            "scope_candidate_chunk_ids": [],
+        }
+
     direct_cable_support = _direct_cable_mapping_support(
         f"{hop.objective} {executed_query}",
         results,
@@ -3277,7 +3295,10 @@ class AgenticRetrievalController:
         if dependency_anchors and hop.strategy == "hybrid":
             deterministic_query = _deterministic_identifier_facet_query(hop, dependency_anchors)
             if deterministic_query is not None:
-                executed_strategy = "structural"
+                # The query is now losslessly anchored by an exact identifier;
+                # search the full candidate pool once instead of paying for a
+                # narrow miss, model verification, and a broad recovery hop.
+                executed_strategy = "broad"
             else:
                 executed_query = (
                     f"{hop.query.rstrip(' ?')}. Relevant prior-hop identifiers: {', '.join(dependency_anchors[:6])}"

@@ -238,6 +238,37 @@ def test_planners_keep_unknown_identifier_value_lookup_sparse_and_single_hop(mon
         assert plan.hops[0].strategy == "sparse"
 
 
+def test_verifier_deterministically_rejects_results_outside_requested_identifier_scope(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="identifier_lookup",
+        objective="What is the quantum flux calibration value for the ZX-9999 controller?",
+        query="What is the quantum flux calibration value for the ZX-9999 controller?",
+        strategy="sparse",
+    )
+    unrelated = _result(
+        "unrelated",
+        "other-doc",
+        "The calibration tolerance for LJ-S8000 is 0.2 percent.",
+    )
+    unrelated.metadata["product_model"] = "LJ: S8000 Series"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [unrelated],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert output["trust_state"] == "rejected"
+    assert output["claim_supported"] is False
+    assert output["supporting_chunk_ids"] == []
+    assert output["scope_candidate_chunk_ids"] == []
+
+
 def test_planners_keep_value_applies_to_lookup_structural_and_single_hop(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
@@ -2738,7 +2769,7 @@ def test_dependent_sufficiency_requires_answer_signal_with_anchor():
         "find_orientation",
     ]
     assert output["evidence_ledger"]["find_orientation"]["sufficient"] is True
-    assert output["evidence_ledger"]["find_orientation"]["strategy"] == "structural"
+    assert output["evidence_ledger"]["find_orientation"]["strategy"] == "broad"
     assert output["evidence_ledger"]["find_orientation"]["assessment"]["dependency_anchors"] == ["OP-26487"]
     assert "find_orientation_recovery" not in output["evidence_ledger"]
 
