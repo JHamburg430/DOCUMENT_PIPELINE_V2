@@ -1603,6 +1603,61 @@ def test_scope_gate_accepts_series_suffix_alias_without_prefix_matching_models()
     assert supported is False
 
 
+def test_verifier_canonicalizes_vendor_prefixed_scope_for_exact_warning_title(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="resolve_warning",
+        objective=(
+            "Resolve the warning or caution about Caution on direction of controller "
+            "mounting for LJ: S8000 Series"
+        ),
+        query=(
+            "For LJ: S8000 Series, retrieve the warning or caution titled: "
+            "Caution on direction of controller mounting."
+        ),
+    )
+    matching = _result(
+        "s8000-warning",
+        "s8000-doc",
+        "Caution: Caution on direction of controller mounting",
+    )
+    matching.metadata.update(
+        {
+            "chunk_type": "warning_record",
+            "safety_flag": True,
+            "product_model": "LJ: S8000 Series",
+            "product_family": "LJ-S8000 Series",
+        }
+    )
+    neighboring = _result(
+        "x8000-warning",
+        "x8000-doc",
+        "Caution: Caution on direction of controller mounting",
+    )
+    neighboring.metadata.update(
+        {
+            "chunk_type": "warning_record",
+            "safety_flag": True,
+            "product_model": "LJ: X8000 Series",
+            "product_family": "LJ-X8000 Series",
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [neighboring, matching],
+        {"claim_supported": True, "supporting_chunk_ids": [matching.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["s8000-warning"]
+    assert "x8000-warning" not in output["scope_candidate_chunk_ids"]
+
+
 def test_scope_gate_uses_legacy_family_when_product_model_is_document_title():
     matching = _result(
         "lj-x-series",

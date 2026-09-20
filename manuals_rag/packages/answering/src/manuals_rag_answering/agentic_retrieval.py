@@ -1301,6 +1301,17 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
     requested = {compact(identifier) for identifier in identifiers if compact(identifier)}
     def matches_requested(values: list[str]) -> bool:
         candidates = {compact(value) for value in values if compact(value)}
+        # Apply the same identifier parser to authoritative metadata that was
+        # applied to the query.  Manuals often store a vendor-prefixed display
+        # label (for example ``LJ: S8000 Series``) while query analysis emits
+        # the canonical family identifier (``S8000``).  Exact canonical
+        # comparison preserves the ALPHA-1 versus ALPHA-10 safety boundary.
+        for value in values:
+            candidates.update(
+                compact(identifier)
+                for identifier in analyze_query(str(value)).product_identifiers
+                if compact(identifier)
+            )
         return any(
             requested_value == authoritative_value
             or requested_value + "series" == authoritative_value
