@@ -1002,6 +1002,11 @@ def _dependency_anchors(results: list[SearchResult]) -> list[str]:
 
 def _deterministic_identifier_facet_query(hop: RetrievalHop, anchors: list[str]) -> str | None:
     """Build exact structured lookups for identifier-bound physical facets."""
+    if re.search(r"\bretrieve\s+the\s+warning\s+or\s+caution\s+titled\s*:", hop.query, flags=re.I):
+        # The dependency edge carries the contextual relationship. Rewriting
+        # an exact title with arbitrary prior-hop prose can select a neighboring
+        # manual and destroy the lossless lookup.
+        return hop.query
     if not re.search(r"\bconnector(?:'s)?\s+orientation\b", hop.query, flags=re.I):
         return None
     cable_ids = [anchor for anchor in anchors if re.fullmatch(r"OP[- ]?\d+", anchor, flags=re.I)]

@@ -184,6 +184,26 @@ def test_warning_dependency_hops_verify_from_exact_scoped_atomic_records(monkeyp
         assert verdict["supporting_chunk_ids"] == [results[0].chunk_id]
 
 
+def test_warning_dependency_refiners_preserve_exact_title_query(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("refiner model must not run")),
+    )
+    query = (
+        "When Mount the controller in a stable location for User's Manual (3D mode), "
+        "what warning or caution about Caution on direction of controller mounting should be followed?"
+    )
+    warning_hop = plan_retrieval(query).hops[1]
+    dependency_result = _result(
+        "context",
+        "lj-x8000",
+        "Mount the controller in a stable location that is free from vibration.",
+    )
+
+    assert refine_dependent_query(warning_hop, [dependency_result], use_llm=True) == warning_hop.query
+    assert refine_llamaindex_subquestion(warning_hop, [dependency_result], use_llm=True) == warning_hop.query
+
+
 def test_planners_keep_unknown_identifier_value_lookup_sparse_and_single_hop(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
