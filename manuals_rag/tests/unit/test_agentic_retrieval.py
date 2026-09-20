@@ -86,6 +86,112 @@ def test_heuristic_planner_decomposes_troubleshooting_facets():
     assert plan.hops[1].query == "How should alarm E17 for ZX-9 be corrected?"
 
 
+def test_llamaindex_planner_decomposes_troubleshooting_before_labelled_lookup(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    query = (
+        "What causes Failed to back up settings to VisionDatabase. for XG-X Series, "
+        "and how should it be corrected?"
+    )
+
+    plan = plan_llamaindex_retrieval(query)
+
+    assert plan.mode == "parallel"
+    assert [hop.hop_id for hop in plan.hops] == ["subquestion_1", "subquestion_2"]
+    assert [hop.objective for hop in plan.hops] == [
+        "Find the documented cause of Failed to back up settings to VisionDatabase. for XG-X Series",
+        "Find the documented corrective action for Failed to back up settings to VisionDatabase. for XG-X Series",
+    ]
+
+
+def test_planners_build_warning_context_dependency_without_model(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    queries = [
+        (
+            "When The controller should be installed in the direction of the circled figure below. "
+            "for User's Manual (3D mode), what warning or caution about Caution on direction "
+            "of controller mounting should be followed?"
+        ),
+        (
+            "What warning or caution about Caution on direction of controller mounting for "
+            "LJ: S8000 Series applies when the controller is designed to be mounted on a DIN rail?"
+        ),
+    ]
+
+    for query in queries:
+        for planner in (plan_retrieval, plan_llamaindex_retrieval):
+            plan = planner(query)
+            assert plan.mode == "dependent"
+            assert len(plan.hops) == 2
+            assert plan.hops[0].depends_on == []
+            assert plan.hops[1].depends_on == [plan.hops[0].hop_id]
+            assert all(hop.strategy == "structural" for hop in plan.hops)
+
+
+def test_planners_keep_unknown_identifier_value_lookup_sparse_and_single_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    query = "What is the quantum flux calibration value for the ZX-9999 controller?"
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "sparse"
+
+
+def test_planners_keep_value_applies_to_lookup_structural_and_single_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    query = "What Display Settings Green Lower Limit Value value applies to VS Series Vision System with Built: in AI?"
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "structural"
+
+
+def test_model_planners_reject_unsafe_hop_ids_and_fall_back(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "mode": "single",
+                "rationale": "Malformed identifier.",
+                "hops": [
+                    {
+                        "hop_id": "{0}",
+                        "objective": "controller communication behavior",
+                        "query": "controller communication behavior",
+                        "strategy": "dense",
+                        "depends_on": [],
+                        "required": True,
+                    }
+                ],
+            },
+            "{}",
+        ),
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner("Explain controller communication behavior", use_llm=True)
+        assert len(plan.hops) == 1
+        assert plan.hops[0].hop_id in {"hop_1", "subquestion_1"}
+        assert plan.hops[0].query == "Explain controller communication behavior"
+
+
 def test_planner_decomposes_scoped_troubleshooting_what_should_i_do():
     plan = plan_retrieval(
         "On an XG-X Series controller, what causes the error that says to turn off "
@@ -2274,6 +2380,55 @@ def test_conflicting_structured_evidence_stops_without_recovery():
         assert retrieval_calls == 1
         assert output["sufficient"] is False
         assert output["evidence_ledger"]["lookup"]["assessment"]["trust_state"] == "conflicting"
+        assert list(output["evidence_ledger"]) == ["lookup"]
+
+
+def test_verifier_only_failure_stops_without_futile_retrieval_recovery():
+    plan = RetrievalPlan(
+        hops=[
+            RetrievalHop(
+                hop_id="lookup",
+                objective="Find the corrective action for alarm E17",
+                query="What corrective action resolves alarm E17?",
+                strategy="structural",
+            )
+        ]
+    )
+    result = _result(
+        "alarm-row",
+        "alarm-doc",
+        "Alarm E17 corrective action: replace the failed pressure transducer.",
+    )
+
+    for factory, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        retrieval_calls = 0
+
+        def retrieve(*_args):
+            nonlocal retrieval_calls
+            retrieval_calls += 1
+            return [result]
+
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+            verifier=lambda *_args: {
+                "trust_state": "unresolved",
+                "claim_supported": False,
+                "supporting_chunk_ids": [],
+                "conflicting_chunk_ids": [],
+                "applicability": "not_requested",
+                "scope_entity": None,
+                "rationale": "Independent verification did not resolve.",
+            },
+        )
+        output = _invoke(factory, controller, max_hops=4)
+
+        assert retrieval_calls == 1
+        assert output["sufficient"] is False
         assert list(output["evidence_ledger"]) == ["lookup"]
 
 

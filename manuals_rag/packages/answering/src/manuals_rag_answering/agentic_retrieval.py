@@ -625,6 +625,12 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
         flags=re.I,
     ):
         strategy = "hybrid"
+    elif re.match(
+        r"^\s*what\s+.+?\s+value\s+applies\s+to\s+.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
     if strategy is None:
         return None
     return RetrievalPlan(
@@ -634,10 +640,76 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _warning_dependency_plan(query: str) -> RetrievalPlan | None:
+    """Build a stable context-then-warning dependency for safety questions."""
+    leading_condition = re.match(
+        r"^\s*when\s+(?P<condition>.+)\s+for\s+(?P<scope>[^,]+),\s*"
+        r"what\s+warning\s+or\s+caution\s+about\s+(?P<warning>.+?)\s+"
+        r"should\s+be\s+followed\?\s*$",
+        query,
+        flags=re.I,
+    )
+    trailing_condition = re.match(
+        r"^\s*what\s+warning\s+or\s+caution\s+about\s+(?P<warning>.+?)\s+"
+        r"for\s+(?P<scope>.+?)\s+applies\s+when\s+(?P<condition>.+?)\?\s*$",
+        query,
+        flags=re.I,
+    )
+    match = leading_condition or trailing_condition
+    if match is None:
+        return None
+    condition = match.group("condition").strip(" ,.;?")
+    scope = match.group("scope").strip(" ,.;?")
+    warning = match.group("warning").strip(" ,.;?")
+    return RetrievalPlan(
+        mode="dependent",
+        rationale="The requested warning must be resolved within the stated installation context.",
+        hops=[
+            RetrievalHop(
+                hop_id="establish_context",
+                objective=f"Establish the documented installation context for {scope}: {condition}",
+                query=f"For {scope}, find this documented installation context: {condition}.",
+                strategy="structural",
+            ),
+            RetrievalHop(
+                hop_id="resolve_warning",
+                objective=f"Resolve the warning or caution about {warning} for {scope}",
+                query=(
+                    f"For {scope}, what warning or caution about {warning} applies when {condition}?"
+                ),
+                strategy="structural",
+                depends_on=["establish_context"],
+            ),
+        ],
+    )
+
+
+def _exact_identifier_value_plan(query: str) -> RetrievalPlan | None:
+    """Keep an explicitly named identifier/value lookup sparse and single-hop."""
+    if not re.match(
+        r"^\s*what\s+is\s+.+?\s+value\s+for\s+(?:the\s+)?"
+        r"[A-Z][A-Z0-9]*(?:[-:][A-Z0-9]+)+\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request is one exact identifier/value lookup.",
+        hops=[RetrievalHop(hop_id="identifier_lookup", objective=query, query=query, strategy="sparse")],
+    )
+
+
 def _heuristic_plan(query: str) -> RetrievalPlan:
     exact_structured_plan = _exact_structured_single_plan(query)
     if exact_structured_plan is not None:
         return exact_structured_plan
+    warning_plan = _warning_dependency_plan(query)
+    if warning_plan is not None:
+        return warning_plan
+    identifier_value_plan = _exact_identifier_value_plan(query)
+    if identifier_value_plan is not None:
+        return identifier_value_plan
     troubleshooting_plan = _troubleshooting_facet_plan(query)
     if troubleshooting_plan is not None:
         return troubleshooting_plan
@@ -656,6 +728,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     scoped_plan = _parallel_scope_plan(query)
     if scoped_plan is not None:
         return scoped_plan
+    labelled_plan = _labelled_lookup_plan(query)
+    if labelled_plan is not None:
+        return labelled_plan
     analysis = analyze_query(query)
     identifiers = list(dict.fromkeys(analysis.product_identifiers))
     if "comparison" in analysis.query_types and len(identifiers) >= 2:
@@ -686,6 +761,8 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     # evidence from multiple products or silently satisfy only one side.
     forced_plan = (
         _exact_structured_single_plan(query)
+        or _warning_dependency_plan(query)
+        or _exact_identifier_value_plan(query)
         or _troubleshooting_facet_plan(query)
         or _comparison_facet_plan(query)
         or _coordinate_question_plan(query)
@@ -720,12 +797,14 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
 
 def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
     """Subquestion-oriented fallback that is intentionally independent of LangGraph planning."""
-    base = _parallel_scope_plan(query) or _labelled_lookup_plan(query) or _heuristic_plan(query)
+    base = _heuristic_plan(query)
     hops: list[RetrievalHop] = []
     for index, hop in enumerate(base.hops, start=1):
         strategy = hop.strategy
         analysis = analyze_query(hop.query)
-        if analysis.product_identifiers and len(analysis.normalized_terms) <= 3:
+        if strategy == "sparse":
+            pass
+        elif analysis.product_identifiers and len(analysis.normalized_terms) <= 3:
             strategy = "sparse"
         elif set(analysis.query_types).intersection({"configuration", "specification", "troubleshooting", "how_to"}):
             strategy = "structural"
@@ -748,6 +827,8 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
 def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     if (
         _exact_structured_single_plan(query) is not None
+        or _warning_dependency_plan(query) is not None
+        or _exact_identifier_value_plan(query) is not None
         or _troubleshooting_facet_plan(query) is not None
         or _comparison_facet_plan(query) is not None
         or _coordinate_question_plan(query) is not None
@@ -792,6 +873,8 @@ def _validate_plan(plan: RetrievalPlan) -> None:
     if any(not hop.required for hop in plan.hops if hop.recovery_for is None):
         raise ValueError("Every primary retrieval hop must be required.")
     ids = [hop.hop_id for hop in plan.hops]
+    if any(re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,63}", hop_id) is None for hop_id in ids):
+        raise ValueError("Retrieval hop IDs must be safe identifiers.")
     if len(ids) != len(set(ids)):
         raise ValueError("Retrieval hop IDs must be unique.")
     seen: set[str] = set()
@@ -801,6 +884,19 @@ def _validate_plan(plan: RetrievalPlan) -> None:
         if any(dependency not in seen for dependency in hop.depends_on):
             raise ValueError("Retrieval dependencies must reference earlier hops.")
         seen.add(hop.hop_id)
+
+
+def _retrieval_recovery_can_help(item: dict[str, Any]) -> bool:
+    """Retry retrieval only when the evidence assessment exposes a retrieval gap."""
+    assessment = item.get("assessment") or {}
+    if assessment.get("preliminary_sufficient") and assessment.get("trust_state") != "confirmed":
+        return False
+    missing = {
+        str(facet).strip().lower()
+        for facet in assessment.get("missing_claim_facets") or []
+        if str(facet).strip()
+    }
+    return not missing or missing != {"independent_verification"}
 
 
 def _normalize_primary_plan(
@@ -3143,6 +3239,7 @@ class AgenticRetrievalController:
                 and item
                 and not item.get("sufficient")
                 and (item.get("assessment") or {}).get("trust_state") != "conflicting"
+                and _retrieval_recovery_can_help(item)
                 and not recovery_succeeded
                 and len(prior_recoveries) < 2
                 and len(completed) + len(pending) < state["max_hops"]
@@ -3503,6 +3600,7 @@ class LlamaIndexAgenticController:
                 and item
                 and not item.get("sufficient")
                 and (item.get("assessment") or {}).get("trust_state") != "conflicting"
+                and _retrieval_recovery_can_help(item)
                 and not recovery_succeeded
                 and len(prior_recoveries) < 2
                 and len(completed) + len(pending) < state["max_hops"]
