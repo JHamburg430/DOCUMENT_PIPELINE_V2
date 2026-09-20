@@ -781,12 +781,26 @@ def _normalize_primary_plan(
     )
     structured_coordinate_lookup = bool(
         preserve_single
-        and re.search(r"\b(?:what|which|map|mapping)\b", original_query, flags=re.I)
-        and len(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", original_query)) >= 2
-        and re.search(
-            r"\b(?:address|bits?|columns?|commands?|output\s+area|parameters?|rows?)\b",
-            original_query,
-            flags=re.I,
+        and (
+            (
+                re.search(r"\b(?:what|which|map|mapping)\b", original_query, flags=re.I)
+                and len(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", original_query)) >= 2
+                and re.search(
+                    r"\b(?:address|bits?|columns?|commands?|output\s+area|parameters?|rows?)\b",
+                    original_query,
+                    flags=re.I,
+                )
+            )
+            or re.search(
+                r"\bhow\s+many\b.+\bcount\s+value\b.+\bset\s+value\b",
+                original_query,
+                flags=re.I,
+            )
+            or re.search(
+                r"\bis\s+OP[- ]?\d+\s+(?:the\s+)?accessory\s+code\s+for\b.+\blight\b",
+                original_query,
+                flags=re.I,
+            )
         )
     )
     return plan.model_copy(
@@ -1635,6 +1649,86 @@ def _direct_structured_lookup_support(
     return [max(matches, key=lambda item: item[:3])[-1]]
 
 
+def _ambiguous_structured_count_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Detect same-scope count cells with identical coordinates but different values."""
+    count_equality = re.search(
+        r"\bcount\s+value\s+(?:is|equals|is\s+equal\s+to)\s+(?P<value>\d+(?:\.\d+)?)\b",
+        query,
+        flags=re.I,
+    )
+    if not (
+        count_equality
+        and re.search(r"\bhow\s+many\b", query, flags=re.I)
+        and re.search(
+            r"\bon\s+(?:equals|is\s+equal\s+to)\s+(?:the\s+)?set\s+value\b",
+            query,
+            flags=re.I,
+        )
+    ):
+        return []
+    matches: list[tuple[str, str]] = []
+    for result in results:
+        if not _result_supports_branch_scope(query, result):
+            continue
+        cell = re.search(
+            r"Column\s+headers:\s*Quantity\s+counted\s+at\s+one\s+time;\s*"
+            r"Row\s+headers:\s*ON\s+when\s*=\s*Set\s+value\s*>\s*"
+            rf"Count\s+value\s*=\s*{re.escape(count_equality.group('value'))};\s*"
+            r"Cell\s+value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+|$)",
+            str(result.content or ""),
+            flags=re.I | re.S,
+        )
+        if cell and cell.group("value").strip():
+            value = re.sub(r"\s+", " ", cell.group("value")).strip().lower()
+            matches.append((value, result.chunk_id))
+    if len({value for value, _chunk_id in matches}) <= 1:
+        return []
+    return sorted({chunk_id for _value, chunk_id in matches})
+
+
+def _ambiguous_structured_troubleshooting_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Detect one troubleshooting status mapped to conflicting corrective actions."""
+    if not re.search(r"\bwhat\s+adjustment\s+is\s+recommended\s+when\b", query, flags=re.I):
+        return []
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", query.lower())
+        if len(term) >= 4 and term not in {"what", "adjustment", "recommended", "when", "runs", "given"}
+    }
+    matches: list[tuple[str, str]] = []
+    for result in results:
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = str(result.content or "")
+        cell = re.search(
+            r"Status:\s*(?P<row>.*?);\s*Corrective\s+action:\s*(?P<value>.+)$",
+            content,
+            flags=re.I | re.S,
+        ) or re.search(
+            r"Column\s+headers:\s*Corrective\s+action;\s*Row\s+headers:\s*"
+            r"(?P<row>.*?);\s*Cell\s+value:\s*(?P<value>.*?)"
+            r"(?:;\s*Row:\s*\d+|$)",
+            content,
+            flags=re.I | re.S,
+        )
+        if not cell or not cell.group("value").strip():
+            continue
+        row_terms = set(re.findall(r"[a-z0-9]+", cell.group("row").lower()))
+        if len(query_terms.intersection(row_terms)) / max(1, len(query_terms)) < 0.7:
+            continue
+        value = re.sub(r"[^a-z0-9]+", " ", cell.group("value").lower()).strip()
+        matches.append((value, result.chunk_id))
+    if len({value for value, _chunk_id in matches}) <= 1:
+        return []
+    return sorted({chunk_id for _value, chunk_id in matches})
+
+
 def _direct_menu_mapping_support(
     query: str,
     results: list[SearchResult],
@@ -2193,6 +2287,26 @@ def verify_retrieval_claim(
         }
 
     if not applicability_required:
+        ambiguous_troubleshooting_support = _ambiguous_structured_troubleshooting_support(
+            hop.objective,
+            results,
+        )
+        if ambiguous_troubleshooting_support:
+            return EvidenceVerification(
+                trust_state="conflicting",
+                claim_supported=False,
+                conflicting_chunk_ids=ambiguous_troubleshooting_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "The same scoped troubleshooting status maps to multiple distinct "
+                    "corrective actions; an additional tool or section qualifier is required."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
         direct_troubleshooting_support = _direct_structured_troubleshooting_support(
             hop.objective,
             results,
@@ -2313,6 +2427,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic structured-setting verification matched the exact row label, "
                     "requested behavior, enabled condition, and product scope."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        ambiguous_count_support = _ambiguous_structured_count_support(
+            hop.objective,
+            results,
+        )
+        if ambiguous_count_support:
+            return EvidenceVerification(
+                trust_state="conflicting",
+                claim_supported=False,
+                conflicting_chunk_ids=ambiguous_count_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Identical scoped count coordinates map to multiple distinct cell values; "
+                    "a row or operating-mode qualifier is required."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
@@ -2953,6 +3087,7 @@ class AgenticRetrievalController:
                 not runtime_exhausted
                 and item
                 and not item.get("sufficient")
+                and (item.get("assessment") or {}).get("trust_state") != "conflicting"
                 and not recovery_succeeded
                 and len(prior_recoveries) < 2
                 and len(completed) + len(pending) < state["max_hops"]
@@ -3312,6 +3447,7 @@ class LlamaIndexAgenticController:
                 not runtime_exhausted
                 and item
                 and not item.get("sufficient")
+                and (item.get("assessment") or {}).get("trust_state") != "conflicting"
                 and not recovery_succeeded
                 and len(prior_recoveries) < 2
                 and len(completed) + len(pending) < state["max_hops"]

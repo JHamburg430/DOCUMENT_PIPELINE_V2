@@ -172,6 +172,42 @@ def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
             assert plan.hops[0].strategy == "hybrid"
 
 
+def test_model_planners_route_exact_count_and_accessory_lookups_to_hybrid(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "mode": "single",
+                "rationale": "One lookup.",
+                "hops": [
+                    {
+                        "hop_id": "lookup",
+                        "objective": "lossy lookup",
+                        "query": "lossy lookup",
+                        "strategy": "sparse",
+                        "depends_on": [],
+                        "required": True,
+                    }
+                ],
+            },
+            "{}",
+        ),
+    )
+    queries = [
+        (
+            "On IV4-G120, how many objects are counted at one time when the count "
+            "value is 9 and ON equals the set value?"
+        ),
+        "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?",
+    ]
+
+    for query in queries:
+        for planner in (plan_retrieval, plan_llamaindex_retrieval):
+            plan = planner(query, use_llm=True)
+            assert plan.hops[0].query == query
+            assert plan.hops[0].strategy == "hybrid"
+
+
 def test_planners_add_canonical_camera_trigger_light_menu_label(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
@@ -877,6 +913,36 @@ def test_verifier_rejects_neighboring_count_relation_cell():
     assert output["trust_state"] == "unresolved"
 
 
+def test_verifier_marks_duplicate_count_coordinates_with_different_values_conflicting():
+    objective = (
+        "On IV4-G120, how many objects are counted at one time when the count "
+        "value is 9 and ON equals the set value?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    results = []
+    for row, value in ((3, 2), (4, 3)):
+        result = _result(
+            f"count-row-{row}",
+            "iv4-doc",
+            "Column headers: Quantity counted at one time; Row headers: ON when = "
+            f"Set value > Count value= 9; Cell value: {value}; Row: {row}; Column: 3",
+        )
+        result.metadata.update({"chunk_type": "table_record", "product_model": "IV4-G120"})
+        results.append(result)
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        results,
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id for result in results]},
+        use_llm=False,
+    )
+
+    assert output["trust_state"] == "conflicting"
+    assert output["claim_supported"] is False
+    assert set(output["conflicting_chunk_ids"]) == {"count-row-3", "count-row-4"}
+
+
 def test_verifier_deterministically_confirms_exact_menu_mapping(monkeypatch):
     objective = (
         "In Standard Lighting Mode, for XG-X line-scan camera setup, which camera, "
@@ -1272,6 +1338,39 @@ def test_verifier_rejects_different_atomic_troubleshooting_status():
     )
 
     assert output["claim_supported"] is False
+
+
+def test_verifier_marks_same_troubleshooting_status_with_different_actions_conflicting():
+    objective = (
+        "On CV-X482, what adjustment is recommended when Contrast detection "
+        "runs but no NG judgment is given?"
+    )
+    hop = RetrievalHop(hop_id="adjustment", objective=objective, query=objective)
+    results = []
+    for chunk_id, action in (
+        ("presence-action", "Increase the lower limit of Quality Match (%)."),
+        ("flaw-action", "Reduce the upper limit value of defect size."),
+    ):
+        result = _result(
+            chunk_id,
+            "cvx-doc",
+            "Status: Detection is performed with Contrast, but NG judgment is not given.; "
+            f"Corrective action: {action}",
+        )
+        result.metadata.update({"chunk_type": "table_record", "product_model": "CV-X482"})
+        results.append(result)
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        results,
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id for result in results]},
+        use_llm=False,
+    )
+
+    assert output["trust_state"] == "conflicting"
+    assert output["claim_supported"] is False
+    assert set(output["conflicting_chunk_ids"]) == {"presence-action", "flaw-action"}
 
 
 def test_scope_gate_accepts_series_suffix_alias_without_prefix_matching_models():
@@ -2123,6 +2222,49 @@ def test_insufficient_hop_gets_one_broad_recovery_within_budget():
     assert output["sufficient"] is True
     assert output["stop_reason"] == "sufficient"
     assert output["retrieval_trace"]["completed_hops"] == ["primary", "primary_recovery"]
+
+
+def test_conflicting_structured_evidence_stops_without_recovery():
+    query = (
+        "On IV4-G120, how many objects are counted at one time when the count "
+        "value is 9 and ON equals the set value?"
+    )
+    plan = RetrievalPlan(
+        hops=[RetrievalHop(hop_id="lookup", objective=query, query=query, strategy="hybrid")]
+    )
+    results = []
+    for row, value in ((3, 2), (4, 3)):
+        result = _result(
+            f"count-row-{row}",
+            "iv4-doc",
+            "Column headers: Quantity counted at one time; Row headers: ON when = "
+            f"Set value > Count value= 9; Cell value: {value}; Row: {row}; Column: 3",
+        )
+        result.metadata.update({"chunk_type": "table_record", "product_model": "IV4-G120"})
+        results.append(result)
+
+    for factory, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        retrieval_calls = 0
+
+        def retrieve(*_args):
+            nonlocal retrieval_calls
+            retrieval_calls += 1
+            return results
+
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+        )
+        output = _invoke(factory, controller, max_hops=4)
+
+        assert retrieval_calls == 1
+        assert output["sufficient"] is False
+        assert output["evidence_ledger"]["lookup"]["assessment"]["trust_state"] == "conflicting"
+        assert list(output["evidence_ledger"]) == ["lookup"]
 
 
 def test_hop_budget_stops_non_improving_recovery():

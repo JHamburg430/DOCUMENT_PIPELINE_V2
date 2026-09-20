@@ -89,11 +89,12 @@ def test_frozen_agent_bank_has_48_valid_unique_cases_and_expected_taxonomy():
         build_expected_evidence_graph(case)
     counts = Counter(case["expected_evidence_graph"]["category"] for case in cases)
     assert counts == {
-        "single_hop_control": 14,
+            "single_hop_control": 12,
         "parallel_multi_part": 8,
         "dependent_multi_hop": 7,
         "cross_document": 10,
         "exact_structured_lookup": 5,
-        "entity_resolution": 3,
-        "unanswerable": 1,
+            "entity_resolution": 3,
+            "conflicting_evidence": 2,
+            "unanswerable": 1,
     }
