@@ -117,6 +117,37 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   LangGraph on `e75bc05` or later, then run a small representative slice to expose
   the next recurring failure class. Production remains disabled.
 
+### Structured coordinate replay — 2026-09-20
+
+- The first clean current-source replay
+  `agent_matrix_case0_current_20260919T201031.json` preserved two truncated raw
+  verifier responses and failed closed. Its one-hop LlamaIndex plan was mislabeled
+  `parallel`, so normalization did not preserve the authoritative 6-bit qualifier.
+- Revision `bcd8074` preserves the original objective/query for every one-primary-hop
+  plan regardless of a model's `single`/`parallel` label. Revision `c824c15` also
+  routes numeric row/bit/address/command coordinate lookups through hybrid retrieval
+  instead of allowing sparse-only first-pass loss. The agentic retrieval unit module
+  passes **81/81** after both changes.
+- Immutable replay `agent_matrix_case0_hybrid_20260920_0116.json` is complete with
+  exit 0, frozen dataset SHA
+  `51028f6b5ea6b09515ac361d2b747feb998aaa5098dca710c7e6f4a972871a65`,
+  clean source revision `c824c15`, and the exact offset-0 case key. LangGraph and
+  LlamaIndex each pass all seven matrix layers, retain the exact table cell, cite
+  chunk `a7ed6202-8a02-566c-a845-55acfe8c07bb`, and use one retrieval call with no
+  recovery. LangGraph: **61.9 s / 467 measured tokens**. LlamaIndex:
+  **55.4 s / 571 measured tokens**.
+- A preceding replay was invalidated before retrieval by an embedding-route timeout.
+  The aggregate AI gateway had two stale busy slots while both direct backends had
+  no loaded model and the local assigned GPU was idle. Its response backpressure
+  wait now rejects on client close, allowing `finally` cleanup to clear scheduler
+  state. A post-fix embedding probe returned a 1,024-dimensional vector, the live
+  replay completed, and both gateway workers returned to idle with an empty queue.
+  The gateway service directory is not a Git repository; this operational repair
+  has no repository commit.
+- This closes only the repaired case boundary. Next run a small representative
+  slice covering neighboring categories, then the clean full frozen 48-case matrix.
+  T8 and production remain disabled until those broader artifacts reconcile.
+
 - Initial inspection: API bind-mounts this working tree; verifier still passes
   four chunks capped at 900 characters. Existing unrelated report deletions and
   generated artifacts will be preserved, not staged wholesale.
