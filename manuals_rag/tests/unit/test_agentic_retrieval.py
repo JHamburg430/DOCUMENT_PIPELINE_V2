@@ -822,6 +822,61 @@ def test_verifier_confirms_numeric_row_and_bit_column_mapping(monkeypatch):
     assert output["supporting_chunk_ids"] == [result.chunk_id]
 
 
+def test_verifier_confirms_exact_count_relation_cell(monkeypatch):
+    objective = (
+        "On IV4-G120, how many objects are counted at one time when the count "
+        "value is 9 and ON equals the set value?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    result = _result(
+        "exact-count-cell",
+        "iv4-doc",
+        "Column headers: Quantity counted at one time; Row headers: ON when = "
+        "Set value > Count value= 9; Cell value: 3; Row: 4; Column: 3",
+    )
+    result.metadata.update({"chunk_type": "table_record", "product_model": "IV4-G120"})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
+def test_verifier_rejects_neighboring_count_relation_cell():
+    objective = (
+        "On IV4-G120, how many objects are counted at one time when the count "
+        "value is 9 and ON equals the set value?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    neighbor = _result(
+        "neighbor-count-cell",
+        "iv4-doc",
+        "Column headers: Quantity counted at one time; Row headers: ON when >= "
+        "Set value > Count value >= 9; Cell value: 2; Row: 3; Column: 3",
+    )
+    neighbor.metadata.update({"chunk_type": "table_record", "product_model": "IV4-G120"})
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [neighbor],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert output["claim_supported"] is False
+    assert output["trust_state"] == "unresolved"
+
+
 def test_verifier_deterministically_confirms_exact_menu_mapping(monkeypatch):
     objective = (
         "In Standard Lighting Mode, for XG-X line-scan camera setup, which camera, "
@@ -1165,6 +1220,60 @@ def test_verifier_rejects_neighboring_structured_troubleshooting_row(monkeypatch
     assert output["claim_supported"] is False
 
 
+def test_verifier_confirms_atomic_status_to_corrective_action(monkeypatch):
+    objective = (
+        "On CV-X482, what adjustment is recommended when Contrast detection "
+        "runs but no NG judgment is given?"
+    )
+    hop = RetrievalHop(hop_id="adjustment", objective=objective, query=objective)
+    result = _result(
+        "contrast-action",
+        "cvx-doc",
+        "Status: Detection is performed with Contrast, but NG judgment is not given.; "
+        "Corrective action: Increase the lower limit of Quality Match (%).",
+    )
+    result.metadata.update({"chunk_type": "table_record", "product_model": "CV-X482"})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
+def test_verifier_rejects_different_atomic_troubleshooting_status():
+    objective = (
+        "On CV-X482, what adjustment is recommended when Contrast detection "
+        "runs but no NG judgment is given?"
+    )
+    hop = RetrievalHop(hop_id="adjustment", objective=objective, query=objective)
+    neighbor = _result(
+        "focus-action",
+        "cvx-doc",
+        "Status: Detection is performed with Focus, but NG judgment is not given.; "
+        "Corrective action: Increase the edge strength limit.",
+    )
+    neighbor.metadata.update({"chunk_type": "table_record", "product_model": "CV-X482"})
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [neighbor],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert output["claim_supported"] is False
+
+
 def test_scope_gate_accepts_series_suffix_alias_without_prefix_matching_models():
     matching = _result(
         "lj-series",
@@ -1294,6 +1403,52 @@ def test_structured_compatibility_mapping_confirms_applicability_without_model()
     assert verified["trust_state"] == "confirmed"
     assert verified["applicability"] == "applicable"
     assert verified["supporting_chunk_ids"] == ["compatibility-row"]
+
+
+def test_structured_accessory_mapping_confirms_exact_part_and_light(monkeypatch):
+    query = "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?"
+    hop = RetrievalHop(hop_id="accessory", objective=query, query=query)
+    mapping = _result(
+        "accessory-row",
+        "light-manual",
+        'Part number: 19.69" OP-42284; Applicable light: CA-DRx9',
+    )
+    mapping.metadata.update({"chunk_type": "table_record", "product_model": "CA-DRM10X"})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [mapping],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["accessory-row"]
+
+
+def test_structured_accessory_mapping_rejects_neighboring_light():
+    query = "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?"
+    hop = RetrievalHop(hop_id="accessory", objective=query, query=query)
+    neighbor = _result(
+        "accessory-neighbor",
+        "light-manual",
+        'Part number: 19.69" OP-42284; Applicable light: CA-DRx8',
+    )
+    neighbor.metadata.update({"chunk_type": "table_record", "product_model": "CA-DRM10X"})
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [neighbor],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert verified["claim_supported"] is False
 
 
 def test_structured_power_source_mapping_confirms_powered_by_without_model():

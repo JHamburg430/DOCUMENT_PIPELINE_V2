@@ -1542,7 +1542,7 @@ def _direct_structured_lookup_support(
 ) -> list[str]:
     """Confirm a direct column -> row -> value lookup in one serialized cell."""
     _ = preliminary_assessment  # Exact coordinate binding is independently sufficient.
-    if not re.search(r"\b(?:what|which|map|mapping)\b", query, flags=re.IGNORECASE):
+    if not re.search(r"\b(?:what|which|map|mapping|how\s+many)\b", query, flags=re.IGNORECASE):
         return []
 
     stopwords = {
@@ -1601,7 +1601,31 @@ def _direct_structured_lookup_support(
         )
         if query_numbers and not query_numbers.issubset(coordinate_numbers | value_numbers):
             continue
-        if not value_terms:
+        # Preserve exact relational operators for count-table questions.  A
+        # neighboring row using >= is not evidence for a question that names
+        # equality, even when every word and number otherwise overlaps.
+        if re.search(
+            r"\bon\s+(?:equals|is\s+equal\s+to)\s+(?:the\s+)?set\s+value\b",
+            query,
+            flags=re.IGNORECASE,
+        ) and not re.search(
+            r"\bon\s+when\s*=\s*set\s+value\b",
+            cell_match.group("row"),
+            flags=re.IGNORECASE,
+        ):
+            continue
+        count_equality = re.search(
+            r"\bcount\s+value\s+(?:is|equals|is\s+equal\s+to)\s+(?P<value>\d+(?:\.\d+)?)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+        if count_equality and not re.search(
+            rf"\bcount\s+value\s*=\s*{re.escape(count_equality.group('value'))}\b",
+            cell_match.group("row"),
+            flags=re.IGNORECASE,
+        ):
+            continue
+        if not value_terms and not value_numbers:
             continue
         chunk_type = str(result.metadata.get("chunk_type") or "")
         bounded = int(chunk_type in {"table_record", "spec_record", "atomic_text"})
@@ -1774,6 +1798,52 @@ def _direct_structured_compatibility_support(
     return [mappings[0][0]]
 
 
+def _direct_structured_accessory_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm one exact accessory part-number -> applicable-light mapping."""
+    mapping_query = re.search(
+        r"\bis\s+(?P<part>OP[- ]?\d+)\s+(?:the\s+)?accessory\s+code\s+for\s+"
+        r"(?:the\s+)?(?P<light>[A-Z]{1,8}(?:-[A-Z0-9]+)+)\s+light\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not mapping_query:
+        return []
+
+    def identifier(value: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", value.lower())
+
+    requested_part = identifier(mapping_query.group("part"))
+    requested_light = identifier(mapping_query.group("light"))
+    matches: list[tuple[int, int, str]] = []
+    for result_index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = str(result.content or "")
+        row = re.search(
+            r"Part\s+number:\s*(?P<part>.*?OP[- ]?\d+)\s*;\s*"
+            r"Applicable\s+light:\s*(?P<light>[A-Z]{1,8}(?:-[A-Z0-9]+)+)",
+            content,
+            flags=re.IGNORECASE,
+        )
+        if not row:
+            continue
+        found_parts = {
+            identifier(part)
+            for part in re.findall(r"\bOP[- ]?\d+\b", row.group("part"), flags=re.IGNORECASE)
+        }
+        if requested_part not in found_parts or identifier(row.group("light")) != requested_light:
+            continue
+        bounded = int(
+            str(result.metadata.get("chunk_type") or "")
+            in {"table_record", "spec_record", "atomic_text"}
+        )
+        matches.append((bounded, -result_index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:2])[-1]] if matches else []
+
+
 def _direct_structured_power_source_support(
     query: str,
     results: list[SearchResult],
@@ -1839,13 +1909,24 @@ def _direct_structured_troubleshooting_support(
             query,
             flags=re.I,
         )
-    elif re.search(r"\b(?:corrective\s+action|remedy|be\s+corrected)\b", lowered):
+    elif re.search(
+        r"\b(?:corrective\s+action|remedy|be\s+corrected|adjustment\s+is\s+recommended)\b",
+        lowered,
+    ):
         allowed_columns = {"corrective action", "remedy", "countermeasure"}
-        target_match = re.search(
-            r"(?:corrective\s+action\s+for|remedy\s+for|how\s+should)\s+"
-            r"(?P<target>.+?)(?:\s+be\s+corrected)?[?.]*$",
-            query,
-            flags=re.I,
+        target_match = (
+            re.search(
+                r"(?:corrective\s+action\s+for|remedy\s+for|how\s+should)\s+"
+                r"(?P<target>.+?)(?:\s+be\s+corrected)?[?.]*$",
+                query,
+                flags=re.I,
+            )
+            or re.search(
+                r"\bwhat\s+adjustment\s+is\s+recommended\s+when\s+"
+                r"(?P<target>.+?)[?.]*$",
+                query,
+                flags=re.I,
+            )
         )
     else:
         return []
@@ -1890,15 +1971,32 @@ def _direct_structured_troubleshooting_support(
             flags=re.I | re.S,
         )
         if not cell_match:
+            cell_match = re.search(
+                r"Status:\s*(?P<row>.*?);\s*Corrective\s+action:\s*(?P<value>.+)$",
+                content,
+                flags=re.I | re.S,
+            )
+            column = "corrective action" if cell_match else ""
+        else:
+            column = normalized(cell_match.group("column"))
+        if not cell_match:
             continue
-        column = normalized(cell_match.group("column"))
         if column not in allowed_columns or not cell_match.group("value").strip():
             continue
         row = normalized(cell_match.group("row"))
         row_terms = set(row.split())
         overlap = len(target_terms.intersection(row_terms)) / len(target_terms)
         row_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", row))
-        if overlap < 0.7 or (target_numbers and not target_numbers.issubset(row_numbers)):
+        anchor_terms = {
+            term
+            for term in target_terms
+            if len(term) >= 4 and term not in {"when", "runs", "given", "performed"}
+        }
+        anchor_overlap = len(anchor_terms.intersection(row_terms)) / max(1, len(anchor_terms))
+        if (
+            (overlap < 0.7 and anchor_overlap < 0.7)
+            or (target_numbers and not target_numbers.issubset(row_numbers))
+        ):
             continue
         exact = int(target in row)
         matches.append((float(exact) + overlap, -len(content), -result_index, result.chunk_id))
@@ -2045,6 +2143,27 @@ def verify_retrieval_claim(
             rationale=(
                 "Deterministic compatibility verification matched one explicit source-model to "
                 "supported-model mapping in a scoped structured row."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_accessory_support = _direct_structured_accessory_support(
+        hop.objective,
+        results,
+    )
+    if direct_accessory_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_accessory_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic accessory verification matched one exact part-number to "
+                "applicable-light mapping in a scoped structured row."
             ),
         ).model_dump() | {
             "invalid_citation_ids": [],
