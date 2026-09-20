@@ -978,8 +978,30 @@ def _concise_structured_table_answer(
     included_answer, included_results = _concise_included_item_answer(query, results)
     if included_answer:
         return included_answer, included_results
-    candidates: list[tuple[int, int, int, str, SearchResult]] = []
     query_terms = _material_claim_terms(query)
+    if re.match(
+        r"^\s*(?:for\s+[^,?]{1,100},\s*)?(?:is|are|does|do)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        for result in results[:10]:
+            if str(result.metadata.get("chunk_type") or "") != "table_record":
+                continue
+            content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+            mapping = re.fullmatch(
+                r"Part number\s*:\s*(?P<part>.+?)\s*;\s*"
+                r"Applicable light\s*:\s*(?P<light>.+)",
+                content,
+                flags=re.IGNORECASE,
+            )
+            if not mapping:
+                continue
+            # This row explicitly binds one part-number field to one applicable-light
+            # field. Preserve the complete mapping instead of letting a model invert
+            # or relabel the relationship in a yes/no answer.
+            if len(query_terms.intersection(_material_claim_terms(content))) >= 2:
+                return f"The manual lists: {content}", [result]
+    candidates: list[tuple[int, int, int, str, SearchResult]] = []
     range_lookup = bool(re.search(r"\b(?:range|distance)\b", query, flags=re.IGNORECASE))
     for index, result in enumerate(results[:10]):
         answer = (

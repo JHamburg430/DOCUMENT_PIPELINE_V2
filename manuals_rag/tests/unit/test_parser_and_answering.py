@@ -5407,6 +5407,28 @@ def test_validate_answer_expands_terse_structured_table_answer():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_structured_table_answer_preserves_exact_labeled_mapping():
+    result = SearchResult(
+        chunk_id="mapping-row",
+        score=1.0,
+        title="CA lighting manual",
+        document_version_id="version-1",
+        source_document_id="document-1",
+        pages=[13],
+        section_path=["Accessories"],
+        content='Part number: 19.69" OP-42284; Applicable light: CA-DRx9',
+        metadata={"chunk_type": "table_record", "product_model": "CA-DRM10X"},
+    )
+
+    answer, evidence = _concise_structured_table_answer(
+        "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?",
+        [result],
+    )
+
+    assert answer == 'The manual lists: Part number: 19.69" OP-42284; Applicable light: CA-DRx9'
+    assert evidence == [result]
+
+
 def test_parse_relevance_response_detects_missing_chunk_ids_and_normalizes_null_fields():
     results = [
         SearchResult(
