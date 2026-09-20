@@ -27,8 +27,8 @@ def test_structured_equivalence_accepts_cross_page_duplicate_cell():
 
 def test_structured_equivalence_accepts_cross_page_exact_property_reference():
     expected = (
-        'Image Enhance | Image Enhance | Input.ImageEnhancement | See "Image Enhance"\n'
-        "Category: unrelated following row"
+        'Image Enhance | Image Enhance | Input.ImageEnhancement | See "Image Enhance" '
+        "Category: unrelated following row Input.Limit.Average.Max.Enable"
     )
     result = {
         "source_document_id": "doc-a",

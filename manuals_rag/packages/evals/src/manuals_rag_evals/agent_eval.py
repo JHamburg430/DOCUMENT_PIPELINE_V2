@@ -213,9 +213,11 @@ def _structured_cell_signature(text: str) -> tuple[str, str, str, frozenset[str]
 
 def _primary_structured_reference(text: str) -> tuple[frozenset[str], frozenset[str]]:
     for line in text.splitlines() or [text]:
+        property_values = re.findall(r"\b(?:Input|Output)\.[A-Za-z0-9_.\[\]-]+", line)
         properties = frozenset(
-            re.sub(r"[^a-z0-9]", "", value.lower())
-            for value in re.findall(r"\b(?:Input|Output)\.[A-Za-z0-9_.\[\]-]+", line)
+            [re.sub(r"[^a-z0-9]", "", property_values[0].lower())]
+            if property_values
+            else []
         )
         quoted_targets = frozenset(_normalized(value) for value in re.findall(r'"([^"]+)"', line))
         if properties:
