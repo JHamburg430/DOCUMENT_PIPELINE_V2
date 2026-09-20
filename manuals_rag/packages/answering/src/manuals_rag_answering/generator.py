@@ -3492,6 +3492,67 @@ def _concise_warning_answer(
     return sentence if sentence.endswith((".", "!", "?")) else f"{sentence}.", [result]
 
 
+def _verified_agent_warning_context_answer(
+    query: str,
+    results: list[SearchResult],
+) -> AnswerResponse | None:
+    """Compose two independently verified warning-context claims losslessly."""
+    if not re.search(r"\b(?:warning|caution)\b", query, flags=re.I):
+        return None
+    by_claim: dict[str, SearchResult] = {}
+    for result in results:
+        for reason in result.metadata.get("agent_context_reasons") or []:
+            reason_text = str(reason)
+            if reason_text.startswith("required_claim:"):
+                by_claim[reason_text.split(":", 1)[1]] = result
+    context = by_claim.get("establish_context")
+    warning = by_claim.get("resolve_warning")
+    if context is None or warning is None:
+        return None
+
+    context_text = re.sub(r"\s+", " ", str(context.content or "")).strip(" ;")
+    warning_text = re.sub(r"\s+", " ", str(warning.content or "")).strip(" ;")
+    warning_text = re.sub(
+        r"^(warning|caution)\s*:\s*\1\s+",
+        lambda match: f"{match.group(1).capitalize()}: ",
+        warning_text,
+        flags=re.I,
+    )
+    if not context_text or not warning_text:
+        return None
+    if not context_text.endswith((".", "!", "?")):
+        context_text += "."
+    if not warning_text.endswith((".", "!", "?")):
+        warning_text += "."
+    selected = [context, warning]
+    return AnswerResponse(
+        answer=f"{context_text} {warning_text}",
+        confidence="high",
+        used_documents=[
+            {
+                "document_id": result.source_document_id,
+                "title": result.title,
+                "version": result.document_version_id,
+                "pages": result.pages,
+                "section_path": result.section_path,
+            }
+            for result in selected
+        ],
+        citations=[
+            {
+                "chunk_id": result.chunk_id,
+                "document_id": result.source_document_id,
+                "pages": result.pages,
+                "quote_span": None,
+            }
+            for result in selected
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+
 def _structured_fact_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
     asks_named_setting = bool(
         re.search(
@@ -6655,6 +6716,28 @@ def generate_answer_with_trace(
             }
         )
         return answer, trace
+    verified_warning_answer = _verified_agent_warning_context_answer(
+        query,
+        prioritized_results or results,
+    )
+    if verified_warning_answer is not None:
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "verified_warning_context"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "verified_warning_context",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_verified_warning_context",
+            }
+        )
+        return verified_warning_answer, trace
     warning_evidence = prioritized_results or results
     if prioritized_results:
         prioritized_ids = {result.chunk_id for result in prioritized_results}

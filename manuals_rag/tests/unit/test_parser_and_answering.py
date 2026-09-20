@@ -5592,6 +5592,48 @@ def test_judge_retrieval_relevance_accepts_verified_required_claim_context(monke
     assert all(item["verdict"] == "relevant" for item in judgments)
 
 
+def test_verified_agent_warning_context_composes_both_claims_without_model(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model must not run")),
+    )
+    results = [
+        SearchResult(
+            chunk_id="warning",
+            score=0.9,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[41],
+            section_path=["NOTICE"],
+            content="Caution: Caution on direction of controller mounting",
+            metadata={"agent_context_reasons": ["required_claim:resolve_warning"]},
+        ),
+        SearchResult(
+            chunk_id="context",
+            score=0.8,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[42],
+            section_path=["Installation"],
+            content="For proper ventilation, allow a space of 50 mm or more on both sides.",
+            metadata={"agent_context_reasons": ["required_claim:establish_context"]},
+        ),
+    ]
+
+    answer, trace = generate_answer_with_trace(
+        "When proper ventilation is required, what warning or caution should be followed?",
+        results,
+    )
+
+    assert "proper ventilation" in answer.answer
+    assert "direction of controller mounting" in answer.answer
+    assert [citation["chunk_id"] for citation in answer.citations] == ["context", "warning"]
+    assert answer.insufficient_evidence is False
+    assert trace["final_answer"]["answer_source"] == "deterministic_verified_warning_context"
+
+
 def test_answer_prioritization_excludes_wrong_model_family_table_rows(monkeypatch):
     results = [
         SearchResult(
