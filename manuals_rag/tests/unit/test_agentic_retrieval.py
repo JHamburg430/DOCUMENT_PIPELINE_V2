@@ -860,7 +860,7 @@ def test_verifier_confirms_numeric_row_and_bit_column_mapping(monkeypatch):
 
 def test_verifier_confirms_exact_count_relation_cell(monkeypatch):
     objective = (
-        "On IV4-G120, how many objects are counted at one time when the count "
+        "On IV4-G120 in latching output mode, how many objects are counted at one time when the count "
         "value is 9 and ON equals the set value?"
     )
     hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
@@ -941,6 +941,16 @@ def test_verifier_marks_duplicate_count_coordinates_with_different_values_confli
     assert output["trust_state"] == "conflicting"
     assert output["claim_supported"] is False
     assert set(output["conflicting_chunk_ids"]) == {"count-row-3", "count-row-4"}
+
+    sampled_output = verify_retrieval_claim(
+        hop,
+        objective,
+        results[:1],
+        {"claim_supported": True, "supporting_chunk_ids": [results[0].chunk_id]},
+        use_llm=False,
+    )
+    assert sampled_output["trust_state"] == "conflicting"
+    assert sampled_output["claim_supported"] is False
 
 
 def test_verifier_deterministically_confirms_exact_menu_mapping(monkeypatch):
@@ -1288,7 +1298,7 @@ def test_verifier_rejects_neighboring_structured_troubleshooting_row(monkeypatch
 
 def test_verifier_confirms_atomic_status_to_corrective_action(monkeypatch):
     objective = (
-        "On CV-X482, what adjustment is recommended when Contrast detection "
+        "On CV-X482 in Presence/Absence Quality Learning, what adjustment is recommended when Contrast detection "
         "runs but no NG judgment is given?"
     )
     hop = RetrievalHop(hop_id="adjustment", objective=objective, query=objective)
@@ -1371,6 +1381,16 @@ def test_verifier_marks_same_troubleshooting_status_with_different_actions_confl
     assert output["trust_state"] == "conflicting"
     assert output["claim_supported"] is False
     assert set(output["conflicting_chunk_ids"]) == {"presence-action", "flaw-action"}
+
+    sampled_output = verify_retrieval_claim(
+        hop,
+        objective,
+        results[:1],
+        {"claim_supported": True, "supporting_chunk_ids": [results[0].chunk_id]},
+        use_llm=False,
+    )
+    assert sampled_output["trust_state"] == "conflicting"
+    assert sampled_output["claim_supported"] is False
 
 
 def test_scope_gate_accepts_series_suffix_alias_without_prefix_matching_models():

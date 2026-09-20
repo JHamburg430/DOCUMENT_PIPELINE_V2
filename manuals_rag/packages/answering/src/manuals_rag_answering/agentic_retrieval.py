@@ -1684,7 +1684,17 @@ def _ambiguous_structured_count_support(
         if cell and cell.group("value").strip():
             value = re.sub(r"\s+", " ", cell.group("value")).strip().lower()
             matches.append((value, result.chunk_id))
-    if len({value for value, _chunk_id in matches}) <= 1:
+    if not matches:
+        return []
+    has_mode_qualifier = bool(
+        re.search(
+            r"\b(?:row\s+\d+|latching|one[- ]shot|operating\s+mode|"
+            r"output\s+status|current\s+count)\b",
+            query,
+            flags=re.I,
+        )
+    )
+    if has_mode_qualifier and len({value for value, _chunk_id in matches}) <= 1:
         return []
     return sorted({chunk_id for _value, chunk_id in matches})
 
@@ -1724,7 +1734,17 @@ def _ambiguous_structured_troubleshooting_support(
             continue
         value = re.sub(r"[^a-z0-9]+", " ", cell.group("value").lower()).strip()
         matches.append((value, result.chunk_id))
-    if len({value for value, _chunk_id in matches}) <= 1:
+    if not matches:
+        return []
+    has_tool_qualifier = bool(
+        re.search(
+            r"\b(?:presence\s*/?\s*absence|flaw\s+detection|"
+            r"quality\s+learning\s+(?:presence|flaw)|section\s+\d+)\b",
+            query,
+            flags=re.I,
+        )
+    )
+    if has_tool_qualifier and len({value for value, _chunk_id in matches}) <= 1:
         return []
     return sorted({chunk_id for _value, chunk_id in matches})
 
