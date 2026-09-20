@@ -5556,6 +5556,42 @@ def test_judge_retrieval_relevance_retries_when_chunk_coverage_is_incomplete(mon
     assert "Required chunk_ids in order" in prompts[1]
 
 
+def test_judge_retrieval_relevance_accepts_verified_required_claim_context(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("relevance model must not run")),
+    )
+    results = [
+        SearchResult(
+            chunk_id="context",
+            score=0.9,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[42],
+            section_path=["Installation"],
+            content="Allow a space of 50 mm or more for proper ventilation.",
+            metadata={"agent_context_reasons": ["required_claim:establish_context"]},
+        ),
+        SearchResult(
+            chunk_id="warning",
+            score=0.8,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[41],
+            section_path=["NOTICE"],
+            content="Caution on direction of controller mounting.",
+            metadata={"agent_context_reasons": ["required_claim:resolve_warning"]},
+        ),
+    ]
+
+    judgments = judge_retrieval_relevance("What warning applies for this ventilation context?", results)
+
+    assert [item["chunk_id"] for item in judgments] == ["context", "warning"]
+    assert all(item["verdict"] == "relevant" for item in judgments)
+
+
 def test_answer_prioritization_excludes_wrong_model_family_table_rows(monkeypatch):
     results = [
         SearchResult(

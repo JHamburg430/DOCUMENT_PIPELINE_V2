@@ -7876,6 +7876,21 @@ def _parse_relevance_response(
 def judge_retrieval_relevance(query: str, results: list[SearchResult]) -> list[dict[str, str]]:
     if not results:
         return []
+    if all(
+        any(
+            str(reason).startswith("required_claim:")
+            for reason in result.metadata.get("agent_context_reasons") or []
+        )
+        for result in results
+    ):
+        return [
+            {
+                "chunk_id": result.chunk_id,
+                "verdict": "relevant",
+                "reason": "The agent verifier attributed this evidence to a required claim.",
+            }
+            for result in results
+        ]
     evidence = [
         {
             "chunk_id": result.chunk_id,
