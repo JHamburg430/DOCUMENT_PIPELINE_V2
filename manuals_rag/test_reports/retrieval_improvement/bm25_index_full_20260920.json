@@ -1,0 +1,10 @@
+{
+  "generated_at": "2026-09-20T16:06:22.056773+00:00",
+  "corpus_id": "manuals_vendor_keyence",
+  "collection": "manuals_manuals_vendor_keyence_bm25",
+  "processed": 384288,
+  "qdrant_count": 384288,
+  "elapsed_seconds": 236.64856032497482,
+  "chunks_per_second": 1623.8763484226613,
+  "limited": false
+}

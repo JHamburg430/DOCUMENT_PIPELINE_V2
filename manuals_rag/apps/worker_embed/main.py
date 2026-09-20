@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from manuals_rag_common.db import execute, fetch_all
+from manuals_rag_common.config import settings
 from manuals_rag_common.logging import configure_logging
 from manuals_rag_common.ingestion_progress import complete_ingestion_step, fail_ingestion_step, start_ingestion_step
 from manuals_rag_common.queue import dequeue
@@ -75,6 +76,8 @@ def process_job(job: dict[str, str]) -> None:
             for chunk in chunks
         ]
         store.upsert_chunks(document[0]["corpus_id"], parsed_chunks)
+        if settings.indexed_bm25_enabled:
+            store.upsert_bm25_chunks(document[0]["corpus_id"], parsed_chunks)
         # Preserve the working index if embedding/upsert fails. Remove only
         # obsolete IDs after the replacement points have been accepted.
         store.delete_document_chunks(
@@ -83,6 +86,13 @@ def process_job(job: dict[str, str]) -> None:
             document_version_id=job["version_id"],
             exclude_chunk_ids=[chunk.id for chunk in parsed_chunks],
         )
+        if settings.indexed_bm25_enabled:
+            store.delete_bm25_document_chunks(
+                document[0]["corpus_id"],
+                source_document_id=job["document_id"],
+                document_version_id=job["version_id"],
+                exclude_chunk_ids=[chunk.id for chunk in parsed_chunks],
+            )
         complete_ingestion_step(
             job["run_id"],
             current_step,

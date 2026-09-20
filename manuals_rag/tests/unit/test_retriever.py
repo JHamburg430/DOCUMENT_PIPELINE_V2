@@ -2006,6 +2006,90 @@ def test_qdrant_chunk_payload_preserves_logical_node_ids(monkeypatch):
     assert captured[0].payload["logical_node_ids_json"] == ["node-1", "node-2"]
 
 
+def test_search_bm25_uses_server_inference_and_preserves_filters(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"result": {"points": [{
+                "id": "chunk-1", "score": 2.5,
+                "payload": {
+                    "title": "VJ-3302", "document_version_id": "version-1",
+                    "source_document_id": "document-1", "page_from": 1, "page_to": 1,
+                    "section_path": [], "content": "VJ-3302 setup",
+                },
+            }]}}
+
+    class FakeHttpClient:
+        def __init__(self, **kwargs):
+            captured["client"] = kwargs
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def post(self, path, json):
+            captured["path"] = path
+            captured["json"] = json
+            return FakeResponse()
+
+    store = object.__new__(QdrantStore)
+    store.client = SimpleNamespace(collection_exists=lambda name: name == "manuals_corpus-1_bm25")
+    monkeypatch.setattr("manuals_rag_retrieval.qdrant_store.httpx.Client", FakeHttpClient)
+
+    results = store.search_bm25("corpus-1", "VJ-3302 setup", {"is_active": True}, limit=3)
+
+    assert results[0].chunk_id == "chunk-1"
+    assert captured["json"]["query"] == {"text": "VJ-3302 setup", "model": "qdrant/bm25"}
+    assert captured["json"]["filter"] == {"must": [{"key": "is_active", "match": {"value": True}}]}
+
+
+def test_upsert_bm25_chunks_sends_document_text_to_isolated_collection(monkeypatch):
+    captured = []
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+    class FakeHttpClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def put(self, path, params, json):
+            captured.append((path, params, json))
+            return FakeResponse()
+
+    store = object.__new__(QdrantStore)
+    monkeypatch.setattr(store, "ensure_bm25_collection", lambda _corpus_id: None)
+    monkeypatch.setattr("manuals_rag_retrieval.qdrant_store.httpx.Client", FakeHttpClient)
+    chunk = RetrievalChunk(
+        id="chunk-1", document_version_id="version-1", source_document_id="document-1",
+        logical_node_ids_json=[], chunk_type=ChunkType.table_record, chunk_level=1,
+        title="VJ", section_path_text="Setup", page_from=1, page_to=1,
+        content="VJ-3302 setup", content_for_sparse="VJ-3302 setup exact identifier",
+        content_for_dense="VJ-3302 setup", content_for_rerank="VJ-3302 setup",
+        metadata_json={"section_path": ["Setup"]},
+    )
+
+    store.upsert_bm25_chunks("corpus-1", [chunk])
+
+    assert captured[0][0] == "/collections/manuals_corpus-1_bm25/points"
+    assert captured[0][2]["points"][0]["vector"]["bm25"] == {
+        "text": "VJ-3302 setup exact identifier", "model": "qdrant/bm25",
+    }
+
+
 def test_enrich_candidates_for_rerank_adds_grouped_procedure_context(monkeypatch):
     result = SearchResult(
         chunk_id="step-1",

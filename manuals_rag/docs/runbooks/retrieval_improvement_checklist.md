@@ -404,3 +404,158 @@ by the current test results.
   a retrieval miss or close T8 before the clean full-matrix rerun.
 - Verification: modified modules **324 passed**; full unit suite **1,046 passed,
   77 warnings**; compose configuration and diff checks passed.
+
+## September 20 evidence-and-retrieval review checklist
+
+This checklist converts the six external review recommendations into release
+gates. A checked implementation subtask does not imply production readiness;
+each gate closes only with the named persisted evidence. Agentic retrieval and
+production rollout remain disabled until all release-blocking gates pass.
+
+### R1 — Trustworthy acceptance evidence
+
+- [x] Persist immutable matrix provenance, exact ordered dataset-qualified case
+  keys, per-stage ranked evidence, raw/parsed/normalized judge records, final
+  answers, citations, and an explicit process exit status.
+- [x] Complete and reconcile the clean 48-case v2 artifact
+  `agent_matrix_full48_b20f9a3_20260920_1200.json` (exit 0, 48 unique cases,
+  clean source revision `b20f9a3`).
+- [x] Generate a deterministic independent audit that recomputes coverage,
+  totals, stage retention, unchecked judges, and failure-stage classes from
+  individual records rather than trusting the summary.
+- [ ] Produce a separate source-backed held-out bank covering tables,
+  revisions/version conflicts, comparisons, complete procedures, and
+  unanswerable requests. Freeze its hash before execution.
+- [ ] Record correct complete answers, incorrect supported answers, and safe
+  abstentions separately. Human visual-PDF adjudication remains a distinct
+  required sign-off; assistant/source-text review must not be relabelled human.
+
+Independent audit artifact:
+`test_reports/retrieval_improvement/agent_matrix_full48_b20f9a3_20260920_1200_independent_recheck_20260920.md`.
+It accepts the run for diagnostic adjudication, not production. It independently
+recomputes 30/48 full passes for each backend and exposes one unchecked LLM judge
+for LangGraph and two for LlamaIndex. Observed dense/fusion/rerank/final-context
+snapshots cover 14 required evidence groups per backend; six survive reranking
+and nine are present in final context after corrective retrieval. Failure classes
+remain separated instead of being flattened into retrieval misses.
+
+### R2 — Corpus-wide metadata and evidence completeness
+
+- [x] Complete the audited five-document metadata pilot, targeted backup,
+  PostgreSQL/Qdrant reconciliation (383/383 active chunks and five selectors),
+  vector refresh, idempotent re-entry, and interrupted-resume proof.
+- [x] Inventory the full active corpus by pipeline/schema version and persisted
+  audit state; identify every stale, missing, or mismatched document/chunk/point.
+- [ ] Backfill only audited/stale documents with restorable targeted backups;
+  verify subject/model/version applicability and literal provenance spans.
+- [ ] Prove table headers, units, conditions, footnotes, and complete procedure
+  steps survive parsing, retrieval stages, verifier packing, and final context.
+- [ ] Complete human visual-PDF review for the difficult source sample.
+
+Read-only full-corpus artifact:
+`test_reports/retrieval_improvement/manuals_rag_full_corpus_metadata_audit_20260920.json`.
+It audited 53 active documents: 3 pass and 50 fail. Failure counts are
+`wrong_schema_version=49`, `wrong_pipeline_version=50`,
+`metadata_not_propagated_to_every_chunk=50`, and
+`opening_title_identifier_not_routable=24`. This inventory performed no writes;
+the next rollout unit is the smallest failing document under a no-write dry-run,
+followed by literal-source audit and a targeted backup before any apply.
+
+### R3 — Genuine indexed BM25 experiment
+
+- [x] Add an opt-in Qdrant/FastEmbed BM25 sparse-vector path with collection
+  IDF enabled; preserve exact identifiers and existing RRF semantics.
+- [x] Migrate/backfill a disposable benchmark collection or named sparse vector
+  without modifying the production index until acceptance.
+- [x] Compare current hashed term-frequency sparse retrieval against indexed
+  BM25 on identical cases, measuring stage recall, evidence recall, latency,
+  and downstream answer gates.
+- [x] Make an adoption decision from the measured evidence. Keep
+  `INDEXED_BM25_ENABLED=false`: BM25 improved required-any recall at 10/20/40
+  and required-all recall at 20/40 while reducing mean/p95 latency, but
+  required-all@5 fell from 38.3% to 23.4% and no downstream answer-gate run was
+  completed. The isolated index remains available for a future fused/downstream
+  acceptance run without changing production behavior.
+
+Artifacts: `bm25_index_full_20260920.json` and
+`sparse_retriever_comparison_48_20260920.json`.
+
+### R4 — Reranker benchmark and calibration
+
+- [x] Benchmark the current MiniLM reranker against local
+  `Qwen3-Reranker-0.6B` on identical persisted candidate pools.
+- [x] Sweep candidate-pool size and truncation length; record reranker losses
+  where answer-bearing evidence existed before reranking but disappeared after.
+- [x] Make the model/calibration decision without comparing raw scores across
+  models. Keep MiniLM and its existing fusion path; Qwen is not admitted, so no
+  Qwen score calibration is applied to production.
+- [x] Verify embedding query instructions and the current 6,000-character
+  clipping behavior with focused regressions.
+
+The first reranker artifacts were invalid because the benchmark ignored the
+persisted snapshot's `evidence_text` field and scored empty documents. The
+benchmark now rejects empty candidates, hashes candidate text as well as IDs,
+and the corrected artifacts share candidate-pool SHA-256
+`6b4688f9571286e53cd0d54e7141d96922f0d1df33626a48326f363828c1a7fc`.
+At the product's 12-candidate pool, Qwen improved required-any@5 from 51.1% to
+53.3% but was about 6x slower (122.8 ms mean vs 20.3 ms), with identical
+required-all@12 and zero losses. It is not adopted. The matrix snapshots bound
+evidence text to 1,200 characters, so 512- and 2,048-token Qwen results were
+identical and the 6,000-character clip was not exercised by live candidates;
+the clip itself now has an exact focused regression. Instructed Qwen3 query
+embeddings improved required-any@10 from 53.3% to 60.0% and required-all@40
+from 48.9% to 57.8% at +7.3 ms mean latency, but remain experimental until an
+end-to-end held-out answer gate passes.
+
+Authoritative corrected artifacts:
+`reranker_minilm_48_pools_evidence_v2_20260920.json`,
+`reranker_qwen06_48_pools_evidence_v2_20260920.json`, and
+`dense_query_instruction_comparison_48_20260920.json`.
+
+### R5 — Selective expansion and decomposition
+
+- [x] Preserve original identifiers and all product/version/row/value qualifiers
+  through expansion and every single-lookup plan.
+- [x] Decompose only genuinely dependent or comparative requests into explicit,
+  required evidence claims; keep recovery work optional and separate.
+- [x] Cap retries and expose unresolved/missing claims in traces and answers.
+- [x] Compare expansion/decomposition on/off for the affected source-backed bank
+  and make a rollout decision. The 48-case audit passed all 96 backend planning
+  contracts, and dependent, parallel, entity-resolution, exact-lookup, conflict,
+  and unanswerable categories behaved selectively. Agentic mode remains off by
+  default because cross-document full passes stayed 0/10 and p95 latency is
+  materially worse than baseline.
+
+Artifact: `planning_selectivity_audit_48_v2_20260920.json`.
+
+### R6 — Measured local-inference optimization
+
+- [ ] Capture per-stage p50/p95 latency, model-load/residency, queue wait,
+  verifier timeout, token usage, and worker routing for clean benchmark runs.
+- [ ] Detect and exclude stale scheduler/nonresident-worker runs from performance
+  acceptance; retain them only as correctness diagnostics.
+- [ ] Benchmark the current Ollama path before considering vLLM; test local
+  reranking separately from answer/verifier serving.
+- [ ] Publish the measured bottleneck, chosen configuration, rollback, and final
+  production decision. Serving migration is optional and must not be described
+  as an accuracy fix.
+
+The current matrix supports end-to-end and measured model p50/p95, token usage,
+and stop reasons, but does not persist per-stage latency, queue wait, worker
+route/residency, host GPU telemetry, or verifier-attempt latency. Therefore it is
+not performance-acceptance evidence. No vLLM migration is approved; the rollback
+and current decision are to retain Ollama + MiniLM with agentic retrieval off.
+See `local_inference_performance_audit_20260920.json`. R6 remains a production
+observability gate, not an accuracy fix.
+
+### Six-recommendation review status
+
+- [x] R1 reviewed: diagnostic evidence accepted; held-out and human PDF gates open.
+- [x] R2 reviewed: v5 rollout mechanism proven on one document; 52 documents remain.
+- [x] R3 reviewed: indexed BM25 is useful but remains opt-in pending downstream gates.
+- [x] R4 reviewed: corrected benchmark retains MiniLM; query instructions stay experimental.
+- [x] R5 reviewed: planning contracts pass; selective agentic rollout remains disabled.
+- [x] R6 reviewed: current telemetry is insufficient for a serving migration; no migration.
+
+The review itself is complete. These checks do not close the remaining production
+release gates or authorize agentic retrieval.

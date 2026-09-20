@@ -1,0 +1,1048 @@
+{
+  "generated_at": "2026-09-20T15:56:56.467592+00:00",
+  "pipeline": "evidence_map_reduce_verify_v5",
+  "document_count": 53,
+  "passed": 1,
+  "failed": 52,
+  "checks_passed": false,
+  "scope_failures": [],
+  "documents": [
+    {
+      "document_id": "0b23b505-b66b-4f82-bf43-7570c2442681",
+      "source_filename": "AS_103012_LineScan_C_611J12_KA_US_2073_3.pdf",
+      "title": "AS 103012 LineScan C 611J12 KA US 2073 3",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 708,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "d7566a8f-8bc7-4ba5-a88d-aa3b44a9505b",
+      "source_filename": "AS_104471_OP-88310_OP-88381_L_611K13_KA_US_1049_1.pdf",
+      "title": "AS 104471 OP-88310 OP-88381 L 611K13 KA US 1049 1",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 41,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "e5febfed-cd3f-4743-8a65-20e9e7e30491",
+      "source_filename": "AS_107533_IV_IM_96M12230_WW_GB_2082_3a.pdf",
+      "title": "AS 107533 IV IM 96M12230 WW GB 2082 3a",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 484,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "8a744119-c356-454a-8d6d-4bd8744c4abf",
+      "source_filename": "AS_112204_VJ_C_611L77_KA_US_2124_5.pdf",
+      "title": "Model | Light Emission Surface Size (mm incch)",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 1755,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "9224d20b-6866-480b-9d00-f98adbda3bee",
+      "source_filename": "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf",
+      "title": "AS 114922 IV-H2000MA IV-H500CA IV-H500MA UM A61GB WW GB 2072 2",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 11145,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "c1e0747b-96ed-474e-b761-73fe10360e4e",
+      "source_filename": "AS_114958_TG_611O36_KA_US_2075_2.pdf",
+      "title": "History of Safety Standard",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 1853,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "2f359d19-dd88-471b-8b7b-1a1eda8c2581",
+      "source_filename": "AS_124150_LJ-X8000_CM_C10GB_WW_GB_2101_1.pdf",
+      "title": "LJ: X8000 Series 3D Mode Volume Simple Setup Manual",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 468,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "695a571b-0ed8-4601-9ac0-d187dbe51c54",
+      "source_filename": "AS_124659_SZ-V_C_611O89_KA_US_2074_4.pdf",
+      "title": "AS 124659 SZ-V C 611O89 KA US 2074 4",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 1457,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "6279a874-72ca-46bd-81e5-e5f0a9e7745a",
+      "source_filename": "AS_126535_CV-X_C_611S71_KA_US_2124_5.pdf",
+      "title": "AS_126535_CV-X_C_611S71_KA_US_2124_5.pdf",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 2322,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "7927e7fc-fc59-4c09-8a38-07c2e895f89b",
+      "source_filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+      "title": "EtherNet/IP\u2122 Edition (Allen-Brauldly CompactLogix/ControlLogix Series)",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 958,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "f8e76135-15c5-4fa0-97dc-138a07ee3086",
+      "source_filename": "AS_130681_SR-1000_SR-2000_SR-PN1_CM_D65GB_WW_GB_2122_1.pdf",
+      "title": "AS 130681 SR-1000 SR-2000 SR-PN1 CM D65GB WW GB 2122 1",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 103,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "bd8e91eb-a026-4143-9323-feff0f9a7cba",
+      "source_filename": "AS_140519_LR-W500_LR-W500-_LR-W500C_IM_96M17798_WW_GB_2034_1.pdf",
+      "title": "AS 140519 LR-W500 LR-W500- LR-W500C IM 96M17798 WW GB 2034 1",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 425,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "43fc06d2-e726-41d3-b33b-43fb024ef739",
+      "source_filename": "AS_141263_WM_C_611X50_KA_US_2035_2.pdf",
+      "title": "AS_141263_WM_C_611X50_KA_US_2035_2",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 638,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "38bdaf91-b51b-41ad-bdec-9a7ec61ec44e",
+      "source_filename": "AS_142767_2DVGR_C_611Y32_KA_US_2054_1.pdf",
+      "title": "Guided Robotic",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 70,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "7a552567-89c6-419d-a3a5-b3db4dc12277",
+      "source_filename": "AS_143269_VS_CM_J23GB_WW_GB_2065_2.pdf",
+      "title": "Keyence Vision",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 418,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "3a94cb48-c326-4958-9252-c0fcbd8d4e63",
+      "source_filename": "AS_145624_IV_C_611Y54_KA_US_2084_2.pdf",
+      "title": "Vision Sensor IV Series",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 879,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "37ad6489-6746-4aae-adc6-fe803f229647",
+      "source_filename": "AS_145861_VS_C_611Y94_KA_US_2104_2.pdf",
+      "title": "AS 145861 VS C 611Y94 KA US 2104 2",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 719,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "8086e290-7093-48d3-9efc-fcc88f9fb1c1",
+      "source_filename": "AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf",
+      "title": "KV-X500",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 9143,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "036c91eb-df6d-4aa0-b576-d0e5be3a16d6",
+      "source_filename": "AS_146087_IV4_UM_K08GB_WW_GB_2084_1.pdf",
+      "title": "AS 146087 IV4 UM K08GB WW GB 2084 1",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 25936,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+      "source_filename": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf",
+      "title": "AS 147290 LJ-X8000 UM I64US KA GB 2094 3",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 36680,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "ab20ebe2-6029-4b57-a9af-8fc3b8882512",
+      "source_filename": "AS_147320_LJ-S8000_SG_K47GB_WW_GB_2094_1.pdf",
+      "title": "Chapter 1 Head Installation",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 153,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "e50b3d35-9004-44dd-bfd1-ddc455a4f6b7",
+      "source_filename": "AS_148740_IV4-400CA_IV4-400MA_IV4-500CA_IM_96M17956_WW_GB_2114_2.pdf",
+      "title": "AS 148740 IV4-400CA IV4-400MA IV4-500CA IM 96M17956 WW GB 2114 2",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 385,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "9faae21a-84b7-41ee-aa34-253cf69e118f",
+      "source_filename": "AS_149074_SZ-V_GL-R_L_689034_KA_US_2114_1.pdf",
+      "title": "SZ: V Series robust floor mounting bracket : SZ-FB31",
+      "claim_counts": {
+        "confirmed": 49
+      },
+      "routing_product_models": [
+        "GL-FB1000",
+        "GL-FB1400",
+        "GL-FB1900",
+        "GL-FB2400",
+        "GL-R63F",
+        "GL-R32H",
+        "GL-R16L",
+        "GL-R71F",
+        "GL-R36H",
+        "GL-R18L",
+        "GL-R79F",
+        "GL-R40H",
+        "GL-R20L",
+        "GL-R87F",
+        "GL-R44H",
+        "GL-R22L",
+        "GL-R95F",
+        "GL-R48H",
+        "GL-R24L",
+        "GL-R103F",
+        "GL-R52H",
+        "GL-R26L",
+        "GL-R111F",
+        "GL-R56H",
+        "GL-R28L",
+        "GL-R119F",
+        "GL-R60H",
+        "GL-R30L",
+        "GL-R127F",
+        "GL-R64H",
+        "GL-R32L",
+        "GL-R143F",
+        "GL-R72H",
+        "GL-R159F",
+        "GL-R80H",
+        "GL-R175F",
+        "GL-R88H",
+        "GL-R191F",
+        "GL-R96H",
+        "GL-R207F",
+        "GL-R",
+        "SZ-V"
+      ],
+      "routing_part_numbers": [
+        "SZ-FB31"
+      ],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 72,
+      "checks_passed": false,
+      "failures": [
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "857c0518-4b3a-42e2-97c9-211ab24163b6",
+      "source_filename": "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf",
+      "title": "AS 149551 IV4 UM K80GB WW GB 2124 1",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 28045,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "e95c8781-65d6-420e-a389-00d6f1a50c84",
+      "source_filename": "AS_149615_IV4_C_689071_KA_US_2124_3.pdf",
+      "title": "Manual inspection | Visual inspection could not be used due to the high line speed.",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 1618,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+      "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+      "title": "Indicate a hazardous situation which, if not avoided, will result in death or serious injury.",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 34442,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "115081d4-db23-42b3-8055-e94c8237ebbe",
+      "source_filename": "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf",
+      "title": "Dimension inspection | | Appearance inspection | | Shape Inspection | | Height difference | Volume | Burrs | Dents | Presence detection | Orientations detection | Incorrect seatings",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 1573,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "660738dd-244e-413b-87b3-3c4514c71747",
+      "source_filename": "AS_151119_LJ-S8000_C_689103_KA_US_2025_1.pdf",
+      "title": "Seensor NEW LJ: S8000 Series",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 1725,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "819b3c93-bfee-4c4a-a804-b58e0240446f",
+      "source_filename": "AS_151195_VS_C_689087_KA_US_2025_1.pdf",
+      "title": "AS_151195_VS_C_689087_KA_US_2025_1.pdf",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 785,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "ab3b1b4c-ca3a-4e0b-9ec4-6e29c686dfcf",
+      "source_filename": "AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf",
+      "title": "User's Manual",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 118621,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+      "source_filename": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf",
+      "title": "Classify Title",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 37278,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "0e6c3de6-0bb5-4ea5-8fb2-3c418f31eb4f",
+      "source_filename": "AS_152333_LJ-S8000_IM_96M18473_WW_GB_2045_1.pdf",
+      "title": "LJ: S8000 series head Instruction Manual",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 408,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "972354a8-2b55-4586-8adb-832dfb76a1d4",
+      "source_filename": "AS_152388_LR-ZH500C3P_LR-ZH500C3P-_LR-ZH500CN_IM_96M18539_WW_GB_2045_1.pdf",
+      "title": "Danger! Classify Title",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 427,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+      "source_filename": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf",
+      "title": "AS 152507 CV-X UM C81US KA GB 2045 5",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 48131,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "062d5b8b-8927-4de2-9c3a-c1e4b381061b",
+      "source_filename": "AS_158438_3DVision_C_689228_KA_US_2065_1.pdf",
+      "title": "Inline 3D Appearance and Dimension Inspection Image Processing System",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 451,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "58e02d4c-c6bc-424c-a3c0-c7706759602e",
+      "source_filename": "AS_159993_CA-L_CA-M_CA-D_GC_689230_KA_US_2075_1.pdf",
+      "title": "Model | Weiight",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 5589,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "9380acf9-5479-448c-b57e-d4a951162804",
+      "source_filename": "AS_160148_XG-X_C_689246_KA_US_2085_1.pdf",
+      "title": "AS 160148 XG-X C 689246 KA US 2085 1",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 2440,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "37766429-2f8a-4ee8-8f1c-4bf1f6660d8d",
+      "source_filename": "AS_160462_VS_C_689253_KA_US_2085_1.pdf",
+      "title": "New AI Technology",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 785,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "594e3313-d17b-4c96-a44f-82101884ad34",
+      "source_filename": "AS_77987_LR-W_UM_542GB_WW_GB_1125_1.pdf",
+      "title": "MU: N Series User's Manual LR-W70(C) Edition",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 1196,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "1a6783bf-01ae-4dde-8876-687064704e8c",
+      "source_filename": "AS_78620_CA-EN100U_IM_96M13845_WW_GB_2072_4a.pdf",
+      "title": "AS 78620 CA-EN100U IM 96M13845 WW GB 2072 4a",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 327,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "eac20d9f-19aa-4f08-b06e-d39fe6f7d6a6",
+      "source_filename": "AS_79692_LR-T_C_611C20_KA_US_2074_3.pdf",
+      "title": "New Standard! All-Purpose Laser Sensor",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 1117,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "e60ba2bb-ac5a-4fcb-93f4-491a8f5d2694",
+      "source_filename": "AS_79692_LR-T_C_611C20_KA_US_2074_3_unlocked.pdf",
+      "title": "New Standard! All-Purpose Laser Sensor",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 1117,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "b45f57e6-fa92-498c-89e2-7035b8aaf2f4",
+      "source_filename": "AS_86111_LR-Z_C_611C85_KA_US_2074_4 (1).pdf",
+      "title": "Sensors for Laser Sensor",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 957,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "14a8b1a9-526b-48e1-b828-4dd7e561abb6",
+      "source_filename": "CA-DZW50X_Datasheet.pdf",
+      "title": "CA-DZW50X_Datasheet.pdf",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 32,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "14879385-0608-44ee-85fc-0b79ac5c1d96",
+      "source_filename": "CA-EN100U_Datasheet.pdf",
+      "title": "Data Sheet",
+      "claim_counts": {
+        "confirmed": 5
+      },
+      "routing_product_models": [
+        "CA-EN100U"
+      ],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 4,
+      "checks_passed": false,
+      "failures": [
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "f72bdd2b-c2fa-45ff-82af-0d1c76e4b48e",
+      "source_filename": "CA-S20D_Datasheet.pdf",
+      "title": "CA-S20D",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 49,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "174dbe80-efe6-472a-8e3b-d6932d0771bd",
+      "source_filename": "CA-U5_Datasheet.pdf",
+      "title": "CA-U5",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 48,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "d70726cd-f6b4-405b-b868-31f4dbd6e2fc",
+      "source_filename": "Keyence_XGX_User_Manual.pdf",
+      "title": "Keyence XGX User Manual",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 22,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "d88f593a-8d50-4f54-baaa-39fcc5020833",
+      "source_filename": "LuaScriptManual_en.pdf",
+      "title": "Lua Script Manual",
+      "claim_counts": {
+        "confirmed": 19,
+        "rejected": 1
+      },
+      "routing_product_models": [
+        "XG-7000",
+        "XG-8000"
+      ],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [
+        "ethernet",
+        "rs-232c"
+      ],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 105,
+      "checks_passed": false,
+      "failures": [
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "2338687c-87a5-4b57-898b-1845981a9174",
+      "source_filename": "SR-H8W_Datasheet.pdf",
+      "title": "SR-H8W",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 16,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "80cc9bf7-297a-488e-aa15-5ccd9418ac68",
+      "source_filename": "VJ-3302_Datasheet.pdf",
+      "title": "VJ-3302 Image processing unit",
+      "claim_counts": {
+        "confirmed": 3
+      },
+      "routing_product_models": [
+        "VJ-3302"
+      ],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 5,
+      "checks_passed": true,
+      "failures": []
+    },
+    {
+      "document_id": "8d83cb71-55d2-42db-9630-bc16f0d6877c",
+      "source_filename": "VJ-H500CX_Datasheet.pdf",
+      "title": "VJ-H500CX | Data Sheet",
+      "claim_counts": {
+        "confirmed": 4
+      },
+      "routing_product_models": [
+        "VJ-H500CX"
+      ],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 49,
+      "checks_passed": false,
+      "failures": [
+        "wrong_pipeline_version",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    },
+    {
+      "document_id": "b70d3aec-68af-490a-b9b2-f449d1ac654d",
+      "source_filename": "WM-6025_Datasheet.pdf",
+      "title": "WM-6025 Data Sheet",
+      "claim_counts": {},
+      "routing_product_models": [],
+      "routing_part_numbers": [],
+      "routing_protocol_terms": [],
+      "firmware_applicability": [],
+      "software_applicability": [],
+      "chunk_count": 114,
+      "checks_passed": false,
+      "failures": [
+        "wrong_schema_version",
+        "wrong_pipeline_version",
+        "opening_title_identifier_not_routable",
+        "metadata_not_propagated_to_every_chunk"
+      ]
+    }
+  ]
+}

@@ -312,8 +312,10 @@ def _equivalent_chunk_ids(
         evidence = evidence_by_chunk.get(expected_chunk, {})
         source_document_id = str(evidence.get("source_document_id") or default_document)
         snippet = str(evidence.get("snippet") or default_snippet)
-        pages = _page_set(evidence) or expected_pages
-        equivalents[expected_chunk] = {
+        pages = _page_set(evidence)
+        if not pages and source_document_id == default_document:
+            pages = expected_pages
+        matched = {
             str(result.get("chunk_id") or "")
             for result in results
             if result.get("chunk_id")
@@ -324,6 +326,30 @@ def _equivalent_chunk_ids(
                 snippet=snippet,
             )
         }
+        expected_terms = [
+            _normalized(value)
+            for value in evidence.get("expected_terms") or []
+            if value
+        ]
+        field = _normalized(evidence.get("field"))
+        if len(expected_terms) >= 3:
+            for result in results:
+                if str(result.get("source_document_id") or "") != source_document_id:
+                    continue
+                content = str(result.get("content") or "")
+                normalized_content = _normalized(content)
+                if not all(term in normalized_content for term in expected_terms):
+                    continue
+                if field and not re.search(
+                    rf"(?:column\s+headers?|{re.escape(field)})\s*:\s*{re.escape(field)}\b",
+                    content,
+                    flags=re.I,
+                ):
+                    continue
+                chunk_id = str(result.get("chunk_id") or "")
+                if chunk_id:
+                    matched.add(chunk_id)
+        equivalents[expected_chunk] = matched
     return equivalents
 
 

@@ -3444,6 +3444,72 @@ def test_validate_answer_comparison_fallback_when_generated_answer_cites_only_on
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_comparison_fallback_keeps_second_distinct_document_when_only_one_side_match_is_exact():
+    answer = AnswerResponse(
+        answer="A memory read error occurred when the sensor started.",
+        confidence="low",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "iv-memory-cause",
+                "document_id": "iv-document",
+                "pages": [406],
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=True,
+    )
+    results = [
+        SearchResult(
+            chunk_id="vs-pattern-cause",
+            score=1.0,
+            title="VS Series manual",
+            document_version_id="v1",
+            source_document_id="vs-document",
+            pages=[1968],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Pattern Data; "
+                "Cell value: The format of the pattern data file is invalid.; Row: 4; Column: 3"
+            ),
+            metadata={"chunk_type": "table_record", "product_family": "VS Series"},
+        ),
+        SearchResult(
+            chunk_id="iv-memory-cause",
+            score=0.9,
+            title="IV-HG500CA manual",
+            document_version_id="v1",
+            source_document_id="iv-document",
+            pages=[406],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Sensor internal memory reading has failed; "
+                "Cell value: A memory read error occurred when the sensor started.; Row: 2; Column: 1"
+            ),
+            metadata={"chunk_type": "table_record", "product_model": "IV-HG500CA"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "Compare the documented cause for a VS Series pattern data file being invalid with the "
+            "IV-HG500CA cause for a memory read error at sensor startup."
+        ),
+    )
+
+    assert "format of the pattern data file is invalid" in validated.answer
+    assert "memory read error occurred when the sensor started" in validated.answer
+    assert {citation["chunk_id"] for citation in validated.citations} == {
+        "vs-pattern-cause",
+        "iv-memory-cause",
+    }
+    assert validated.insufficient_evidence is False
+
+
 def test_comparison_side_coverage_rejects_unrelated_only_citations():
     results = [
         SearchResult(

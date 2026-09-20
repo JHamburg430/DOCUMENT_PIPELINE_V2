@@ -2128,7 +2128,11 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             insufficient_evidence=True,
         )
     multipart = _multi_part_evidence_clauses(query)
-    concise_answer, concise_results = _concise_troubleshooting_answer(query, results)
+    concise_answer, concise_results = (
+        ("", [])
+        if _is_comparison_query(query)
+        else _concise_troubleshooting_answer(query, results)
+    )
     dependency_answer, dependency_results = _concise_dependency_mapping_answer(query, results)
     if _is_troubleshooting_query(query) and _query_troubleshooting_anchor(query) and not concise_answer:
         return AnswerResponse(
@@ -6444,7 +6448,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         )
 
     concise_troubleshooting, concise_results = _concise_troubleshooting_answer(query, results)
-    if concise_troubleshooting and concise_results:
+    if concise_troubleshooting and concise_results and not _is_comparison_query(query):
         normalized = _fallback_answer(query, concise_results)
         answer = answer.model_copy(
             update={
@@ -7521,6 +7525,7 @@ def generate_answer_with_trace(
     table_answer, table_results = _concise_structured_table_answer(query, results)
     if (
         table_answer
+        and not _is_comparison_query(query)
         and not _is_configuration_location_query(query)
         and not _multi_part_evidence_clauses(query)
         and not use_precomputed_model_path
@@ -7561,7 +7566,7 @@ def generate_answer_with_trace(
             }
         )
         return answer, trace
-    if _is_troubleshooting_query(query):
+    if _is_troubleshooting_query(query) and not _is_comparison_query(query):
         structured_results = _order_troubleshooting_results(query, results[:10])
         answer = validate_answer(
             _fallback_answer(query, structured_results),

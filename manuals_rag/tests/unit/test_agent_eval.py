@@ -1,5 +1,6 @@
 from manuals_rag_evals.agent_eval import (
     AGENT_EVALUATION_LAYERS,
+    _equivalent_chunk_ids,
     _result_preserves_expected_evidence,
     score_agent_run,
 )
@@ -68,6 +69,37 @@ def test_structured_equivalence_rejects_cross_page_different_cell_value():
             "Input.Graphic.Region.Mask.ColorFail.Green; Cell value: 0; Row: 5; Column: 5"
         ),
     )
+
+
+def test_cross_document_equivalence_does_not_inherit_first_document_pages():
+    case = {
+        "source_document_id": "first-doc",
+        "page_from": 1963,
+        "page_to": 1963,
+        "expected_evidence": [
+            {
+                "chunk_id": "expected-cause",
+                "source_document_id": "second-doc",
+                "field": "cause",
+                "expected_terms": ["memory", "error", "occurred", "sensor"],
+                "snippet": "Column headers: Cause; Row headers: Sensor program damaged.",
+            }
+        ],
+    }
+    results = [
+        {
+            "chunk_id": "equivalent-cause",
+            "source_document_id": "second-doc",
+            "pages": [406],
+            "content": (
+                "Column headers: Cause; Row headers: Sensor internal memory reading has failed; "
+                "Cell value: A memory read error occurred when the sensor started."
+            ),
+            "metadata": {"chunk_type": "table_record"},
+        }
+    ]
+
+    assert _equivalent_chunk_ids(case, results)["expected-cause"] == {"equivalent-cause"}
 
 
 def _case():

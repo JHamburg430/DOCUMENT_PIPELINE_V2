@@ -22,6 +22,7 @@ class Settings:
     )
     redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
     qdrant_url: str = os.getenv("QDRANT_URL", "http://qdrant:6333")
+    indexed_bm25_enabled: bool = _as_bool(os.getenv("INDEXED_BM25_ENABLED"), False)
     minio_endpoint: str = os.getenv("MINIO_ENDPOINT", "minio:9000")
     minio_public_endpoint: str = os.getenv("MINIO_PUBLIC_ENDPOINT", os.getenv("MINIO_ENDPOINT", "minio:9000"))
     minio_access_key: str = os.getenv("MINIO_ACCESS_KEY", "minioadmin")

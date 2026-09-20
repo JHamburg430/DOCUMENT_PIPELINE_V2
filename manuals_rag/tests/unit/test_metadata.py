@@ -60,7 +60,7 @@ def test_infer_document_metadata_from_model_response(monkeypatch):
 
     metadata = infer_document_metadata(
         "CA-EN100U_Datasheet.pdf",
-        "KEYENCE AMERICA\nCA-EN100U\nEncoder relay unit\n2026/01/12",
+        "KEYENCE AMERICA\nCA-EN100U\nEncoder relay unit\nRevision 2026/01/12\nEffective 2026/01/12",
     )
 
     assert metadata.manufacturer == "KEYENCE AMERICA"
@@ -671,11 +671,34 @@ def test_scalar_metadata_normalizes_array_shape_dates_and_kind_synonyms(monkeypa
         lambda **kwargs: ([{"title": "Release Notes", "document_kind": "release_notes", "revision_date": "2025/04/22", "effective_date": "null"}], "[]"),
     )
 
-    metadata = infer_document_metadata("release.pdf", "Release Notes\n2025/04/22")
+    metadata = infer_document_metadata("release.pdf", "Release Notes\nRevision 2025/04/22")
 
     assert metadata.document_kind.value == "release_note"
     assert metadata.revision_date.isoformat() == "2025-04-22"
     assert metadata.effective_date == metadata.revision_date
+
+
+def test_scalar_metadata_rejects_unlabeled_footer_date_as_revision(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: (
+            {
+                "title": "VJ-3302 Image processing unit",
+                "document_kind": "datasheet",
+                "revision_date": "2025/04/22",
+                "effective_date": "2025/04/22",
+            },
+            "{}",
+        ),
+    )
+
+    metadata = infer_document_metadata(
+        "VJ-3302_Datasheet.pdf",
+        "VJ-3302 Image processing unit\n2025/04/22\nPage 1 of 3",
+    )
+
+    assert metadata.revision_date is None
+    assert metadata.effective_date is None
 
 
 @pytest.mark.parametrize(

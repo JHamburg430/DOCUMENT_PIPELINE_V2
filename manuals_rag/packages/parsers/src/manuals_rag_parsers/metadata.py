@@ -112,7 +112,7 @@ IDENTIFIER_CANDIDATE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:]\s*[A-Z0-9]{1,16})+|"
     r"[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
 )
-METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v4"
+METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v5"
 
 DOCUMENT_KIND_ALIASES = {
     "user_manual": "manual",
@@ -481,6 +481,8 @@ def _scalar_prompt_messages(filename: str, text: str) -> list[dict[str, str]]:
                 "You are a metadata classification function. Return only JSON matching the schema. "
                 "Use null for unknown scalar values. Do not invent identifiers. "
                 "For title, copy the publication title printed in TEXT; never use or rewrite FILENAME as the title. "
+                "Set revision_date or effective_date only when the source explicitly labels the date as a revision, "
+                "edition, effective, issued, or publication date; an unlabeled footer date is not sufficient. "
                 "document_kind must use the enum value from the schema."
             ),
         },
@@ -909,7 +911,13 @@ def _ground_values(field_name: str, values: list[str], filename: str, text: str)
     return grounded
 
 
-def _ground_date(value: date | None, filename: str, text: str) -> date | None:
+def _ground_date(
+    value: date | None,
+    filename: str,
+    text: str,
+    *,
+    label_pattern: str | None = None,
+) -> date | None:
     if value is None:
         return None
     source = _source_text(filename, text)
@@ -918,8 +926,13 @@ def _ground_date(value: date | None, filename: str, text: str) -> date | None:
         value.strftime("%Y/%m/%d"),
         value.strftime("%m/%d/%Y"),
     }
-    if any(candidate in source for candidate in candidates):
-        return value
+    for candidate in candidates:
+        for match in re.finditer(re.escape(candidate), source, flags=re.IGNORECASE):
+            if label_pattern is None:
+                return value
+            context = source[max(0, match.start() - 80) : min(len(source), match.end() + 80)]
+            if re.search(label_pattern, context, flags=re.IGNORECASE):
+                return value
     return None
 
 
@@ -1006,8 +1019,18 @@ def _to_document_metadata(filename: str, text: str, extraction: MetadataExtracti
         product_models = _dedupe_preserve_order([*product_models, product_family])
     proposed_title = " ".join((extraction.title or "").split()).strip()
     title = proposed_title if proposed_title and _value_is_grounded(proposed_title, text) else _normalize_title(filename)
-    revision_date = _ground_date(extraction.revision_date, filename, text)
-    effective_date = _ground_date(extraction.effective_date, filename, text)
+    revision_date = _ground_date(
+        extraction.revision_date,
+        filename,
+        text,
+        label_pattern=r"\b(?:revision|revised|rev\.?|edition)\b",
+    )
+    effective_date = _ground_date(
+        extraction.effective_date,
+        filename,
+        text,
+        label_pattern=r"\b(?:effective|issued|published|publication\s+date)\b",
+    )
     return DocumentMetadata(
         manufacturer=manufacturer,
         companies=companies,
