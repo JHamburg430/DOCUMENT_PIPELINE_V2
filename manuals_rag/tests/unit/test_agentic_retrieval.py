@@ -1056,6 +1056,110 @@ def test_verifier_deterministically_confirms_exact_structured_lookup_cell(monkey
     assert output["supporting_chunk_ids"] == [result.chunk_id]
 
 
+def test_verifier_rejects_structured_lookup_tied_across_sibling_coordinates(monkeypatch):
+    objective = "What Display Settings Green Lower Limit Value applies to VS Series Vision System?"
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    results = []
+    for chunk_id, leaf in (
+        ("mask", "Input.Graphic.Region.Mask.ColorFail.Green"),
+        ("target", "Input.Graphic.TargetPosition.ColorFail.Green"),
+    ):
+        result = _result(
+            chunk_id,
+            "vs-doc",
+            "Column headers: Lower Limit Value; Row headers: Display Settings > Green > "
+            f"{leaf}; Cell value: 0; Row: 5; Column: 5",
+        )
+        result.metadata.update(
+            {
+                "chunk_type": "table_record",
+                "product_model": "VS-L160MX/VS-L320MX",
+                "product_family": "VS Series Vision System with Built: in AI",
+            }
+        )
+        results.append(result)
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        results,
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id for result in results]},
+    )
+
+    assert output["trust_state"] == "conflicting"
+    assert set(output["conflicting_chunk_ids"]) == {"mask", "target"}
+
+
+def test_verifier_confirms_exact_leaf_coordinate_with_not_applicable_literal(monkeypatch):
+    objective = (
+        "What Scaling Target value applies to Position X Minimum.Absolute Measured Value "
+        "for VS Series Vision System?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    result = _result(
+        "scaling-target",
+        "vs-doc",
+        "Column headers: Scaling Target; Row headers: Position X Minimum.Absolute Measured Value; "
+        "Cell value: -; Row: 16; Column: 6",
+    )
+    result.metadata.update(
+        {
+            "chunk_type": "table_record",
+            "product_model": "VS-L160MX/VS-L320MX",
+            "product_family": "VS Series Vision System with Built: in AI",
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["scaling-target"]
+
+
+def test_verifier_confirms_exact_structured_property_path(monkeypatch):
+    objective = "What Image Enhance Input.ImageEnhancement value applies to VS Series Vision System?"
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    result = _result(
+        "image-enhance",
+        "vs-doc",
+        "Image Enhance | Image Enhance | Input.ImageEnhancement | See Image Enhance",
+    )
+    result.metadata.update(
+        {
+            "chunk_type": "table_record",
+            "product_model": "VS-L160MX/VS-L320MX",
+            "product_family": "VS Series Vision System with Built: in AI",
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["image-enhance"]
+
+
 def test_verifier_confirms_numeric_row_and_bit_column_mapping(monkeypatch):
     objective = (
         "Find the mapping for command code 0028 with value 65.0 in the 6-bit "

@@ -1914,7 +1914,8 @@ def _direct_structured_lookup_support(
             flags=re.IGNORECASE,
         ):
             continue
-        if not value_terms and not value_numbers:
+        literal_value = cell_match.group("value").strip().lower()
+        if not value_terms and not value_numbers and literal_value not in {"-", "n/a", "not applicable"}:
             continue
         chunk_type = str(result.metadata.get("chunk_type") or "")
         bounded = int(chunk_type in {"table_record", "spec_record", "atomic_text"})
@@ -1922,6 +1923,85 @@ def _direct_structured_lookup_support(
     if not matches:
         return []
     return [max(matches, key=lambda item: item[:3])[-1]]
+
+
+def _ambiguous_structured_lookup_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Reject a structured lookup when the stated coordinates tie across sibling cells."""
+    if not re.search(r"\b(?:what|which)\b.+\bvalue\b", query, flags=re.I):
+        return []
+
+    stopwords = {
+        "and", "applies", "are", "for", "in", "is", "of", "on", "or", "the",
+        "to", "value", "what", "which", "with",
+    }
+
+    def terms(text: str) -> set[str]:
+        return {
+            token
+            for token in re.findall(r"[a-z0-9]+", text.lower())
+            if len(token) >= 2 and token not in stopwords
+        }
+
+    query_terms = terms(query)
+    candidates: list[tuple[int, str, str]] = []
+    for result in results:
+        if not _result_supports_branch_scope(query, result):
+            continue
+        cell = re.search(
+            r"Column\s+headers:\s*(?P<column>.*?);\s*"
+            r"Row\s+headers:\s*(?P<row>.*?);\s*"
+            r"Cell\s+value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+|$)",
+            str(result.content or ""),
+            flags=re.I | re.S,
+        )
+        if not cell:
+            continue
+        column_terms = terms(cell.group("column"))
+        row_terms = terms(cell.group("row"))
+        if not column_terms or len(row_terms.intersection(query_terms)) < min(2, len(row_terms)):
+            continue
+        if not column_terms.intersection(query_terms):
+            continue
+        coordinate = " ".join(
+            re.sub(r"[^a-z0-9]+", " ", cell.group(name).lower()).strip()
+            for name in ("column", "row")
+        )
+        candidates.append((len((column_terms | row_terms).intersection(query_terms)), coordinate, result.chunk_id))
+    if len(candidates) < 2:
+        return []
+    best_score = max(score for score, _coordinate, _chunk_id in candidates)
+    tied = [(coordinate, chunk_id) for score, coordinate, chunk_id in candidates if score == best_score]
+    if len({coordinate for coordinate, _chunk_id in tied}) < 2:
+        return []
+    return sorted({chunk_id for _coordinate, chunk_id in tied})
+
+
+def _direct_structured_property_support(query: str, results: list[SearchResult]) -> list[str]:
+    """Confirm an exact structured Input/Output property path in one scoped row group."""
+    properties = {
+        re.sub(r"[^a-z0-9]", "", value.lower())
+        for value in re.findall(r"\b(?:Input|Output)\.[A-Za-z0-9_.\[\]-]+", query)
+    }
+    if len(properties) != 1:
+        return []
+    requested = next(iter(properties))
+    matches: list[tuple[int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        metadata = result.metadata or {}
+        if str(metadata.get("chunk_type") or "") != "table_record":
+            continue
+        content_properties = {
+            re.sub(r"[^a-z0-9]", "", value.lower())
+            for value in re.findall(r"\b(?:Input|Output)\.[A-Za-z0-9_.\[\]-]+", str(result.content or ""))
+        }
+        if requested in content_properties:
+            matches.append((-index, result.chunk_id))
+    return [max(matches)[-1]] if matches else []
 
 
 def _ambiguous_structured_count_support(
@@ -2802,6 +2882,46 @@ def verify_retrieval_claim(
                 rationale=(
                     "Identical scoped count coordinates map to multiple distinct cell values; "
                     "a row or operating-mode qualifier is required."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        ambiguous_lookup_support = _ambiguous_structured_lookup_support(
+            hop.objective,
+            results,
+        )
+        if ambiguous_lookup_support:
+            return EvidenceVerification(
+                trust_state="conflicting",
+                claim_supported=False,
+                conflicting_chunk_ids=ambiguous_lookup_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "The stated structured coordinates tie across multiple sibling cells; "
+                    "a leaf row or column qualifier is required."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_property_support = _direct_structured_property_support(
+            hop.objective,
+            results,
+        )
+        if direct_property_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_property_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic structured-property verification matched the exact Input/Output "
+                    "property path in one scoped table record."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
