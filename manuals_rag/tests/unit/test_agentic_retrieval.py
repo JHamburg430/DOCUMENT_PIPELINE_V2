@@ -175,13 +175,32 @@ def test_warning_dependency_hops_verify_from_exact_scoped_atomic_records(monkeyp
             }
         }
     )
+    warning_action_result = _result(
+        "warning-action",
+        "lj-x8000",
+        "The controller should be installed in the direction of the circled figure below. "
+        "Do not install the controller in any other direction.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "User's Manual (3D mode)",
+                "product_family": "LJ: X8000 Series",
+            }
+        }
+    )
 
-    for hop, results in zip(plan.hops, ([context_result], [warning_result]), strict=True):
+    for hop, results in zip(
+        plan.hops,
+        ([context_result], [warning_action_result, warning_result]),
+        strict=True,
+    ):
         _sufficient, assessment = _assess_hop_evidence(hop.objective, results)
         verdict = verify_retrieval_claim(hop, hop.query, results, assessment, use_llm=True)
         assert verdict["trust_state"] == "confirmed"
         assert verdict["claim_supported"] is True
-        assert verdict["supporting_chunk_ids"] == [results[0].chunk_id]
+        expected_chunk_id = "context" if hop.hop_id == "establish_context" else "warning"
+        assert verdict["supporting_chunk_ids"] == [expected_chunk_id]
 
 
 def test_warning_dependency_refiners_preserve_exact_title_query(monkeypatch):

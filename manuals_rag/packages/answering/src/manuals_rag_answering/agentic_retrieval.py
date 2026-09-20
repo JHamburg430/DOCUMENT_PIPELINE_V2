@@ -1570,11 +1570,10 @@ def _direct_titled_warning_support(
     title = normalized(match.group("title"))
     title = re.sub(r"^(?:warning|caution)\s*", "", title).strip()
     scope = match.group("scope").strip(" ,.;?")
-    preliminary_ids = {
-        str(chunk_id)
-        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
-    }
-    candidate_ids = preliminary_ids or {result.chunk_id for result in results}
+    # An ordinary facet scorer can prefer the neighboring instruction sentence
+    # over the exact title record. Search every scoped safety result here; the
+    # exact normalized title match below is the stronger verification rule.
+    candidate_ids = {result.chunk_id for result in results}
     matches: list[tuple[int, int, str]] = []
     for index, result in enumerate(results):
         if (
