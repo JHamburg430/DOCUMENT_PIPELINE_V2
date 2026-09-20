@@ -774,7 +774,11 @@ def _normalize_primary_plan(
     original_query: str | None = None,
 ) -> RetrievalPlan:
     """Preserve mandatory claims and prevent lossy rewriting of a single lookup."""
-    preserve_single = plan.mode == "single" and len(plan.hops) == 1 and original_query
+    preserve_single = (
+        len(plan.hops) == 1
+        and plan.hops[0].recovery_for is None
+        and original_query
+    )
     return plan.model_copy(
         update={
             "hops": [

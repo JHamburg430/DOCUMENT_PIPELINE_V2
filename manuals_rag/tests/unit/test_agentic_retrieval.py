@@ -143,31 +143,32 @@ def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
     original = (
         "On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?"
     )
-    monkeypatch.setattr(
-        "manuals_rag_answering.agentic_retrieval.chat_json",
-        lambda **_kwargs: (
-            {
-                "mode": "single",
-                "rationale": "One lookup.",
-                "hops": [
-                    {
-                        "hop_id": "lookup",
-                        "objective": "Find the output mapping for command 0028 on CV-X482",
-                        "query": "CV-X482 command 0028 output mapping",
-                        "strategy": "sparse",
-                        "depends_on": [],
-                        "required": True,
-                    }
-                ],
-            },
-            "{}",
-        ),
-    )
+    for mode in ("single", "parallel"):
+        monkeypatch.setattr(
+            "manuals_rag_answering.agentic_retrieval.chat_json",
+            lambda **_kwargs: (
+                {
+                    "mode": mode,
+                    "rationale": "One lookup.",
+                    "hops": [
+                        {
+                            "hop_id": "lookup",
+                            "objective": "Find the output mapping for command 0028 on CV-X482",
+                            "query": "CV-X482 command 0028 output mapping",
+                            "strategy": "sparse",
+                            "depends_on": [],
+                            "required": True,
+                        }
+                    ],
+                },
+                "{}",
+            ),
+        )
 
-    for planner in (plan_retrieval, plan_llamaindex_retrieval):
-        plan = planner(original, use_llm=True)
-        assert plan.hops[0].objective == original
-        assert plan.hops[0].query == original
+        for planner in (plan_retrieval, plan_llamaindex_retrieval):
+            plan = planner(original, use_llm=True)
+            assert plan.hops[0].objective == original
+            assert plan.hops[0].query == original
 
 
 def test_planners_add_canonical_camera_trigger_light_menu_label(monkeypatch):
