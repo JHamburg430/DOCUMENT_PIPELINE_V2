@@ -1742,6 +1742,34 @@ def test_verifier_preserves_colon_in_vendor_prefixed_context_scope(monkeypatch):
     assert output["supporting_chunk_ids"] == ["s8000-context"]
 
 
+def test_scope_gate_allows_family_query_for_enumerated_member_models():
+    matching = _result(
+        "vs-row",
+        "vs-doc",
+        "Column headers: Lower Limit Value; Row headers: Display Settings > Green; Cell value: 0",
+    )
+    matching.metadata.update(
+        {
+            "product_model": "VS-L160MX/VS-L320MX/VS-L500MX",
+            "product_family": "VS Series Vision System with Built: in AI",
+        }
+    )
+
+    supported, assessment = _assess_hop_evidence(
+        "What Display Settings Green Lower Limit Value applies to VS Series Vision System?",
+        [matching],
+    )
+
+    assert supported is True
+    assert assessment["supporting_chunk_ids"] == ["vs-row"]
+
+    supported, _assessment = _assess_hop_evidence(
+        "What Display Settings Green Lower Limit Value applies to LJ: X8000 Series?",
+        [matching],
+    )
+    assert supported is False
+
+
 def test_scope_gate_uses_legacy_family_when_product_model_is_document_title():
     matching = _result(
         "lj-x-series",

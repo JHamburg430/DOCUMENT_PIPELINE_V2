@@ -1329,11 +1329,18 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         return matches_requested(routing_values)
 
     product_model = str(metadata.get("product_model") or "").strip()
-    if product_model and analyze_query(product_model).product_identifiers:
+    primary_model_is_concrete = bool(
+        product_model and analyze_query(product_model).product_identifiers
+    )
+    if primary_model_is_concrete:
         # A concrete conflicting primary model remains authoritative.  Generic
         # legacy labels such as "User's Manual (3D mode)" fall through to the
-        # structured family/model lists below instead of shadowing them.
-        return matches_requested([product_model])
+        # structured family/model lists below instead of shadowing them.  A
+        # family-scoped query must also be allowed to match the authoritative
+        # family label of a document whose primary label enumerates member
+        # models (for example VS versus VS-L160MX/VS-L320MX).
+        if matches_requested([product_model]):
+            return True
 
     legacy_scope_values: list[str] = []
     for key in ("product_models", "product_family", "product_families"):
@@ -1344,6 +1351,10 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
             legacy_scope_values.append(str(value))
     if legacy_scope_values:
         return matches_requested(legacy_scope_values)
+    if primary_model_is_concrete:
+        # Do not let incidental prose mentions override a concrete conflicting
+        # primary model when no authoritative family alias is available.
+        return False
 
     # A verified part-number match can establish scope, but unrelated part
     # numbers are not product identity and therefore cannot create a conflict.
