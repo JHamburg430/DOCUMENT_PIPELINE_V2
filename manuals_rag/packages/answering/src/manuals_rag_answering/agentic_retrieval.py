@@ -1517,7 +1517,9 @@ def _direct_context_sentence_support(
 ) -> list[str]:
     """Confirm a planner-generated context hop from one strongly aligned sentence."""
     match = re.match(
-        r"^Establish the documented installation context for (?P<scope>.+?):\s*(?P<context>.+)$",
+        # Product display labels can contain a colon (``LJ: S8000 Series``).
+        # Use the final delimiter so the scope is not truncated to ``LJ``.
+        r"^Establish the documented installation context for (?P<scope>.+):\s*(?P<context>.+)$",
         query,
         flags=re.I,
     )
