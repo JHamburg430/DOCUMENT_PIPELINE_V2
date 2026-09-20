@@ -130,7 +130,7 @@ def test_planners_build_warning_context_dependency_without_model(monkeypatch):
             assert len(plan.hops) == 2
             assert plan.hops[0].depends_on == []
             assert plan.hops[1].depends_on == [plan.hops[0].hop_id]
-            assert all(hop.strategy == "structural" for hop in plan.hops)
+            assert [hop.strategy for hop in plan.hops] == ["structural", "sparse"]
             assert "Caution on direction of controller mounting" in plan.hops[1].query
             assert "50 mm" not in plan.hops[1].query
             assert "DIN rail" not in plan.hops[1].query

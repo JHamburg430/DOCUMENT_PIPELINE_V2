@@ -675,7 +675,7 @@ def _warning_dependency_plan(query: str) -> RetrievalPlan | None:
                 hop_id="resolve_warning",
                 objective=f"Resolve the warning or caution about {warning} for {scope}",
                 query=f"For {scope}, retrieve the warning or caution titled: {warning}.",
-                strategy="structural",
+                strategy="sparse",
                 depends_on=["establish_context"],
             ),
         ],
