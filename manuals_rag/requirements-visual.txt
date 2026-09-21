@@ -1,0 +1,4 @@
+# Optional dependencies for the isolated visual page-retrieval sidecar.
+# Keep this separate from the production API image until the visual acceptance
+# gate passes and the runtime rollout is explicitly approved.
+sentence-transformers[image]>=6.0,<7

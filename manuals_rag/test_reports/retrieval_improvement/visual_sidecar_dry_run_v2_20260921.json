@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-09-21T17:44:57.853864+00:00",
+  "mode": "dry_run",
+  "production_enabled": false,
+  "corpus_id": "manuals_vendor_keyence",
+  "collection": "manuals_manuals_vendor_keyence_visual_pages",
+  "model": "vidore/colSmol-256M",
+  "document_count": 2,
+  "page_count": 534,
+  "page_manifest_sha256": "a250936b7036c012fd9f7f1644fcba3f6a296003b9e5125449965651701a70c7",
+  "indexed_pages": 0,
+  "missing_page_images": [],
+  "complete": true
+}

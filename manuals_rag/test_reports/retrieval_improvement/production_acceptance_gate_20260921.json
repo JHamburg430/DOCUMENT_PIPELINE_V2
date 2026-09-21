@@ -1,0 +1,177 @@
+{
+  "generated_at": "2026-09-21T17:48:51.640261+00:00",
+  "gate": "manuals_rag_production_acceptance_v1",
+  "accepted": false,
+  "blockers": [
+    "held-out dataset has 48 cases; policy requires at least 200",
+    "48 cases lack evaluation_split=held_out",
+    "48 cases lack source/human-verified adjudication",
+    "no tuning dataset was supplied for document-disjointness verification",
+    "langgraph: 18 cases fail one or more required cells",
+    "langgraph: category gates fail for cross_document, single_hop_control",
+    "langgraph: 18 answerable cases fail claim/citation correctness",
+    "llamaindex: 18 cases fail one or more required cells",
+    "llamaindex: category gates fail for cross_document, single_hop_control",
+    "llamaindex: 18 answerable cases fail claim/citation correctness"
+  ],
+  "dataset": {
+    "sha256": "fbff861ca1394d281cba9ce63dff090e4024568f72fca1cf0fd46e7fac04d124",
+    "case_count": 48,
+    "minimum_case_count": 200,
+    "non_held_out_case_count": 48,
+    "unadjudicated_case_count": 48,
+    "tuning_document_overlap": []
+  },
+  "source": {
+    "revision": "b20f9a3",
+    "branch": "release/manuals-rag-agentic-disabled-20260919",
+    "dirty": false,
+    "dirty_status": [],
+    "dirty_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_paths": []
+  },
+  "backends": {
+    "langgraph": {
+      "case_count": 48,
+      "passed_case_count": 30,
+      "failed_case_ids": [
+        "37c2ce23-e5ac-5c60-836f-84a4707b925d::curated4",
+        "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::1",
+        "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::4",
+        "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::5",
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::6",
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::7",
+        "3a9570f2-e15b-5214-82d4-c70ef88c0499::contextual_multi_step::8",
+        "b2e9c647-ba17-55e6-afc6-ee778d11a9c9::contextual_multi_step::9",
+        "curated_cross_document_v2::1",
+        "curated_cross_document_v2::2",
+        "curated_cross_document_v2::3",
+        "curated_cross_document_v2::4",
+        "curated_cross_document_v2::5",
+        "curated_cross_document_v2::6",
+        "curated_cross_document_v2::7",
+        "curated_cross_document_v2::8",
+        "curated_cross_document_v2::9",
+        "curated_cross_document_v2::10"
+      ],
+      "category_counts": {
+        "single_hop_control": 12,
+        "conflicting_evidence": 2,
+        "parallel_multi_part": 8,
+        "dependent_multi_hop": 7,
+        "cross_document": 10,
+        "exact_structured_lookup": 5,
+        "entity_resolution": 3,
+        "unanswerable": 1
+      },
+      "category_passes": {
+        "single_hop_control": 4,
+        "conflicting_evidence": 2,
+        "parallel_multi_part": 8,
+        "dependent_multi_hop": 7,
+        "exact_structured_lookup": 5,
+        "entity_resolution": 3,
+        "unanswerable": 1
+      },
+      "failed_categories": [
+        "cross_document",
+        "single_hop_control"
+      ],
+      "missing_categories": [],
+      "citation_failure_case_ids": [
+        "37c2ce23-e5ac-5c60-836f-84a4707b925d::curated4",
+        "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::1",
+        "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::4",
+        "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::5",
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::6",
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::7",
+        "3a9570f2-e15b-5214-82d4-c70ef88c0499::contextual_multi_step::8",
+        "b2e9c647-ba17-55e6-afc6-ee778d11a9c9::contextual_multi_step::9",
+        "curated_cross_document_v2::1",
+        "curated_cross_document_v2::2",
+        "curated_cross_document_v2::3",
+        "curated_cross_document_v2::4",
+        "curated_cross_document_v2::5",
+        "curated_cross_document_v2::6",
+        "curated_cross_document_v2::7",
+        "curated_cross_document_v2::8",
+        "curated_cross_document_v2::9",
+        "curated_cross_document_v2::10"
+      ],
+      "abstention_failure_case_ids": [],
+      "p95_latency_ms": 106121.31,
+      "max_p95_latency_ms": 120000
+    },
+    "llamaindex": {
+      "case_count": 48,
+      "passed_case_count": 30,
+      "failed_case_ids": [
+        "37c2ce23-e5ac-5c60-836f-84a4707b925d::curated4",
+        "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::2",
+        "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::4",
+        "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::5",
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::6",
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::7",
+        "3a9570f2-e15b-5214-82d4-c70ef88c0499::contextual_multi_step::8",
+        "b2e9c647-ba17-55e6-afc6-ee778d11a9c9::contextual_multi_step::9",
+        "curated_cross_document_v2::1",
+        "curated_cross_document_v2::2",
+        "curated_cross_document_v2::3",
+        "curated_cross_document_v2::4",
+        "curated_cross_document_v2::5",
+        "curated_cross_document_v2::6",
+        "curated_cross_document_v2::7",
+        "curated_cross_document_v2::8",
+        "curated_cross_document_v2::9",
+        "curated_cross_document_v2::10"
+      ],
+      "category_counts": {
+        "single_hop_control": 12,
+        "conflicting_evidence": 2,
+        "parallel_multi_part": 8,
+        "dependent_multi_hop": 7,
+        "cross_document": 10,
+        "exact_structured_lookup": 5,
+        "entity_resolution": 3,
+        "unanswerable": 1
+      },
+      "category_passes": {
+        "single_hop_control": 4,
+        "conflicting_evidence": 2,
+        "parallel_multi_part": 8,
+        "dependent_multi_hop": 7,
+        "exact_structured_lookup": 5,
+        "entity_resolution": 3,
+        "unanswerable": 1
+      },
+      "failed_categories": [
+        "cross_document",
+        "single_hop_control"
+      ],
+      "missing_categories": [],
+      "citation_failure_case_ids": [
+        "37c2ce23-e5ac-5c60-836f-84a4707b925d::curated4",
+        "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::2",
+        "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::4",
+        "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::5",
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::6",
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::7",
+        "3a9570f2-e15b-5214-82d4-c70ef88c0499::contextual_multi_step::8",
+        "b2e9c647-ba17-55e6-afc6-ee778d11a9c9::contextual_multi_step::9",
+        "curated_cross_document_v2::1",
+        "curated_cross_document_v2::2",
+        "curated_cross_document_v2::3",
+        "curated_cross_document_v2::4",
+        "curated_cross_document_v2::5",
+        "curated_cross_document_v2::6",
+        "curated_cross_document_v2::7",
+        "curated_cross_document_v2::8",
+        "curated_cross_document_v2::9",
+        "curated_cross_document_v2::10"
+      ],
+      "abstention_failure_case_ids": [],
+      "p95_latency_ms": 68933.05,
+      "max_p95_latency_ms": 120000
+    }
+  }
+}
