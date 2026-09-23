@@ -523,6 +523,7 @@ Approve only if the question:
 - Does not depend on file names, page/table coordinates, or benchmark-only phrasing.
 - Does not ask about storage format, display precision, parser coordinates, or internal representation unless that is clearly a user-facing spec someone would search for.
 - When the snippet or document context contains multiple values for the same metric or multiple variants of the same component, names the user-visible accessory, assembly, location, mode, or other discriminator that uniquely binds the requested value. A product model plus a generic component name is not sufficient when sibling components have different values.
+- Preserve every decision-changing table-field qualifier in the question. In particular, never shorten X/Y/Z-axis values, input/output values, near/far-side values, model variants, or operating modes to an unqualified metric name.
 
 Before rejecting, fill false_rejection_check for these conditions. If answer_in_snippet is true and any false_rejection_check value is true, approve unless there is a separate concrete defect covered by an allowed rejection category:
 - synonym_or_smoother_wording_only: the only issue is singular/plural wording, a natural synonym, broader user term, or smoother grammar.
@@ -544,6 +545,7 @@ Calibration examples:
 - Source says an RS-232C cable has part number OP-26487. Question "Which cable connects to the RS-232C port?" should be approved because the part number answers which cable.
 - Source only says to check a cable/status but gives no verification method. Question "How do I verify the cable status?" should be rejected as asks_for_steps_not_present.
 - Source context contains different tightening torques for several mounting accessories. Question "What torque is required for the bracket?" should be rejected as too_vague unless it names the particular bracket, accessory model, or mounting operation associated with the requested value.
+- Source label is "X Reference distance" and the cell is 15 mm. Question "What reference distance applies?" must be rejected as too_vague; it must retain the X-axis qualifier because an unqualified reference-distance row may have a different valid value.
 
 When rejecting, give concise feedback that the question generator can use directly. Do not rewrite the question yourself. Feedback must only criticize defects visible in the question text or concrete mismatches with the source snippet; never mention removing or changing a word, model, page, filename, manufacturer, or coordinate that is not literally present in the question.
 """.strip()

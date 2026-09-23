@@ -1,0 +1,2 @@
+{"case_id": "3082a8a7-e9ca-5883-ac75-047d340b5169::1", "query": "How long does the WM-P6000 take to charge?", "reason": "3082a8a7-e9ca-5883-ac75-047d340b5169::1: expected snippet does not answer query requirement(s): duration value"}
+{"case_id": "453a2f69-10e1-5eb6-aa2b-bb720404efb7::1", "query": "Which color-coded wires correspond to the OUT, OUT1-4, IN1-2, and IN3-6 inputs on the Vision Sensor IV Series?", "reason": "453a2f69-10e1-5eb6-aa2b-bb720404efb7::1: expected snippet does not answer query requirement(s): I/O terminals IN3, IN4, IN5, IN6"}

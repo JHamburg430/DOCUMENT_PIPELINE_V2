@@ -931,7 +931,32 @@ def test_large_retrieval_eval_recognizes_wrapped_query_timeouts():
 
     assert module.is_query_timeout_exception(module.QueryTimeoutError("Search exceeded per-query timeout of 12 seconds."))
     assert module.is_query_timeout_exception(RuntimeError("Search exceeded per-query timeout of 12 seconds."))
+    HttpxReadTimeout = type("ReadTimeout", (Exception,), {"__module__": "httpx"})
+    assert module.is_query_timeout_exception(HttpxReadTimeout("timed out"))
     assert not module.is_query_timeout_exception(RuntimeError("qdrant collection unavailable"))
+
+
+def test_large_retrieval_eval_records_non_timeout_errors_fail_closed():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    evaluation = module.error_evaluation(
+        {"expected_terms": ["24", "vdc"]},
+        elapsed_seconds=1.2345,
+        exc=RuntimeError("qdrant collection unavailable"),
+    )
+
+    assert evaluation["passed"] is False
+    assert evaluation["failure_category"] == "eval_error"
+    assert evaluation["error_type"] == "RuntimeError"
+    assert evaluation["error_message"] == "qdrant collection unavailable"
+    assert evaluation["elapsed_seconds"] == 1.234
 
 
 def test_large_retrieval_eval_enforces_elapsed_timeout_after_swallowed_signal(monkeypatch):

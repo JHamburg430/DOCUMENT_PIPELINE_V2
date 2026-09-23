@@ -90,8 +90,26 @@ def timeout_evaluation(case: dict[str, Any], *, elapsed_seconds: float, timeout_
     }
 
 
+def error_evaluation(case: dict[str, Any], *, elapsed_seconds: float, exc: Exception) -> dict[str, Any]:
+    return {
+        "passed": False,
+        "rank": None,
+        "matched_terms": [],
+        "missing_terms": list(case.get("expected_terms") or []),
+        "candidate_recall": False,
+        "failure_category": "eval_error",
+        "elapsed_seconds": round(elapsed_seconds, 3),
+        "error_type": type(exc).__name__,
+        "error_message": str(exc)[:500],
+    }
+
+
 def is_query_timeout_exception(exc: Exception) -> bool:
-    if isinstance(exc, QueryTimeoutError):
+    if isinstance(exc, TimeoutError):
+        return True
+    exception_module = type(exc).__module__
+    exception_name = type(exc).__name__
+    if exception_module.startswith(("httpx", "httpcore")) and exception_name.endswith("Timeout"):
         return True
     return "Search exceeded per-query timeout" in str(exc)
 
@@ -608,6 +626,13 @@ def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record, ensure_ascii=True) + "\n")
+
+
+def append_jsonl(path: Path, record: dict[str, Any]) -> None:
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -1382,10 +1407,12 @@ def main() -> int:
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     dataset_path = OUTPUT_DIR / f"retrieval_eval_dataset_{timestamp}.jsonl"
     results_path = OUTPUT_DIR / f"retrieval_eval_results_{timestamp}.jsonl"
+    progress_path = OUTPUT_DIR / f"retrieval_eval_results_{timestamp}.partial.jsonl"
     summary_path = OUTPUT_DIR / f"retrieval_eval_summary_{timestamp}.json"
     manifest_path = OUTPUT_DIR / f"retrieval_eval_manifest_{timestamp}.json"
 
     write_jsonl(dataset_path, cases)
+    write_jsonl(progress_path, [])
     if args.skip_evaluation:
         summary = {
             "total_questions": len(cases),
@@ -1470,19 +1497,26 @@ def main() -> int:
             if answer_evaluation is not None:
                 answer_evaluation["elapsed_seconds"] = evaluation["elapsed_seconds"]
         except Exception as exc:
-            if not is_query_timeout_exception(exc):
-                raise
             search_results = []
-            evaluation = timeout_evaluation(
-                case,
-                elapsed_seconds=time.time() - start_time,
-                timeout_seconds=args.per_query_timeout_seconds,
-            )
+            if is_query_timeout_exception(exc):
+                evaluation = timeout_evaluation(
+                    case,
+                    elapsed_seconds=time.time() - start_time,
+                    timeout_seconds=args.per_query_timeout_seconds,
+                )
+                failure_reason = "eval_timeout"
+            else:
+                evaluation = error_evaluation(
+                    case,
+                    elapsed_seconds=time.time() - start_time,
+                    exc=exc,
+                )
+                failure_reason = "eval_error"
             if args.response_mode == "answer_with_citations":
                 answer = {}
                 answer_evaluation = {
                     "passed": False,
-                    "failure_reasons": ["eval_timeout"],
+                    "failure_reasons": [failure_reason],
                     "expected_document_used": False,
                     "elapsed_seconds": evaluation["elapsed_seconds"],
                 }
@@ -1492,6 +1526,7 @@ def main() -> int:
             result_record["answer"] = answer or {}
             result_record["answer_evaluation"] = answer_evaluation or {}
         results.append(result_record)
+        append_jsonl(progress_path, result_record)
         print(
             json.dumps(
                 {
@@ -1544,6 +1579,7 @@ def main() -> int:
                 "rejected_cases": rejected_cases,
                 "dataset_path": str(dataset_path),
                 "results_path": str(results_path),
+                "progress_path": str(progress_path),
                 "summary_path": str(summary_path),
                 "selected_documents": [str(path) for path in selected_docs],
             },

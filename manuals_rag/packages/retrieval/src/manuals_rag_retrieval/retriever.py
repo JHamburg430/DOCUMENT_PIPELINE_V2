@@ -35,6 +35,8 @@ _active_stage_capture: ContextVar[list[dict[str, Any]] | None] = ContextVar(
 FUSED_CANDIDATE_POOL_LIMIT = 30
 DOCUMENT_METADATA_SELECTION_LIMIT = 5
 IDENTIFIER_METADATA_SELECTION_LIMIT = 20
+METADATA_BALANCED_DOCUMENT_LIMIT = 3
+METADATA_BALANCED_CANDIDATES_PER_DOCUMENT = 2
 LEXICAL_TABLE_ROW_LIMIT = 48
 LEXICAL_TABLE_SCAN_LIMIT = 1500
 LEXICAL_CONTEXT_LIMIT = 24
@@ -335,6 +337,47 @@ def run_table_search(store: QdrantStore, query: str, corpus_ids: list[str], filt
             dense_results = []
         sparse_results = store.search_sparse(corpus_id=corpus_id, query=query, filters=table_filters, limit=limit)
         results.extend(store.fuse_rrf([dense_results, sparse_results], limit=limit))
+    return results
+
+
+def run_metadata_balanced_table_search(
+    store: QdrantStore,
+    query: str,
+    corpus_ids: list[str],
+    filters: dict[str, object],
+    metadata_document_hits: list[dict[str, object]],
+    *,
+    document_limit: int = METADATA_BALANCED_DOCUMENT_LIMIT,
+    per_document_limit: int = METADATA_BALANCED_CANDIDATES_PER_DOCUMENT,
+) -> list[SearchResult]:
+    """Keep answer-bearing table evidence from the best routed documents.
+
+    A single vector search across several selected manuals can be monopolized by
+    a long manual with many near-duplicate chunks. Search the strongest routed
+    documents independently so each gets a small, bounded candidate allotment
+    before fusion and reranking.
+    """
+    if _has_explicit_document_scope(filters):
+        return []
+    results: list[SearchResult] = []
+    seen_documents: set[str] = set()
+    for hit in metadata_document_hits:
+        document_id = str(hit.get("source_document_id") or "")
+        if not document_id or document_id in seen_documents:
+            continue
+        seen_documents.add(document_id)
+        scoped_filters = {**filters, "source_document_id": document_id}
+        results.extend(
+            run_table_search(
+                store,
+                query,
+                corpus_ids,
+                scoped_filters,
+                limit=per_document_limit,
+            )[:per_document_limit]
+        )
+        if len(seen_documents) >= document_limit:
+            break
     return results
 
 
@@ -4184,6 +4227,20 @@ def _retrieve_once(
         if _should_run_extra_table_vector_search(analysis)
         else []
     )
+    metadata_balanced_table_results = (
+        _annotate_stage_metadata(
+            run_metadata_balanced_table_search(
+                store,
+                query,
+                corpus_ids,
+                filters,
+                metadata_document_hits,
+            ),
+            "metadata_balanced_table",
+        )
+        if _should_run_table_search(analysis) and metadata_document_hits
+        else []
+    )
     contextual_lexical_results = _annotate_stage_metadata(
         run_contextual_lexical_search(
             query,
@@ -4201,7 +4258,15 @@ def _retrieve_once(
     fused = _annotate_stage_metadata(
         fuse_results(
             store,
-            [dense_results, sparse_results, table_results, table_lexical_results, contextual_lexical_results, special_results],
+            [
+                dense_results,
+                sparse_results,
+                table_results,
+                metadata_balanced_table_results,
+                table_lexical_results,
+                contextual_lexical_results,
+                special_results,
+            ],
             limit=candidate_pool_limit,
         ),
         "fused",
@@ -4222,9 +4287,10 @@ def _retrieve_once(
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
     _record_stage_snapshot("rerank", query, reranked)
     troubleshooting_siblings = _troubleshooting_table_siblings(reranked, analysis)
-    troubleshooting_supplemental = [*table_lexical_results, *troubleshooting_siblings]
-    reranked = _promote_structured_table_candidates(reranked, table_lexical_results, analysis, limit=12)
-    reranked = _promote_comparison_table_candidates(reranked, table_lexical_results, analysis, limit=12)
+    table_supplemental = [*metadata_balanced_table_results, *table_lexical_results]
+    troubleshooting_supplemental = [*table_supplemental, *troubleshooting_siblings]
+    reranked = _promote_structured_table_candidates(reranked, table_supplemental, analysis, limit=12)
+    reranked = _promote_comparison_table_candidates(reranked, table_supplemental, analysis, limit=12)
     reranked = _promote_troubleshooting_table_candidates(reranked, troubleshooting_supplemental, analysis, limit=12)
     reranked = _promote_identifier_contextual_candidates(
         reranked,

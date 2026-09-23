@@ -88,6 +88,27 @@ class QdrantStore:
     def __init__(self, *, timeout: float | None = None) -> None:
         options = {"timeout": timeout} if timeout is not None else {}
         self.client = QdrantClient(url=settings.qdrant_url, **options)
+        self._dense_query_cache: dict[tuple[str, str], tuple[float, ...]] = {}
+
+    def _dense_query_vector(self, query: str, *, instruction: str | None = None) -> list[float]:
+        """Embed each query/instruction pair once per retrieval request.
+
+        A retrieval pass reuses one store across metadata routing, broad search,
+        table search, and document-balanced fallback lanes. Re-embedding the
+        same query in every lane adds latency and can overload a local embedding
+        server without changing the vector.
+        """
+        key = (query, instruction or "")
+        cached = self._dense_query_cache.get(key)
+        if cached is None:
+            vector = (
+                embed_query_dense(query, instruction=instruction)
+                if instruction
+                else embed_dense([query])[0]
+            )
+            cached = tuple(float(value) for value in vector)
+            self._dense_query_cache[key] = cached
+        return list(cached)
 
     def ensure_collection(self, corpus_id: str, vector_size: int) -> None:
         name = collection_name(corpus_id)
@@ -352,11 +373,7 @@ class QdrantStore:
         *,
         query_instruction: str | None = None,
     ) -> list[SearchResult]:
-        dense = (
-            embed_query_dense(query, instruction=query_instruction)
-            if query_instruction
-            else embed_dense([query])[0]
-        )
+        dense = self._dense_query_vector(query, instruction=query_instruction)
         name = collection_name(corpus_id)
         if hasattr(self.client, "collection_exists") and not self.client.collection_exists(name):
             return []
@@ -392,7 +409,7 @@ class QdrantStore:
         name = document_metadata_collection_name(corpus_id)
         if not self.client.collection_exists(name):
             return []
-        dense = embed_dense([query])[0]
+        dense = self._dense_query_vector(query)
         query_filter = self._build_filter(filters)
         try:
             dense_hits = self._query_vector(

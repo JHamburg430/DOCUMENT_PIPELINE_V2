@@ -3063,6 +3063,75 @@ def test_metadata_document_selection_falls_back_when_metadata_index_has_no_hits(
     assert hits == []
 
 
+def test_metadata_balanced_table_search_preserves_candidates_per_routed_document(monkeypatch):
+    calls: list[dict[str, object]] = []
+
+    def fake_table_search(_store, _query, _corpus_ids, filters, limit=40):
+        calls.append(filters)
+        document_id = str(filters["source_document_id"])
+        return [
+            SearchResult(
+                chunk_id=f"chunk-{document_id}-{index}",
+                score=1.0 - index / 10,
+                title=document_id,
+                document_version_id=f"version-{document_id}",
+                source_document_id=document_id,
+                pages=[1],
+                section_path=["Specs"],
+                content=f"Evidence from {document_id}",
+                metadata={"chunk_type": "table_record"},
+            )
+            for index in range(limit + 1)
+        ]
+
+    monkeypatch.setattr(retriever, "run_table_search", fake_table_search)
+    hits = [
+        {"source_document_id": "doc-1"},
+        {"source_document_id": "doc-2"},
+        {"source_document_id": "doc-1"},
+        {"source_document_id": "doc-3"},
+        {"source_document_id": "doc-4"},
+    ]
+
+    results = retriever.run_metadata_balanced_table_search(
+        object(),
+        "rated input voltage",
+        ["c1"],
+        {"is_active": True},
+        hits,
+        document_limit=3,
+        per_document_limit=2,
+    )
+
+    assert [call["source_document_id"] for call in calls] == ["doc-1", "doc-2", "doc-3"]
+    assert [result.source_document_id for result in results] == [
+        "doc-1",
+        "doc-1",
+        "doc-2",
+        "doc-2",
+        "doc-3",
+        "doc-3",
+    ]
+
+
+def test_metadata_balanced_table_search_skips_explicit_document_scope(monkeypatch):
+    monkeypatch.setattr(
+        retriever,
+        "run_table_search",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("search should not run")),
+    )
+
+    results = retriever.run_metadata_balanced_table_search(
+        object(),
+        "rated input voltage",
+        ["c1"],
+        {"is_active": True, "source_document_id": "doc-1"},
+        [{"source_document_id": "doc-1"}],
+    )
+
+    assert results == []
+
+
 def test_exact_model_identifier_limits_metadata_hits_to_matching_manual():
     analysis = analyze_query("How should error 13302 be corrected for CV-X482?")
     hits = [
@@ -3541,7 +3610,7 @@ def test_retrieve_uses_metadata_document_selection_before_chunk_search(monkeypat
     results = retriever.retrieve("Model-101 z axis repeatability", ["corpus-1"], {"is_active": True}, limit=5)
 
     assert results[0].source_document_id == "doc-selected"
-    assert all(filters["source_document_id"] == ["doc-selected"] for filters in selected_filters)
+    assert all(filters["source_document_id"] in (["doc-selected"], "doc-selected") for filters in selected_filters)
     assert results[0].metadata["document_selection_stage"] == "metadata_embedding"
     assert results[0].metadata["selected_document_metadata_hits"][0]["source_document_id"] == "doc-selected"
 
