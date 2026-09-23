@@ -584,6 +584,8 @@ class RetrievalEvalCase:
     expected_source_chunk_ids: list[str] | None = None
     expected_evidence: list[dict[str, Any]] | None = None
     expected_evidence_graph: dict[str, Any] | None = None
+    evaluation_split: str | None = None
+    adjudication: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

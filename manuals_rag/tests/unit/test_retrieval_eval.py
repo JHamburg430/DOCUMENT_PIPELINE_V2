@@ -373,6 +373,43 @@ def test_large_retrieval_eval_rejects_oversized_document_holdout():
         module.select_held_out_documents([{"document_id": "doc-1"}], count=2, seed=42)
 
 
+def test_large_retrieval_eval_collects_all_source_documents_from_exclusion_datasets(tmp_path):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    dataset = tmp_path / "tuning.jsonl"
+    dataset.write_text(
+        "\n".join(
+            [
+                json.dumps({"case": {"source_document_id": "doc-primary"}}),
+                json.dumps(
+                    {
+                        "source_document_id": "doc-secondary",
+                        "expected_evidence": [{"source_document_id": "doc-evidence"}],
+                        "expected_evidence_graph": {
+                            "nodes": [{"source_document_id": "doc-graph"}]
+                        },
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert module.source_document_ids_from_datasets([dataset]) == {
+        "doc-primary",
+        "doc-secondary",
+        "doc-evidence",
+        "doc-graph",
+    }
+
+
 def test_large_retrieval_eval_fetch_chunks_adds_fallback_context_window(monkeypatch):
     import importlib.util
     from pathlib import Path

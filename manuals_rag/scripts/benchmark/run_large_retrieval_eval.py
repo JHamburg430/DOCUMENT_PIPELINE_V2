@@ -210,6 +210,34 @@ def select_held_out_documents(
     return sorted(documents, key=partition_key)[:count]
 
 
+def source_document_ids_from_datasets(paths: list[Path]) -> set[str]:
+    """Collect every expected source document referenced by evaluation datasets."""
+    document_ids: set[str] = set()
+    for path in paths:
+        for record in read_jsonl(path):
+            case = record.get("case") if isinstance(record.get("case"), dict) else record
+            source_document_id = str(case.get("source_document_id") or "").strip()
+            if source_document_id:
+                document_ids.add(source_document_id)
+            expected_evidence = case.get("expected_evidence")
+            if isinstance(expected_evidence, list):
+                for item in expected_evidence:
+                    if not isinstance(item, dict):
+                        continue
+                    document_id = str(item.get("source_document_id") or "").strip()
+                    if document_id:
+                        document_ids.add(document_id)
+            graph = case.get("expected_evidence_graph")
+            if isinstance(graph, dict):
+                for node in graph.get("nodes") or []:
+                    if not isinstance(node, dict):
+                        continue
+                    document_id = str(node.get("source_document_id") or "").strip()
+                    if document_id:
+                        document_ids.add(document_id)
+    return document_ids
+
+
 def create_corpus(corpus_id: str) -> None:
     _json_request(
         f"{API_BASE}/corpora",
@@ -1036,6 +1064,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--exclude-document-dataset",
+        type=Path,
+        action="append",
+        default=[],
+        help=(
+            "Exclude every expected source document referenced by this JSONL dataset from "
+            "held-out question generation. Repeat for multiple tuning datasets."
+        ),
+    )
+    parser.add_argument(
         "--dataset-path",
         type=Path,
         default=None,
@@ -1196,9 +1234,17 @@ def main() -> int:
             print(json.dumps({"ingesting": path.name, "size_bytes": path.stat().st_size}, indent=2), flush=True)
             ingested_docs.append(upload_and_ingest(path, corpus_id=corpus_id))
 
+    excluded_document_ids = source_document_ids_from_datasets(args.exclude_document_dataset)
+    eligible_generation_docs = [
+        item
+        for item in ingested_docs
+        if str(item.get("document_id") or item.get("id") or "") not in excluded_document_ids
+    ]
+    if args.exclude_document_dataset and not eligible_generation_docs:
+        raise SystemExit("No documents remain after excluding tuning-dataset source documents.")
     try:
         generation_docs = select_held_out_documents(
-            ingested_docs,
+            eligible_generation_docs,
             count=args.held_out_document_count,
             seed=args.seed,
         )
@@ -1215,6 +1261,10 @@ def main() -> int:
         "seed": args.seed,
         "requested_count": args.held_out_document_count,
         "searchable_document_count": len(ingested_docs),
+        "eligible_generation_document_count": len(eligible_generation_docs),
+        "excluded_document_count": len(excluded_document_ids),
+        "excluded_document_ids": sorted(excluded_document_ids),
+        "exclusion_datasets": [str(path) for path in args.exclude_document_dataset],
         "generation_document_count": len(generation_docs),
         "generation_documents": [
             {
