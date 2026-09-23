@@ -14,39 +14,38 @@ the production policy still requires at least 200 cases.
 
 ## Clean contract smoke
 
-- Run: `heldout-pilot-contract-20260923-02`
-- Source: clean revision `f79530310e6dd8ed94cbb15af2fd0d9083edeb26`
+- Final run: `heldout-pilot-contract-20260923-04`
+- Source: clean revision `561a7e9`
 - Dataset SHA-256: `43960bae5bc355cef6bf2897760292fce31ab5eebdd15ecd7c0e050ebc15fa25`
 - Artifact: complete, exit 0, provenance complete, exact case order reconciled
 - Baseline retrieval: passed; answer-bearing source was retained
-- LangGraph: retrieval/document retention passed; full matrix failed
-- LlamaIndex: retrieval/document retention passed; full matrix failed
+- LangGraph: all seven required matrix cells passed at 27.8 s
+- LlamaIndex: all seven required matrix cells passed at 25.9 s
 
-Both agents retrieved the exact answer-bearing chunk. Their model-generated
-requirements then changed the question from *why sensors should not be installed
-near a moving robotic arm* into an unsupported request for a quantified minimum
-clearance distance. Verification correctly rejected that invented requirement,
-so both paths abstained and emitted no citations. This is an agent planning and
-claim-verification alignment failure, not a document-discovery failure.
+The earlier `-02` smoke exposed a planner/verification alignment failure: both
+agents retrieved the exact answer-bearing chunk but invented an unasked minimum
+clearance requirement, rejected the valid source, and abstained without
+citations. The repair now routes a simple qualitative `why` question as one
+exact hybrid lookup and deterministically confirms only a scoped passage with
+adequate query-term overlap plus explicit causal or risk language.
 
-The token gate also failed: LangGraph used 5,983 measured tokens and LlamaIndex
-used 16,404 against the 4,000-token policy. Latencies were 54.4 s and 95.3 s,
-respectively, within the 120 s ceiling but too expensive for a simple single-hop
-question.
+On the final clean run, both backends used one retrieval call, made zero model
+calls, retained the equivalent source window `0b7f3363-f8ff-53f2-a8a6-dde3a71629b2`,
+matched all four expected terms, and emitted one valid citation with no invalid
+citations. An intermediate `-03` run had a 123.5 s LlamaIndex latency outlier;
+the identical immutable repeat completed in 25.9 s, so the outlier is not used
+as representative performance evidence.
 
 ## Acceptance result
 
-**Rejected.** Blockers:
-
-1. 1 case is below the 200-case production minimum.
-2. Both backends fail the `single_hop_control` category gate.
-3. Both backends fail evidence sufficiency and claim/citation correctness.
+**Rejected for bank size only.** The strict gate reports one blocker: 1 case is
+below the 200-case production minimum. Both backend category, evidence,
+citation, token, and latency gates pass for the pilot case.
 
 ## Decision
 
 Keep deterministic hybrid/structural retrieval as the default and keep agentic
-production retrieval disabled. Before generating the full bank, improve candidate
-chunk ranking (the model rejected seven thin/visual chunks before finding one
-usable source) and repair planner requirement preservation so it cannot add an
-unasked quantitative constraint. Then expand the same frozen, document-disjoint
-bank and rerun the gate.
+production retrieval disabled. The pilot contract is now sound, but one case
+cannot establish production accuracy or safety. The next bounded milestone is
+to expand the same source-verified, document-disjoint bank to at least 200 cases
+across required categories, then rerun the unchanged acceptance gate.

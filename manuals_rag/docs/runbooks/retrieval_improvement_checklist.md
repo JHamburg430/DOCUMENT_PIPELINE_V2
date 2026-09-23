@@ -202,6 +202,17 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   policy for this simple single-hop control.
 - The acceptance gate correctly rejected the pilot for size, category,
   evidence-sufficiency, and claim/citation failures. Production remains disabled.
+- Qualitative explanation repair on revision `561a7e9` preserves the original
+  question as one hybrid lookup and permits deterministic confirmation only for
+  a scoped passage with sufficient term overlap and explicit causal/risk text.
+  Focused answering tests pass: 110/110.
+- Final immutable smoke `heldout-pilot-contract-20260923-04` is complete with
+  clean provenance and exact dataset order. Both LangGraph and LlamaIndex pass
+  all seven cells, cite the answer-bearing equivalent source window, use one
+  retrieval call and zero model calls, and finish in 27.8 s and 25.9 s.
+- The strict acceptance gate now rejects only because the frozen bank has 1 case
+  instead of the required 200. This validates the pilot contract, not production
+  readiness; deterministic hybrid/structural retrieval remains the default.
 
 ### Latest checkpoint
 
