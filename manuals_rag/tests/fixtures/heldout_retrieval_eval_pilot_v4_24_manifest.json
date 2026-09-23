@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "frozen_at": "2026-09-23T15:54:58+00:00",
+  "input_path": ".tmp/heldout_retrieval_eval_candidates_v4_24.jsonl",
+  "input_sha256": "545dbdcdeda01560f264f9ffe0f793f26f6a4c911ed897e9e9c0bf9152ffac51",
+  "output_path": "tests/fixtures/heldout_retrieval_eval_pilot_v4_24.jsonl",
+  "output_sha256": "ec1e20c575fc75a2367a7865387ac7183a66858b81f5ff3545f217430461c694",
+  "ordered_case_ids": [
+    "05529dba-3a83-54d9-8561-a2ad7dbe74bb::1",
+    "9ead1835-c447-5c92-9c21-8c2234e7f62d::1",
+    "4baacee5-c0f9-5715-8275-96cf51921b4d::1",
+    "162ac406-9a88-5a2f-8b9a-6f6285de687e::1",
+    "09ad84e7-3d4b-589e-9654-15436f051545::1",
+    "08a47825-4b4d-5f2b-990f-b725614090c9::1",
+    "0ce85089-bb5f-51c9-962c-f48b42e7fdbd::1",
+    "18aff064-480a-58d1-a9f2-d4d46f4a429a::1",
+    "0353aa48-3cba-54cd-acd2-afb3c2656a71::1",
+    "6a0fd8fe-353f-57c0-a1e3-1ac2e7d2c7e5::1",
+    "9f99059f-ada8-5c7f-8440-543f214b436e::1",
+    "26751aad-9c76-5b89-892c-c556dbc1e631::1",
+    "ab51ba96-b2f8-50c5-9522-c83c56a3221a::1",
+    "55f63fe8-e378-5b51-b3b7-a8c85a4e2486::1",
+    "9bfa97bb-1fd1-53e9-a255-65c41c651132::1",
+    "ea03afb4-56fb-506c-af86-b75031a979fc::1",
+    "77bbd8f1-d23e-5dbd-b27e-c0712efdc33f::1",
+    "9d971dd7-fa64-5b7c-ace5-c4115ccb4935::1",
+    "25b5429f-87f5-5f9c-8047-e19a9b66c2f5::1",
+    "03bff664-a829-535e-b99f-aa85ff61eadd::1",
+    "75ef7880-c2ac-5e0f-b5a2-c220db72fa5c::1",
+    "93d0fec9-ceb4-5931-9adb-81711e5007f3::1",
+    "2528b2e4-d6f5-5942-bc21-6ffc80190ad0::1",
+    "86b19a4c-5fcb-5c43-9d7e-28db51cf7c5d::1"
+  ],
+  "case_count": 24,
+  "held_out_document_ids": [
+    "174dbe80-efe6-472a-8e3b-d6932d0771bd",
+    "6279a874-72ca-46bd-81e5-e5f0a9e7745a",
+    "695a571b-0ed8-4601-9ac0-d187dbe51c54",
+    "8d83cb71-55d2-42db-9630-bc16f0d6877c",
+    "9380acf9-5479-448c-b57e-d4a951162804",
+    "ab20ebe2-6029-4b57-a9af-8fc3b8882512",
+    "bd8e91eb-a026-4143-9323-feff0f9a7cba",
+    "e60ba2bb-ac5a-4fcb-93f4-491a8f5d2694",
+    "eac20d9f-19aa-4f08-b06e-d39fe6f7d6a6"
+  ],
+  "tuning_datasets": [
+    {
+      "path": "tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl",
+      "sha256": "fbff861ca1394d281cba9ce63dff090e4024568f72fca1cf0fd46e7fac04d124"
+    }
+  ],
+  "tuning_document_ids": [
+    "036c91eb-df6d-4aa0-b576-d0e5be3a16d6",
+    "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+    "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+    "58e02d4c-c6bc-424c-a3c0-c7706759602e",
+    "599c5822-664e-430d-9015-c2462a9373ec",
+    "8086e290-7093-48d3-9efc-fcc88f9fb1c1",
+    "857c0518-4b3a-42e2-97c9-211ab24163b6",
+    "9224d20b-6866-480b-9d00-f98adbda3bee",
+    "ab3b1b4c-ca3a-4e0b-9ec4-6e29c686dfcf",
+    "d0f2314c-86f0-4fcb-adc8-564e29f3152c"
+  ],
+  "document_disjoint": true,
+  "adjudication_method": "assistant_persisted_chunk_exact_snippet_v1",
+  "human_reviewed": false,
+  "source_snippets_reanchored": true
+}
