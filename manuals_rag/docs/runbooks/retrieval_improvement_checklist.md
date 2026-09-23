@@ -181,6 +181,28 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   questions. Preserve them in the frozen benchmark and distinguish genuine
   dependency testing in a separate clean set.
 
+### Document-disjoint held-out pilot — 2026-09-23
+
+- Question generation now accepts repeatable tuning datasets and excludes every
+  referenced source document before deterministic holdout selection. The current
+  corpus has 53 indexed manuals; 10 are used by the tuning matrix and 43 remain
+  eligible for held-out generation.
+- A fail-closed freezer verifies active persisted source chunks, exact expected
+  snippets, document/version identity, expected terms, unique case IDs, and zero
+  tuning-document overlap. It records immutable dataset/source hashes and labels
+  assistant source verification with `human_reviewed=false`.
+- The first frozen pilot is intentionally one case. It proves the generation,
+  freeze, provenance, and gate contracts; it does **not** satisfy T9 or the
+  200-case production minimum.
+- Clean smoke `heldout-pilot-contract-20260923-02` reconciled on revision
+  `f795303` with exit 0. Both agents retrieved and retained the exact answer
+  evidence but invented an unasked minimum-clearance requirement, rejected the
+  valid source, and abstained without citations. LangGraph used 5,983 tokens at
+  54.4 s; LlamaIndex used 16,404 tokens at 95.3 s. Both exceed the 4,000-token
+  policy for this simple single-hop control.
+- The acceptance gate correctly rejected the pilot for size, category,
+  evidence-sufficiency, and claim/citation failures. Production remains disabled.
+
 ### Latest checkpoint
 
 - Pipeline v3 adds explicit claim-ID verification decisions and rejects source text
