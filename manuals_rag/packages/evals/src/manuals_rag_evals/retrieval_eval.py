@@ -2139,7 +2139,10 @@ def _query_aligned_expected_snippet(query: str, content: str) -> str:
 
     raw_segments = [
         segment.strip(" ;\t\r\n")
-        for segment in re.split(r"(?:;\s*|\n+|(?<=[.!?])\s+)", str(content or ""))
+        for segment in re.split(
+            r"(?:;\s*|\n+|(?<=[a-z0-9\)])(?:[.!?])\s+)",
+            str(content or ""),
+        )
         if segment.strip(" ;\t\r\n")
     ]
     if not raw_segments:
@@ -2147,6 +2150,33 @@ def _query_aligned_expected_snippet(query: str, content: str) -> str:
 
     ignored = STOPWORDS.union(GENERIC_ANCHORS).union(ANSWER_SCORING_GENERIC_TERMS)
     query_terms = {token for token in tokenize(query) if token not in ignored}
+    query_identifiers = {
+        token
+        for token in tokenize(query)
+        if any(character.isdigit() for character in token)
+        and any(character.isalpha() for character in token)
+    }
+    value_intent_terms = {
+        "accuracy",
+        "current",
+        "distance",
+        "frequency",
+        "height",
+        "length",
+        "limit",
+        "output",
+        "range",
+        "rating",
+        "resolution",
+        "speed",
+        "temperature",
+        "time",
+        "torque",
+        "voltage",
+        "weight",
+        "width",
+    }
+    requested_value_terms = set(tokenize(query)).intersection(value_intent_terms)
     action_equivalents = (
         {"clear", "disable", "disabled", "uncheck"},
         {"check", "enable", "enabled", "select"},
@@ -2163,8 +2193,9 @@ def _query_aligned_expected_snippet(query: str, content: str) -> str:
         right_base = right.replace("-", "")
         return len(left_base) >= 5 and len(right_base) >= 5 and left_base[:5] == right_base[:5]
 
-    def relevance(segment: str) -> tuple[int, int, int, int]:
+    def relevance(segment: str) -> tuple[int, int, int, int, int, int, int]:
         segment_terms = [token for token in tokenize(segment) if token not in ignored]
+        all_segment_terms = set(tokenize(segment))
         overlap = sum(1 for token in segment_terms if any(related(token, query_term) for query_term in query_terms))
         action_overlap = sum(
             1
@@ -2172,7 +2203,26 @@ def _query_aligned_expected_snippet(query: str, content: str) -> str:
             if query_terms.intersection(group) and set(segment_terms).intersection(group)
         )
         numeric_overlap = sum(1 for token in segment_terms if any(char.isdigit() for char in token) and token in query_terms)
-        return action_overlap, overlap, numeric_overlap, -len(segment)
+        identifier_overlap = len(query_identifiers.intersection(all_segment_terms))
+        value_intent_overlap = len(requested_value_terms.intersection(all_segment_terms))
+        has_quantified_value = bool(
+            re.search(
+                r"(?:\u00b1|\b\d+(?:\.\d+)?\s*(?:%|v|a|ma|w|kw|mm|cm|m|ms|s|hz|khz|mhz|fps|kg|g|n|mpa|deg|\u00b0c)\b)",
+                segment,
+                flags=re.IGNORECASE,
+            )
+        )
+        identifier_binds_value = int(bool(identifier_overlap and has_quantified_value))
+        value_intent_has_value = int(bool(value_intent_overlap and has_quantified_value))
+        return (
+            identifier_binds_value,
+            value_intent_has_value,
+            value_intent_overlap,
+            action_overlap,
+            overlap,
+            numeric_overlap + identifier_overlap,
+            -len(segment),
+        )
 
     best_index = max(range(len(raw_segments)), key=lambda index: relevance(raw_segments[index]))
     selected = [raw_segments[best_index]]

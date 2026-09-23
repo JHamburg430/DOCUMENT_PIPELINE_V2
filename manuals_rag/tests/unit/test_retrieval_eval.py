@@ -29,6 +29,29 @@ from manuals_rag_evals.retrieval_eval import (
 )
 
 
+@pytest.mark.parametrize(
+    ("query", "content", "expected"),
+    [
+        (
+            "What Z-axis measurement range does the LJ-S015 sensor cover?",
+            "Model name: Measurement range (Z); LJ-S015: \u00b14 mm (F.S. = 8 mm); "
+            "LJ-S025: \u00b19 mm (F.S. = 18 mm); LJ-S040: \u00b118mm (F.S. = 36 mm)",
+            "LJ-S015: \u00b14 mm (F.S. = 8 mm)",
+        ),
+        (
+            "What detecting distance range do LR-TB2000 laser sensors cover?",
+            "Type: M12 connector; Detecting distance: 60 to 2000 mm; "
+            "Spot diameter: Approx. 4 mm; Model: LR-TB2000 LR-TB2000C LR-TB2000CL",
+            "Detecting distance: 60 to 2000 mm",
+        ),
+    ],
+)
+def test_query_aligned_expected_snippet_keeps_the_answer_value(query, content, expected):
+    from manuals_rag_evals.retrieval_eval import _query_aligned_expected_snippet
+
+    assert _query_aligned_expected_snippet(query, content) == expected
+
+
 def test_query_aligned_expected_snippet_separates_multiple_rows_in_one_chunk():
     content = (
         "Status: Small defects can no longer be detected if the Intensity Threshold Level is increased.; "
