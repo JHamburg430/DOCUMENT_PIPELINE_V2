@@ -48,6 +48,30 @@ def test_freezes_only_source_verified_document_disjoint_cases():
     assert len(frozen[0]["adjudication"]["source_chunk_sha256"]) == 64
 
 
+def test_optional_source_reanchor_replaces_answerless_generated_snippet():
+    case = {
+        **_case(),
+        "query": "What distance applies to MODEL-7?",
+        "expected_snippet": "Model: Distance",
+        "expected_terms": ["model", "distance"],
+    }
+    chunk = {
+        **_chunk(),
+        "content": "Model: Distance; MODEL-7: 20 mm",
+    }
+
+    frozen = _MODULE.verify_and_freeze_cases(
+        [case],
+        {"chunk-1": chunk},
+        tuning_document_ids=set(),
+        verified_at="2026-09-23T00:00:00+00:00",
+        reanchor_source_snippets=True,
+    )
+
+    assert frozen[0]["expected_snippet"] == "MODEL-7: 20 mm"
+    assert frozen[0]["expected_terms"] == ["model-7"]
+
+
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [

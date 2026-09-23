@@ -2121,6 +2121,19 @@ _EXPECTED_EVIDENCE_ACTION_LABELS = {
     "solution",
 }
 
+_EXPECTED_EVIDENCE_CONTEXT_LABELS = {
+    "code",
+    "display",
+    "error message",
+    "status",
+}
+
+_EXPECTED_EVIDENCE_EXPLANATION_LABELS = {
+    "cause",
+    "description",
+    "meaning",
+}
+
 
 def _expected_evidence_field(segment: str) -> str:
     match = re.match(r"\s*([A-Za-z][A-Za-z /_-]{1,40})\s*:\s*", segment)
@@ -2162,6 +2175,7 @@ def _query_aligned_expected_snippet(query: str, content: str) -> str:
         "distance",
         "frequency",
         "height",
+        "input",
         "length",
         "limit",
         "output",
@@ -2187,6 +2201,8 @@ def _query_aligned_expected_snippet(query: str, content: str) -> str:
     def related(left: str, right: str) -> bool:
         if left == right:
             return True
+        if len(left) >= 4 and len(right) >= 4 and left.rstrip("s") == right.rstrip("s"):
+            return True
         if any(left in group and right in group for group in action_equivalents):
             return True
         left_base = left.replace("-", "")
@@ -2207,12 +2223,14 @@ def _query_aligned_expected_snippet(query: str, content: str) -> str:
         value_intent_overlap = len(requested_value_terms.intersection(all_segment_terms))
         has_quantified_value = bool(
             re.search(
-                r"(?:\u00b1|\b\d+(?:\.\d+)?\s*(?:%|v|a|ma|w|kw|mm|cm|m|ms|s|hz|khz|mhz|fps|kg|g|n|mpa|deg|\u00b0c)\b)",
+                r"(?:\u00b1|\b\d+(?:\.\d+)?\s*(?:%|v|vdc|vac|a|ma|w|kw|mm|cm|m|ms|msec|s|hz|khz|mhz|fps|kg|g|n|mpa|deg|\u00b0c)\b)",
                 segment,
                 flags=re.IGNORECASE,
             )
         )
-        identifier_binds_value = int(bool(identifier_overlap and has_quantified_value))
+        identifier_binds_value = int(
+            bool(requested_value_terms and identifier_overlap and has_quantified_value)
+        )
         value_intent_has_value = int(bool(value_intent_overlap and has_quantified_value))
         return (
             identifier_binds_value,
@@ -2228,10 +2246,20 @@ def _query_aligned_expected_snippet(query: str, content: str) -> str:
     selected = [raw_segments[best_index]]
     best_field = _expected_evidence_field(raw_segments[best_index])
 
-    if best_field in _EXPECTED_EVIDENCE_ACTION_LABELS and best_index > 0:
+    if re.match(r"^\s*how\s+(?:do|can|should|would)\b", query, flags=re.IGNORECASE):
+        selected = raw_segments[best_index : best_index + 3]
+    elif best_field in _EXPECTED_EVIDENCE_ACTION_LABELS and best_index > 0:
         previous_field = _expected_evidence_field(raw_segments[best_index - 1])
         if previous_field and previous_field not in _EXPECTED_EVIDENCE_ACTION_LABELS:
-            selected.append(raw_segments[best_index - 1])
+            selected.insert(0, raw_segments[best_index - 1])
+    elif best_field in _EXPECTED_EVIDENCE_CONTEXT_LABELS and best_index + 1 < len(raw_segments):
+        next_field = _expected_evidence_field(raw_segments[best_index + 1])
+        if next_field in _EXPECTED_EVIDENCE_EXPLANATION_LABELS:
+            selected.append(raw_segments[best_index + 1])
+    elif best_field == "model" and best_index + 1 < len(raw_segments):
+        next_terms = set(tokenize(raw_segments[best_index + 1]))
+        if query_identifiers.intersection(next_terms):
+            selected.append(raw_segments[best_index + 1])
     elif best_field and best_field not in _EXPECTED_EVIDENCE_ACTION_LABELS and best_index + 1 < len(raw_segments):
         next_field = _expected_evidence_field(raw_segments[best_index + 1])
         if next_field in _EXPECTED_EVIDENCE_ACTION_LABELS:

@@ -42,6 +42,25 @@ as representative performance evidence.
 below the 200-case production minimum. Both backend category, evidence,
 citation, token, and latency gates pass for the pilot case.
 
+## Bank expansion checkpoint
+
+- A 25-case generation smoke reviewed 114 candidate chunks across 12 held-out
+  manuals before accepting 25 questions. This confirms that quality filtering,
+  rather than raw generation throughput, is the limiting step.
+- Source re-anchoring now binds quantitative model rows, input/output qualifiers,
+  categorical standard rows, display-code causes, and multi-sentence procedures
+  before freezing. The focused generation/freezer suite passes **178/178**.
+- Frozen bank `heldout_retrieval_eval_pilot_v3_25.jsonl` contains 25 unique,
+  source-verified cases from 9 held-out documents, has zero overlap with the 10
+  tuning documents, and has SHA-256
+  `b5f4e7ed9a724e634eb464d06d4dffda10cda1e639f09995ee0a4843794f1c42`.
+- An earlier 25-case freeze was quarantined after review found that one input
+  voltage question had been anchored to an output-voltage row. It is not valid
+  evaluation evidence and was not reused.
+- This is still assistant source verification (`human_reviewed=false`) and only
+  25/200 required cases. No 25-case agent matrix was launched because the bank
+  is incomplete and the acceptance run would be knowingly non-final.
+
 ## Decision
 
 Keep deterministic hybrid/structural retrieval as the default and keep agentic

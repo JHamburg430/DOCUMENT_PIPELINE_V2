@@ -213,6 +213,13 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
 - The strict acceptance gate now rejects only because the frozen bank has 1 case
   instead of the required 200. This validates the pilot contract, not production
   readiness; deterministic hybrid/structural retrieval remains the default.
+- Bank-expansion smoke accepted 25 questions after reviewing 114 source chunks.
+  Revision after `ce91c8e` re-anchors generated cases to answer-bearing model
+  rows, input/output qualifiers, categorical values, code causes, and complete
+  short procedures before freezing. The resulting 25-case bank is source
+  verified, document-disjoint across 9 held-out documents, and still explicitly
+  non-human-reviewed. One earlier mis-anchored freeze was quarantined rather than
+  counted. The production minimum remains 200 cases.
 
 ### Latest checkpoint
 

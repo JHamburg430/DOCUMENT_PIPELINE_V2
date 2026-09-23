@@ -15,8 +15,10 @@ from typing import Any
 
 MANUALS_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(MANUALS_ROOT / "packages" / "common" / "src"))
+sys.path.insert(0, str(MANUALS_ROOT / "packages" / "evals" / "src"))
 
 from manuals_rag_common.db import fetch_all
+from manuals_rag_evals.retrieval_eval import _query_aligned_expected_snippet, extract_anchor_terms
 
 
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -47,7 +49,8 @@ def _sha256(path: Path) -> str:
 
 
 def _normalized(text: object) -> str:
-    return re.sub(r"\s+", " ", str(text or "")).strip().casefold()
+    punctuation_neutral = re.sub(r"[.;]+", " ", str(text or ""))
+    return re.sub(r"\s+", " ", punctuation_neutral).strip().casefold()
 
 
 def referenced_document_ids(cases: list[dict[str, Any]]) -> set[str]:
@@ -73,6 +76,7 @@ def verify_and_freeze_cases(
     *,
     tuning_document_ids: set[str],
     verified_at: str,
+    reanchor_source_snippets: bool = False,
 ) -> list[dict[str, Any]]:
     if not cases:
         raise ValueError("cannot freeze an empty held-out bank")
@@ -82,7 +86,8 @@ def verify_and_freeze_cases(
 
     frozen: list[dict[str, Any]] = []
     seen_case_ids: set[str] = set()
-    for case in cases:
+    for original_case in cases:
+        case = dict(original_case)
         case_id = str(case.get("case_id") or "").strip()
         chunk_id = str(case.get("source_chunk_id") or "").strip()
         if not case_id or case_id in seen_case_ids:
@@ -94,6 +99,17 @@ def verify_and_freeze_cases(
         for field in ("source_document_id", "document_version_id"):
             if str(case.get(field) or "") != str(chunk.get(field) or ""):
                 raise ValueError(f"{case_id}: {field} does not match persisted chunk")
+        if reanchor_source_snippets:
+            snippet_text = _query_aligned_expected_snippet(
+                str(case.get("query") or ""),
+                str(chunk.get("content") or ""),
+            )
+            terms = extract_anchor_terms(snippet_text)[:4]
+            if not snippet_text or not terms:
+                raise ValueError(f"{case_id}: source re-anchoring produced no usable evidence")
+            case["expected_snippet"] = snippet_text
+            case["expected_terms"] = terms
+            case["anchor_terms"] = terms
         snippet = _normalized(case.get("expected_snippet"))
         content = _normalized(chunk.get("content"))
         if not snippet or snippet not in content:
@@ -141,6 +157,11 @@ def main() -> int:
     parser.add_argument("--tuning-dataset", type=Path, action="append", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--manifest-output", type=Path, required=True)
+    parser.add_argument(
+        "--reanchor-source-snippets",
+        action="store_true",
+        help="Recompute each answer snippet from the current persisted source chunk before freezing.",
+    )
     args = parser.parse_args()
     if args.output.exists() or args.manifest_output.exists():
         parser.error("refusing to overwrite a frozen dataset or manifest")
@@ -153,6 +174,7 @@ def main() -> int:
         _fetch_chunks([str(case.get("source_chunk_id") or "") for case in cases]),
         tuning_document_ids=referenced_document_ids(tuning_cases),
         verified_at=verified_at,
+        reanchor_source_snippets=args.reanchor_source_snippets,
     )
     _write_jsonl(args.output, frozen)
     manifest = {
@@ -172,6 +194,7 @@ def main() -> int:
         "document_disjoint": True,
         "adjudication_method": "assistant_persisted_chunk_exact_snippet_v1",
         "human_reviewed": False,
+        "source_snippets_reanchored": args.reanchor_source_snippets,
     }
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

@@ -44,12 +44,79 @@ from manuals_rag_evals.retrieval_eval import (
             "Spot diameter: Approx. 4 mm; Model: LR-TB2000 LR-TB2000C LR-TB2000CL",
             "Detecting distance: 60 to 2000 mm",
         ),
+        (
+            "What electronic shutter range does the VJ-H500CX support?",
+            "Model: Electronic shutter; VJ-H500CX: Settable from 0.017 msec to 100 msec",
+            "VJ-H500CX: Settable from 0.017 msec to 100 msec",
+        ),
+        (
+            "Which EMC standards does the CA-U5 power supply meet?",
+            "Model: EMC standard; CA-U5: FCC Part15B ClassA, EN55011 ClassA, EN61000-6-2; "
+            "Model: Relative humidity; CA-U5: 85%RH or less (No condensation)",
+            "Model: EMC standard; CA-U5: FCC Part15B ClassA, EN55011 ClassA, EN61000-6-2",
+        ),
+        (
+            "What DC voltage range powers this laser sensor?",
+            "Power voltage | 20 to 30 VDC, including 10% ripple (P-P), Class 2 or LPS\n"
+            "I/O | Control output | 30 VDC or less, 50 mA or less, residual voltage: 2 V or less",
+            "Power voltage | 20 to 30 VDC, including 10% ripple (P-P), Class 2 or LPS",
+        ),
+        (
+            "What input voltage range does the CA-U5 power supply accept?",
+            "Input conditions | Rated input voltage | 85 to 264 VAC, 110 to 370 VDC\n"
+            "Output conditions | Rated output voltage | 24 VDC",
+            "Input conditions | Rated input voltage | 85 to 264 VAC, 110 to 370 VDC",
+        ),
     ],
 )
 def test_query_aligned_expected_snippet_keeps_the_answer_value(query, content, expected):
     from manuals_rag_evals.retrieval_eval import _query_aligned_expected_snippet
 
     assert _query_aligned_expected_snippet(query, content) == expected
+
+
+def test_query_aligned_expected_snippet_keeps_display_code_cause():
+    from manuals_rag_evals.retrieval_eval import _query_aligned_expected_snippet
+
+    content = (
+        "Display: ErC; Cause: Excessive current is flowing through the output wire.; "
+        "Solution: Check whether the output wires are connected correctly."
+    )
+    assert _query_aligned_expected_snippet(
+        "What does the ErC display code indicate on the LR-W500?",
+        content,
+    ) == "Display: ErC; Cause: Excessive current is flowing through the output wire."
+
+
+def test_query_aligned_expected_snippet_keeps_multi_sentence_how_procedure():
+    from manuals_rag_evals.retrieval_eval import _query_aligned_expected_snippet
+
+    content = (
+        "Position a workpiece matching the registered color. "
+        "Then press and hold the [SET] button and the down button. "
+        "When registration succeeds, the setting value flashes three times."
+    )
+    assert _query_aligned_expected_snippet(
+        "How do I add a new workpiece color?",
+        content,
+    ) == (
+        "Position a workpiece matching the registered color; "
+        "Then press and hold the [SET] button and the down button; "
+        "When registration succeeds, the setting value flashes three times."
+    )
+
+
+def test_query_aligned_expected_snippet_distinguishes_plural_table_row_label():
+    from manuals_rag_evals.retrieval_eval import _query_aligned_expected_snippet
+
+    content = (
+        "Protection zone | 2 zones | 1 zone\n"
+        "Warning zone | 2 zones | 2 zones"
+    )
+    assert _query_aligned_expected_snippet(
+        "How many protection zones does the model support?",
+        content,
+    ) == "Protection zone | 2 zones | 1 zone"
 
 
 def test_query_aligned_expected_snippet_separates_multiple_rows_in_one_chunk():
@@ -72,7 +139,8 @@ def test_query_aligned_expected_snippet_separates_multiple_rows_in_one_chunk():
     assert "Small defects" in defects
     assert "Intensity Threshold Level" in defects
     assert "Uncheck High Speed Mode" not in defects
-    assert below_four.startswith("Corrective action: Uncheck High Speed Mode")
+    assert below_four.startswith("Status: The Segment Size cannot be set to under 4")
+    assert "Corrective action: Uncheck High Speed Mode" in below_four
     assert "set to under 4" in below_four
     assert "Small defects" not in below_four
 
