@@ -122,6 +122,30 @@ def missing_query_qualifiers(
         for prefix in model_prefixes
     ):
         missing.append("model variant")
+    if re.search(
+        r"\b(?:this|that|these|those)\s+"
+        r"(?:camera|sensor|controller|device|product|unit|model|system|manual|series)\b",
+        normalized_query,
+    ):
+        # Frozen evaluation questions are executed without conversational
+        # context.  A demonstrative subject such as "this camera" therefore
+        # cannot establish which source model the expected value applies to.
+        missing.append("explicit subject")
+    # Some manuals reuse the same metric label for distinct displayed
+    # quantities.  The W500, for example, gives a ``Display range`` for both
+    # workpiece conformity and received-light intensity.  A standalone eval
+    # question that asks only for the display range cannot identify which
+    # source row is authoritative even when the numeric bounds happen to be
+    # equal.  Require the semantic quantity carried by the source evidence.
+    if re.search(r"\bdisplay range\b", normalized_query):
+        expected = _normalized(expected_snippet)
+        display_quantity_rules = (
+            ("workpiece conformity", r"\bworkpiece\b|\bconform(?:ity)?\b", r"\bworkpiece\b|\bconform(?:ity)?\b"),
+            ("received light intensity", r"\breceived light intensity\b", r"\breceived light intensity\b"),
+        )
+        for label, source_pattern, query_pattern in display_quantity_rules:
+            if re.search(source_pattern, expected) and not re.search(query_pattern, normalized_query):
+                missing.append(label)
     return missing
 
 

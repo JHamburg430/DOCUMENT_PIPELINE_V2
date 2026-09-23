@@ -238,6 +238,54 @@ def _structured_evidence_equivalent(expected: str, actual: str) -> bool:
         if expected_properties and expected_properties == actual_properties:
             return True
 
+    # Source-verified table row groups can contain several pipe-delimited rows,
+    # while retrieval intentionally returns the one normalized atomic cell that
+    # answers the question.  Accept that representation only when one complete
+    # source row has the exact normalized row path and exact cell value.  This
+    # is stricter than term overlap and cannot substitute a neighboring row.
+    if actual_cell:
+        _actual_column, actual_row, actual_value, _actual_properties = actual_cell
+        for line in expected.splitlines():
+            fields = [_normalized(value) for value in line.split("|")]
+            fields = [value for value in fields if value]
+            if len(fields) < 3:
+                continue
+            expected_row = " ".join(fields[:-1])
+            expected_value = fields[-1]
+            if expected_row == actual_row and expected_value == actual_value:
+                return True
+
+    # Frozen source snippets often preserve a compact row-group rendering
+    # (``MODEL: value``), while retrieval returns the equivalent normalized
+    # table cell.  Accept that representation change only when the model/column
+    # label is exact and every expected numeric unit binding is present in the
+    # cell value.  Requiring at least one bound quantity prevents a loose
+    # label-only match from becoming evidence.
+    compact_expected = re.fullmatch(
+        r"\s*(?P<label>[^:;]{1,80})\s*:\s*(?P<value>.+?)\s*",
+        expected,
+        flags=re.S,
+    )
+    if compact_expected and actual_cell:
+        actual_column, _actual_row, actual_value, _actual_properties = actual_cell
+        expected_label = _normalized(compact_expected.group("label"))
+        expected_value = _normalized(compact_expected.group("value"))
+        quantity_pattern = r"\b\d+(?:\.\d+)?\s*(?:mm|cm|m|um|ms|s|v|a|ma|hz|khz|mhz|%|c)\b"
+        expected_quantities = {
+            re.sub(r"\s+", " ", value)
+            for value in re.findall(quantity_pattern, expected_value, flags=re.I)
+        }
+        actual_quantities = {
+            re.sub(r"\s+", " ", value)
+            for value in re.findall(quantity_pattern, actual_value, flags=re.I)
+        }
+        if (
+            expected_label == actual_column
+            and expected_quantities
+            and expected_quantities.issubset(actual_quantities)
+        ):
+            return True
+
     expected_properties, expected_targets = _primary_structured_reference(expected)
     actual_properties, actual_targets = _primary_structured_reference(actual)
     return bool(
@@ -281,6 +329,12 @@ def _result_preserves_expected_evidence(
             and normalized_content == normalized_snippet
         )
     if normalized_snippet in normalized_content:
+        return True
+    if (
+        str((result.get("metadata") or {}).get("chunk_type") or result.get("chunk_type") or "")
+        == "table_record"
+        and _structured_evidence_equivalent(snippet, content)
+    ):
         return True
     values = _structured_values(snippet)
     if len(values) < 2:

@@ -2553,6 +2553,10 @@ def _promote_measurement_candidates(
             ),
             (r"\b(?:trigger\s+)?interval\b", r"\b(?:trigger\s+)?interval\b"),
             (r"\bresponse\s+time\b", r"\bresponse\s+time\b"),
+            (
+                r"\b(?:[xyz][ -]?axis\s+)?measurement\s+range\b",
+                r"\bmeasurement\s+range(?:\s*[xyz])?\b|\b[xyz][ -]?axis\s*(?:height|width|length)?\b",
+            ),
             (r"\bdepth\b|\bhow deep\b", r"\bdepth\b"),
             (r"\btorque\b", r"\btorque\b"),
             (r"\bvoltage\b", r"\bvoltage\b|\b\d+(?:\.\d+)?v\b"),
@@ -2591,12 +2595,19 @@ def _promote_measurement_candidates(
         re.search(r"\bresponse\s+time\b", query, flags=re.IGNORECASE)
         and re.search(r"\b(?:light|saturat\w*|insufficient|recalibrat\w*)\b", query, flags=re.IGNORECASE)
     )
+    measurement_range_lookup = bool(
+        re.search(
+            r"\b(?:[xyz][ -]?axis\s+)?measurement\s+range\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
     measurement_query_terms = {
         term
         for term in _text_terms(query)
         if len(term) >= 4 and term not in LEXICAL_CONTEXT_STOPWORDS
     }
-    qualified: list[tuple[int, int, int, int, int, int, int, int, int, SearchResult]] = []
+    qualified: list[tuple[int, int, int, int, int, int, int, int, int, int, SearchResult]] = []
     for result in supplemental_results:
         chunk_type = str(result.metadata.get("chunk_type") or "")
         if chunk_type == "table_record" and not input_terminal_count_lookup and not re.search(
@@ -2633,6 +2644,7 @@ def _promote_measurement_candidates(
         if not best_local_score:
             continue
         structured = int(chunk_type in {"table_record", "spec_record", "datasheet_record"})
+        range_structured = int(measurement_range_lookup and structured)
         identifier_haystack = _compact_identifier(
             " ".join(
                 str(part)
@@ -2682,6 +2694,7 @@ def _promote_measurement_candidates(
         qualified.append(
             (
                 identifier_alignment,
+                range_structured,
                 condition_completeness,
                 complete_option_set,
                 option_specificity,
@@ -2696,14 +2709,16 @@ def _promote_measurement_candidates(
     if not qualified:
         return ranked_results[:limit]
     qualified.sort(
-        key=lambda item: (item[0], item[1], item[2], item[3], item[4], item[5], item[6], item[7], item[8]),
+        key=lambda item: (
+            item[0], item[1], item[2], item[3], item[4], item[5], item[6], item[7], item[8], item[9]
+        ),
         reverse=True,
     )
     promoted = [
         result.model_copy(
             update={"metadata": {**result.metadata, "retrieval_stage": "measurement_promoted"}}
         )
-        for _identifier, _condition, _option_set, _option_specificity, _local, _direct_terms, _terms, _structured, _negative_length, result in qualified[:promoted_limit]
+        for _identifier, _range_structured, _condition, _option_set, _option_specificity, _local, _direct_terms, _terms, _structured, _negative_length, result in qualified[:promoted_limit]
     ]
     promoted_ids = {result.chunk_id for result in promoted}
     return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
@@ -4326,6 +4341,8 @@ def _retrieve_once(
     reranked = _promote_measurement_candidates(
         reranked,
         [
+            *metadata_balanced_table_results,
+            *table_lexical_results,
             *contextual_lexical_results,
             *dense_results,
             *sparse_results,

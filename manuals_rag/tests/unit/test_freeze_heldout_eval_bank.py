@@ -135,6 +135,30 @@ def test_accepts_model_family_prefix_from_structural_context():
     ) == []
 
 
+def test_rejects_standalone_question_with_deictic_product_subject():
+    assert _MODULE.missing_query_qualifiers(
+        "What shutter speed range can I set on this camera?",
+        "Electronic shutter | Can be set to 0.022 to 1000 msec",
+        "Electronic shutter | Can be set to 0.022 to 1000 msec",
+    ) == ["explicit subject"]
+
+
+def test_rejects_display_range_question_that_drops_displayed_quantity():
+    assert _MODULE.missing_query_qualifiers(
+        "What is the display range for the W500 sensor?",
+        "Display range: 0 to 999 (The more the workpiece conform to reference workpiece, the higher the value.)",
+        "Display range: 0 to 999 (The more the workpiece conform to reference workpiece, the higher the value.)",
+    ) == ["workpiece conformity"]
+
+
+def test_accepts_display_range_question_with_displayed_quantity():
+    assert _MODULE.missing_query_qualifiers(
+        "What is the display range for received light intensity on the W500?",
+        "Display range: 0 to 999 (The greater the received light intensity, the higher the value.)",
+        "Display range: 0 to 999 (The greater the received light intensity, the higher the value.)",
+    ) == []
+
+
 def test_rejects_duration_question_anchored_to_neighboring_current_row():
     case = {
         **_case(),

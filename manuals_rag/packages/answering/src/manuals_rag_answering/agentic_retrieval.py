@@ -716,6 +716,29 @@ def _exact_identifier_value_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _direct_yes_no_plan(query: str) -> RetrievalPlan | None:
+    """Keep one scoped yes/no predicate deterministic and single-hop.
+
+    A planner cannot improve a direct question such as whether one named
+    product may be used for a stated purpose.  Model decomposition is both
+    nondeterministic and lossy here: it can split the subject from the safety
+    predicate, double retrieval/model cost, and discard the answer-bearing
+    warning.  More complex comparison/dependency patterns are resolved before
+    this helper is consulted.
+    """
+    if not re.match(
+        r"^\s*(?:can|could|should|may|must|is|are|does|do|will|would|has|have)\b",
+        query,
+        flags=re.I,
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request is one directly answerable yes/no predicate.",
+        hops=[RetrievalHop(hop_id="direct_lookup", objective=query, query=query, strategy="hybrid")],
+    )
+
+
 def _heuristic_plan(query: str) -> RetrievalPlan:
     exact_structured_plan = _exact_structured_single_plan(query)
     if exact_structured_plan is not None:
@@ -790,6 +813,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _parallel_scope_plan(query)
         or _labelled_lookup_plan(query)
         or _direct_explanatory_plan(query)
+        or _direct_yes_no_plan(query)
     )
     if forced_plan is not None:
         return forced_plan
@@ -857,6 +881,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _parallel_scope_plan(query) is not None
         or _labelled_lookup_plan(query) is not None
         or _direct_explanatory_plan(query) is not None
+        or _direct_yes_no_plan(query) is not None
     ):
         return _llamaindex_heuristic_plan(query)
     if not use_llm:
@@ -1343,13 +1368,36 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
             for authoritative_value in candidates
         )
 
+    # A structured row can be more specific than document-level family
+    # metadata.  Treat only explicit table column/model labels as authoritative
+    # local scope; ordinary prose mentions remain unable to override a
+    # conflicting document identity.
+    structured_scope_values: list[str] = []
+    if str(metadata.get("chunk_type") or "") in {"table_record", "spec_record"}:
+        headers = metadata.get("table_column_headers") or []
+        if isinstance(headers, (list, tuple, set)):
+            structured_scope_values.extend(str(value) for value in headers if value)
+        content = str(result.content or "")
+        structured_scope_values.extend(
+            match.group(1).strip()
+            for match in re.finditer(
+                r"(?:^|;)\s*(?:Column headers:\s*)?"
+                r"([A-Z][A-Z0-9]*(?:[-:][A-Z0-9]+)+)\s*(?=:|;|$)",
+                content,
+                flags=re.I,
+            )
+        )
+    structured_scope_matches = bool(
+        structured_scope_values and matches_requested(structured_scope_values)
+    )
+
     routing_values = [
         str(value)
         for value in metadata.get("routing_product_models") or []
         if value
     ]
     if routing_values:
-        return matches_requested(routing_values)
+        return matches_requested(routing_values) or structured_scope_matches
 
     product_model = str(metadata.get("product_model") or "").strip()
     primary_model_is_concrete = bool(
@@ -1364,6 +1412,8 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         # models (for example VS versus VS-L160MX/VS-L320MX).
         if matches_requested([product_model]):
             return True
+        if structured_scope_matches:
+            return True
 
     legacy_scope_values: list[str] = []
     for key in ("product_models", "product_family", "product_families"):
@@ -1372,8 +1422,21 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
             legacy_scope_values.extend(str(item) for item in value if item)
         elif value:
             legacy_scope_values.append(str(value))
+    product_family = str(metadata.get("product_family") or "").strip()
+    if product_family and product_model:
+        # Older metadata often stores a vendor prefix/family and the concrete
+        # model in separate fields (for example LR + W500).  Their compound is
+        # authoritative product identity too; otherwise a correctly scoped
+        # LR-W500 manual is falsely rejected as merely W500.
+        legacy_scope_values.extend(
+            [
+                f"{product_family}-{product_model}",
+                f"{product_family}:{product_model}",
+                f"{product_family}{product_model}",
+            ]
+        )
     if legacy_scope_values:
-        return matches_requested(legacy_scope_values)
+        return matches_requested(legacy_scope_values) or structured_scope_matches
     if primary_model_is_concrete:
         # Do not let incidental prose mentions override a concrete conflicting
         # primary model when no authoritative family alias is available.
@@ -1387,6 +1450,8 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         if compact(value)
     }
     if requested.intersection(routing_parts):
+        return True
+    if structured_scope_matches:
         return True
 
     searchable = " ".join(
@@ -1411,7 +1476,7 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
 
 
 def _verification_evidence(
-    results: list[SearchResult], *, query: str = "", max_bytes: int = 12000,
+    results: list[SearchResult], *, query: str = "", max_bytes: int = 7000,
 ) -> dict[str, Any]:
     evidence: list[dict[str, Any]] = []
     # Preserve complete evidence units. UTF-8 bytes conservatively bound token
@@ -2549,7 +2614,7 @@ def _direct_scoped_yes_no_support(
     preliminary_assessment: dict[str, Any],
 ) -> list[str]:
     """Confirm a scoped yes/no fact only when one source sentence mirrors it."""
-    if not re.search(r"^\s*for\s+.+?,\s*can\b", query, flags=re.I):
+    if not re.search(r"^\s*(?:for\s+.+?,\s*)?can\b", query, flags=re.I):
         return []
     preliminary_ids = {
         str(chunk_id)
@@ -2559,11 +2624,22 @@ def _direct_scoped_yes_no_support(
         value = re.sub(r"[^a-z0-9-]+", "", term.lower())
         value = re.sub(r"^asynchronous(?:ly)?$", "asynchronous", value)
         value = re.sub(r"^plac(?:e|ed|ing)$", "place", value)
+        value = re.sub(r"^us(?:e|ed|ing)$", "use", value)
+        value = re.sub(r"^protect(?:s|ed|ing)?$", "protect", value)
+        if len(value) > 4 and value.endswith("s") and not value.endswith("ss"):
+            value = value[:-1]
         return value
 
+    scope_terms = {
+        canonical(identifier)
+        for identifier in analyze_query(query).product_identifiers
+        if canonical(identifier)
+    }
     query_terms = {
         canonical(term) for term in analyze_query(query).normalized_terms
-        if len(term) > 2 and term not in {"can", "for", "the", "with"}
+        if len(term) > 2
+        and term not in {"can", "for", "the", "with"}
+        and canonical(term) not in scope_terms
     }
     query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
     matches: list[tuple[float, int, int, str]] = []
@@ -2578,6 +2654,58 @@ def _direct_scoped_yes_no_support(
                 continue
             matches.append((overlap, -len(sentence), -result_index, result.chunk_id))
     return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
+def _direct_interface_connection_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an explicit list of directly connected interfaces.
+
+    This is narrower than generic list extraction: the question must ask which
+    interfaces connect directly, and one scoped evidence unit must bind that
+    direct-connection predicate to at least two named interfaces.  This avoids
+    treating a nearby protocol inventory as the requested physical connection
+    list while removing an unnecessary probabilistic verifier call.
+    """
+    if not re.search(
+        r"\bwhich\s+interfaces?\b.{0,80}\b(?:connect\s+directly|directly\s+connect)\b",
+        query,
+        flags=re.I,
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    interface_pattern = re.compile(
+        r"\b(?:USB|Ethernet(?:/IP)?|PROFINET|EtherCAT|RS[- ]?(?:232C|422|485)|"
+        r"CC[- ]?Link|TCP/IP)\b",
+        flags=re.I,
+    )
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not re.search(
+            r"\b(?:connect\s+directly|directly\s+connect)\b",
+            content,
+            flags=re.I,
+        ):
+            continue
+        interfaces = {
+            re.sub(r"[^a-z0-9]+", "", match.group(0).lower())
+            for match in interface_pattern.finditer(content)
+        }
+        if len(interfaces) < 2:
+            continue
+        matches.append((len(interfaces), -index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:2])[-1]] if matches else []
 
 
 def _direct_causal_explanation_support(
@@ -2905,6 +3033,27 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic scoped yes/no verification matched one source sentence "
                     "with the requested entities, numeric anchors, and product scope."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_interface_support = _direct_interface_connection_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_interface_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_interface_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic interface verification matched one scoped direct-connection "
+                    "statement containing the requested interface list."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
@@ -3529,6 +3678,13 @@ class AgenticRetrievalController:
                 dependency_anchors = novel_anchors
         executed_query = self.refiner(hop, dependency_results) if hop.depends_on else hop.query
         executed_strategy: RetrievalStrategy = hop.strategy
+        plan = RetrievalPlan.model_validate(state["plan"])
+        if plan.mode == "single" and not hop.depends_on and not hop.recovery_for:
+            # Single-hop questions use the production hybrid/structural
+            # retriever that is validated independently.  Agent strategy lanes
+            # are for decomposed branches; narrowing a direct lookup can only
+            # discard proven answer-bearing evidence.
+            executed_strategy = "hybrid"
         if dependency_anchors and hop.strategy == "hybrid":
             deterministic_query = _deterministic_identifier_facet_query(hop, dependency_anchors)
             if deterministic_query is not None:
@@ -3900,7 +4056,12 @@ class LlamaIndexAgenticController:
         dependency_results = _results_for_ids(state, hop.depends_on)
         dependency_anchors = _dependency_anchors(dependency_results)
         executed_query = self.transformer(hop, dependency_results) if hop.depends_on else hop.query
-        executed_strategy = self._route_tool(hop, dependency_anchors)
+        plan = RetrievalPlan.model_validate(state["plan"])
+        executed_strategy: RetrievalStrategy = (
+            "hybrid"
+            if plan.mode == "single" and not hop.depends_on and not hop.recovery_for
+            else self._route_tool(hop, dependency_anchors)
+        )
         self._emit(
             "tool_selected",
             hop_id=hop.hop_id,

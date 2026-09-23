@@ -538,6 +538,58 @@ def test_model_planners_split_independent_interrogative_facets(monkeypatch):
     assert all(hop.strategy == "hybrid" for hop in llamaindex.hops)
 
 
+def test_model_planners_keep_scoped_yes_no_question_single_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("direct yes/no planning must not invoke the model")
+        ),
+    )
+    query = "Can the LR-W500 be used to protect human body parts?"
+
+    for plan in (plan_retrieval(query), plan_llamaindex_retrieval(query)):
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "hybrid"
+
+
+def test_verifier_confirms_scoped_direct_interface_list_without_llm(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("exact direct-interface evidence must not invoke the verifier model")
+        ),
+    )
+    query = "Which interfaces connect directly to SZ-V Series scanners?"
+    result = _result(
+        "interfaces",
+        "szv-doc",
+        "Directly connect to SZ-V Series scanners through either USB or Ethernet to modify the program.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "SZ-V Series",
+                "product_models": ["SZ-V"],
+            }
+        }
+    )
+
+    verdict = verify_retrieval_claim(
+        RetrievalHop(hop_id="interfaces", objective=query, query=query),
+        query,
+        [result],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": ["interfaces"],
+        },
+    )
+
+    assert verdict["trust_state"] == "confirmed"
+    assert verdict["supporting_chunk_ids"] == ["interfaces"]
+
+
 def test_model_planners_make_demonstrative_coordinate_question_dependent(monkeypatch):
     query = (
         "Which encoder head model is compatible with the CA-EN100U, and how is that "
@@ -639,6 +691,128 @@ def test_llamaindex_routes_exact_dependent_cable_facet_broadly_once():
     )
 
     assert LlamaIndexAgenticController._route_tool(hop, ["OP-26487"]) == "broad"
+
+
+def test_single_hop_execution_uses_proven_hybrid_retriever_for_both_policies():
+    plan = RetrievalPlan(
+        mode="single",
+        hops=[
+            RetrievalHop(
+                hop_id="lookup",
+                objective="Can the LR-W500 protect human body parts?",
+                query="Can the LR-W500 protect human body parts?",
+                strategy="sparse",
+            )
+        ],
+    )
+    observed: list[str] = []
+
+    def retrieve(_query, _corpus_ids, _filters, strategy, _limit):
+        observed.append(strategy)
+        return [_result("warning", "lr-doc", "Do not use this product to protect a human body.")]
+
+    verifier = lambda _hop, _query, results, _assessment: {
+        "trust_state": "confirmed",
+        "claim_supported": True,
+        "supporting_chunk_ids": [results[0].chunk_id],
+        "conflicting_chunk_ids": [],
+        "applicability": "not_requested",
+        "scope_entity": "LR-W500",
+        "rationale": "Direct warning support.",
+    }
+    for factory, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+            verifier=verifier,
+        )
+        output = factory(controller=controller).invoke(
+            {
+                "query": plan.hops[0].query,
+                "corpus_ids": ["manuals"],
+                "filters": {},
+                "max_hops": 1,
+            }
+        )
+        assert output["sufficient"] is True
+
+    assert observed == ["hybrid", "hybrid"]
+
+
+def test_scope_matching_combines_separate_product_family_and_model_metadata():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "warning",
+        "lr-doc",
+        "Do not use this product for the purpose of protecting a human body.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_family": "LR",
+                "product_model": "W500",
+                "product_models": ["W500"],
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "Can the LR-W500 be used to protect human body parts?",
+        result,
+    ) is True
+
+
+def test_scope_matching_accepts_exact_structured_model_label_with_family_metadata():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "range",
+        "lj-doc",
+        "Column headers: LJ-S015; Row headers: Measurement range (Z); "
+        "Cell value: ±4 mm (F.S. = 8 mm); Row: 2; Column: 2",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_family": "Easy Configuration Manual",
+                "product_model": "LJ: S8000 Series Easy Configuration Manual",
+                "product_models": ["LJ-S8000"],
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "What is the Z-axis measurement range for the LJ-S015 sensor?",
+        result,
+    ) is True
+
+
+def test_scope_matching_does_not_accept_incidental_prose_model_mention():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "prose",
+        "other-doc",
+        "This accessory may also be used near an LJ-S015 installation.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "LJ-X8000",
+                "product_models": ["LJ-X8000"],
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "What is the Z-axis measurement range for the LJ-S015 sensor?",
+        result,
+    ) is False
 
 
 def test_model_planners_split_multi_product_reported_clauses(monkeypatch):
@@ -1614,6 +1788,43 @@ def test_verifier_confirms_scoped_yes_no_sentence_without_llm(monkeypatch):
 
     assert output["trust_state"] == "confirmed"
     assert output["supporting_chunk_ids"] == ["capture-units"]
+
+
+def test_verifier_confirms_model_led_negative_yes_no_answer_without_llm(monkeypatch):
+    query = "Can the LR-W500 be used to protect human body parts?"
+    hop = RetrievalHop(hop_id="safety", objective=query, query=query)
+    result = _result(
+        "warning",
+        "lr-doc",
+        "Do not use this product for the purpose of protecting a human body or a part of the human body.",
+    )
+    result.metadata.update(
+        {
+            "product_family": "LR",
+            "product_model": "W500",
+            "product_models": ["W500"],
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [result],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": ["warning"],
+            "result_assessments": [
+                {"chunk_id": "warning", "claim_supported": True, "facet_hits": []}
+            ],
+        },
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["warning"]
 
 
 def test_verifier_confirms_named_timing_chart_without_llm(monkeypatch):
@@ -2777,7 +2988,7 @@ def test_insufficient_hop_gets_one_broad_recovery_within_budget():
 
     def retrieve(_query, _corpus_ids, _filters, strategy, _limit):
         strategies.append(strategy)
-        if strategy == "sparse":
+        if strategy == "hybrid":
             return []
         return [_result("recovered", "alarm-doc", "Corrective action: replace the failed pressure transducer.")]
 
@@ -2788,7 +2999,7 @@ def test_insufficient_hop_gets_one_broad_recovery_within_budget():
     )
     output = _invoke(build_llamaindex_agentic_retriever, controller, max_hops=2)
 
-    assert strategies == ["sparse", "broad"]
+    assert strategies == ["hybrid", "broad"]
     assert output["sufficient"] is True
     assert output["stop_reason"] == "sufficient"
     assert output["retrieval_trace"]["completed_hops"] == ["primary", "primary_recovery"]
@@ -3138,7 +3349,7 @@ def test_llamaindex_policy_uses_its_own_alternate_query_engine_recovery():
 
     def retrieve(_query, _corpus_ids, _filters, strategy, _limit):
         tools.append(strategy)
-        return [] if strategy == "sparse" else [
+        return [] if strategy == "hybrid" else [
             _result("support", "doc-a", "Corrective action: replace the ALPHA-1 fuse.")
         ]
 
@@ -3149,7 +3360,7 @@ def test_llamaindex_policy_uses_its_own_alternate_query_engine_recovery():
     )
     output = _invoke(build_llamaindex_agentic_retriever, controller, max_hops=2)
 
-    assert tools == ["sparse", "dense"]
+    assert tools == ["hybrid", "broad"]
     assert output["sufficient"] is True
     assert output["retrieval_trace"]["completed_hops"] == [
         "subquestion_1",

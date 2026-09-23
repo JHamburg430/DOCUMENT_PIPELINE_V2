@@ -172,6 +172,85 @@ def test_measurement_promotion_prefers_requested_model_and_subject_terms():
     assert promoted[0].chunk_id == "dzw-temperature"
 
 
+def test_measurement_promotion_restores_scoped_axis_range_from_routed_manual():
+    generic = SearchResult(
+        chunk_id="generic-range",
+        score=1.0,
+        title="LJ-S8000 user manual",
+        document_version_id="v1",
+        source_document_id="generic-doc",
+        pages=[27],
+        section_path=["Mounting"],
+        content="Align the head using the LJ-S Series head measurement range.",
+        metadata={"chunk_type": "atomic_text", "product_model": "LJ-S8000"},
+    )
+    exact = SearchResult(
+        chunk_id="lj-s015-z-range",
+        score=0.8,
+        title="LJ-S8000 configuration guide",
+        document_version_id="v2",
+        source_document_id="routed-doc",
+        pages=[3],
+        section_path=["Specifications"],
+        content=(
+            "Model name: Measurement range (Z); LJ-S015: ±4 mm (F.S. = 8 mm); "
+            "LJ-S025: ±9 mm (F.S. = 18 mm)"
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "LJ-S8000"},
+    )
+    query = "What is the Z-axis measurement range for the LJ-S015 sensor?"
+
+    promoted = retriever._promote_measurement_candidates(
+        [generic],
+        [generic, exact],
+        query,
+        analysis=analyze_query(query),
+        limit=12,
+    )
+
+    assert promoted[0].chunk_id == "lj-s015-z-range"
+    assert promoted[0].metadata["retrieval_stage"] == "measurement_promoted"
+
+
+def test_measurement_range_promotion_prefers_bound_table_over_broad_window():
+    broad = SearchResult(
+        chunk_id="broad-window",
+        score=1.0,
+        title="LJ-S8000 user manual",
+        document_version_id="v1",
+        source_document_id="broad-doc",
+        pages=[27],
+        section_path=["Mounting"],
+        content=(
+            "LJ-S015 Z-axis measurement range is ±4 mm (F.S. = 8 mm). "
+            + "General installation context. " * 200
+        ),
+        metadata={"chunk_type": "section_window", "product_model": "LJ-S8000"},
+    )
+    exact = SearchResult(
+        chunk_id="bound-table",
+        score=0.8,
+        title="LJ-S8000 configuration guide",
+        document_version_id="v2",
+        source_document_id="routed-doc",
+        pages=[3],
+        section_path=["Specifications"],
+        content="Model name: Measurement range (Z); LJ-S015: ±4 mm (F.S. = 8 mm)",
+        metadata={"chunk_type": "table_record", "product_model": "LJ-S8000"},
+    )
+    query = "What is the Z-axis measurement range for the LJ-S015 sensor?"
+
+    promoted = retriever._promote_measurement_candidates(
+        [broad],
+        [broad, exact],
+        query,
+        analysis=analyze_query(query),
+        limit=12,
+    )
+
+    assert promoted[0].chunk_id == "bound-table"
+
+
 def test_measurement_promotion_prefers_complete_option_set_over_warning():
     broad_section = SearchResult(
         chunk_id="broad-voltage-section",

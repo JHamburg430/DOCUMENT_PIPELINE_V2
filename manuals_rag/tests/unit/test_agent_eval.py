@@ -71,6 +71,89 @@ def test_structured_equivalence_rejects_cross_page_different_cell_value():
     )
 
 
+def test_structured_equivalence_accepts_compact_row_group_and_normalized_cell():
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [3],
+        "content": (
+            "Column headers: LJ-S015; Row headers: Measurement range (Z); "
+            "Cell value: ±4 mm (F.S. = 8 mm); Row: 2; Column: 2"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={3},
+        snippet="LJ-S015: ±4 mm (F.S. = 8 mm)",
+    )
+
+
+def test_structured_equivalence_rejects_compact_row_group_with_different_value():
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [3],
+        "content": (
+            "Column headers: LJ-S015; Row headers: Measurement range (Z); "
+            "Cell value: ±9 mm (F.S. = 18 mm); Row: 2; Column: 2"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert not _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={3},
+        snippet="LJ-S015: ±4 mm (F.S. = 8 mm)",
+    )
+
+
+def test_structured_equivalence_accepts_pipe_row_group_and_normalized_cell():
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [1],
+        "content": (
+            "Column headers: CA-U5; Row headers: Input conditions > Rated input voltage; "
+            "Cell value: 85 to 264 VAC 47 to 63 Hz, 110 to 370 VDC *1; Row: 1; Column: 2"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={1},
+        snippet=(
+            "Input conditions | Rated input voltage | 85 to 264 VAC 47 to 63 Hz, "
+            "110 to 370 VDC *1\n"
+            "Input conditions | Rated input current | 3.9 A max."
+        ),
+    )
+
+
+def test_structured_equivalence_rejects_pipe_row_group_neighboring_cell():
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [1],
+        "content": (
+            "Column headers: CA-U5; Row headers: Input conditions > Rated input current; "
+            "Cell value: 3.9 A max.; Row: 3; Column: 2"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert not _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={1},
+        snippet=(
+            "Input conditions | Rated input voltage | 85 to 264 VAC 47 to 63 Hz, "
+            "110 to 370 VDC *1"
+        ),
+    )
+
+
 def test_cross_document_equivalence_does_not_inherit_first_document_pages():
     case = {
         "source_document_id": "first-doc",
