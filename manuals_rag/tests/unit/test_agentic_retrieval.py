@@ -366,6 +366,22 @@ def test_model_planners_cannot_mark_primary_claims_optional(monkeypatch):
         assert plan.hops[0].required is True
 
 
+def test_model_planners_keep_simple_why_question_as_one_authoritative_lookup(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model planner must not run")),
+    )
+    query = "Why should sensors generally avoid placement near moving robotic arms?"
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=True)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].objective == query
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "hybrid"
+
+
 def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
     original = (
         "On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?"
@@ -2566,6 +2582,45 @@ def test_probable_verification_cannot_unlock_required_claim():
     assert output["sufficient"] is False
     assert output["evidence_ledger"]["lookup"]["assessment"]["trust_state"] == "probable"
     assert output["retrieval_trace"]["required_claim_support"]["lookup"] == []
+
+
+def test_verifier_confirms_exact_scoped_causal_answer_without_inventing_quantity(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+    query = "Why should sensors generally avoid placement near moving robotic arms?"
+    result = _result(
+        "robot-risk",
+        "laser-doc",
+        (
+            "It is generally not preferable to install a sensor near the path of a moving "
+            "robotic arm because this risks potential damage due to impact."
+        ),
+    )
+    preliminary = {
+        "claim_supported": True,
+        "supporting_chunk_ids": ["robot-risk"],
+        "result_assessments": [
+            {
+                "chunk_id": "robot-risk",
+                "claim_supported": True,
+                "facet_hits": ["cause"],
+            }
+        ],
+    }
+
+    verified = verify_retrieval_claim(
+        RetrievalHop(hop_id="explanation", objective=query, query=query),
+        query,
+        [result],
+        preliminary,
+        use_llm=True,
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["claim_supported"] is True
+    assert verified["supporting_chunk_ids"] == ["robot-risk"]
 
 
 def test_dependent_hop_is_refined_from_prior_evidence():

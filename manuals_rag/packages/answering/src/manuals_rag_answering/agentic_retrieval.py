@@ -244,6 +244,24 @@ must reference earlier hop_id values. Do not provide the answer or invent manual
 """.strip()
 
 
+def _direct_explanatory_plan(query: str) -> RetrievalPlan | None:
+    """Keep one qualitative explanation as one authoritative lookup.
+
+    A bare ``why`` question asks for a source-backed reason, not an exhaustive
+    taxonomy of hypothetical mechanisms. Compound/comparison planners run
+    before this guard and retain their separate evidence branches.
+    """
+    if not re.match(r"^\s*(?:why\b|explain\s+why\b)", query, flags=re.I):
+        return None
+    if re.search(r"\b(?:compare|versus|(?-i:vs)\.?|then\s+(?:what|which|how|why))\b", query, flags=re.I):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request asks for one source-backed qualitative explanation.",
+        hops=[RetrievalHop(hop_id="explanation", objective=query, query=query, strategy="hybrid")],
+    )
+
+
 def _parallel_scope_plan(query: str) -> RetrievalPlan | None:
     """Recognize a common, document-general comparison shape without an LLM."""
     match = re.match(
@@ -729,6 +747,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     labelled_plan = _labelled_lookup_plan(query)
     if labelled_plan is not None:
         return labelled_plan
+    explanatory_plan = _direct_explanatory_plan(query)
+    if explanatory_plan is not None:
+        return explanatory_plan
     analysis = analyze_query(query)
     identifiers = list(dict.fromkeys(analysis.product_identifiers))
     if "comparison" in analysis.query_types and len(identifiers) >= 2:
@@ -768,6 +789,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _reported_clause_plan(query)
         or _parallel_scope_plan(query)
         or _labelled_lookup_plan(query)
+        or _direct_explanatory_plan(query)
     )
     if forced_plan is not None:
         return forced_plan
@@ -834,6 +856,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _reported_clause_plan(query) is not None
         or _parallel_scope_plan(query) is not None
         or _labelled_lookup_plan(query) is not None
+        or _direct_explanatory_plan(query) is not None
     ):
         return _llamaindex_heuristic_plan(query)
     if not use_llm:
@@ -2557,6 +2580,64 @@ def _direct_scoped_yes_no_support(
     return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
 
 
+def _direct_causal_explanation_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm a qualitative why-answer from one aligned causal passage."""
+    if not re.match(r"^\s*(?:why\b|explain\s+why\b)", query, flags=re.I):
+        return []
+    assessments = {
+        str(item.get("chunk_id")): item
+        for item in preliminary_assessment.get("result_assessments") or []
+        if isinstance(item, dict) and item.get("chunk_id")
+    }
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+
+    def canonical(term: str) -> str:
+        value = re.sub(r"[^a-z0-9]+", "", term.lower())
+        if len(value) > 4 and value.endswith("s") and not value.endswith("ss"):
+            value = value[:-1]
+        return value
+
+    stopwords = {"why", "should", "the", "a", "an", "to", "of", "for", "be"}
+    query_terms = {
+        canonical(term)
+        for term in analyze_query(query).normalized_terms
+        if canonical(term) and canonical(term) not in stopwords
+    }
+    causal_re = re.compile(
+        r"\b(?:because|due\s+to|risk|risks|risky|prevent|prevents|preventing|"
+        r"avoid|avoids|avoiding|therefore|as\s+a\s+result|caus(?:e|es|ed|ing))\b",
+        flags=re.I,
+    )
+    matches: list[tuple[float, int, int, str]] = []
+    for index, result in enumerate(results):
+        assessment = assessments.get(result.chunk_id) or {}
+        if (
+            result.chunk_id not in preliminary_ids
+            or assessment.get("claim_supported") is not True
+            or "cause" not in set(assessment.get("facet_hits") or [])
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        content_terms = {
+            canonical(term)
+            for term in analyze_query(content).normalized_terms
+            if canonical(term)
+        }
+        overlap = len(query_terms.intersection(content_terms)) / max(1, len(query_terms))
+        if overlap < 0.5 or not causal_re.search(content):
+            continue
+        matches.append((overlap, -len(content), -index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
 def verify_retrieval_claim(
     hop: RetrievalHop,
     executed_query: str,
@@ -2684,6 +2765,27 @@ def verify_retrieval_claim(
         }
 
     if not applicability_required:
+        direct_causal_support = _direct_causal_explanation_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_causal_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_causal_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic causal verification matched one scoped passage that mirrors "
+                    "the qualitative question and states an explicit reason or risk."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
         direct_context_support = _direct_context_sentence_support(
             hop.objective,
             results,
