@@ -74,6 +74,115 @@ def test_concise_answer_keeps_bullets_required_by_following_precautions_referenc
     assert "magnetic fields" in answer
 
 
+def test_generate_answer_preserves_compound_laser_wavelength_and_output():
+    result = SearchResult(
+        chunk_id="laser-label",
+        score=0.9,
+        title="LJ-X8000 Manual.pdf",
+        document_version_id="v1",
+        source_document_id="laser-doc",
+        pages=[2],
+        section_path=["Laser safety"],
+        content=(
+            "LJ-X8000 Series LASER RADIATION CLASS 2M. "
+            "Wavelength: 405nm. Output: 10mW."
+        ),
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What wavelength and output power are specified for the LJ-X8000 Series laser radiation?",
+        [result],
+    )
+
+    assert answer.answer == "The laser wavelength is 405 nm and the output power is 10 mW."
+    assert [citation["chunk_id"] for citation in answer.citations] == ["laser-label"]
+    assert trace["final_answer"]["answer_source"] == "deterministic_compound_laser_measurement"
+
+
+def test_generate_answer_extracts_requested_off_status_state():
+    result = SearchResult(
+        chunk_id="status-row",
+        score=0.9,
+        title="IV Manual.pdf",
+        document_version_id="v1",
+        source_document_id="iv-doc",
+        pages=[4],
+        section_path=["STATUS"],
+        content=(
+            "IV-500C 4 STATUS indicates connection status. "
+            "y Green (ON): Normally connected with monitor or PC. "
+            "y Green (Blink): IP address has been retrieved but the sensor is not correctly connected. "
+            "y (OFF): IP address is not assigned. Sensor is not correctly connected with monitor or PC. "
+            "y Orange (Blink): Indicates focusing status."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What does the OFF status indicate for the IV-500C sensor connection?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "OFF indicates: IP address is not assigned. "
+        "Sensor is not correctly connected with monitor or PC."
+    )
+    assert [citation["chunk_id"] for citation in answer.citations] == ["status-row"]
+    assert trace["final_answer"]["answer_source"] == "deterministic_status_state"
+
+
+def test_generate_answer_preserves_compound_electrical_maximum_rating():
+    result = SearchResult(
+        chunk_id="output-rating",
+        score=0.9,
+        title="Sensor Manual.pdf",
+        document_version_id="v1",
+        source_document_id="sensor-doc",
+        pages=[5],
+        section_path=["Output circuit"],
+        content=(
+            "Open collector output. Maximum rating 26.4 V 50 mA, "
+            "remaining voltage 1.5 V or lower."
+        ),
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What are the maximum voltage and current ratings for the open collector output?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "The maximum voltage rating is 26.4 V and the maximum current rating is 50 mA."
+    )
+    assert [citation["chunk_id"] for citation in answer.citations] == ["output-rating"]
+    assert trace["final_answer"]["answer_source"] == "deterministic_compound_electrical_rating"
+
+
+def test_generate_answer_extracts_named_indicator_meaning():
+    result = SearchResult(
+        chunk_id="dtm-definition",
+        score=0.9,
+        title="Monitor Manual.pdf",
+        document_version_id="v1",
+        source_document_id="monitor-doc",
+        pages=[7],
+        section_path=["Indicators"],
+        content="DTM: This lights up when datum calibration is performed.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What does the DTM indicator mean?",
+        [result],
+    )
+
+    assert answer.answer == "The DTM indicator lights up when datum calibration is performed."
+    assert [citation["chunk_id"] for citation in answer.citations] == ["dtm-definition"]
+    assert trace["final_answer"]["answer_source"] == "deterministic_indicator_meaning"
+
+
 def test_concise_answer_preserves_complete_bounded_measurement_row():
     result = SearchResult(
         chunk_id="z-range",
@@ -444,6 +553,28 @@ def test_structured_fact_answer_binds_connector_type_to_requested_model():
 
     assert answer == "The LR-TB2000 cable uses an M12 connector."
     assert [item.chunk_id for item in support] == ["lr-tb2000-cable"]
+
+
+def test_structured_fact_answer_preserves_pin_count_before_connector_type():
+    result = SearchResult(
+        chunk_id="sensor-controller-cable",
+        score=1.0,
+        title="Laser sensor manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[23],
+        section_path=["Cables"],
+        content="Sensor-to-controller cable (4-pin M12 connector type)",
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    answer, support = _concise_structured_fact_answer(
+        "What connector type is used for the sensor-to-controller cable?",
+        [result],
+    )
+
+    assert answer == "The device cable uses a 4-pin M12 connector."
+    assert [item.chunk_id for item in support] == [result.chunk_id]
 
 
 def test_structured_fact_answer_extracts_initial_output_polarity():
@@ -4780,6 +4911,45 @@ def test_validate_answer_fallback_selects_returned_quantity_evidence():
     assert "overlap lines is two" in validated.answer
     assert [citation["chunk_id"] for citation in validated.citations] == ["continuous-mode-example"]
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_when_range_answer_omits_endpoints():
+    query = "What length range do GL-FB models cover for robust floor mounting columns?"
+    result = SearchResult(
+        chunk_id="gl-fb-range",
+        score=1.0,
+        title="GL-R manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[1],
+        section_path=["Mounting columns"],
+        content=(
+            "GL-R Series robust floor mounting column: "
+            "GL-FB models approximately 1000 to 2400 mm"
+        ),
+        metadata={"chunk_type": "atomic_text"},
+    )
+    answer = AnswerResponse(
+        answer="For GL-FB, use the robust structure.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": result.chunk_id,
+                "document_id": result.source_document_id,
+                "pages": result.pages,
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+    validated = validate_answer(answer, [result], query=query)
+
+    assert "1000 to 2400 mm" in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == [result.chunk_id]
 
 
 def test_quantity_fallback_binds_the_count_to_the_asked_component_and_stays_concise():

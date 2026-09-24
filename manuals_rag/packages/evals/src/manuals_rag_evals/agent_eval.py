@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from manuals_rag_common.claim_relations import profile_is_preserved, relation_profile
+from manuals_rag_common.claim_relations import RelationProfile, profile_is_preserved, relation_profile
 from manuals_rag_evals.agent_eval_schema import build_expected_evidence_graph
 
 
@@ -126,6 +126,42 @@ def _expected_relation_text(case: dict[str, Any]) -> str:
 def _relation_grounding(case: dict[str, Any], answer_text: str) -> dict[str, Any]:
     expected_profile = relation_profile(_expected_relation_text(case))
     actual_profile = relation_profile(answer_text)
+    query = str(case.get("query") or "")
+    factual_value_lookup = bool(
+        re.match(r"^\s*what\b", query, flags=re.I)
+        and not re.search(
+            r"\b(?:action|do|procedure|step|warning|precaution|should)\b",
+            query,
+            flags=re.I,
+        )
+        and (
+            expected_profile.role_values
+            or re.search(
+                r"\b(?:address|class|code|identifier|protocol|regulation|setting|status|value)\b",
+                query,
+                flags=re.I,
+            )
+        )
+    )
+    if factual_value_lookup and expected_profile.action_polarities:
+        # Imperative wording in a manual ("Set the address", "Connect the cable")
+        # is incidental when the benchmark asks only for the resulting factual
+        # value. Score the value/role bindings, not whether the concise answer
+        # repeats the source's instruction verb.
+        expected_profile = RelationProfile(
+            role_values=expected_profile.role_values,
+            actions=frozenset(),
+            action_polarities=frozenset(),
+            role_action_polarities={},
+            action_targets={},
+        )
+        actual_profile = RelationProfile(
+            role_values=actual_profile.role_values,
+            actions=frozenset(),
+            action_polarities=frozenset(),
+            role_action_polarities={},
+            action_targets={},
+        )
     checked = bool(expected_profile.role_values or expected_profile.action_polarities)
     if not checked:
         return {"checked": False, "passed": True, "expected": {}, "answer": {}}
@@ -431,17 +467,22 @@ def _result_preserves_expected_evidence(
 
     Same-document or term overlap alone is intentionally insufficient. A parent must
     overlap the expected page and either contain the complete normalized snippet or place
-    every value from a structured expected row on one physical row. The only cross-page
-    exception is an atomic chunk whose complete normalized content exactly duplicates the
-    expected snippet; manuals can repeat the same warning verbatim in multiple sections.
+    every value from a structured expected row on one physical row. Long evidence passages
+    copied verbatim into another manual edition are also equivalent; short/generic snippets
+    remain document-scoped so a shared number or label cannot satisfy the contract.
     """
-    if str(result.get("source_document_id") or "") != source_document_id:
-        return False
     normalized_snippet = _normalized(snippet)
     if not normalized_snippet:
         return False
     content = str(result.get("content") or "")
     normalized_content = _normalized(content)
+    if str(result.get("source_document_id") or "") != source_document_id:
+        snippet_tokens = normalized_snippet.split()
+        return (
+            len(snippet_tokens) >= 10
+            and len(normalized_snippet) >= 60
+            and normalized_snippet in normalized_content
+        )
     result_pages = _page_set(result)
     if expected_pages and (not result_pages or expected_pages.isdisjoint(result_pages)):
         metadata = result.get("metadata") or {}
@@ -613,14 +654,44 @@ def score_agent_run(
 
     expected_documents = _expected_document_ids(case)
     retained_documents = {str(item.get("source_document_id") or "") for item in results if item.get("source_document_id")}
-    retained_hits = expected_documents.intersection(retained_documents)
-    retention_ok = not expected_documents or expected_documents.issubset(retained_documents)
+    retained_chunk_ids = {
+        str(item.get("chunk_id") or "") for item in results if item.get("chunk_id")
+    }
+    default_document = str(case.get("source_document_id") or "")
+    evidence_by_chunk = {
+        str(item.get("chunk_id") or ""): item
+        for item in case.get("expected_evidence") or []
+        if isinstance(item, dict) and item.get("chunk_id")
+    }
+    chunks_by_document: dict[str, set[str]] = {}
+    for expected_chunk in expected_chunks:
+        evidence = evidence_by_chunk.get(expected_chunk, {})
+        document_id = str(evidence.get("source_document_id") or default_document)
+        if document_id:
+            chunks_by_document.setdefault(document_id, set()).add(expected_chunk)
+    equivalent_retained_documents = {
+        document_id
+        for document_id, document_chunks in chunks_by_document.items()
+        if document_chunks
+        and all(
+            bool(equivalent_chunks.get(chunk_id, set()).intersection(retained_chunk_ids))
+            for chunk_id in document_chunks
+        )
+    }
+    retained_hits = expected_documents.intersection(
+        retained_documents | equivalent_retained_documents
+    )
+    retention_ok = not expected_documents or expected_documents.issubset(
+        retained_documents | equivalent_retained_documents
+    )
     retention_cell = _cell(
         "pass" if retention_ok else "fail",
         f"final context retained {len(retained_hits)}/{len(expected_documents)} expected documents",
         expected=len(expected_documents),
         found=len(retained_hits),
-        missing=sorted(expected_documents - retained_documents),
+        missing=sorted(expected_documents - retained_documents - equivalent_retained_documents),
+        exact_documents=sorted(expected_documents.intersection(retained_documents)),
+        verbatim_equivalent_documents=sorted(equivalent_retained_documents - retained_documents),
     )
 
     mode = str(plan.get("mode") or trace.get("mode") or "")

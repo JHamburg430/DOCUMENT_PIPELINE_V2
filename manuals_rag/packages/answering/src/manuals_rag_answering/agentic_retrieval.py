@@ -2770,6 +2770,118 @@ def _direct_display_range_support(
     return [matches[0][1]]
 
 
+def _direct_compound_laser_measurement_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Require one scoped source unit to bind both requested laser measurements."""
+    if not (
+        re.search(r"\bwavelength\b", query, flags=re.I)
+        and re.search(r"\boutput(?:\s+power)?\b", query, flags=re.I)
+        and re.search(r"\blaser\b", query, flags=re.I)
+    ):
+        return []
+
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not content or len(content) > 1200:
+            continue
+        wavelength = re.search(
+            r"\bwavelength\b\s*(?:[:|]|is)?\s*\d+(?:\.\d+)?\s*nm\b",
+            content,
+            flags=re.I,
+        )
+        output = re.search(
+            r"\boutput\b\s*(?:[:|]|is)?\s*\d+(?:\.\d+)?\s*mW\b",
+            content,
+            flags=re.I,
+        )
+        if wavelength and output:
+            matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
+def _direct_compound_electrical_rating_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Bind requested maximum voltage and current to the same scoped rating."""
+    if not (
+        re.search(r"\bmaximum\b", query, flags=re.I)
+        and re.search(r"\bvoltage\b", query, flags=re.I)
+        and re.search(r"\bcurrent\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        rating = re.search(
+            r"\bmaximum rating\b(?P<rating>[^;\n]{0,160})",
+            content,
+            flags=re.I,
+        )
+        if not rating:
+            continue
+        rating_text = rating.group("rating")
+        if not (
+            re.search(r"\d+(?:\.\d+)?\s*V\b", rating_text, flags=re.I)
+            and re.search(r"\d+(?:\.\d+)?\s*mA\b", rating_text, flags=re.I)
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
+def _direct_variable_type_support(query: str, results: list[SearchResult]) -> list[str]:
+    """Confirm an explicit bounded enumeration of variable types."""
+    if not re.search(r"\b(?:what|which) types? of variables\b", query, flags=re.I):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not re.search(r"\bvariables? can be defined, including\b", content, flags=re.I):
+            continue
+        kinds = re.findall(
+            r"\b(?:image|positional|linear|numerical|array-based|array based)\b",
+            content,
+            flags=re.I,
+        )
+        if len({kind.lower().replace(" ", "-") for kind in kinds}) >= 3:
+            matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
+def _direct_indicator_meaning_support(query: str, results: list[SearchResult]) -> list[str]:
+    """Confirm a named indicator definition from one scoped source passage."""
+    match = re.search(
+        r"\bwhat does (?:the )?(?P<label>[A-Z0-9_-]+) indicator (?:mean|signify|indicate)\b",
+        query,
+        flags=re.I,
+    )
+    if not match:
+        return []
+    label = re.escape(match.group("label"))
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if re.search(
+            rf"\b{label}\b\s*:\s*(?:this )?(?:lights? up|indicates?|means?|shows?)\b",
+            content,
+            flags=re.I,
+        ):
+            matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_atomic_measurement_support(
     query: str,
     results: list[SearchResult],
@@ -2913,6 +3025,75 @@ def _direct_atomic_default_value_support(
     return [max(matches, key=lambda item: (item[1], item[2]))[-1]]
 
 
+def _direct_pipe_table_measurement_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm a labelled measurement row retained inside a parsed pipe table.
+
+    Some compact datasheets retain the authoritative table only as a section
+    window instead of emitting one table-record per leaf row. Bind the requested
+    property phrase to one physical line and require its measured values to agree
+    across every matching scoped section. This prevents a nearby rotation-pitch
+    row from satisfying a horizontal-travel question.
+    """
+    if not re.match(r"^\s*(?:what|which|how\s+(?:much|many))\b", query, flags=re.I):
+        return []
+    requested_models = {
+        re.sub(r"[^a-z0-9]+", "", value.lower())
+        for value in analyze_query(query).product_identifiers
+        if re.sub(r"[^a-z0-9]+", "", value.lower())
+    }
+    if not requested_models:
+        return []
+    normalized_query = re.sub(r"[^a-z0-9]+", " ", query.lower()).strip()
+    property_phrases = [
+        phrase
+        for phrase in (
+            "horizontal travel",
+            "vertical travel",
+            "left right travel",
+            "front back travel",
+        )
+        if phrase in normalized_query
+    ]
+    if not property_phrases:
+        return []
+
+    matches: list[tuple[frozenset[str], str]] = []
+    for result in results:
+        if (
+            not _result_supports_branch_scope(query, result)
+            or str((result.metadata or {}).get("chunk_type") or "")
+            not in {"section_window", "parent_section"}
+        ):
+            continue
+        lines = [line.strip() for line in str(result.content or "").splitlines() if line.strip()]
+        for index, line in enumerate(lines):
+            normalized_line = re.sub(r"[^a-z0-9]+", " ", line.lower()).strip()
+            if not any(phrase in normalized_line for phrase in property_phrases):
+                continue
+            if re.search(r"\bper\s+turn\b|/\s*turn\b", query, flags=re.I) and not re.search(
+                r"/\s*turn\b|\bper\s+turn\b", line, flags=re.I
+            ):
+                continue
+            nearby = " ".join(lines[max(0, index - 5) : index + 1]).lower()
+            if re.search(r"\badjustment screw\b", query, flags=re.I) and "adjustment screw" not in nearby:
+                continue
+            values = frozenset(
+                re.findall(
+                    r"(?<![\w.])\d+(?:\.\d+)?\s*(?:mm|cm|m|in(?:ch(?:es)?)?|\")",
+                    line,
+                    flags=re.I,
+                )
+            )
+            if values:
+                matches.append((frozenset(value.lower().replace(" ", "") for value in values), result.chunk_id))
+    if not matches or len({values for values, _chunk_id in matches}) != 1:
+        return []
+    return list(dict.fromkeys(chunk_id for _values, chunk_id in matches))
+
+
 def _direct_model_matrix_measurement_support(
     query: str,
     results: list[SearchResult],
@@ -2944,16 +3125,22 @@ def _direct_model_matrix_measurement_support(
     }
     if not requested_models:
         return []
+    requested_model_terms = {
+        term
+        for value in analyze_query(query).product_identifiers
+        for term in re.findall(r"[a-z0-9]+", value.lower())
+    }
     query_axes = set(re.findall(r"\b([xyz])(?:[- ]axis)?\b", query.lower()))
     stopwords = {
         "axis", "for", "how", "is", "many", "model", "much", "name",
-        "of", "the", "to", "what", "which",
+        "of", "the", "to", "tolerance", "what", "which",
     }
     query_terms = {
         term
         for term in re.findall(r"[a-z0-9]+", query.lower())
         if len(term) >= 2
         and term not in stopwords
+        and term not in requested_model_terms
         and re.sub(r"[^a-z0-9]+", "", term) not in requested_models
     }
     measurement_pattern = re.compile(
@@ -2971,7 +3158,7 @@ def _direct_model_matrix_measurement_support(
         ):
             continue
         for row in re.finditer(
-            r"Model\s+name\s*:\s*(?P<label>[^;\n]+)\s*;\s*(?P<body>[^\n]+)",
+            r"Model(?:\s+name)?\s*:\s*(?P<label>[^;\n]+)\s*;\s*(?P<body>[^\n]+)",
             str(result.content or ""),
             flags=re.I,
         ):
@@ -2980,7 +3167,11 @@ def _direct_model_matrix_measurement_support(
             if query_axes and (not label_axes or query_axes.isdisjoint(label_axes)):
                 continue
             label_terms = set(re.findall(r"[a-z0-9]+", label.lower())).difference(stopwords)
-            if not label_terms or len(query_terms.intersection(label_terms)) < min(2, len(label_terms)):
+            if not label_terms or len(query_terms.intersection(label_terms)) < min(
+                2,
+                len(query_terms),
+                len(label_terms),
+            ):
                 continue
             for cell in re.finditer(
                 r"(?P<model>[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\s*:\s*"
@@ -3569,6 +3760,74 @@ def verify_retrieval_claim(
         }
 
     if not applicability_required:
+        direct_electrical_rating_support = _direct_compound_electrical_rating_support(
+            hop.objective,
+            results,
+        )
+        if direct_electrical_rating_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_electrical_rating_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic compound-rating verification matched maximum voltage and "
+                    "current in one scoped electrical rating."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_variable_support = _direct_variable_type_support(hop.objective, results)
+        if direct_variable_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_variable_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale="Deterministic enumeration verification matched explicit variable types.",
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_indicator_support = _direct_indicator_meaning_support(hop.objective, results)
+        if direct_indicator_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_indicator_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale="Deterministic indicator verification matched the named label definition.",
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_compound_laser_support = _direct_compound_laser_measurement_support(
+            hop.objective,
+            results,
+        )
+        if direct_compound_laser_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_compound_laser_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic compound-measurement verification matched wavelength and "
+                    "output power in one scoped laser specification."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
         direct_causal_support = _direct_causal_explanation_support(
             hop.objective,
             results,
@@ -3771,6 +4030,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic model-matrix verification matched the requested property, "
                     "axis qualifier, model column, and unique measured value."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_pipe_table_support = _direct_pipe_table_measurement_support(
+            hop.objective,
+            results,
+        )
+        if direct_pipe_table_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_pipe_table_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic pipe-table verification matched the requested property phrase "
+                    "and one consistent measured value in scoped section evidence."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

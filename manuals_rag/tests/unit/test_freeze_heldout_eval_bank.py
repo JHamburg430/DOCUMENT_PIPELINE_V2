@@ -209,6 +209,175 @@ def test_accepts_that_as_relative_pronoun_not_deictic_subject():
     ) == []
 
 
+def test_rejects_generic_device_spec_without_product_model_scope():
+    assert _MODULE.missing_query_qualifiers(
+        "What shock resistance rating applies to the laser sensor in X, Y, and Z axes?",
+        "Shock resistance | 1000 m/s 2 in X, Y, Z axis directions respectively 6 times",
+        "Shock resistance | 1000 m/s 2 in X, Y, Z axis directions respectively 6 times",
+    ) == ["explicit product/model"]
+
+
+def test_accepts_device_spec_with_product_model_scope():
+    assert _MODULE.missing_query_qualifiers(
+        "What shock resistance rating applies to the LR-ZH500N sensor in X, Y, and Z axes?",
+        "Shock resistance | 1000 m/s 2 in X, Y, Z axis directions respectively 6 times",
+        "Shock resistance | 1000 m/s 2 in X, Y, Z axis directions respectively 6 times",
+    ) == []
+
+
+@pytest.mark.parametrize(
+    ("query", "content"),
+    [
+        (
+            "What does the one shot input do to the output status of current results?",
+            "The one shot input resets outputs.",
+        ),
+        (
+            "What minimum detectable object size must be selected if the detection plane height exceeds 1000 mm?",
+            "Minimum detectable object size is 70 mm.",
+        ),
+    ],
+)
+def test_rejects_product_specific_control_without_product_scope(query, content):
+    assert _MODULE.missing_query_qualifiers(
+        query,
+        content,
+        content,
+    ) == ["explicit product/model"]
+
+
+def test_rejects_torque_question_that_drops_waterproof_cap_scope():
+    assert _MODULE.missing_query_qualifiers(
+        "What tightening torque is required for the IV4-400CA connector?",
+        "When the cable is not connected, attach the waterproof cap. Tightening torque: 0.45 to 0.55 N m",
+        "Tightening torque: 0.45 to 0.55 N m",
+    ) == ["waterproof cap"]
+
+
+def test_accepts_torque_question_with_waterproof_cap_scope():
+    assert _MODULE.missing_query_qualifiers(
+        "What tightening torque is required for the IV4-400CA waterproof cap?",
+        "When the cable is not connected, attach the waterproof cap. Tightening torque: 0.45 to 0.55 N m",
+        "Tightening torque: 0.45 to 0.55 N m",
+    ) == []
+
+
+def test_rejects_temperature_contract_with_leading_unrelated_quantity():
+    assert _MODULE.missing_expected_answer_contract(
+        "What is the operating ambient temperature range of the WM-6025?",
+        "1.25 A: Operating ambient temperature 0 to 40 C",
+        ["0", "40", "operating ambient temperature"],
+    ) == ["leading unrelated quantity"]
+
+
+def test_accepts_clean_operating_temperature_contract():
+    assert _MODULE.missing_expected_answer_contract(
+        "What is the operating ambient temperature range of the WM-6025?",
+        "Operating ambient temperature 0 to 40 C",
+        ["0", "40", "operating ambient temperature"],
+    ) == []
+
+
+def test_rejects_corpus_wide_numeric_spec_without_product_scope():
+    assert _MODULE.missing_query_qualifiers(
+        "What ambient temperature range is allowed for operation without freezing?",
+        "Operating ambient temperature: 0 to +50 C (no freezing)",
+        "Operating ambient temperature: 0 to +50 C (no freezing)",
+    ) == ["explicit product/model"]
+
+
+def test_rejects_named_product_absent_from_source_scope():
+    assert _MODULE.missing_query_qualifiers(
+        "Does the SZ-FB31 bracket protect the light curtain from impacts?",
+        "Ultra-robust structure protects the light curtain from strong impacts.",
+        "Ultra-robust structure protects the light curtain from strong impacts.",
+    ) == ["source scope sz-fb31"]
+
+
+def test_accepts_named_product_present_in_source_scope_context():
+    assert _MODULE.missing_query_qualifiers(
+        "Which illumination methods are supported by the CA-F100 series?",
+        "Illumination method: block lighting and pattern projection",
+        "Illumination method: block lighting and pattern projection",
+        "Table header: CA-F100 series",
+    ) == []
+
+
+def test_rejects_selection_recommendation_without_selection_criterion():
+    assert _MODULE.missing_query_qualifiers(
+        "Which analog output type should I select?",
+        "Analog output: Select current output or voltage output.",
+        "Analog output: Select current output or voltage output.",
+    ) == ["selection criterion"]
+
+    assert _MODULE.missing_query_qualifiers(
+        "Should I use a zoom camera when selecting the resolution for my application?",
+        "Select the camera resolution. Selecting a zoom camera. Select the resolution according to your application.",
+        "Select the camera resolution. Selecting a zoom camera.",
+    ) == ["selection criterion"]
+
+
+def test_rejects_effect_question_without_with_and_without_output_load_evidence():
+    assert _MODULE.missing_answer_requirements(
+        "How does including an output load of 120 mA affect current consumption?",
+        "3.4 A or less, including an output load of 120 mA",
+    ) == ["with/without output-load comparison"]
+
+
+def test_rejects_benefit_question_without_benefit_statement():
+    assert _MODULE.missing_answer_requirements(
+        "Why is the zoom function beneficial for optical adjustments?",
+        "Select the camera type. Zoom smart camera. This unit supports many applications.",
+    ) == ["benefit statement"]
+
+
+def test_rejects_angle_question_anchored_to_linear_resolution():
+    assert _MODULE.missing_answer_requirements(
+        "What is the display resolution for the CA-S20D when measuring angles?",
+        'CA-S20D: Display resolution 1 mm 0.04" (0.1 mm with vernier scale)',
+    ) == ["angular measurement"]
+
+
+def test_enriches_numeric_mapping_with_requested_protocol_value():
+    query = "What numeric value represents RS-232C communication for the OutputFilter devId parameter?"
+    snippet = "devId: the device ID. 2 for RS-232C, and 3 for Ethernet"
+
+    terms = _MODULE.enrich_expected_answer_terms(
+        query,
+        snippet,
+        ["devid", "device", "rs-232c", "ethernet"],
+    )
+
+    assert "2" in terms
+    assert "3" not in terms
+    assert _MODULE.missing_expected_answer_contract(query, snippet, terms) == []
+
+
+def test_rejects_default_ip_question_without_ip_value_and_enriches_valid_value():
+    query = "What is the default IP address for the LJ-X8000 before configuration?"
+    assert _MODULE.missing_expected_answer_contract(
+        query,
+        "Set the IP address of the LJ-X8000.",
+        ["set", "address", "lj-x8000"],
+    ) == ["IP address value"]
+
+    snippet = "IP address initial value: 192.168.10.10"
+    terms = _MODULE.enrich_expected_answer_terms(query, snippet, ["ip address", "initial value"])
+    assert "192.168.10.10" in terms
+    assert _MODULE.missing_expected_answer_contract(query, snippet, terms) == []
+
+
+def test_enriches_multivalue_measurement_contract_with_milliwatts():
+    terms = _MODULE.enrich_expected_answer_terms(
+        "What wavelength and output power are specified for the LJ-X8000 laser radiation?",
+        "Laser radiation Class 2M; Wavelength: 405 nm; Output: 10 mW",
+        ["laser radiation", "class 2m", "405"],
+    )
+
+    assert "405" in terms
+    assert "10" in terms
+
+
 def test_rejects_display_range_question_that_drops_displayed_quantity():
     assert _MODULE.missing_query_qualifiers(
         "What is the display range for the W500 sensor?",
@@ -371,6 +540,42 @@ def test_rejects_connector_contract_that_omits_connector_identifier():
             [case], {"chunk-1": chunk}, tuning_document_ids=set(),
             verified_at="2026-09-23T00:00:00+00:00",
         )
+
+
+def test_rejects_extension_cable_question_anchored_to_header_only_chunk():
+    case = {
+        **_case(),
+        "query": "What extension cable should be used with the CA-CF3 camera cable?",
+        "expected_snippet": (
+            "Cable type | Connector shape | Camera cable length | "
+            "Extension cable | Repeater cable"
+        ),
+        "expected_terms": ["cable", "connector", "shape", "camera"],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    with pytest.raises(ValueError, match="cable identifier"):
+        _MODULE.verify_and_freeze_cases(
+            [case], {"chunk-1": chunk}, tuning_document_ids=set(),
+            verified_at="2026-09-23T00:00:00+00:00",
+        )
+
+
+def test_accepts_extension_cable_contract_with_answer_models():
+    case = {
+        **_case(),
+        "query": "What extension cable should be used with the CA-CF3 camera cable?",
+        "expected_snippet": "CA-CF3: Use CA-CF5E or CA-CF10E as the extension cable.",
+        "expected_terms": ["ca-cf5e", "ca-cf10e"],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    frozen = _MODULE.verify_and_freeze_cases(
+        [case], {"chunk-1": chunk}, tuning_document_ids=set(),
+        verified_at="2026-09-23T00:00:00+00:00",
+    )
+
+    assert frozen[0]["expected_terms"] == ["ca-cf5e", "ca-cf10e"]
 
 
 def test_rejects_command_question_without_command_identifier():

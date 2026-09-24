@@ -6,6 +6,40 @@ from manuals_rag_evals.agent_eval import (
 )
 
 
+def test_equivalence_accepts_long_verbatim_passage_from_another_manual_edition():
+    snippet = (
+        "Install this product so that the path of the laser beam is not at the same "
+        "height as that of human eye."
+    )
+    result = {
+        "source_document_id": "user-manual-edition",
+        "pages": [8],
+        "content": f"Safety precautions. {snippet} Follow all local requirements.",
+        "metadata": {"chunk_type": "atomic_text"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="instruction-manual-edition",
+        expected_pages={2},
+        snippet=snippet,
+    )
+
+
+def test_equivalence_rejects_short_cross_document_numeric_match():
+    assert not _result_preserves_expected_evidence(
+        {
+            "source_document_id": "different-model-manual",
+            "pages": [4],
+            "content": "Operating ambient temperature: 0 to 40 degrees C",
+            "metadata": {"chunk_type": "table_record"},
+        },
+        source_document_id="expected-model-manual",
+        expected_pages={4},
+        snippet="Operating ambient temperature: 0 to 40 degrees C",
+    )
+
+
 def test_structured_equivalence_accepts_cross_page_duplicate_cell():
     expected = (
         "Column headers: Scaling Target; Row headers: Position X Minimum.Absolute Measured Value; "
@@ -336,6 +370,57 @@ def test_agent_evaluation_separates_candidate_recall_from_final_context_retentio
     assert evaluation["cells"]["document_retention"]["status"] == "fail"
 
 
+def test_agent_evaluation_accepts_retained_long_verbatim_duplicate_edition():
+    snippet = "Short: range zoom type for short-range or space-saving installation needs"
+    case = {
+        "case_id": "duplicate-edition",
+        "query": "Which zoom type is intended for short-range or space-saving installation?",
+        "retrieval_task": "single_step_retrieval",
+        "source_document_id": "instruction-manual",
+        "source_chunk_id": "expected-warning",
+        "page_from": 2,
+        "page_to": 2,
+        "expected_snippet": snippet,
+        "expected_terms": ["short", "range", "zoom", "space", "saving", "installation"],
+    }
+    trace = {
+        "sufficient": True,
+        "plan": {"mode": "single", "hops": [{"hop_id": "one", "depends_on": []}]},
+        "evidence_ledger": {
+            "one": {
+                "required": True,
+                "sufficient": True,
+                "strategy": "hybrid",
+                "chunk_ids": ["duplicate-warning"],
+            }
+        },
+        "cost": {},
+    }
+    evaluation = score_agent_run(
+        case,
+        trace=trace,
+        results=[
+            {
+                "chunk_id": "duplicate-warning",
+                "source_document_id": "user-manual",
+                "pages": [8],
+                "content": snippet,
+                "metadata": {"chunk_type": "atomic_text"},
+            }
+        ],
+        answer={
+            "answer": "Use the Short range zoom type for short-range or space-saving installation.",
+            "citations": [{"chunk_id": "duplicate-warning"}],
+        },
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["cells"]["document_retention"]["status"] == "pass"
+    assert evaluation["cells"]["document_retention"]["metrics"][
+        "verbatim_equivalent_documents"
+    ] == ["instruction-manual"]
+
+
 def _quantity_case():
     return {
         "case_id": "quantity-bindings",
@@ -426,6 +511,32 @@ def test_agent_evaluation_accepts_equivalent_quantity_unit_spelling():
     )
 
     assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+
+
+def test_agent_evaluation_ignores_incidental_imperative_for_factual_value_lookup():
+    case = _quantity_case()
+    case["query"] = "What screw torque specification applies to the RS-422 terminals?"
+    case["expected_snippet"] = (
+        "Connect the included RS-422 cable to the terminal block "
+        "(terminal block screw torque: 0.25 Nm or less)."
+    )
+    case["expected_terms"] = ["rs-422", "torque", "0.25"]
+    case["expected_evidence"][0]["snippet"] = case["expected_snippet"]
+    case["expected_evidence"][0]["expected_terms"] = case["expected_terms"]
+
+    evaluation = score_agent_run(
+        case,
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": "The RS-422 terminal-block screw torque is 0.25 Nm or less.",
+            "citations": [{"chunk_id": "setup-values"}],
+        },
+    )
+
+    relation = evaluation["cells"]["grounded_answer"]["metrics"]["relation_grounding"]
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+    assert relation["passed"] is True
 
 
 def test_agent_evaluation_rejects_unretrieved_irrelevant_citation():

@@ -467,9 +467,36 @@ def _quantity_role_value_groups(text: str) -> list[dict[str, set[str]]]:
 
 
 def _answer_addresses_quantity_request(answer: str, query: str, results: list[SearchResult]) -> bool:
-    if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
+    range_request = bool(
+        re.match(r"^\s*(?:what|which|how\s+(?:much|long|wide|high|far))\b", query, flags=re.IGNORECASE)
+        and re.search(
+            r"\b(?:distance|height|length|limit|range|temperature|tolerance|weight|width)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    count_request = bool(
+        re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE)
+    )
+    if not (count_request or range_request):
         return True
     query_terms = _answer_terms(query)
+    if range_request:
+        for result in results[:8]:
+            evidence = _fallback_answer_text(result)
+            if len(query_terms.intersection(_answer_terms(evidence))) < 3:
+                continue
+            range_match = re.search(
+                r"\b\d+(?:\.\d+)?\s*(?:to|[-–])\s*\d+(?:\.\d+)?\s*"
+                r"(?:mm|cm|m|µm|um|in(?:ches)?|\"|°c|°f|c|f|kg|g)\b",
+                evidence,
+                flags=re.IGNORECASE,
+            )
+            if not range_match:
+                continue
+            expected_values = _quantity_terms(range_match.group(0))
+            return bool(expected_values) and expected_values.issubset(_quantity_terms(answer))
+        return True
     requested_roles = _requested_quantity_roles(query)
     answer_role_values = _quantity_role_values(answer)
     candidate_role_values: list[dict[str, set[str]]] = []
@@ -5050,7 +5077,7 @@ def _concise_structured_fact_answer(
         query_models = _model_tokens(query)
         connector_candidates: list[tuple[int, int, int, str, SearchResult]] = []
         connector_pattern = re.compile(
-            r"\b(?P<type>M\d+(?:\s+\d+[- ]pin)?|RJ-?45|USB(?:-[A-Z])?|"
+            r"\b(?P<type>(?:\d+[- ]pin\s+)?M\d+(?:\s+\d+[- ]pin)?|RJ-?45|USB(?:-[A-Z])?|"
             r"(?:mini|micro)[- ]USB|D[- ]?sub(?:miniature)?(?:\s+\d+[- ]pin)?)\s+connector\b",
             flags=re.IGNORECASE,
         )
@@ -5069,7 +5096,7 @@ def _concise_structured_fact_answer(
                     r"\s+",
                     " ",
                     connector_match.group("type"),
-                ).upper().replace("RJ-45", "RJ45")
+                ).upper().replace("RJ-45", "RJ45").replace("-PIN", "-pin").replace(" PIN", " pin")
                 connector_candidates.append(
                     (
                         model_alignment,
@@ -5084,9 +5111,15 @@ def _concise_structured_fact_answer(
                 connector_candidates,
                 key=lambda item: item[:3],
             )
-            model = next(iter(sorted(query_models)), "The device")
+            model = next(iter(sorted(query_models)), "device")
             subject = f"The {model} cable" if re.search(r"\bcable\b", query, flags=re.IGNORECASE) else f"The {model}"
-            return f"{subject} uses an {connector_type} connector.", [result]
+            article = (
+                "an"
+                if connector_type[:1].upper()
+                in {"A", "E", "F", "H", "I", "L", "M", "N", "O", "R", "S", "X"}
+                else "a"
+            )
+            return f"{subject} uses {article} {connector_type} connector.", [result]
     initial_polarity_query = bool(
         re.search(r"\b(?:output\s+)?polarity\b", query, flags=re.IGNORECASE)
         and re.search(
@@ -6666,6 +6699,137 @@ def _restore_single_requested_model_scope(
     return f"For {model}, {answer}"
 
 
+def _concise_compound_laser_measurement_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Answer a wavelength-plus-output request only from one complete source unit."""
+    if not (
+        re.search(r"\bwavelength\b", query, flags=re.I)
+        and re.search(r"\boutput(?:\s+power)?\b", query, flags=re.I)
+        and re.search(r"\blaser\b", query, flags=re.I)
+    ):
+        return "", []
+    for result in results[:12]:
+        evidence = re.sub(r"\s+", " ", _fallback_answer_text(result)).strip()
+        wavelength = re.search(
+            r"\bwavelength\b\s*(?:[:|]|is)?\s*(?P<value>\d+(?:\.\d+)?)\s*nm\b",
+            evidence,
+            flags=re.I,
+        )
+        output = re.search(
+            r"\boutput\b\s*(?:[:|]|is)?\s*(?P<value>\d+(?:\.\d+)?)\s*mW\b",
+            evidence,
+            flags=re.I,
+        )
+        if wavelength and output:
+            return (
+                f"The laser wavelength is {wavelength.group('value')} nm and the output power "
+                f"is {output.group('value')} mW.",
+                [result],
+            )
+    return "", []
+
+
+def _concise_compound_electrical_rating_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Answer maximum voltage/current only when one rating binds both values."""
+    if not (
+        re.search(r"\bmaximum\b", query, flags=re.I)
+        and re.search(r"\bvoltage\b", query, flags=re.I)
+        and re.search(r"\bcurrent\b", query, flags=re.I)
+    ):
+        return "", []
+    for result in results[:12]:
+        evidence = re.sub(r"\s+", " ", _fallback_answer_text(result)).strip()
+        rating = re.search(
+            r"\bmaximum rating\b(?P<rating>[^;\n]{0,160})",
+            evidence,
+            flags=re.I,
+        )
+        if not rating:
+            continue
+        voltage = re.search(
+            r"(?P<value>\d+(?:\.\d+)?)\s*V\b",
+            rating.group("rating"),
+            flags=re.I,
+        )
+        current = re.search(
+            r"(?P<value>\d+(?:\.\d+)?)\s*mA\b",
+            rating.group("rating"),
+            flags=re.I,
+        )
+        if voltage and current:
+            return (
+                f"The maximum voltage rating is {voltage.group('value')} V and the maximum "
+                f"current rating is {current.group('value')} mA.",
+                [result],
+            )
+    return "", []
+
+
+def _concise_indicator_meaning_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Return the exact definition of a named indicator from bounded evidence."""
+    query_match = re.search(
+        r"\bwhat does (?:the )?(?P<label>[A-Z0-9_-]+) indicator (?:mean|signify|indicate)\b",
+        query,
+        flags=re.I,
+    )
+    if not query_match:
+        return "", []
+    label = query_match.group("label")
+    for result in results[:12]:
+        evidence = re.sub(r"\s+", " ", _fallback_answer_text(result)).strip()
+        definition = re.search(
+            rf"\b{re.escape(label)}\b\s*:\s*(?P<body>(?:this )?"
+            r"(?:lights? up|indicates?|means?|shows?).+?)(?=\s+[A-Z0-9_-]+\s*:|$)",
+            evidence,
+            flags=re.I,
+        )
+        if definition:
+            body = re.sub(r"\s+", " ", definition.group("body")).strip(" .")
+            if body:
+                body = re.sub(r"^this\s+", "", body, flags=re.I)
+                return f"The {label.upper()} indicator {body[0].lower() + body[1:]}.", [result]
+    return "", []
+
+
+def _concise_status_state_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Extract the explicitly requested ON/OFF/Blink status row from bounded evidence."""
+    state_match = re.search(
+        r"\bwhat does (?:the )?(?P<state>on|off|blink(?:ing)?) status indicate\b",
+        query,
+        flags=re.I,
+    )
+    if not state_match:
+        return "", []
+    state = state_match.group("state").upper()
+    if state == "BLINKING":
+        state = "BLINK"
+    for result in results[:12]:
+        evidence = re.sub(r"\s+", " ", _fallback_answer_text(result)).strip()
+        match = re.search(
+            rf"(?:^|\s)(?:[y•·-]\s*)?(?:green|orange|red)?\s*"
+            rf"\(\s*{re.escape(state)}\s*\)\s*[:.]+\s*(?P<body>.+?)"
+            r"(?=\s+[y•·-]\s*(?:green|orange|red)?\s*\(|$)",
+            evidence,
+            flags=re.I,
+        )
+        if match:
+            body = re.sub(r"\s+", " ", match.group("body")).strip(" .")
+            if body:
+                return f"{state} indicates: {body}.", [result]
+    return "", []
+
+
 def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: str = "") -> AnswerResponse:
     if answer.insufficient_evidence and query and not any(
         _location_terms(query).intersection(_location_terms(result.content)) for result in results
@@ -6850,6 +7014,118 @@ def generate_answer_with_trace(
             # documents. Rebuild them from the scoped evidence rather than trying
             # to remove claims and provenance from a merged summary envelope.
             summarized_evidence = None
+    compound_laser_answer, compound_laser_results = _concise_compound_laser_measurement_answer(
+        query,
+        prioritized_results or results,
+    )
+    if compound_laser_answer:
+        answer = validate_answer(
+            _fallback_answer(query, compound_laser_results),
+            compound_laser_results,
+            query=query,
+        )
+        answer.answer = compound_laser_answer
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "compound_laser_measurement"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "compound_laser_measurement",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_compound_laser_measurement",
+            }
+        )
+        return answer, trace
+    electrical_rating_answer, electrical_rating_results = _concise_compound_electrical_rating_answer(
+        query,
+        prioritized_results or results,
+    )
+    if electrical_rating_answer:
+        answer = validate_answer(
+            _fallback_answer(query, electrical_rating_results),
+            electrical_rating_results,
+            query=query,
+        )
+        answer.answer = electrical_rating_answer
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "compound_electrical_rating"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "compound_electrical_rating",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_compound_electrical_rating",
+            }
+        )
+        return answer, trace
+    indicator_answer, indicator_results = _concise_indicator_meaning_answer(
+        query,
+        prioritized_results or results,
+    )
+    if indicator_answer:
+        answer = validate_answer(
+            _fallback_answer(query, indicator_results),
+            indicator_results,
+            query=query,
+        )
+        answer.answer = indicator_answer
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "indicator_meaning"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "indicator_meaning",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_indicator_meaning",
+            }
+        )
+        return answer, trace
+    status_answer, status_results = _concise_status_state_answer(
+        query,
+        prioritized_results or results,
+    )
+    if status_answer:
+        answer = validate_answer(
+            _fallback_answer(query, status_results),
+            status_results,
+            query=query,
+        )
+        answer.answer = status_answer
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "status_state"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "status_state",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_status_state",
+            }
+        )
+        return answer, trace
     conditioned_answer, conditioned_results = _concise_conditioned_measurement_answer(query, results)
     if conditioned_answer:
         answer = validate_answer(

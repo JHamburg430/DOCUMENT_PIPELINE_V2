@@ -14,7 +14,11 @@ from manuals_rag_answering.agentic_retrieval import (
     visual_evidence_unavailable_answer,
     _assess_hop_evidence,
     _direct_atomic_measurement_support,
+    _direct_compound_electrical_rating_support,
+    _direct_compound_laser_measurement_support,
+    _direct_indicator_meaning_support,
     _direct_procedure_support,
+    _direct_variable_type_support,
     verify_retrieval_claim,
 )
 from manuals_rag_common.config import settings
@@ -1986,6 +1990,39 @@ def test_verifier_confirms_model_matrix_axis_measurement_without_llm(monkeypatch
     assert output["supporting_chunk_ids"] == [result.chunk_id]
 
 
+def test_verifier_confirms_model_matrix_with_short_model_header_without_llm(monkeypatch):
+    objective = "What is the Z range tolerance for model XT-024?"
+    hop = RetrievalHop(hop_id="measurement", objective=objective, query=objective)
+    result = _result(
+        "z-range-tolerance",
+        "xt-doc",
+        'Model: Z range (from distance); XT-024: ±2 mm ±0.08"',
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_model": "XT-024",
+                "product_models": ["XT-024"],
+            }
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
 def test_verifier_does_not_bind_model_matrix_to_wrong_axis(monkeypatch):
     objective = "What is the Y-axis reference distance for the LJ-S080 model?"
     hop = RetrievalHop(hop_id="measurement", objective=objective, query=objective)
@@ -2031,6 +2068,50 @@ def test_verifier_does_not_bind_model_matrix_to_wrong_axis(monkeypatch):
 
     assert calls == 1
     assert output["claim_supported"] is False
+
+
+def test_verifier_confirms_pipe_table_measurement_over_neighboring_pitch_row(monkeypatch):
+    objective = (
+        "What is the horizontal travel distance per turn for the CA-S20D "
+        "left/right rotation adjustment screw?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    section = _result(
+        "datasheet-section",
+        "ca-s20d-datasheet",
+        "CA-S20D DataSheet\n"
+        "Adjustment screw pitch | Front/back rotation | - (manual)\n"
+        " | Horizontal rotation | 2.3 degrees/turn\n"
+        " | Left/right rotation |\n"
+        " | Horizontal travel | 10 mm 0.39 inch /turn",
+    )
+    section.metadata.update(
+        {"chunk_type": "section_window", "product_model": "CA-S20D"}
+    )
+    neighboring = _result(
+        "neighboring-pitch-row",
+        "ca-system-manual",
+        "Column headers: CA-S20D; Row headers: Adjustment screw pitch > "
+        "Front/back rotation Horizontal rotation Left/right rotation; "
+        "Cell value: -(manual) 2.3 degrees/turn 2.3 degrees/turn; Row: 5; Column: 2",
+    )
+    neighboring.metadata.update(
+        {"chunk_type": "table_record", "product_model": "CA-S20D"}
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [neighboring, section],
+        {"claim_supported": True, "supporting_chunk_ids": [neighboring.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [section.chunk_id]
 
 
 def test_verifier_confirms_named_calibration_mode_without_llm(monkeypatch):
@@ -3578,6 +3659,68 @@ def test_verifier_confirms_exact_scoped_causal_answer_without_inventing_quantity
     assert verified["trust_state"] == "confirmed"
     assert verified["claim_supported"] is True
     assert verified["supporting_chunk_ids"] == ["robot-risk"]
+
+
+def test_compound_laser_measurement_requires_wavelength_and_output_in_one_chunk():
+    query = "What wavelength and output power are specified for the LJ-X8000 Series laser radiation?"
+    wavelength_only = _result(
+        "wavelength-only",
+        "laser-doc",
+        "LJ-X8000 Series. Wavelength: 405 nm (visible light)",
+    )
+    complete = _result(
+        "complete-laser-label",
+        "laser-doc",
+        "LJ-X8000 Series LASER RADIATION CLASS 2M. Wavelength: 405nm. Output: 10mW.",
+    )
+
+    support = _direct_compound_laser_measurement_support(
+        query,
+        [wavelength_only, complete],
+    )
+
+    assert support == ["complete-laser-label"]
+
+
+def test_compound_electrical_rating_requires_voltage_and_current_in_one_rating():
+    query = "What are the maximum voltage and current ratings for the open collector output?"
+    voltage_only = _result(
+        "voltage-only",
+        "electrical-doc",
+        "Open collector output. Maximum rating 26.4 V.",
+    )
+    complete = _result(
+        "complete-rating",
+        "electrical-doc",
+        "Open collector output. Maximum rating 26.4 V 50 mA, remaining voltage 1.5 V or lower.",
+    )
+
+    assert _direct_compound_electrical_rating_support(query, [voltage_only, complete]) == [
+        "complete-rating"
+    ]
+
+
+def test_variable_type_support_requires_explicit_enumeration():
+    query = "What types of variables can be defined for the XG-X Series?"
+    result = _result(
+        "variable-types",
+        "xg-x-doc",
+        "XG-X Series variables can be defined, including image, positional, linear, "
+        "numerical, and array-based variables.",
+    )
+
+    assert _direct_variable_type_support(query, [result]) == ["variable-types"]
+
+
+def test_indicator_meaning_support_requires_named_definition():
+    query = "What does the DTM indicator mean?"
+    result = _result(
+        "dtm-definition",
+        "indicator-doc",
+        "DTM: This lights up when datum calibration is performed.",
+    )
+
+    assert _direct_indicator_meaning_support(query, [result]) == ["dtm-definition"]
 
 
 def test_dependent_hop_is_refined_from_prior_evidence():

@@ -168,6 +168,62 @@ def missing_query_qualifiers(
         # context. Any demonstrative reference therefore cannot establish
         # which source model, component, or prior statement applies.
         missing.append("explicit subject")
+    # Corpus-wide evaluation cannot assign a unique source contract to a
+    # numerical specification for only a generic device class. Different
+    # sensor/controller families can legitimately share the same value, so an
+    # answer from another manual would be correct but fail exact-document
+    # scoring. Require an explicit alphanumeric product/model identifier.
+    explicit_model_token = bool(
+        re.search(r"\b[a-z][a-z0-9-]*\d[a-z0-9-]*\b", query, flags=re.IGNORECASE)
+        or re.search(r"\b[A-Z]{2,}(?:-[A-Z0-9]+)+\b", query)
+    )
+    if (
+        not deictic_subject
+        and "model variant" not in missing
+        and re.match(r"^\s*(?:what|which|how\s+(?:many|much))\b", normalized_query)
+        and re.search(
+            r"\b(?:accuracy|current|distance|frequency|height|length|limit|range|"
+            r"rating|resistance|resolution|speed|temperature|time|tolerance|torque|"
+            r"voltage|weight|width)\b",
+            normalized_query,
+        )
+        and (
+            re.search(
+                r"\b(?:camera|controller|device|laser sensor|sensor|unit)s?\b",
+                normalized_query,
+            )
+            or re.search(r"\b(?:operating )?ambient temperature\b", normalized_query)
+        )
+        and not explicit_model_token
+    ):
+        missing.append("explicit product/model")
+    if (
+        not explicit_model_token
+        and (
+            re.search(r"\bone shot input\b", normalized_query)
+            or re.search(r"\bminimum detectable object size\b", normalized_query)
+        )
+    ):
+        missing.append("explicit product/model")
+    evidence_context = _normalized(" ".join((content, expected_snippet, source_context)))
+    query_identifiers = {
+        token.casefold()
+        for token in re.findall(
+            r"\b(?:[A-Z]{1,8}-[A-Z0-9-]*\d[A-Z0-9-]*|[A-Z]{1,5}\d[A-Z0-9-]*)\b",
+            query,
+        )
+    }
+    compact_evidence = re.sub(r"[^a-z0-9]+", "", evidence_context)
+    absent_identifiers = sorted(
+        identifier
+        for identifier in query_identifiers
+        if re.sub(r"[^a-z0-9]+", "", identifier) not in compact_evidence
+    )
+    if absent_identifiers and re.match(
+        r"^\s*(?:does|do|did|can|could|is|are|will|would|should|has|have)\b",
+        normalized_query,
+    ) and re.search(r"\bbracket\b", normalized_query):
+        missing.append("source scope " + ", ".join(absent_identifiers))
     # Some manuals reuse the same metric label for distinct displayed
     # quantities.  The W500, for example, gives a ``Display range`` for both
     # workpiece conformity and received-light intensity.  A standalone eval
@@ -190,6 +246,12 @@ def missing_query_qualifiers(
     # inside the MU-N unit table.
     normalized_context = _normalized(source_context)
     if (
+        re.search(r"\btightening torque\b|\btorque\b", normalized_query)
+        and re.search(r"\bwaterproof cap\b", evidence_context)
+        and not re.search(r"\bwaterproof cap\b|\bcap\b", normalized_query)
+    ):
+        missing.append("waterproof cap")
+    if (
         re.search(r"\bresponse times?\b", normalized_query)
         and re.search(r"\bmu[- ]?n(?:11|12)?\b", normalized_context)
         and re.search(r"\bmain unit\b|\bexpansion unit\b", normalized_context)
@@ -199,7 +261,23 @@ def missing_query_qualifiers(
         )
     ):
         missing.append("MU-N controller")
-    return missing
+    # A source that merely lists selectable alternatives cannot support a
+    # recommendation about which one a user should choose. Keep such cases out
+    # unless the same evidence includes an explicit criterion or recommendation.
+    if (
+        (
+            re.match(r"^which\b.+\bshould i select\b", normalized_query)
+            or re.match(r"^should i use\b", normalized_query)
+        )
+        and re.search(r"\b(?:select(?:able|ed)?|use)\b", evidence_context)
+        and not re.search(
+            r"\b(?:recommend(?:ed|ation)?|choose .+ when|select .+ when|use .+ (?:for|when)|"
+            r"suited for|appropriate for)\b",
+            evidence_context,
+        )
+    ):
+        missing.append("selection criterion")
+    return list(dict.fromkeys(missing))
 
 
 def missing_answer_requirements(query: str, expected_snippet: str) -> list[str]:
@@ -243,6 +321,31 @@ def missing_answer_requirements(query: str, expected_snippet: str) -> list[str]:
         if absent:
             missing.append("I/O terminals " + ", ".join(absent))
 
+    if (
+        re.search(r"\bhow does\b.+\boutput load\b.+\baffect\b|\bhow does\b.+\baffect\b.+\boutput load\b", normalized_query)
+        and not (
+            re.search(r"\b(?:without|excluding) (?:an? )?output load\b", normalized_snippet)
+            and re.search(r"\b(?:with|including) (?:an? )?output load\b", normalized_snippet)
+        )
+    ):
+        missing.append("with/without output-load comparison")
+
+    if (
+        re.search(r"\bwhy\b.+\bzoom\b.+\bbeneficial\b|\bzoom\b.+\bbenefit", normalized_query)
+        and not re.search(
+            r"\b(?:benefit|advantage|saves?|avoid|without|easier|reduces?|wide range)\b",
+            normalized_snippet,
+        )
+    ):
+        missing.append("benefit statement")
+
+    if (
+        re.search(r"\b(?:angle|angles|angular)\b", normalized_query)
+        and re.search(r"\b(?:resolution|measurement|range)\b", normalized_query)
+        and not re.search(r"(?:°|\bdegrees?\b|\bangle\b)", expected_snippet, flags=re.I)
+    ):
+        missing.append("angular measurement")
+
     return missing
 
 
@@ -278,8 +381,23 @@ def _term_covers_token(terms: list[str], token: str) -> bool:
     return False
 
 
+def _answer_identifier_tokens(query: str, snippet: str) -> list[str]:
+    """Return model-like answer identifiers that are not already in the query."""
+
+    query_tokens = set(_contract_tokens(query))
+    identifiers: list[str] = []
+    for token in _contract_tokens(snippet):
+        if token in query_tokens:
+            continue
+        if not any(char.isalpha() for char in token) or not any(char.isdigit() for char in token):
+            continue
+        if token not in identifiers:
+            identifiers.append(token)
+    return identifiers
+
+
 _QUANTITY_UNIT = (
-    r"%|vdc|vac|v|ma|a|kw|w|mm|cm|m|msec|ms|sec|s|hz|khz|mhz|ghz|fps|"
+    r"%|vdc|vac|v|ma|a|kw|mw|w|mm|cm|m|msec|ms|sec|s|hz|khz|mhz|ghz|fps|"
     r"kg|g|n|nm|mpa|deg|gb|tb|bits?|pixels?|\u00b0c|in(?:ch(?:es)?)?|\""
 )
 
@@ -287,6 +405,20 @@ _QUANTITY_UNIT = (
 def _answer_quantity_values(query: str, snippet: str) -> list[str]:
     normalized_query = _normalized(query)
     values: list[str] = []
+
+    numeric_mapping = re.search(
+        r"\bnumeric\s+value\s+(?:represents?|for)\s+(?P<target>.+?)"
+        r"(?:\s+(?:communication|interface|mode|parameter|setting)\b|[?.]|$)",
+        normalized_query,
+    )
+    if numeric_mapping:
+        target = re.escape(numeric_mapping.group("target").strip())
+        mapped = re.search(
+            rf"(?<![a-z0-9])(?P<value>\d+(?:\.\d+)?)\s+for\s+{target}\b",
+            _normalized(snippet),
+        )
+        if mapped:
+            return [mapped.group("value")]
 
     how_many = re.match(
         r"^how many (.+?) (?:are|can|could|does|do|fit|may|should|will)\b",
@@ -362,6 +494,11 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
             ):
                 enriched.append(token)
 
+    if re.search(r"\b(?:what|which)\s+(?:[a-z0-9-]+\s+){0,3}cable\b", normalized_query):
+        for identifier in _answer_identifier_tokens(query, snippet):
+            if not _term_covers_token(enriched, identifier):
+                enriched.append(identifier)
+
     if re.search(r"\bwhich command\b|\bwhat command\b", normalized_query):
         for command in re.findall(r"\b[a-z][a-z0-9_-]*command\b", _normalized(snippet)):
             if command != "command" and not _term_covers_token(enriched, command):
@@ -372,6 +509,11 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
         for interface in re.findall(interface_pattern, _normalized(snippet)):
             if not _term_covers_token(enriched, interface):
                 enriched.append(interface)
+
+    if re.search(r"\bip address\b", normalized_query):
+        for address in re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", snippet):
+            if not _term_covers_token(enriched, address):
+                enriched.append(address)
 
     return enriched
 
@@ -410,10 +552,22 @@ def missing_expected_answer_contract(
             for intent in _ANSWER_VALUE_INTENTS
         )
     ) or bool(re.search(r"^how (?:many|much|long|wide|high|fast|far)\b", normalized_query))
+    leading_unrelated_values: set[str] = set()
+    if re.search(r"\boperating ambient temperature\b", normalized_query):
+        field_index = expected_snippet.casefold().find("operating ambient temperature")
+        if field_index > 0:
+            leading_match = re.search(
+                r"\b(\d+(?:\.\d+)?)\s*(?:a|ma|v|vac|vdc|w|kw|hz|khz|mhz|mm|cm|m)\s*:?\s*$",
+                expected_snippet[:field_index].strip(),
+                flags=re.IGNORECASE,
+            )
+            if leading_match:
+                leading_unrelated_values.add(leading_match.group(1))
+
     quantities = [
         value
         for value in _answer_quantity_values(query, expected_snippet)
-        if value not in query_tokens
+        if value not in query_tokens and value not in leading_unrelated_values
     ]
     if asks_value:
         if not quantities:
@@ -422,6 +576,9 @@ def missing_expected_answer_contract(
             absent_values = [value for value in quantities if not _term_covers_token(terms, value)]
             if absent_values:
                 missing.append("expected answer value term(s) " + ", ".join(absent_values))
+
+    if leading_unrelated_values:
+        missing.append("leading unrelated quantity")
 
     if re.search(r"\bconnector type\b|\bwhat (?:type of )?connector\b", normalized_query):
         identifiers = [
@@ -437,6 +594,15 @@ def missing_expected_answer_contract(
             absent = [token for token in identifiers if not _term_covers_token(terms, token)]
             if absent:
                 missing.append("expected connector term(s) " + ", ".join(absent))
+
+    if re.search(r"\b(?:what|which)\s+(?:[a-z0-9-]+\s+){0,3}cable\b", normalized_query):
+        identifiers = _answer_identifier_tokens(query, expected_snippet)
+        if not identifiers:
+            missing.append("cable identifier")
+        else:
+            absent = [identifier for identifier in identifiers if not _term_covers_token(terms, identifier)]
+            if absent:
+                missing.append("expected cable term(s) " + ", ".join(absent))
 
     if re.search(r"\bwhich command\b|\bwhat command\b", normalized_query):
         commands = re.findall(r"\b[a-z][a-z0-9_-]*command\b", normalized_snippet)
@@ -455,6 +621,13 @@ def missing_expected_answer_contract(
             missing.append("interface identifier")
         elif not any(_term_covers_token(terms, interface) for interface in interfaces):
             missing.append("expected interface term")
+
+    if re.search(r"\bip address\b", normalized_query):
+        addresses = re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", expected_snippet)
+        if not addresses:
+            missing.append("IP address value")
+        elif not any(_term_covers_token(terms, address) for address in addresses):
+            missing.append("expected IP address term")
 
     if re.match(r"^(?:does|do|did|can|could|is|are|will|would|should|has|have)\b", normalized_query):
         meaningful_query_terms = {
