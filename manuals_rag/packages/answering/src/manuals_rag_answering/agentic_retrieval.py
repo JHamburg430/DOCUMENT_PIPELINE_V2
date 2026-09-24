@@ -1557,7 +1557,11 @@ def _direct_warning_support(
     sentence to contain the safety language, every requested numeric value,
     and strong lexical overlap, and retains the normal product-scope gate.
     """
-    if not re.search(r"\b(?:warning|caution)\b", query, flags=re.IGNORECASE):
+    if not re.search(
+        r"\b(?:warning|caution|safety\s+risks?|risks?\s+(?:occur|apply|are)|hazards?)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
         return []
     if not preliminary_assessment.get("claim_supported"):
         return []
@@ -2752,6 +2756,67 @@ def _direct_atomic_measurement_support(
     return [chunk_id for chunk_id, _values in matches]
 
 
+def _direct_atomic_default_value_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm one explicit default value from a scoped atomic source sentence."""
+    if not (
+        re.search(r"\b(?:what|which)\b", query, flags=re.I)
+        and re.search(r"\bdefault\b", query, flags=re.I)
+        and re.search(r"\b(?:setting\s+)?value\b", query, flags=re.I)
+        and preliminary_assessment.get("claim_supported")
+    ):
+        return []
+
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    stopwords = {
+        "after", "applies", "default", "does", "for", "setting", "the",
+        "use", "uses", "value", "what", "which",
+    }
+    requested_identifiers = {
+        re.sub(r"[^a-z0-9]+", "", value.lower())
+        for value in analyze_query(query).product_identifiers
+    }
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", query.lower())
+        if len(term) > 2
+        and term not in stopwords
+        and re.sub(r"[^a-z0-9]+", "", term) not in requested_identifiers
+    }
+    matches: list[tuple[frozenset[str], int, int, str]] = []
+    for index, result in enumerate(results):
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+            or str((result.metadata or {}).get("chunk_type") or "")
+            not in {"atomic_text", "spec_record", "table_record"}
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not content or len(content) > 600:
+            continue
+        for sentence in re.split(r"(?<=[.!?])\s+", content):
+            if not re.search(r"\bdefault\b", sentence, flags=re.I):
+                continue
+            values = frozenset(
+                re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", sentence)
+            )
+            sentence_terms = set(re.findall(r"[a-z0-9]+", sentence.lower()))
+            overlap = len(query_terms.intersection(sentence_terms))
+            if not values or overlap < min(2, len(query_terms)):
+                continue
+            matches.append((values, overlap, -index, result.chunk_id))
+    if not matches or len({values for values, _overlap, _index, _chunk in matches}) != 1:
+        return []
+    return [max(matches, key=lambda item: (item[1], item[2]))[-1]]
+
+
 def _direct_model_matrix_measurement_support(
     query: str,
     results: list[SearchResult],
@@ -3520,6 +3585,27 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic measurement verification matched one scoped atomic "
                     "specification with the requested quantity and a unique measured value."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_default_value_support = _direct_atomic_default_value_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_default_value_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_default_value_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic default-value verification matched one scoped atomic "
+                    "sentence containing the requested operation, default marker, and value."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

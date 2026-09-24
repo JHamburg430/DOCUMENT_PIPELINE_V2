@@ -1084,6 +1084,73 @@ def test_verifier_deterministically_confirms_condition_aligned_warning(monkeypat
     assert output["supporting_chunk_ids"] == ["exact-warning"]
 
 
+def test_verifier_deterministically_confirms_explicit_safety_risk(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="warning",
+        objective=(
+            "What safety risks occur if I power the CA-EN100U with a voltage "
+            "higher or lower than 24 VDC?"
+        ),
+        query="CA-EN100U voltage other than 24 VDC safety risks",
+    )
+    result = _result(
+        "exact-warning",
+        "ca-doc",
+        "Do not use the CA-EN100U with a voltage other than 24 VDC, as this "
+        "may cause fire, electric shock, or equipment failure.",
+    )
+    result.metadata["chunk_type"] = "section_window"
+    result.metadata["product_model"] = "CA-EN100U"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": ["exact-warning"]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["exact-warning"]
+
+
+def test_verifier_deterministically_confirms_atomic_default_value(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="default",
+        objective="What default setting value does the W500 use after master calibration?",
+        query="W500 master calibration default setting value",
+    )
+    result = _result(
+        "default-value",
+        "w500-doc",
+        "When master calibration is executed, the setting value becomes 950 (default).",
+    )
+    result.metadata["chunk_type"] = "atomic_text"
+    result.metadata["product_model"] = "W500"
+    result.metadata["product_family"] = "LR"
+    result.metadata["product_models"] = ["W500"]
+    result.metadata["routing_product_models"] = ["W500"]
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": ["default-value"]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["default-value"]
+
+
 def test_verifier_does_not_confirm_scattered_warning_terms(monkeypatch):
     hop = RetrievalHop(
         hop_id="warning",

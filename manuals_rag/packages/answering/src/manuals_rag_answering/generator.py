@@ -6455,16 +6455,21 @@ def _restore_single_requested_model_scope(
     query: str,
     results: list[SearchResult],
 ) -> str:
-    """Keep one explicit requested model visible in an otherwise grounded answer."""
+    """Keep one explicit requested model visible in an otherwise grounded answer.
+
+    The model identifier is user-supplied scope, not a fact inferred from the
+    retrieved evidence.  Verified agent evidence may inherit model context
+    from an enclosing page even when the selected chunk does not repeat it.
+    """
     explicit_models, _series_prefixes = _query_model_scope(query)
-    supported_models = [
-        model
-        for model in explicit_models
-        if any(_result_mentions_model(result, model) for result in results)
-    ]
-    if len(supported_models) != 1:
+    verified_agent_evidence = any(
+        str(reason).startswith("required_claim:")
+        for result in results
+        for reason in (result.metadata or {}).get("agent_context_reasons") or []
+    )
+    if len(explicit_models) != 1 or not verified_agent_evidence:
         return answer
-    model = supported_models[0]
+    model = next(iter(explicit_models))
     if re.sub(r"[^A-Z0-9]+", "", model.upper()) in re.sub(
         r"[^A-Z0-9]+", "", answer.upper()
     ):
@@ -7665,6 +7670,34 @@ def generate_answer_with_trace(
         summarized_evidence = summarize_results_for_answer(query, prioritized_results)
     trace["final_answer"]["summarized_evidence"] = summarized_evidence
     trace["summarization"]["summary_count"] = len(summarized_evidence)
+    verified_direct_evidence = any(
+        str(reason).startswith("required_claim:")
+        for result in prioritized_results
+        for reason in (result.metadata or {}).get("agent_context_reasons") or []
+    )
+    if verified_direct_evidence and any(
+        summary.get("summary_source") == "direct_evidence"
+        for summary in summarized_evidence
+    ):
+        extracted = _fallback_answer_from_summaries(
+            query,
+            summarized_evidence,
+            prioritized_results,
+        )
+        if extracted is not None:
+            extracted = extracted.model_copy(update={"warnings": []})
+            validated = validate_answer(extracted, prioritized_results, query=query)
+            if not validated.insufficient_evidence:
+                trace["final_answer"].update(
+                    {
+                        "provider": "deterministic",
+                        "model": None,
+                        "prompt_kind": "verified_evidence_extract",
+                        "num_predict": None,
+                        "answer_source": "deterministic_verified_evidence",
+                    }
+                )
+                return validated, trace
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Question: {query}\nEvidence summaries: {json.dumps(summarized_evidence)}"},
