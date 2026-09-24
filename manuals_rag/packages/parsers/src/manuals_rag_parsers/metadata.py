@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
+import hashlib
 import json
 import logging
 import operator
@@ -105,14 +106,23 @@ PRIMARY_ENTITY_MIN_CONFIDENCE = 0.8
 TITLE_PAGE_LIMIT = 2
 TITLE_SOURCE_MAX_CHARS = 12000
 CLAIM_VERIFICATION_BATCH_SIZE = 8
-METADATA_MAP_MAX_CONCURRENCY = 2
+# Ollama seeded generation is not reproducible when metadata map calls overlap
+# on the same local model. Metadata is a durable routing contract, so serialize
+# these calls even though it makes backfills slower.
+METADATA_MAP_MAX_CONCURRENCY = 1
 MAX_HARVESTED_CANDIDATES = 80
 METADATA_SCOPED_NUM_PREDICT = 5000
 IDENTIFIER_CANDIDATE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:]\s*[A-Z0-9]{1,16})+|"
     r"[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
 )
-METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v5"
+METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v6"
+
+
+def _metadata_seed(purpose: str, attempt: int) -> int:
+    """Return a stable per-purpose retry seed for reproducible extraction."""
+    material = f"{METADATA_PIPELINE_VERSION}\n{purpose}\n{attempt}".encode("utf-8")
+    return int.from_bytes(hashlib.sha256(material).digest()[:4], "big") & 0x7FFFFFFF
 
 DOCUMENT_KIND_ALIASES = {
     "user_manual": "manual",
@@ -802,6 +812,8 @@ def _extract_scalar_metadata(filename: str, text: str) -> ScalarMetadataExtracti
                 think=_metadata_thinking(),
                 timeout=settings.ollama_metadata_timeout_seconds,
                 purpose="metadata_extraction",
+                temperature=0.0,
+                seed=_metadata_seed("metadata_extraction", attempt),
                 num_predict=_metadata_token_budget(320),
                 num_ctx=METADATA_NUM_CTX,
                 num_batch=settings.ollama_metadata_num_batch,
@@ -831,6 +843,8 @@ def _extract_printed_title(text: str) -> str | None:
                 think=_metadata_thinking(),
                 timeout=settings.ollama_metadata_timeout_seconds,
                 purpose="metadata_extraction.document_title",
+                temperature=0.0,
+                seed=_metadata_seed("metadata_extraction.document_title", attempt),
                 num_predict=_metadata_token_budget(160),
                 num_ctx=METADATA_NUM_CTX,
                 num_batch=settings.ollama_metadata_num_batch,
@@ -900,6 +914,12 @@ def _ground_values(field_name: str, values: list[str], filename: str, text: str)
                 continue
         if field_name == "devices" and stripped.casefold() in {filename.casefold(), *filename_stems}:
             continue
+        if field_name == "devices" and re.fullmatch(
+            r"(?:OP-\d+[A-Z]?|COM\d+|M\d+|IP\d+|SUS\d+)", stripped, re.IGNORECASE
+        ):
+            # Accessory IDs, protocol modes, connector sizes, ingress ratings,
+            # and material grades are not devices.
+            continue
         if field_name in {"part_numbers", "product_models"} and ("_" in stripped or stripped.lower().endswith(".pdf")):
             continue
         if field_name == "parameters" and "parameter" not in stripped.casefold():
@@ -947,6 +967,8 @@ def _extract_list_field(field_name: str, filename: str, text: str) -> list[str]:
                 think=_metadata_thinking(),
                 timeout=settings.ollama_metadata_timeout_seconds,
                 purpose=f"metadata_extraction.{field_name}",
+                temperature=0.0,
+                seed=_metadata_seed(f"metadata_extraction.{field_name}", attempt),
                 num_predict=_metadata_token_budget(1024),
                 num_ctx=METADATA_NUM_CTX,
                 num_batch=settings.ollama_metadata_num_batch,
@@ -1315,6 +1337,8 @@ def _call_scoped_model(
                 think=_metadata_thinking(),
                 timeout=settings.ollama_metadata_timeout_seconds,
                 purpose=purpose,
+                temperature=0.0,
+                seed=_metadata_seed(purpose, attempt),
                 num_predict=_metadata_token_budget(METADATA_SCOPED_NUM_PREDICT),
                 num_ctx=METADATA_NUM_CTX,
                 num_batch=settings.ollama_metadata_num_batch,
@@ -1387,6 +1411,24 @@ def _ground_scoped_candidates(
         ):
             continue
         if kind in {"product_model", "part_number"} and not _identifier_is_grounded(value, quote):
+            continue
+        if kind == "device" and re.fullmatch(
+            r"(?:OP-\d+[A-Z]?|COM\d+|M\d+|IP\d+|SUS\d+)", value, re.IGNORECASE
+        ):
+            # Accessory IDs, protocol modes, connector sizes, ingress ratings,
+            # and material grades are not devices.
+            continue
+        if kind == "product_model" and (
+            "/" in value
+            or re.search(rf"/\s*{re.escape(value)}(?![A-Za-z0-9])", quote, re.IGNORECASE)
+        ):
+            # Slash-compressed model lists need deterministic prefix expansion;
+            # an LLM-selected compound or suffix is not a stable standalone ID.
+            continue
+        if kind == "product_family" and "+" in value:
+            # Table option strings such as "OP-87772 + OP-87775 + LR-TB2000"
+            # describe combinations, not a single family entity. Models surface
+            # these inconsistently, so reject the invalid composite deterministically.
             continue
         if kind == "part_number" and re.search(r"copyright|printed in", quote, re.I) and not re.search(r"\b(?:part|order|model|accessory)\b", quote, re.I):
             # Publication/footer codes are not component part numbers.

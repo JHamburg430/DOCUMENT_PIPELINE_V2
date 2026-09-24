@@ -35,6 +35,19 @@ def test_qwen_payload_disables_thinking_and_uses_json_schema():
     assert payload["options"]["num_batch"] == 64
 
 
+def test_qwen_payload_accepts_deterministic_sampling_controls():
+    payload = build_chat_payload(
+        model="qwen3.5:4b",
+        messages=[{"role": "user", "content": "Return metadata."}],
+        json_schema={"type": "object"},
+        temperature=0.0,
+        seed=123456,
+    )
+
+    assert payload["options"]["temperature"] == 0.0
+    assert payload["options"]["seed"] == 123456
+
+
 def test_gpt_oss_payload_omits_think_control():
     payload = build_chat_payload(
         model="gpt-oss:20b",

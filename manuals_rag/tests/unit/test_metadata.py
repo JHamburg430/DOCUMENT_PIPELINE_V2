@@ -19,6 +19,7 @@ from manuals_rag_parsers.metadata import (
     _expected_version_kinds,
     _family_identifiers_for_routing,
     _ground_scoped_candidates,
+    _ground_values,
     _plausible_company_name,
     _values_for_routing,
     build_metadata_extraction_graph,
@@ -442,6 +443,68 @@ def test_code_only_footer_cannot_become_primary_product_family():
 
     assert next(item for item in claims if item["value"] == "KA-US")["relation"] == "mentioned"
     assert next(item for item in claims if item["value"] == "SZ-V")["relation"] == "primary_product"
+
+
+def test_option_combination_cannot_become_product_family():
+    text = "OP-87772 + OP-87775 + LR-TB2000/TB2000C/TB2000CL"
+    extracted = ScopedMetadataExtraction.model_validate({"entities": [{
+        "value": text,
+        "kind": "product_family",
+        "relation": "mentioned",
+        "source_quote": text,
+        "confidence": 0.9,
+    }]})
+
+    assert _ground_scoped_candidates(
+        extracted,
+        [MetadataSourceSegment(text, 21, 21)],
+    ) == []
+
+
+def test_slash_compressed_models_cannot_become_scoped_model_claims():
+    quote = "M12 connector type models: LR-TB2000C/TB2000CL"
+    extracted = ScopedMetadataExtraction.model_validate({"entities": [
+        {
+            "value": "LR-TB2000C/TB2000CL",
+            "kind": "product_model",
+            "relation": "applies_to",
+            "source_quote": quote,
+            "confidence": 0.9,
+        },
+        {
+            "value": "TB2000CL",
+            "kind": "product_model",
+            "relation": "compatible_with",
+            "source_quote": quote,
+            "confidence": 0.9,
+        },
+    ]})
+
+    assert _ground_scoped_candidates(
+        extracted,
+        [MetadataSourceSegment(quote, 19, 19)],
+    ) == []
+
+
+def test_accessory_part_number_is_not_a_device():
+    text = "Use the OP-26751 mounting accessory."
+    assert _ground_values("devices", ["OP-26751"], "manual.pdf", text) == []
+    extracted = ScopedMetadataExtraction.model_validate({"entities": [{
+        "value": "OP-26751",
+        "kind": "device",
+        "relation": "mentioned",
+        "source_quote": text,
+        "confidence": 0.9,
+    }]})
+    assert _ground_scoped_candidates(
+        extracted,
+        [MetadataSourceSegment(text, 1, 1)],
+    ) == []
+
+
+@pytest.mark.parametrize("value", ["COM2", "M12", "IP67", "SUS304"])
+def test_specification_tokens_are_not_devices(value):
+    assert _ground_values("devices", [value], "manual.pdf", value) == []
 
 
 def test_model_column_coverage_excludes_compatible_products():
@@ -1686,6 +1749,36 @@ def test_metadata_rejects_garbage_source_before_model(monkeypatch):
     monkeypatch.setattr('manuals_rag_parsers.metadata.chat_json', no_model)
     with pytest.raises(MetadataExtractionIncomplete, match='reparse/OCR'):
         infer_document_metadata_from_segments('manual.pdf', [MetadataSourceSegment('q', n, n) for n in range(30)])
+
+
+def test_metadata_retry_seeds_are_stable_and_attempt_specific():
+    from manuals_rag_parsers.metadata import _metadata_seed
+
+    first = _metadata_seed("metadata_extraction.scoped_entities", 1)
+    assert first == _metadata_seed("metadata_extraction.scoped_entities", 1)
+    assert first != _metadata_seed("metadata_extraction.scoped_entities", 2)
+    assert first != _metadata_seed("metadata_extraction.claim_verification", 1)
+    assert 0 <= first <= 0x7FFFFFFF
+
+
+def test_scoped_metadata_uses_deterministic_sampling_controls(monkeypatch):
+    from manuals_rag_parsers.metadata import _metadata_seed
+
+    observed = []
+
+    def fake_chat_json(**kwargs):
+        observed.append(kwargs)
+        return ({"entities": []}, "{}")
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    _call_scoped_model(
+        "manual.pdf",
+        [{"role": "user", "content": "Extract entities"}],
+        purpose="metadata_extraction.scoped_entities",
+    )
+
+    assert observed[0]["temperature"] == 0.0
+    assert observed[0]["seed"] == _metadata_seed("metadata_extraction.scoped_entities", 1)
 
 
 def test_claim_id_verdict_preserves_original_grounded_claim(monkeypatch):

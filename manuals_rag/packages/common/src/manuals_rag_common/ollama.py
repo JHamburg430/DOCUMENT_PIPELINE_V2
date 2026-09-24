@@ -118,6 +118,8 @@ def _chat_options(
     model: str,
     *,
     json_mode: bool,
+    temperature: float | None = None,
+    seed: int | None = None,
     num_predict: int | None = None,
     num_ctx: int | None = None,
     num_batch: int | None = None,
@@ -128,6 +130,10 @@ def _chat_options(
             options = {"temperature": 0.1, "top_p": 0.8, "top_k": 20, "presence_penalty": 1.5}
         else:
             options = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "presence_penalty": 1.5}
+        if temperature is not None:
+            options["temperature"] = temperature
+        if seed is not None:
+            options["seed"] = seed
         if num_predict is not None:
             options["num_predict"] = num_predict
         if num_ctx is not None:
@@ -139,6 +145,10 @@ def _chat_options(
         options = {"temperature": 0.0}
     else:
         options = {}
+    if temperature is not None:
+        options["temperature"] = temperature
+    if seed is not None:
+        options["seed"] = seed
     if num_predict is not None:
         options["num_predict"] = num_predict
     if num_ctx is not None:
@@ -156,6 +166,8 @@ def build_chat_payload(
     think: bool | None = None,
     keep_alive: str | None = DEFAULT_KEEP_ALIVE,
     stream: bool = False,
+    temperature: float | None = None,
+    seed: int | None = None,
     num_predict: int | None = None,
     num_ctx: int | None = None,
     num_batch: int | None = None,
@@ -167,6 +179,8 @@ def build_chat_payload(
         "options": _chat_options(
             model,
             json_mode=json_schema is not None,
+            temperature=temperature,
+            seed=seed,
             num_predict=num_predict,
             num_ctx=num_ctx,
             num_batch=num_batch,
@@ -278,6 +292,8 @@ def _post_chat(
     think: bool | None = None,
     keep_alive: str | None = DEFAULT_KEEP_ALIVE,
     purpose: str | None = None,
+    temperature: float | None = None,
+    seed: int | None = None,
     num_predict: int | None = None,
     num_ctx: int | None = None,
     num_batch: int | None = None,
@@ -289,6 +305,8 @@ def _post_chat(
         json_schema=json_schema,
         think=think,
         keep_alive=keep_alive,
+        temperature=temperature,
+        seed=seed,
         num_predict=num_predict,
         num_ctx=num_ctx,
         num_batch=num_batch,
@@ -302,6 +320,8 @@ def _post_chat(
             "json_mode": json_schema is not None,
             "loaded_models_before": loaded_before,
             "num_predict": num_predict,
+            "temperature": temperature,
+            "seed": seed,
         }
     )
     response = client.post("/api/chat", json=request_payload)
@@ -414,6 +434,8 @@ def chat_json(
     load_timeout: float = DEFAULT_LOAD_TIMEOUT,
     keep_alive: str = DEFAULT_KEEP_ALIVE,
     purpose: str | None = None,
+    temperature: float | None = None,
+    seed: int | None = None,
     num_predict: int | None = None,
     num_ctx: int | None = None,
     num_batch: int | None = None,
@@ -439,6 +461,8 @@ def chat_json(
                 think=think,
                 keep_alive=keep_alive,
                 purpose=purpose,
+                temperature=temperature,
+                seed=seed,
                 num_predict=num_predict,
                 num_ctx=num_ctx,
                 num_batch=num_batch,
@@ -470,6 +494,8 @@ def chat_json(
                 think=think,
                 keep_alive=keep_alive,
                 purpose=purpose,
+                temperature=temperature,
+                seed=seed,
                 num_predict=num_predict,
                 num_ctx=num_ctx,
                 num_batch=num_batch,
