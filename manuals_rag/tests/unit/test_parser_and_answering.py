@@ -7339,6 +7339,47 @@ def test_calibration_instruction_prefers_concrete_sensor_steps_over_controller_c
     assert trace["final_answer"]["answer_source"] == "deterministic_instruction"
 
 
+def test_master_addition_calibration_uses_bounded_procedure_window():
+    procedure_window = (
+        "W500 | Master addition calibration (when adding workpieces to be permitted). "
+        "Position a workpiece which is to be judged the same as the current registered color. "
+        "Then press and hold the [SET] button and the [down] button. When the added "
+        "registration is successful, the setting value flashes three times."
+    )
+    parent = SearchResult(
+        chunk_id="w500-parent",
+        score=0.95,
+        title="W500 Manual",
+        document_version_id="v1",
+        source_document_id="w500-doc",
+        pages=[2, 3],
+        section_path=["950"],
+        content=(
+            "If the master calibration is performed again, the registered contents from the "
+            "first master calibration will be overwritten. To add an allowable range after "
+            "the master calibration, perform the master addition calibration. "
+            + procedure_window
+        ),
+        metadata={
+            "chunk_type": "parent_section",
+            "product_model": "W500",
+            "context_window": procedure_window,
+        },
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "How do I perform master addition calibration on the W500 sensor?",
+        [parent],
+    )
+
+    assert "Position a workpiece" in answer.answer
+    assert "registered color" in answer.answer
+    assert "press and hold" in answer.answer
+    assert "will be overwritten" not in answer.answer
+    assert answer.citations[0]["chunk_id"] == parent.chunk_id
+    assert trace["final_answer"]["answer_source"] == "deterministic_instruction"
+
+
 def test_button_effect_answer_includes_calibration_sequence_and_result():
     distractor = SearchResult(
         chunk_id="applications",

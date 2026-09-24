@@ -2645,6 +2645,31 @@ def _concise_instruction_answer(
     candidates: list[tuple[float, int, str, SearchResult]] = []
     for result_index, result in enumerate(results[:10]):
         evidence = _fallback_answer_text(result)
+        chunk_type = str(result.metadata.get("chunk_type") or "")
+        if asks_calibration and chunk_type in {"parent_section", "section_window"}:
+            procedure_window = re.sub(
+                r"\s+",
+                " ",
+                str(result.metadata.get("context_window") or ""),
+            ).strip()
+            procedure_terms = instruction_terms(procedure_window)
+            procedure_actions = re.findall(
+                r"\b(?:hold|place|position|press|release|select|set|turn)\b",
+                procedure_window,
+                flags=re.IGNORECASE,
+            )
+            if (
+                procedure_window
+                and len(procedure_window) <= 900
+                and len(query_terms.intersection(procedure_terms)) >= 3
+                and len(procedure_actions) >= 2
+                and re.search(
+                    r"\b(?:after|before|first|next|then|when)\b|\[[^\]]+\]",
+                    procedure_window,
+                    flags=re.IGNORECASE,
+                )
+            ):
+                evidence = procedure_window
         result_scope = _normalized_phrase(_result_model_text(result))
         sentence_segments = [
             re.sub(r"\s+", " ", segment).strip(" -|•·▪\t\r\n")
