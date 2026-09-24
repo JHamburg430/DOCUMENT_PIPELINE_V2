@@ -2566,6 +2566,105 @@ def _direct_structured_troubleshooting_support(
     return [max(matches, key=lambda item: item[:3])[-1]]
 
 
+def _direct_display_code_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an exact display-code -> cause/meaning cell without an LLM judge."""
+    code_match = re.search(
+        r"\bwhat\s+does\s+(?:the\s+)?(?P<code>[a-z][a-z0-9_-]{1,10})\s+"
+        r"display\s+code\s+(?:indicate|mean|represent)\b",
+        query,
+        flags=re.I,
+    )
+    if not code_match:
+        return []
+    requested_code = re.sub(r"[^a-z0-9]+", "", code_match.group("code").lower())
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    if not preliminary_ids:
+        return []
+
+    matches: list[tuple[str, str]] = []
+    for result in results:
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        cell = re.search(
+            r"Column\s+headers:\s*(?P<column>.*?);\s*"
+            r"Row\s+headers:\s*(?P<row>.*?);\s*Cell\s+value:\s*(?P<value>.*?)"
+            r"(?:;\s*Row:\s*\d+|$)",
+            str(result.content or ""),
+            flags=re.I | re.S,
+        )
+        if not cell:
+            continue
+        row = re.sub(r"[^a-z0-9]+", "", cell.group("row").lower())
+        column = re.sub(r"[^a-z0-9]+", " ", cell.group("column").lower()).strip()
+        value = re.sub(r"\s+", " ", cell.group("value")).strip()
+        column_leaf = column.split()[-1] if column else ""
+        if (
+            row == requested_code
+            and column_leaf in {"cause", "meaning", "description"}
+            and value
+        ):
+            matches.append((value.lower(), result.chunk_id))
+    if not matches or len({value for value, _chunk_id in matches}) != 1:
+        return []
+    return [matches[0][1]]
+
+
+def _direct_display_range_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an exact display-range spec whose text names the requested quantity."""
+    match = re.search(
+        r"\bwhat\s+is\s+(?:the\s+)?display\s+range\s+for\s+"
+        r"(?P<quantity>.+?)\s+on\s+(?:the\s+)?[a-z0-9:_-]+[?.]*$",
+        query,
+        flags=re.I,
+    )
+    if not match:
+        return []
+    quantity_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", match.group("quantity").lower())
+        if len(term) > 2 and term not in {"and", "for", "the"}
+    }
+    if len(quantity_terms) < 2:
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    if not preliminary_ids:
+        return []
+
+    matches: list[tuple[str, str]] = []
+    for result in results:
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+            or str((result.metadata or {}).get("chunk_type") or "") != "spec_record"
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        value_match = re.match(r"Display\s+range:\s*(?P<value>.+)$", content, flags=re.I)
+        content_terms = set(re.findall(r"[a-z0-9]+", content.lower()))
+        if not value_match or not quantity_terms.issubset(content_terms):
+            continue
+        value = re.sub(r"\s+", " ", value_match.group("value")).strip().lower()
+        if value:
+            matches.append((value, result.chunk_id))
+    if not matches or len({value for value, _chunk_id in matches}) != 1:
+        return []
+    return [matches[0][1]]
+
+
 def _direct_flowchart_rule_support(
     query: str,
     results: list[SearchResult],
@@ -2991,6 +3090,48 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic structured-troubleshooting verification matched the exact "
                     "fault row, requested evidence column, numeric anchors, and product scope."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_display_code_support = _direct_display_code_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_display_code_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_display_code_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic display-code verification matched the exact code row and "
+                    "cause/meaning column in one scoped table cell."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_display_range_support = _direct_display_range_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_display_range_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_display_range_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic display-range verification matched one scoped spec record "
+                    "that names the requested quantity and its range."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

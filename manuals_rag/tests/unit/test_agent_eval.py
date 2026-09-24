@@ -109,6 +109,32 @@ def test_structured_equivalence_rejects_compact_row_group_with_different_value()
     )
 
 
+def test_structured_equivalence_accepts_exact_value_for_nested_column_path():
+    result = {
+        "source_document_id": "doc-a",
+        "pages": [45],
+        "content": (
+            "Column headers: CV-X472 > CV-X452; "
+            "Row headers: Control input > External trigger input; "
+            "Cell value: 4 points (2 of which support special function assignment) "
+            "Input rating: 26.4 V max., 3 mAmin, can select from simultaneous/individual "
+            "capture with up to 4 cameras.; Row: 1; Column: 3"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-a",
+        expected_pages={45},
+        snippet=(
+            "CV-X452: 4 points (2 of which support special function assignment) "
+            "Input rating: 26.4 V max., 3 mAmin, can select from simultaneous/individual "
+            "capture with up to 4 cameras."
+        ),
+    )
+
+
 def test_structured_equivalence_accepts_pipe_row_group_and_normalized_cell():
     result = {
         "source_document_id": "doc-a",

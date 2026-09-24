@@ -1686,6 +1686,67 @@ def test_verifier_confirms_exact_structured_troubleshooting_cause(monkeypatch):
     assert output["supporting_chunk_ids"] == ["cause-row"]
 
 
+def test_verifier_confirms_exact_display_code_cause_without_llm(monkeypatch):
+    objective = "What does the ErC display code indicate on the LR-W500?"
+    hop = RetrievalHop(hop_id="structured_lookup", objective=objective, query=objective)
+    result = _result(
+        "erc-cause",
+        "lrw-doc",
+        "Column headers: Cause; Row headers: ErC; Cell value: Excessive current "
+        "(overcurrent) is flowing through the output wire.; Row: 8; Column: 2",
+    )
+    result.metadata["product_family"] = "LR-W500"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": ["erc-cause"]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["erc-cause"]
+
+
+def test_verifier_confirms_exact_display_range_spec_without_llm(monkeypatch):
+    objective = "What is the display range for received light intensity on the W500?"
+    hop = RetrievalHop(hop_id="structured_lookup", objective=objective, query=objective)
+    result = _result(
+        "display-range",
+        "lrw-doc",
+        "Display range: 0 to 999 (The greater the received light intensity, the higher the value.)",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "spec_record",
+                "product_family": "LR",
+                "product_model": "W500",
+                "product_models": ["W500"],
+            }
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": ["display-range"]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["display-range"]
+
+
 def test_verifier_treats_firmware_error_text_as_troubleshooting_not_applicability(monkeypatch):
     hop = RetrievalHop(
         hop_id="cause",

@@ -3299,6 +3299,14 @@ def _troubleshooting_query_anchor(query: str) -> str:
     )
     if numeric_error:
         return numeric_error.group("code")
+    display_code = re.search(
+        r"\bwhat\s+does\s+(?:the\s+)?(?P<code>[a-z][a-z0-9_-]{1,10})\s+"
+        r"display\s+code\s+(?:indicate|mean|represent)\b",
+        query,
+        flags=re.I,
+    )
+    if display_code:
+        return display_code.group("code")
     # Prefer the complete symptom in natural cause/remedy questions.  A quoted
     # span inside that symptom may be a setting or menu label (for example,
     # "Axes Configuration"), not the alarm text itself.

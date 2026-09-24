@@ -94,6 +94,11 @@ def analyze_query(query: str) -> QueryAnalysis:
         r"\b(?:select|choose|use)(?:s|d)?\b.{0,30}\bbetween\b",
         lowered,
     )
+    display_code_lookup_shape = re.search(
+        r"\bwhat\s+does\s+(?:the\s+)?[a-z][a-z0-9_-]{1,10}\s+display\s+code\s+"
+        r"(?:indicate|mean|represent)\b",
+        lowered,
+    )
     if structured_lookup_field and (structured_lookup_shape or structured_reverse_lookup_shape):
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
@@ -102,6 +107,9 @@ def analyze_query(query: str) -> QueryAnalysis:
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
     if named_choice_lookup_shape:
         types.append("structured_lookup")
+        preferred_chunk_types.extend(["table_record", "section_window"])
+    if display_code_lookup_shape:
+        types.extend(["structured_lookup", "troubleshooting"])
         preferred_chunk_types.extend(["table_record", "section_window"])
     requested_doc_kind = None
     if "datasheet" in lowered:

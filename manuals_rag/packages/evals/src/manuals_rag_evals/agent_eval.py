@@ -270,6 +270,10 @@ def _structured_evidence_equivalent(expected: str, actual: str) -> bool:
         actual_column, _actual_row, actual_value, _actual_properties = actual_cell
         expected_label = _normalized(compact_expected.group("label"))
         expected_value = _normalized(compact_expected.group("value"))
+        column_has_expected_label = bool(
+            expected_label
+            and re.search(rf"(?:^|\s){re.escape(expected_label)}(?:\s|$)", actual_column)
+        )
         quantity_pattern = r"\b\d+(?:\.\d+)?\s*(?:mm|cm|m|um|ms|s|v|a|ma|hz|khz|mhz|%|c)\b"
         expected_quantities = {
             re.sub(r"\s+", " ", value)
@@ -280,9 +284,14 @@ def _structured_evidence_equivalent(expected: str, actual: str) -> bool:
             for value in re.findall(quantity_pattern, actual_value, flags=re.I)
         }
         if (
-            expected_label == actual_column
-            and expected_quantities
-            and expected_quantities.issubset(actual_quantities)
+            column_has_expected_label
+            and (
+                expected_value == actual_value
+                or (
+                    expected_quantities
+                    and expected_quantities.issubset(actual_quantities)
+                )
+            )
         ):
             return True
 

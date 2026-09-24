@@ -842,6 +842,16 @@ def test_query_analysis_marks_cause_and_correction_questions_as_structured_looku
     assert {"structured_lookup", "troubleshooting"}.issubset(action_only.query_types)
 
 
+def test_display_code_meaning_routes_to_structured_troubleshooting():
+    query = "What does the ErC display code indicate on the LR-W500?"
+    analysis = analyze_query(query)
+
+    assert {"structured_lookup", "troubleshooting"}.issubset(analysis.query_types)
+    assert "table_record" in analysis.preferred_chunk_types
+    assert retriever._troubleshooting_query_anchor(query) == "ErC"
+    assert "erc" in retriever._lexical_table_terms(query, analysis)
+
+
 def test_query_analysis_treats_letter_number_series_as_product_family_not_error_code():
     analysis = analyze_query("When controlling image capture timing for X8000 Series, what detail should be used?")
 
