@@ -2446,6 +2446,61 @@ def _direct_structured_accessory_support(
     return [max(matches, key=lambda item: item[:2])[-1]] if matches else []
 
 
+def _direct_included_accessory_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm one explicit item/part relation to the exact requested model.
+
+    Some brochure chunks use a document-level catalog identifier instead of
+    the controller named in an accessory row. The parenthetical relation is
+    itself authoritative local scope, but only when the question names the
+    item type and the exact included/supplied-with target.
+    """
+    mapping_query = re.search(
+        r"\bwhich\s+(?P<item>[a-z][a-z0-9 _/-]{0,40}?)\s+model\s+is\s+"
+        r"(?P<relation>included|supplied)\s+with\s+(?:the\s+)?"
+        r"(?P<target>[A-Z][A-Z0-9]*(?:[-:][A-Z0-9]+)+)\b",
+        query,
+        flags=re.I,
+    )
+    if not mapping_query:
+        return []
+
+    def compact(value: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", value.lower())
+
+    item_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", mapping_query.group("item").lower())
+        if len(term) > 1
+    }
+    requested_target = compact(mapping_query.group("target"))
+    relation = mapping_query.group("relation")
+    matches: list[tuple[int, int, str, str]] = []
+    for result_index, result in enumerate(results):
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        row = re.fullmatch(
+            rf"(?P<item>[^()]*?)\s+OP\s*:\s*(?P<part>[A-Z0-9-]+)\s*"
+            rf"\(\s*{relation}\s+with\s+(?:the\s+)?(?P<target>[^)]+?)\s*\)\s*",
+            content,
+            flags=re.I,
+        )
+        if not row or compact(row.group("target")) != requested_target:
+            continue
+        row_item_terms = set(re.findall(r"[a-z0-9]+", row.group("item").lower()))
+        if not item_terms or not item_terms.issubset(row_item_terms):
+            continue
+        bounded = int(
+            str((result.metadata or {}).get("chunk_type") or "")
+            in {"atomic_text", "spec_record", "table_record"}
+        )
+        matches.append((bounded, -result_index, compact(row.group("part")), result.chunk_id))
+    if not matches or len({part for _bounded, _index, part, _chunk in matches}) != 1:
+        return []
+    return [max(matches, key=lambda item: item[:2])[-1]]
+
+
 def _direct_structured_power_source_support(
     query: str,
     results: list[SearchResult],
@@ -3371,6 +3426,27 @@ def verify_retrieval_claim(
             applicability="unknown",
             rationale="No retrieval evidence was supplied to the verifier.",
         ).model_dump()
+
+    direct_included_accessory_support = _direct_included_accessory_support(
+        hop.objective,
+        results,
+    )
+    if direct_included_accessory_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_included_accessory_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic accessory verification matched one explicit item/part row to "
+                "the exact included-with or supplied-with model."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_included_accessory_support,
+        }
 
     requested_identifiers = list(analyze_query(hop.objective).product_identifiers)
     if requested_identifiers and not scoped_ids:

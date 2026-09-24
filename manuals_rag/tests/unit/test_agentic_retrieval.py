@@ -2803,6 +2803,52 @@ def test_structured_accessory_mapping_rejects_neighboring_light():
     assert verified["claim_supported"] is False
 
 
+def test_included_accessory_row_confirms_exact_target_despite_catalog_document_scope(monkeypatch):
+    query = "Which stylus model is included with the IV2-CP50?"
+    hop = RetrievalHop(hop_id="accessory", objective=query, query=query)
+    exact = _result(
+        "stylus-row",
+        "iv-catalog",
+        "Stylus OP: 88352 (Included with IV2-CP50)",
+    )
+    exact.metadata.update({"chunk_type": "spec_record", "product_model": "C_611Y54_KA_US_2084_2"})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [exact],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["stylus-row"]
+
+
+def test_included_accessory_row_rejects_neighboring_target():
+    query = "Which stylus model is included with the IV2-CP50?"
+    hop = RetrievalHop(hop_id="accessory", objective=query, query=query)
+    neighbor = _result(
+        "stylus-neighbor",
+        "iv-catalog",
+        "Stylus OP: 88352 (Included with IV2-CP60)",
+    )
+    neighbor.metadata.update({"chunk_type": "spec_record", "product_model": "C_611Y54_KA_US_2084_2"})
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [neighbor],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert verified["claim_supported"] is False
+
+
 def test_scoped_yes_no_support_accepts_does_question_from_one_exact_sentence(monkeypatch):
     query = (
         "Does the VS Series single model support both wide and narrow fields of view "
