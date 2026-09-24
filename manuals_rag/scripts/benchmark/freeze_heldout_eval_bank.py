@@ -145,14 +145,16 @@ def missing_query_qualifiers(
         for prefix in model_prefixes
     ):
         missing.append("model variant")
-    if re.search(
-        r"\b(?:this|that|these|those)\s+"
-        r"(?:camera|sensor|controller|device|product|unit|model|system|manual|series)\b",
+    deictic_subject = re.search(r"\b(?:this|these|those)\b", normalized_query) or re.search(
+        r"\bthat(?:\s+[a-z0-9][a-z0-9-]*){0,4}\s+"
+        r"(?:cameras?|sensors?|controllers?|devices?|products?|units?|models?|"
+        r"systems?|manuals?|series|filters?|components?|accessories|cables?|connectors?)\b",
         normalized_query,
-    ):
+    )
+    if deictic_subject:
         # Frozen evaluation questions are executed without conversational
-        # context.  A demonstrative subject such as "this camera" therefore
-        # cannot establish which source model the expected value applies to.
+        # context. Any demonstrative reference therefore cannot establish
+        # which source model, component, or prior statement applies.
         missing.append("explicit subject")
     # Some manuals reuse the same metric label for distinct displayed
     # quantities.  The W500, for example, gives a ``Display range`` for both

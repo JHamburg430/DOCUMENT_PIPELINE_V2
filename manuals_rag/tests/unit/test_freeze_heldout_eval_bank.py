@@ -169,12 +169,30 @@ def test_accepts_model_family_prefix_from_structural_context():
     ) == []
 
 
-def test_rejects_standalone_question_with_deictic_product_subject():
-    assert _MODULE.missing_query_qualifiers(
+@pytest.mark.parametrize(
+    "query",
+    [
         "What shutter speed range can I set on this camera?",
+        "What DC voltage range powers this laser sensor?",
+        "How is that distance based laser sensor wired?",
+        "What colors appear on these laser sensors?",
+        "Can this filter smooth images along the X axis?",
+    ],
+)
+def test_rejects_standalone_question_with_deictic_product_subject(query):
+    assert _MODULE.missing_query_qualifiers(
+        query,
         "Electronic shutter | Can be set to 0.022 to 1000 msec",
         "Electronic shutter | Can be set to 0.022 to 1000 msec",
     ) == ["explicit subject"]
+
+
+def test_accepts_that_as_relative_pronoun_not_deictic_subject():
+    assert _MODULE.missing_query_qualifiers(
+        "What warning appears for an IP address that already belongs to a PLC?",
+        "Warning: The IP address is already in use by another device.",
+        "Warning: The IP address is already in use by another device.",
+    ) == []
 
 
 def test_rejects_display_range_question_that_drops_displayed_quantity():
