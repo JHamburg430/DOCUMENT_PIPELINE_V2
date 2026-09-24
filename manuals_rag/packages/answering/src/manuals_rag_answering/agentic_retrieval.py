@@ -3260,6 +3260,13 @@ def _direct_scoped_yes_no_support(
         value = re.sub(r"^(?:support|supports|supported|supporting)$", "handle", value)
         value = re.sub(r"^(?:handle|handles|handled|handling)$", "handle", value)
         value = re.sub(r"^(?:change|changes|changed|changing)$", "change", value)
+        value = re.sub(r"^(?:function|functions|operation|operations)$", "operation", value)
+        value = re.sub(r"^(?:link|links|linked|linking)$", "connected", value)
+        value = re.sub(
+            r"^(?:available|availability|unavailable|enable|enabled|disable|disabled)$",
+            "availability",
+            value,
+        )
         value = re.sub(r"^lenses$", "lens", value)
         if len(value) > 4 and value.endswith("s") and not value.endswith("ss"):
             value = value[:-1]

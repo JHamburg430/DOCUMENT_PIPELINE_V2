@@ -2882,6 +2882,43 @@ def test_scoped_yes_no_support_accepts_does_question_from_one_exact_sentence(mon
     assert verified["supporting_chunk_ids"] == ["vs-capability"]
 
 
+def test_scoped_yes_no_support_matches_disabled_operations_to_availability(monkeypatch):
+    query = (
+        "Are the button functions on the LR-W70(C) main unit available when "
+        "linked to an MU-N Series?"
+    )
+    hop = RetrievalHop(hop_id="capability", objective=query, query=query)
+    exact = _result(
+        "lr-w70-buttons",
+        "lr-w-manual",
+        "When the MU-N Series and an LR-W70(C) are connected, the button "
+        "operations for the LR-W70(C) main unit are disabled.",
+    )
+    exact.metadata.update(
+        {
+            "chunk_type": "section_window",
+            "product_model": "LR-W70(C) Edition",
+            "product_models": ["LR-W70(C) Edition"],
+            "product_family": "MU-N Series",
+            "product_families": ["MU-N Series", "LR-W70(C) Edition"],
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [exact],
+        {"claim_supported": True, "supporting_chunk_ids": [exact.chunk_id]},
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["lr-w70-buttons"]
+
+
 def test_extension_cable_mapping_confirms_exact_source_row(monkeypatch):
     query = "What extension cable should be used with the CA-CF3 camera cable?"
     hop = RetrievalHop(hop_id="cable", objective=query, query=query)
