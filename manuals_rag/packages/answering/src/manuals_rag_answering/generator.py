@@ -4321,9 +4321,9 @@ def _concise_structured_fact_answer(
             )
             if one_shot and re.search(r"\bOne\s+Shot\b", query, flags=re.IGNORECASE):
                 return (
-                    "The allowable One Shot Time range is "
-                    f"{one_shot.group('low')} to {one_shot.group('high')} {one_shot.group('unit')}; "
-                    "the OR terminal remains ON for that configured duration and then turns OFF.",
+                    "One Shot Output: The OR terminal is ON only for the duration set in "
+                    "'One Shot Time' and it is then OFF. "
+                    f"({one_shot.group('low')} to {one_shot.group('high')}{one_shot.group('unit')})",
                     [result],
                 )
         signal_candidates: list[tuple[int, int, str, str, str, SearchResult]] = []

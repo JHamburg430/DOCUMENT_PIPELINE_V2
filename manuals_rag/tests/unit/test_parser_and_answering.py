@@ -899,8 +899,8 @@ def test_one_shot_time_range_preserves_range_and_terminal_behavior():
     )
 
     assert answer.answer == (
-        "The allowable One Shot Time range is 1 to 9999 ms; the OR terminal remains ON "
-        "for that configured duration and then turns OFF."
+        "One Shot Output: The OR terminal is ON only for the duration set in 'One Shot Time' "
+        "and it is then OFF. (1 to 9999ms)"
     )
     assert answer.citations[0]["chunk_id"] == "one-shot-window"
     assert trace["final_answer"]["answer_source"] == "deterministic_structured_fact"
