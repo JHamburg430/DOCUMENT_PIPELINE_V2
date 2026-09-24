@@ -180,6 +180,64 @@ def test_structured_equivalence_rejects_pipe_row_group_neighboring_cell():
     )
 
 
+def test_structured_equivalence_accepts_query_qualified_matrix_cell():
+    case = {
+        "query": "How many protection zones does the SZ-V04 multi-function model support?",
+        "source_document_id": "doc-a",
+        "source_chunk_id": "matrix-row",
+        "page_from": 20,
+        "page_to": 20,
+        "expected_snippet": (
+            "Protection zone | ✓ 2 zones | ✓ 1 zone | ✓ 1 zone | "
+            "✓ 2 zones | ✓ 2 zones"
+        ),
+    }
+    results = [
+        {
+            "chunk_id": "sz-v04-cell",
+            "source_document_id": "doc-a",
+            "pages": [20],
+            "content": (
+                "Column headers: SZ-V04 (X) > Multi-function; "
+                "Row headers: Protection zone; Cell value: ✓ 2 zones; "
+                "Row: 2; Column: 2"
+            ),
+            "metadata": {"chunk_type": "table_record"},
+        }
+    ]
+
+    assert _equivalent_chunk_ids(case, results)["matrix-row"] == {"sz-v04-cell"}
+
+
+def test_structured_equivalence_rejects_neighboring_matrix_model():
+    case = {
+        "query": "How many protection zones does the SZ-V04 multi-function model support?",
+        "source_document_id": "doc-a",
+        "source_chunk_id": "matrix-row",
+        "page_from": 20,
+        "page_to": 20,
+        "expected_snippet": (
+            "Protection zone | ✓ 2 zones | ✓ 1 zone | ✓ 1 zone | "
+            "✓ 2 zones | ✓ 2 zones"
+        ),
+    }
+    results = [
+        {
+            "chunk_id": "sz-v32-cell",
+            "source_document_id": "doc-a",
+            "pages": [20],
+            "content": (
+                "Column headers: SZ-V32 (X) > Multi-bank; "
+                "Row headers: Protection zone; Cell value: ✓ 1 zone; "
+                "Row: 2; Column: 3"
+            ),
+            "metadata": {"chunk_type": "table_record"},
+        }
+    ]
+
+    assert _equivalent_chunk_ids(case, results)["matrix-row"] == set()
+
+
 def test_cross_document_equivalence_does_not_inherit_first_document_pages():
     case = {
         "source_document_id": "first-doc",

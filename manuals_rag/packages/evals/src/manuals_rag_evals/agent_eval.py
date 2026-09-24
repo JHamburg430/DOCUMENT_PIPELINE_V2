@@ -225,7 +225,69 @@ def _primary_structured_reference(text: str) -> tuple[frozenset[str], frozenset[
     return frozenset(), frozenset()
 
 
-def _structured_evidence_equivalent(expected: str, actual: str) -> bool:
+def _query_qualified_matrix_cell(
+    expected: str,
+    actual: str,
+    *,
+    query: str,
+) -> bool:
+    """Match an atomic cell to a multi-column row only with explicit query scope.
+
+    A matrix row such as ``Protection zone | 2 zones | 1 zone | ...`` does not
+    encode its column binding in the row itself.  The normalized atomic cell
+    does.  Credit that atomic representation only when its row and value occur
+    in the source row *and* its model/type column is explicitly named by the
+    benchmark question.  This prevents a same-row neighboring model from being
+    treated as equivalent merely because it has the same value.
+    """
+    actual_cell = _structured_cell_signature(actual)
+    if not actual_cell or not query:
+        return False
+    actual_column, actual_row, actual_value, _actual_properties = actual_cell
+
+    row_and_value_match = False
+    for line in expected.splitlines() or [expected]:
+        fields = [_normalized(value) for value in line.split("|")]
+        fields = [value for value in fields if value]
+        if len(fields) < 3:
+            continue
+        if fields[0] == actual_row and actual_value in fields[1:]:
+            row_and_value_match = True
+            break
+    if not row_and_value_match:
+        return False
+
+    compact_query = re.sub(r"[^a-z0-9]", "", query.lower())
+    raw_column_match = re.search(r"Column\s+headers:\s*(.*?);\s*Row\s+headers:", actual, flags=re.I | re.S)
+    raw_column = raw_column_match.group(1) if raw_column_match else actual_column
+    identifiers = {
+        re.sub(r"[^a-z0-9]", "", value.lower())
+        for value in re.findall(
+            r"\b(?=[A-Za-z0-9_-]*[A-Za-z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*\b",
+            raw_column,
+        )
+    }
+    identifiers.discard("")
+    if not identifiers or not any(identifier in compact_query for identifier in identifiers):
+        return False
+
+    column_without_identifiers = raw_column
+    for identifier in re.findall(
+        r"\b(?=[A-Za-z0-9_-]*[A-Za-z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*\b",
+        raw_column,
+    ):
+        column_without_identifiers = column_without_identifiers.replace(identifier, " ")
+    qualifier_stopwords = {"model", "name", "type", "x"}
+    qualifiers = {
+        token
+        for token in _normalized(column_without_identifiers).split()
+        if len(token) >= 3 and token not in qualifier_stopwords
+    }
+    query_tokens = set(_normalized(query).split())
+    return qualifiers.issubset(query_tokens)
+
+
+def _structured_evidence_equivalent(expected: str, actual: str, *, query: str = "") -> bool:
     expected_cell = _structured_cell_signature(expected)
     actual_cell = _structured_cell_signature(actual)
     if expected_cell and actual_cell:
@@ -254,6 +316,9 @@ def _structured_evidence_equivalent(expected: str, actual: str) -> bool:
             expected_value = fields[-1]
             if expected_row == actual_row and expected_value == actual_value:
                 return True
+
+    if _query_qualified_matrix_cell(expected, actual, query=query):
+        return True
 
     # Frozen source snippets often preserve a compact row-group rendering
     # (``MODEL: value``), while retrieval returns the equivalent normalized
@@ -311,6 +376,7 @@ def _result_preserves_expected_evidence(
     source_document_id: str,
     expected_pages: set[int],
     snippet: str,
+    query: str = "",
 ) -> bool:
     """Accept a larger parent chunk only when it demonstrably contains the same evidence.
 
@@ -331,7 +397,11 @@ def _result_preserves_expected_evidence(
     if expected_pages and (not result_pages or expected_pages.isdisjoint(result_pages)):
         metadata = result.get("metadata") or {}
         chunk_type = str(metadata.get("chunk_type") or result.get("chunk_type") or "")
-        if chunk_type == "table_record" and _structured_evidence_equivalent(snippet, content):
+        if chunk_type == "table_record" and _structured_evidence_equivalent(
+            snippet,
+            content,
+            query=query,
+        ):
             return True
         return (
             chunk_type in {"atomic_text", "warning_record"}
@@ -342,7 +412,7 @@ def _result_preserves_expected_evidence(
     if (
         str((result.get("metadata") or {}).get("chunk_type") or result.get("chunk_type") or "")
         == "table_record"
-        and _structured_evidence_equivalent(snippet, content)
+        and _structured_evidence_equivalent(snippet, content, query=query)
     ):
         return True
     values = _structured_values(snippet)
@@ -387,6 +457,7 @@ def _equivalent_chunk_ids(
                 source_document_id=source_document_id,
                 expected_pages=pages,
                 snippet=snippet,
+                query=str(case.get("query") or ""),
             )
         }
         expected_terms = [
