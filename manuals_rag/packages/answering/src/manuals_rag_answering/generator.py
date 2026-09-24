@@ -4301,9 +4301,31 @@ def _concise_structured_fact_answer(
             )
 
     signal_duration_query = bool(
-        re.search(r"\b(?:pulse|output)\s+duration\b|\bduration\s+range\b", query, flags=re.IGNORECASE)
+        re.search(
+            r"\b(?:pulse|output)\s+duration\b|\bduration\s+range\b|"
+            r"\b(?:allowable|valid)?\s*(?:one\s+shot\s+)?time\s+range\b",
+            query,
+            flags=re.IGNORECASE,
+        )
     )
     if signal_duration_query:
+        for result in results[:12]:
+            evidence = _fallback_answer_text(result)
+            one_shot = re.search(
+                r"One\s+Shot\s+Output\s*:\s*The\s+OR\s+terminal\s+is\s+ON\s+only\s+for\s+the\s+"
+                r"duration\s+set\s+in\s+['\"]One\s+Shot\s+Time['\"]\s+and\s+it\s+is\s+then\s+OFF\.\s*"
+                r"\(\s*(?P<low>\d+(?:\.\d+)?)\s+to\s+(?P<high>\d+(?:\.\d+)?)\s*"
+                r"(?P<unit>ms|μs|us|s)\s*\)",
+                evidence,
+                flags=re.IGNORECASE,
+            )
+            if one_shot and re.search(r"\bOne\s+Shot\b", query, flags=re.IGNORECASE):
+                return (
+                    "The allowable One Shot Time range is "
+                    f"{one_shot.group('low')} to {one_shot.group('high')} {one_shot.group('unit')}; "
+                    "the OR terminal remains ON for that configured duration and then turns OFF.",
+                    [result],
+                )
         signal_candidates: list[tuple[int, int, str, str, str, SearchResult]] = []
         for result_index, result in enumerate(results[:12]):
             evidence = _fallback_answer_text(result)

@@ -873,6 +873,39 @@ def test_signal_duration_answers_bind_range_and_default(query, expected_answer):
     assert trace["final_answer"]["answer_source"] == "deterministic_structured_fact"
 
 
+def test_one_shot_time_range_preserves_range_and_terminal_behavior():
+    result = SearchResult(
+        chunk_id="one-shot-window",
+        score=1.0,
+        title="LJ: X8000 Series 3D Mode Volume Simple Setup Manual",
+        document_version_id="v1",
+        source_document_id="doc-ljx",
+        pages=[15, 16, 17, 18],
+        section_path=["OR Terminal Output Mode"],
+        content=(
+            "One Shot Output: The OR terminal is ON only for the duration set in "
+            "'One Shot Time' and it is then OFF. (1 to 9999ms)"
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        (
+            "In the LJ: X8000 Series 3D Mode Volume Simple Setup Manual, what allowable "
+            "One Shot Time range controls how long the OR terminal remains ON when One Shot "
+            "Output mode is selected?"
+        ),
+        [result],
+    )
+
+    assert answer.answer == (
+        "The allowable One Shot Time range is 1 to 9999 ms; the OR terminal remains ON "
+        "for that configured duration and then turns OFF."
+    )
+    assert answer.citations[0]["chunk_id"] == "one-shot-window"
+    assert trace["final_answer"]["answer_source"] == "deterministic_structured_fact"
+
+
 @pytest.mark.parametrize(
     ("query", "expected_answer"),
     [

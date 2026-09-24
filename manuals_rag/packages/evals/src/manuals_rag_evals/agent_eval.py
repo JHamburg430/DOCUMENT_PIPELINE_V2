@@ -320,6 +320,32 @@ def _structured_evidence_equivalent(expected: str, actual: str, *, query: str = 
     if _query_qualified_matrix_cell(expected, actual, query=query):
         return True
 
+    # A frozen atomic table cell may be rendered as ``MODEL: value`` while a
+    # retrieved section window keeps the model in the table header and the
+    # complete value on its physical row.  Credit that parent rendering only
+    # when the exact normalized model label occurs in the window and the exact
+    # normalized value occurs contiguously on one line.  Keeping the value
+    # line-bound prevents unrelated cells elsewhere in a large parent from
+    # being combined into a false match.
+    compact_expected = re.fullmatch(
+        r"\s*(?P<label>[^:;]{1,80})\s*:\s*(?P<value>.+?)\s*",
+        expected,
+        flags=re.S,
+    )
+    if compact_expected and not actual_cell:
+        expected_label = _normalized(compact_expected.group("label"))
+        expected_value = _normalized(compact_expected.group("value"))
+        if (
+            expected_label
+            and expected_value
+            and re.search(
+                rf"(?:^|\s){re.escape(expected_label)}(?:\s|$)",
+                _normalized(actual),
+            )
+            and any(expected_value in _normalized(line) for line in actual.splitlines())
+        ):
+            return True
+
     # Frozen source snippets often preserve a compact row-group rendering
     # (``MODEL: value``), while retrieval returns the equivalent normalized
     # table cell.  Accept that representation change only when the model/column
@@ -411,7 +437,7 @@ def _result_preserves_expected_evidence(
         return True
     if (
         str((result.get("metadata") or {}).get("chunk_type") or result.get("chunk_type") or "")
-        == "table_record"
+        in {"table_record", "section_window"}
         and _structured_evidence_equivalent(snippet, content, query=query)
     ):
         return True

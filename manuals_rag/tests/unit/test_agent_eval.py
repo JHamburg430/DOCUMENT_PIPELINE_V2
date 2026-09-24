@@ -657,3 +657,48 @@ def test_agent_evaluation_accepts_exact_atomic_duplicate_on_another_page():
 
     assert evaluation["cells"]["candidate_recall"]["status"] == "pass"
     assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+
+
+def test_agent_evaluation_accepts_section_window_with_exact_model_and_value_row():
+    case = {
+        "case_id": "section-window-equivalence",
+        "query": "How long does image transfer take for VJ-H500CX in 5 megapixel mode?",
+        "retrieval_task": "single_step_retrieval",
+        "source_document_id": "doc-vj",
+        "source_chunk_id": "atomic-transfer-time",
+        "page_from": 1,
+        "page_to": 1,
+        "expected_terms": ["vj-h500cx", "megapixel", "29.2", "11.7"],
+        "expected_snippet": (
+            "VJ-H500CX: 5 megapixel mode: 29.2 ms "
+            "2 megapixel mode: 11.7 ms"
+        ),
+    }
+    trace = _parent_equivalence_trace()
+    trace["evidence_ledger"]["one"]["chunk_ids"] = ["section-window"]
+    evaluation = score_agent_run(
+        case,
+        trace=trace,
+        results=[{
+            "chunk_id": "section-window",
+            "source_document_id": "doc-vj",
+            "pages": [1],
+            "content": (
+                "Model | | VJ-H500CX\n"
+                "Transfer time | | 5 megapixel mode: 29.2 ms "
+                "2 megapixel mode: 11.7 ms\n"
+                "Electronic shutter | | 0.017 msec to 100 msec"
+            ),
+            "metadata": {"chunk_type": "section_window"},
+        }],
+        answer={
+            "answer": (
+                "For VJ-H500CX, transfer time is 29.2 ms in 5 megapixel mode "
+                "and 11.7 ms in 2 megapixel mode."
+            ),
+            "citations": [{"chunk_id": "section-window"}],
+        },
+    )
+
+    assert evaluation["cells"]["candidate_recall"]["status"] == "pass"
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
