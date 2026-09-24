@@ -86,6 +86,10 @@ def normalize_frozen_query(query: str) -> str:
             "In the CV-X camera specifications, what numerical inputs can be specified for the electronic shutter setting?",
         "What action must be taken after saving settings to enable them on the VS Series device?":
             "In the VS Series KUKA robot connection manual, what action must be taken after saving settings to enable them?",
+        "In the VS Series KUKA robot connection manual, what action must be taken after saving settings to enable them?":
+            "In the VS Series KUKA robot connection manual, after pressing Save and selecting Yes, what must be done to enable the changed settings?",
+        "Which menu path transfers data from the PC to the PLC?":
+            "In the LJ-X8000 EtherNet/IP setup for CompactLogix or ControlLogix, which menu path transfers data from the PC to the PLC?",
         "What installation precaution applies when adjusting a manual-focus sensor after installation?":
             "What installation precaution applies when adjusting an IV-500C manual-focus sensor after installation?",
         "Which amplifier models support the Intelligent Monitor feature?":

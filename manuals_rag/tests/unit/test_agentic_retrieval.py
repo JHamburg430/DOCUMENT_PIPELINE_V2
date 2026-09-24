@@ -17,6 +17,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _direct_indicator_meaning_support,
+    _direct_illumination_type_support,
     _direct_procedure_support,
     _direct_variable_type_support,
     verify_retrieval_claim,
@@ -895,6 +896,51 @@ def test_scope_matching_accepts_exact_model_enumerated_by_source_filename():
         "What does the IV-H500CA status indicator mean?",
         result,
     ) is True
+
+
+def test_scope_matching_accepts_explicit_model_header_in_section_window():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "power",
+        "wm-doc",
+        "Model | | WM-C6010 | WM-C6025\nPower supply | | Supplied from dedicated AC adapter\n"
+        "Ratings | Rated voltage | 24VDC",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "section_window",
+                "product_model": "3D/GD&T and shape measurement",
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "How is the WM-C6010 laser-scanning probe relay unit powered?",
+        result,
+    ) is True
+
+
+def test_scope_matching_rejects_incidental_model_prose_in_section_window():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "incidental",
+        "other-doc",
+        "This section describes OTHER-1. The WM-C6010 can be connected as an accessory.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "section_window",
+                "product_model": "OTHER-1",
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "How is the WM-C6010 laser-scanning probe relay unit powered?",
+        result,
+    ) is False
 
 
 def test_single_hop_controller_preserves_exact_user_query_for_retrieval():
@@ -3768,6 +3814,33 @@ def test_indicator_meaning_support_requires_named_definition():
     )
 
     assert _direct_indicator_meaning_support(query, [result]) == ["dtm-definition"]
+
+
+def test_illumination_type_support_confirms_exact_compact_model_specification():
+    query = "What illumination type is specified for the CA-DEW10X white smart ring?"
+    result = _result(
+        "ca-dew10x",
+        "vs-doc",
+        "High-intensity smart ring illumination CA-DEW10X (white)",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+
+    assert _direct_illumination_type_support(query, [result]) == ["ca-dew10x"]
+
+
+def test_illumination_type_support_rejects_wrong_color_or_unstructured_prose():
+    query = "What illumination type is specified for the CA-DEW10X white smart ring?"
+    wrong_color = _result(
+        "wrong-color",
+        "vs-doc",
+        "High-intensity smart ring illumination CA-DEW10X (red)",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+    prose = _result(
+        "prose",
+        "vs-doc",
+        "The CA-DEW10X white smart ring illumination may be installed nearby.",
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text"}})
+
+    assert _direct_illumination_type_support(query, [wrong_color, prose]) == []
 
 
 def test_dependent_hop_is_refined_from_prior_evidence():

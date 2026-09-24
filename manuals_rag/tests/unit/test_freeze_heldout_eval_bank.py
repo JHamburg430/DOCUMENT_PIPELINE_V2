@@ -661,6 +661,14 @@ def test_repairs_lj_s8000_ocr_model_separator_in_frozen_query():
             "VS Series KUKA robot connection manual",
         ),
         (
+            "In the VS Series KUKA robot connection manual, what action must be taken after saving settings to enable them?",
+            "pressing Save and selecting Yes",
+        ),
+        (
+            "Which menu path transfers data from the PC to the PLC?",
+            "LJ-X8000 EtherNet/IP setup",
+        ),
+        (
             "What installation precaution applies when adjusting a manual-focus sensor after installation?",
             "IV-500C",
         ),

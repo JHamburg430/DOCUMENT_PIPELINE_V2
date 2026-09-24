@@ -1404,6 +1404,20 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
             )
         )
     content = str(result.content or "")
+    # Long section windows can contain a compact, authoritative model-header
+    # row even when their document-level metadata is generic or misleading.
+    # Accept only an explicit pipe-delimited ``Model`` row; ordinary prose
+    # mentions remain unable to override conflicting document identity.
+    structured_scope_values.extend(
+        value.strip()
+        for match in re.finditer(
+            r"(?:^|\n)\s*Model\s*\|(?P<values>[^\n]+)",
+            content,
+            flags=re.I,
+        )
+        for value in match.group("values").split("|")
+        if value.strip()
+    )
     compact_structured_content = compact(content)
     compact_exact_row_match = bool(
         str(metadata.get("chunk_type") or "") in {"table_record", "spec_record"}
@@ -2827,6 +2841,52 @@ def _direct_height_gradient_display_support(
     return matches[:1]
 
 
+def _direct_illumination_type_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm a compact structured illumination-type row for one exact model."""
+    if not re.search(r"\billumination type\b", query, flags=re.I):
+        return []
+    identifiers = analyze_query(query).product_identifiers
+    if not identifiers:
+        return []
+    requested_colors = {
+        color
+        for color in ("white", "red", "blue", "green", "infrared")
+        if re.search(rf"\b{color}\b", query, flags=re.I)
+    }
+    form_pattern = re.compile(
+        r"\b(?:high[- ]intensity|low[- ]angle|coaxial|dome|ring|bar|spot|backlight)\b",
+        flags=re.I,
+    )
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if (
+            str(metadata.get("chunk_type") or "") not in {"table_record", "spec_record"}
+            or len(content) > 240
+            or not _result_supports_branch_scope(query, result)
+            or not re.search(r"\b(?:illumination|lighting)\b", content, flags=re.I)
+            or not form_pattern.search(content)
+        ):
+            continue
+        compact_content = re.sub(r"[^a-z0-9]", "", content.lower())
+        if not any(
+            re.sub(r"[^a-z0-9]", "", identifier.lower()) in compact_content
+            for identifier in identifiers
+        ):
+            continue
+        if requested_colors and not all(
+            re.search(rf"\b{color}\b", content, flags=re.I)
+            for color in requested_colors
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_compound_laser_measurement_support(
     query: str,
     results: list[SearchResult],
@@ -4045,6 +4105,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic height-display verification matched one scoped atomic "
                     "sentence binding the rectangle's extrema to the orange-to-light-blue gradient."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_illumination_support = _direct_illumination_type_support(
+            hop.objective,
+            results,
+        )
+        if direct_illumination_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_illumination_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic illumination verification matched one compact scoped "
+                    "specification row binding the exact model, requested color, and light type."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
