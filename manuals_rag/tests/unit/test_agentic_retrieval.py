@@ -3118,6 +3118,98 @@ def test_verifier_does_not_promote_support_list_when_deterministic_gate_disagree
     assert result["claim_supported"] is False
 
 
+def test_verifier_promotes_attributed_support_when_model_marks_it_probable(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="What does a green STB light indicate on the W500?",
+        query="What does a green STB light indicate on the W500?",
+    )
+    result = _result(
+        "stb",
+        "w500-doc",
+        "STB: Illuminates green when receiving stable light.",
+    )
+    result.metadata["product_model"] = "W500"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "trust_state": "probable",
+                "claim_supported": True,
+                "supporting_chunk_ids": ["stb"],
+                "conflicting_chunk_ids": [],
+                "applicability": "unknown",
+                "scope_entity": "W500",
+                "rationale": "Direct manual statement answers the question.",
+            },
+            "{}",
+        ),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": ["stb"]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["stb"]
+
+
+def test_verifier_prompt_judges_negative_answers_as_supported_and_omits_preliminary_payload(
+    monkeypatch,
+):
+    captured: dict[str, object] = {}
+
+    def fake_chat_json(**kwargs):
+        captured.update(kwargs)
+        return (
+            {
+                "trust_state": "confirmed",
+                "claim_supported": True,
+                "supporting_chunk_ids": ["limit"],
+                "conflicting_chunk_ids": [],
+                "applicability": "unknown",
+                "scope_entity": "LJ-S8000",
+                "rationale": "The manual directly states the limit.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        fake_chat_json,
+    )
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Can I connect more than one communication expansion unit to the LJ-S8000?",
+        query="Can I connect more than one communication expansion unit to the LJ-S8000?",
+    )
+    result = _result(
+        "limit",
+        "lj-s8000-doc",
+        "Only one communication expansion unit can be connected to the controller.",
+    )
+    result.metadata["product_model"] = "LJ-S8000"
+
+    output = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": ["limit"], "private": "do-not-send"},
+    )
+
+    messages = captured["messages"]
+    assert isinstance(messages, list)
+    assert "negative" in messages[0]["content"]
+    assert "Preliminary deterministic assessment" not in messages[1]["content"]
+    assert "do-not-send" not in messages[1]["content"]
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+
+
 def test_deterministic_verifier_keeps_evidence_bound_to_branch_scope():
     hop = RetrievalHop(
         hop_id="alpha",
