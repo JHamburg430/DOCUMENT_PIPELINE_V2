@@ -53,6 +53,29 @@ def _normalized(text: object) -> str:
     return re.sub(r"\s+", " ", punctuation_neutral).strip().casefold()
 
 
+def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]:
+    """Drop source-layout labels that the question does not ask the answer to repeat.
+
+    Table serialization can introduce a generic ``Model:`` header even when the
+    question already identifies a specific product and asks for a different
+    value.  Requiring that header in the generated answer penalizes concise,
+    correct answers.  Preserve it when ``model`` is itself part of the query.
+    """
+
+    normalized_query = _normalized(query)
+    query_mentions_model = re.search(r"(?:^|\b)model(?:\b|$)", normalized_query) is not None
+    filtered: list[str] = []
+    for term in terms:
+        value = str(term).strip()
+        if not value:
+            continue
+        if _normalized(value) == "model" and not query_mentions_model:
+            continue
+        if value not in filtered:
+            filtered.append(value)
+    return filtered
+
+
 def _field_context(content: str, expected_snippet: str = "") -> str:
     """Return the table/spec label that scopes a value-bearing source chunk."""
 
@@ -271,6 +294,19 @@ def verify_and_freeze_cases(
         evidence_hashes: dict[str, str] = {}
         expected_evidence = case.get("expected_evidence") or []
         if not expected_evidence:
+            original_expected_terms = list(case.get("expected_terms") or [])
+            filtered_expected_terms = answer_relevant_expected_terms(
+                str(case.get("query") or ""),
+                original_expected_terms,
+            )
+            if original_expected_terms and not filtered_expected_terms:
+                raise ValueError(f"{case_id}: no answer-relevant expected terms remain")
+            case["expected_terms"] = filtered_expected_terms
+            if "anchor_terms" in case:
+                case["anchor_terms"] = answer_relevant_expected_terms(
+                    str(case.get("query") or ""),
+                    list(case.get("anchor_terms") or []),
+                )
             missing_qualifiers = missing_query_qualifiers(
                 str(case.get("query") or ""),
                 str(chunk.get("content") or ""),

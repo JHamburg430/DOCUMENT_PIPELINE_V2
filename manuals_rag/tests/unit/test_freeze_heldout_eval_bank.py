@@ -72,6 +72,40 @@ def test_optional_source_reanchor_replaces_answerless_generated_snippet():
     assert frozen[0]["expected_terms"] == ["model-7"]
 
 
+def test_drops_generic_model_header_when_question_asks_for_another_value():
+    case = {
+        **_case(),
+        "query": "Which EMC standards does the CA-U5 power supply meet?",
+        "expected_snippet": (
+            "Model: EMC standard; CA-U5: FCC Part15B ClassA, "
+            "EN55011 ClassA, EN61000-6-2"
+        ),
+        "expected_terms": ["model", "standard", "ca-u5", "part15b"],
+        "anchor_terms": ["model", "standard", "ca-u5", "part15b"],
+    }
+    chunk = {
+        **_chunk(),
+        "content": case["expected_snippet"],
+    }
+
+    frozen = _MODULE.verify_and_freeze_cases(
+        [case],
+        {"chunk-1": chunk},
+        tuning_document_ids=set(),
+        verified_at="2026-09-23T00:00:00+00:00",
+    )
+
+    assert frozen[0]["expected_terms"] == ["standard", "ca-u5", "part15b"]
+    assert frozen[0]["anchor_terms"] == ["standard", "ca-u5", "part15b"]
+
+
+def test_keeps_model_term_when_question_explicitly_asks_for_model():
+    assert _MODULE.answer_relevant_expected_terms(
+        "Which model meets this EMC standard?",
+        ["model", "standard", "ca-u5"],
+    ) == ["model", "standard", "ca-u5"]
+
+
 def test_rejects_question_that_drops_axis_qualifier():
     case = {
         **_case(),
