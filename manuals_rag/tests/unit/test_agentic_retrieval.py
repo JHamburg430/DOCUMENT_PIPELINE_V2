@@ -4678,6 +4678,38 @@ def test_verifier_confirms_height_gradient_from_bounded_atomic_sentence():
     assert output["supporting_chunk_ids"] == ["height-gradient"]
 
 
+def test_verifier_confirms_height_gradient_from_two_point_selection_sentence():
+    query = "How does the LJ-S8000 display height differences within a selected rectangle region?"
+    hop = RetrievalHop(hop_id="height", objective=query, query=query)
+    exact = _result(
+        "height-gradient-points",
+        "lj-s8000-doc",
+        (
+            "Click 2 points on the screen. The range of heights between the height of the 2 "
+            "points specified will be displayed gradationally from orange to light blue."
+        ),
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "LJ: S8000 Series",
+                "product_family": "LJ-S8000 Series",
+            }
+        }
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [exact],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["height-gradient-points"]
+
+
 def test_saved_settings_support_accepts_exact_manual_identity_in_section_window():
     query = (
         "In the VS Series KUKA robot connection manual, after pressing Save and "

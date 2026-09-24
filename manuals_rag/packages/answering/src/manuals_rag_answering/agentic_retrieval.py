@@ -2890,15 +2890,27 @@ def _direct_height_gradient_display_support(
             "spec_record",
         }:
             continue
-        required = (
+        extrema_variant = (
             r"\brectangle region\b",
             r"\bmax(?:imum)?\b",
             r"\bminimum\b",
+        )
+        point_selection_variant = (
+            r"\bclick\s+2\s+points\b",
+            r"\brange of heights between the height of the 2 points specified\b",
+        )
+        common = (
             r"\bdisplayed gradationally\b",
             r"\borange\b",
             r"\blight blue\b",
         )
-        if all(re.search(pattern, content, flags=re.I) for pattern in required):
+        has_selection_relation = any(
+            all(re.search(pattern, content, flags=re.I) for pattern in variant)
+            for variant in (extrema_variant, point_selection_variant)
+        )
+        if has_selection_relation and all(
+            re.search(pattern, content, flags=re.I) for pattern in common
+        ):
             matches.append(result.chunk_id)
     return matches[:1]
 
@@ -4285,7 +4297,8 @@ def verify_retrieval_claim(
                 scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
                 rationale=(
                     "Deterministic height-display verification matched one scoped atomic "
-                    "sentence binding the rectangle's extrema to the orange-to-light-blue gradient."
+                    "sentence binding the selected region or points to the "
+                    "orange-to-light-blue height gradient."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
