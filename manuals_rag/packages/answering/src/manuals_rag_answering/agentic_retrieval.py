@@ -2755,7 +2755,8 @@ def _direct_procedure_support(
     """Confirm one bounded, scoped how-to procedure without an LLM verdict.
 
     This deliberately excludes broad explanatory questions.  It only accepts a
-    preliminary-supported atomic/procedure chunk whose local source context
+    preliminary-supported atomic/procedure chunk, or a source-bound procedure
+    window carried by a broader section result, whose local source context
     strongly mirrors the requested operation and whose cited text contains an
     explicit action sequence.  Conflicting qualifying procedures fail closed.
     """
@@ -2808,35 +2809,54 @@ def _direct_procedure_support(
     )
     matches: list[tuple[float, int, int, str, str]] = []
     for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        chunk_type = str(metadata.get("chunk_type") or "")
         if (
             result.chunk_id not in preliminary_ids
             or not _result_supports_branch_scope(query, result)
-            or str((result.metadata or {}).get("chunk_type") or "")
-            not in {"atomic_text", "procedure_record"}
+            or chunk_type
+            not in {"atomic_text", "procedure_record", "parent_section", "section_window"}
         ):
             continue
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
-        if not content or len(content) > 900:
+        if not content:
+            continue
+        evidence_text = content
+        if chunk_type in {"parent_section", "section_window"}:
+            procedure_window = re.sub(
+                r"\s+", " ", str(metadata.get("context_window") or "")
+            ).strip()
+            source_context = re.sub(
+                r"\s+",
+                " ",
+                str(metadata.get("parent_context") or content),
+            ).strip()
+            if (
+                not procedure_window
+                or len(procedure_window) > 900
+                or procedure_window not in source_context
+            ):
+                continue
+            evidence_text = procedure_window
+        elif len(content) > 900:
             continue
         local_context = re.sub(
             r"\s+",
             " ",
-            str((result.metadata or {}).get("local_rerank_context") or content),
+            str(metadata.get("local_rerank_context") or evidence_text),
         ).strip()
         context_terms = set(re.findall(r"[a-z0-9]+", local_context.lower()))
         overlap = len(query_terms.intersection(context_terms)) / len(query_terms)
-        actions = action_re.findall(content)
-        if overlap < 0.6 or len(actions) < 2 or not sequence_re.search(content):
+        actions = action_re.findall(evidence_text)
+        if overlap < 0.6 or len(actions) < 2 or not sequence_re.search(evidence_text):
             continue
         normalized_actions = " ".join(action.lower() for action in actions)
         matches.append((overlap, len(actions), -index, result.chunk_id, normalized_actions))
     if not matches:
         return []
-    best_score = max(match[:2] for match in matches)
-    best = [match for match in matches if match[:2] == best_score]
-    if len({match[4] for match in best}) != 1:
+    if len({match[4] for match in matches}) != 1:
         return []
-    return [max(best, key=lambda match: match[2])[3]]
+    return [max(matches, key=lambda match: match[:3])[3]]
 
 
 def _direct_flowchart_rule_support(

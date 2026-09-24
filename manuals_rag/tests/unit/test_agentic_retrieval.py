@@ -2429,6 +2429,76 @@ def test_direct_procedure_support_rejects_neighboring_or_unsequenced_evidence():
     ) == []
 
 
+def test_direct_procedure_support_confirms_source_bound_parent_and_section_windows():
+    query = "How do I perform master addition calibration on the W500 sensor?"
+    procedure = (
+        "Master addition calibration (when adding workpieces to be permitted). "
+        "Position a workpiece which is to be judged the same as the current registered "
+        "color. Then press and hold the [SET] button and the [down] button."
+    )
+    parent = _result("w500-parent", "w500-doc", "Manual preface. " + procedure)
+    parent.metadata.update(
+        {
+            "chunk_type": "parent_section",
+            "product_model": "W500",
+            "context_window": procedure,
+            "parent_context": parent.content,
+        }
+    )
+    window = _result("w500-window", "w500-doc", "Master addition calibration")
+    window.metadata.update(
+        {
+            "chunk_type": "section_window",
+            "product_model": "W500",
+            "context_window": procedure,
+            "parent_context": parent.content,
+        }
+    )
+
+    supported = _direct_procedure_support(
+        query,
+        [parent, window],
+        {
+            "claim_supported": False,
+            "supporting_chunk_ids": [parent.chunk_id, window.chunk_id],
+        },
+    )
+
+    assert supported == [parent.chunk_id]
+
+
+def test_direct_procedure_support_rejects_conflicting_source_bound_windows():
+    query = "How do I perform master addition calibration on the W500 sensor?"
+    first_text = (
+        "Master addition calibration. Position the registered color workpiece. "
+        "Then press and hold the [SET] button."
+    )
+    second_text = (
+        "Master addition calibration. Position the registered color workpiece. "
+        "Then turn and select the [MODE] button."
+    )
+    first = _result("first-procedure", "w500-doc", first_text)
+    second = _result("second-procedure", "w500-doc", second_text)
+    for result in (first, second):
+        result.metadata.update(
+            {
+                "chunk_type": "parent_section",
+                "product_model": "W500",
+                "context_window": result.content,
+                "parent_context": result.content,
+            }
+        )
+
+    assert _direct_procedure_support(
+        query,
+        [first, second],
+        {
+            "claim_supported": False,
+            "supporting_chunk_ids": [first.chunk_id, second.chunk_id],
+        },
+    ) == []
+
+
 def test_structured_accessory_mapping_confirms_exact_part_and_light(monkeypatch):
     query = "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?"
     hop = RetrievalHop(hop_id="accessory", objective=query, query=query)
