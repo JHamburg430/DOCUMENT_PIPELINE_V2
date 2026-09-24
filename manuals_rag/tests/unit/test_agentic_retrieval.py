@@ -13,6 +13,7 @@ from manuals_rag_answering.agentic_retrieval import (
     query_requires_visual_evidence,
     visual_evidence_unavailable_answer,
     _assess_hop_evidence,
+    _direct_atomic_measurement_support,
     verify_retrieval_claim,
 )
 from manuals_rag_common.config import settings
@@ -1745,6 +1746,64 @@ def test_verifier_confirms_exact_display_range_spec_without_llm(monkeypatch):
     assert output["trust_state"] == "confirmed"
     assert output["claim_supported"] is True
     assert output["supporting_chunk_ids"] == ["display-range"]
+
+
+def test_verifier_confirms_exact_atomic_torque_without_llm(monkeypatch):
+    objective = "What tightening torque applies to the W500 mounting holes?"
+    hop = RetrievalHop(hop_id="measurement", objective=objective, query=objective)
+    result = _result(
+        "mounting-torque",
+        "lrw-doc",
+        "Tightening torque for the mounting holes: 0.63 N·m (M3 screw)",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "spec_record",
+                "product_family": "LR",
+                "product_model": "W500",
+                "product_models": ["W500"],
+            }
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": ["mounting-torque"]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["mounting-torque"]
+
+
+def test_atomic_measurement_gate_rejects_neighboring_torque_value():
+    query = "What tightening torque applies to the W500 mounting holes?"
+    result = _result(
+        "dial-torque",
+        "lrw-doc",
+        "Dial turning torque: 0.2 N·m or less",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "spec_record",
+                "product_family": "LR",
+                "product_model": "W500",
+                "product_models": ["W500"],
+            }
+        }
+    )
+
+    assert _direct_atomic_measurement_support(
+        query,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": ["dial-torque"]},
+    ) == []
 
 
 def test_verifier_treats_firmware_error_text_as_troubleshooting_not_applicability(monkeypatch):
