@@ -338,6 +338,32 @@ def test_rejects_angle_question_anchored_to_linear_resolution():
     ) == ["angular measurement"]
 
 
+def test_rejects_output_protection_question_anchored_to_input_timing():
+    assert _MODULE.missing_answer_requirements(
+        "What protection features are included in the laser sensor's control output circuit?",
+        "External input: 35 ms or more ON; laser emission stop: 2 ms or more ON",
+    ) == ["output protection feature"]
+
+
+def test_rejects_devid_format_question_bound_to_neighboring_str_field():
+    assert _MODULE.missing_answer_requirements(
+        "What character string format does the devId parameter expect?",
+        "devId: device ID, 2 for RS-232C and 3 for Ethernet str: character string",
+    ) == ["devId character-string binding"]
+    assert _MODULE.missing_answer_requirements(
+        "What character string format does the devId parameter expect?",
+        "devId: character string containing the device ID",
+    ) == []
+
+
+def test_rejects_accuracy_question_anchored_to_measurement_range_field():
+    assert _MODULE.missing_query_qualifiers(
+        "What is the scanning system accuracy specification for the WM-P6200 model?",
+        "Measurement range: WM-P6200: ±100 mm",
+        "WM-P6200: ±100 mm",
+    ) == ["accuracy field"]
+
+
 def test_enriches_numeric_mapping_with_requested_protocol_value():
     query = "What numeric value represents RS-232C communication for the OutputFilter devId parameter?"
     snippet = "devId: the device ID. 2 for RS-232C, and 3 for Ethernet"
@@ -364,6 +390,22 @@ def test_rejects_default_ip_question_without_ip_value_and_enriches_valid_value()
     snippet = "IP address initial value: 192.168.10.10"
     terms = _MODULE.enrich_expected_answer_terms(query, snippet, ["ip address", "initial value"])
     assert "192.168.10.10" in terms
+    assert _MODULE.missing_expected_answer_contract(query, snippet, terms) == []
+
+
+def test_reanchors_hdd_capacity_to_capacity_value_instead_of_neighboring_details():
+    query = "What is the maximum HDD capacity supported on the LJ-S8002 USB port?"
+    snippet = (
+        "LJ-S8002: Images and other data can be output by connecting an HDD (2TB max.) "
+        "to the USB port, rated output 900 mA."
+    )
+    terms = _MODULE.enrich_expected_answer_terms(
+        query,
+        snippet,
+        ["lj-s8002", "images", "other", "connecting", "900"],
+    )
+
+    assert terms == ["lj-s8002", "HDD", "2TB"]
     assert _MODULE.missing_expected_answer_contract(query, snippet, terms) == []
 
 
@@ -608,6 +650,39 @@ def test_rejects_interface_question_without_answer_interface_term():
             [case], {"chunk-1": chunk}, tuning_document_ids=set(),
             verified_at="2026-09-23T00:00:00+00:00",
         )
+
+
+def test_rejects_named_filter_question_anchored_to_effect_only():
+    case = {
+        **_case(),
+        "query": "Which filter removes abnormal spike-like noise height values?",
+        "expected_snippet": "Eliminates abnormal, spike-like noise height values.",
+        "expected_terms": ["eliminates", "abnormal", "spike", "noise"],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    with pytest.raises(ValueError, match="filter identifier"):
+        _MODULE.verify_and_freeze_cases(
+            [case], {"chunk-1": chunk}, tuning_document_ids=set(),
+            verified_at="2026-09-23T00:00:00+00:00",
+        )
+
+
+def test_accepts_named_filter_question_with_filter_identifier():
+    case = {
+        **_case(),
+        "query": "Which filter removes abnormal spike-like noise height values?",
+        "expected_snippet": "Median filter: eliminates abnormal spike-like noise height values.",
+        "expected_terms": ["median filter", "spike", "noise"],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    frozen = _MODULE.verify_and_freeze_cases(
+        [case], {"chunk-1": chunk}, tuning_document_ids=set(),
+        verified_at="2026-09-23T00:00:00+00:00",
+    )
+
+    assert frozen[0]["case_id"] == "case-1"
 
 
 def test_accepts_complete_quantitative_and_connector_contracts():

@@ -239,6 +239,12 @@ def missing_query_qualifiers(
         for label, source_pattern, query_pattern in display_quantity_rules:
             if re.search(source_pattern, expected) and not re.search(query_pattern, normalized_query):
                 missing.append(label)
+    if (
+        re.search(r"\baccuracy\b", normalized_query)
+        and re.search(r"\b(?:measurement|detectable|installed) range\b", field)
+        and not re.search(r"\baccuracy\b", field)
+    ):
+        missing.append("accuracy field")
     # The LR-T manual exposes separate response-time settings for the laser
     # sensor and for an attached MU-N main/expansion controller.  A question
     # naming only the sensor cannot identify which table is authoritative.
@@ -345,6 +351,30 @@ def missing_answer_requirements(query: str, expected_snippet: str) -> list[str]:
         and not re.search(r"(?:°|\bdegrees?\b|\bangle\b)", expected_snippet, flags=re.I)
     ):
         missing.append("angular measurement")
+
+    if (
+        re.search(r"\bprotection features?\b", normalized_query)
+        and re.search(r"\boutput circuit\b", normalized_query)
+        and not re.search(
+            r"\b(?:protect(?:ion|ed)?|reverse connection|overcurrent|surge|short[- ]circuit)\b",
+            normalized_snippet,
+        )
+    ):
+        missing.append("output protection feature")
+
+    if (
+        re.search(r"\bdevid\b", normalized_query)
+        and re.search(r"\b(?:character string|format)\b", normalized_query)
+    ):
+        dev_match = re.search(r"\bdevid\b\s*:\s*", expected_snippet, flags=re.I)
+        if not dev_match:
+            missing.append("devId field")
+        else:
+            remainder = expected_snippet[dev_match.end() :]
+            next_field = re.search(r"\b[a-z][a-z0-9_]*\s*:", remainder, flags=re.I)
+            dev_value = remainder[: next_field.start()] if next_field else remainder
+            if not re.search(r"\bcharacter string\b", dev_value, flags=re.I):
+                missing.append("devId character-string binding")
 
     return missing
 
@@ -479,6 +509,20 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
     enriched = [str(term).strip() for term in terms if str(term).strip()]
     normalized_query = _normalized(query)
     query_tokens = set(_contract_tokens(normalized_query))
+
+    if re.search(r"\bhdd\b.+\bcapacity\b|\bcapacity\b.+\bhdd\b", normalized_query):
+        model_terms = [
+            term
+            for term in enriched
+            if any(char.isdigit() for char in term)
+            and re.sub(r"[^a-z0-9]+", "", term.casefold())
+            in re.sub(r"[^a-z0-9]+", "", normalized_query)
+        ]
+        storage_values = [
+            re.sub(r"\s+", " ", match.group(0)).strip()
+            for match in re.finditer(r"\b\d+(?:\.\d+)?\s*(?:tb|gb)\b", snippet, flags=re.I)
+        ]
+        return list(dict.fromkeys([*model_terms, "HDD", *storage_values]))
 
     for value in _answer_quantity_values(query, snippet):
         if value not in query_tokens and not _term_covers_token(enriched, value):
@@ -622,12 +666,29 @@ def missing_expected_answer_contract(
         elif not any(_term_covers_token(terms, interface) for interface in interfaces):
             missing.append("expected interface term")
 
+    if re.search(r"\b(?:which|what) filter\b", normalized_query):
+        filter_names = re.findall(
+            r"\b(?:average|median|smoothing|low-pass|high-pass|band-pass|noise|spike)\s+filter\b",
+            normalized_snippet,
+        )
+        if not filter_names:
+            missing.append("filter identifier")
+        elif not any(_term_covers_token(terms, name) for name in filter_names):
+            missing.append("expected filter identifier term")
+
     if re.search(r"\bip address\b", normalized_query):
         addresses = re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", expected_snippet)
         if not addresses:
             missing.append("IP address value")
         elif not any(_term_covers_token(terms, address) for address in addresses):
             missing.append("expected IP address term")
+
+    if re.search(r"\bhdd\b.+\bcapacity\b|\bcapacity\b.+\bhdd\b", normalized_query):
+        storage_values = re.findall(r"\b\d+(?:\.\d+)?\s*(?:tb|gb)\b", expected_snippet, flags=re.I)
+        if not storage_values:
+            missing.append("storage capacity value")
+        elif not any(_term_covers_token(terms, value) for value in storage_values):
+            missing.append("expected storage capacity term")
 
     if re.match(r"^(?:does|do|did|can|could|is|are|will|would|should|has|have)\b", normalized_query):
         meaningful_query_terms = {
