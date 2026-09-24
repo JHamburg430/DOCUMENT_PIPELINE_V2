@@ -21,6 +21,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_pc_to_plc_menu_path_support,
     _direct_procedure_support,
     _direct_saved_settings_activation_support,
+    _direct_structured_power_source_support,
     _direct_variable_type_support,
     verify_retrieval_claim,
 )
@@ -4675,3 +4676,32 @@ def test_verifier_confirms_height_gradient_from_bounded_atomic_sentence():
 
     assert output["trust_state"] == "confirmed"
     assert output["supporting_chunk_ids"] == ["height-gradient"]
+
+
+def test_saved_settings_support_accepts_exact_manual_identity_in_section_window():
+    query = (
+        "In the VS Series KUKA robot connection manual, after pressing Save and "
+        "selecting Yes, what must be done to enable the changed settings?"
+    )
+    result = _result(
+        "restart-settings",
+        "vs-kuka",
+        (
+            "Press the 'Save' button, and then select 'Yes' in the confirmation dialog. "
+            "Restart the device to enable the changed settings. Reference - VS SERIES "
+            "ROBOT CONNECTION MANUAL, KUKA Roboter GmbH Edition -"
+        ),
+    ).model_copy(update={"metadata": {"chunk_type": "section_window", "product_family": "VISION"}})
+
+    assert _direct_saved_settings_activation_support(query, [result]) == ["restart-settings"]
+
+
+def test_structured_power_support_binds_model_to_pipe_table_power_row():
+    query = "How is the WM-C6010 powered?"
+    result = _result(
+        "wm-power",
+        "wm-catalog",
+        "model | | WM-C6010 | WM-C6025\nPower supply | | Supplied from dedicated AC | adapter",
+    ).model_copy(update={"metadata": {"chunk_type": "section_window", "product_family": "WM"}})
+
+    assert _direct_structured_power_source_support(query, [result]) == ["wm-power"]

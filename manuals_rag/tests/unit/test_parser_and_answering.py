@@ -9993,3 +9993,58 @@ def test_structured_table_answer_binds_model_name_pivot_row():
 
     assert answer == "Y Reference distance — LJ-S080: 160mm"
     assert [item.chunk_id for item in support] == [result.chunk_id]
+
+
+@pytest.mark.parametrize(
+    ("query", "content", "expected"),
+    [
+        (
+            "In the VS Series KUKA robot connection manual, after pressing Save and selecting "
+            "Yes, what must be done to enable the changed settings?",
+            "Press the 'Save' button, and then select 'Yes'. Restart the device to enable the "
+            "changed settings.",
+            "Restart the device to enable the changed settings.",
+        ),
+        (
+            "Which menu path transfers data from the PC to the PLC?",
+            'Select "Communications" > "Download" to transfer the data to the PLC.',
+            'Select "Communications" > "Download" to transfer the data to the PLC.',
+        ),
+        (
+            "How is the WM-C6010 powered?",
+            "model | | WM-C6010 | WM-C6025\nPower supply | | Supplied from dedicated AC | adapter",
+            "WM-C6010 is supplied from dedicated AC.",
+        ),
+    ],
+)
+def test_generate_answer_uses_exact_control_evidence_without_model(
+    monkeypatch,
+    query,
+    content,
+    expected,
+):
+    result = SearchResult(
+        chunk_id="exact-control",
+        score=0.9,
+        title="Control manual",
+        document_version_id="v1",
+        source_document_id="control-doc",
+        pages=[1],
+        section_path=["Setup"],
+        content=content,
+        metadata={"chunk_type": "section_window"},
+    )
+    monkeypatch.setattr(
+        generator_module,
+        "chat_json",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError(f"exact control evidence should not call a model: {kwargs['purpose']}")
+        ),
+    )
+
+    answer, trace = generate_answer_with_trace(query, [result])
+
+    assert answer.answer == expected
+    assert [citation["chunk_id"] for citation in answer.citations] == ["exact-control"]
+    assert answer.insufficient_evidence is False
+    assert trace["final_answer"]["answer_source"] == "deterministic_exact_control_answer"

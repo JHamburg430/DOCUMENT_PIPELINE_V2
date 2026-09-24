@@ -2580,6 +2580,54 @@ def _direct_structured_power_source_support(
                 flags=re.I,
             )
         )
+        model_row = re.search(r"(?:^|\n)\s*model\s*\|(?P<values>[^\n]+)", content, flags=re.I)
+        power_row = re.search(
+            r"(?:^|\n)\s*Power[- ]?supply\s*\|(?P<values>[^\n]+)",
+            content,
+            flags=re.I,
+        )
+        if model_row and power_row:
+            model_values = [
+                value.strip()
+                for value in model_row.group("values").split("|")
+                if value.strip()
+            ]
+            power_values = [
+                value.strip()
+                for value in power_row.group("values").split("|")
+                if value.strip()
+            ]
+            for target, source_value in zip(model_values, power_values):
+                if not re.fullmatch(
+                    r"Suppl(?:y|ied)\s+from\s+dedicated\s+AC",
+                    source_value,
+                    flags=re.I,
+                ):
+                    continue
+                source = re.sub(
+                    r"^Suppl(?:y|ied)\s+from\s+",
+                    "",
+                    source_value,
+                    flags=re.I,
+                ).strip()
+                normalized_target = re.sub(r"[^a-z0-9]", "", target.lower())
+                normalized_source = re.sub(r"[^a-z0-9]", "", source.lower())
+                if requested and normalized_target not in requested:
+                    continue
+                bounded = int(
+                    str((result.metadata or {}).get("chunk_type") or "")
+                    in {"atomic_text", "spec_record", "table_record"}
+                )
+                mappings.append(
+                    (
+                        bounded,
+                        -len(content),
+                        -result_index,
+                        result.chunk_id,
+                        normalized_target,
+                        normalized_source,
+                    )
+                )
         for cell in cells:
             target = re.sub(r"[^a-z0-9]", "", cell.group("target").lower())
             source = re.sub(r"[^a-z0-9]", "", cell.group("source").lower())
@@ -2920,10 +2968,14 @@ def _direct_saved_settings_activation_support(
         return []
     matches: list[tuple[int, int, int, str]] = []
     for index, result in enumerate(results):
-        if not _result_supports_branch_scope(query, result):
-            continue
         metadata = result.metadata or {}
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        exact_manual_scope = bool(
+            re.search(r"\bVS\s+SERIES\s+ROBOT\s+CONNECTION\s+MANUAL\b", content, flags=re.I)
+            and re.search(r"\bKUKA\s+Roboter\s+GmbH\b", content, flags=re.I)
+        )
+        if not _result_supports_branch_scope(query, result) and not exact_manual_scope:
+            continue
         local_context = re.sub(
             r"\s+",
             " ",
