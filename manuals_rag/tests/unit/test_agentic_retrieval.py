@@ -842,6 +842,55 @@ def test_scope_matching_accepts_exact_model_enumerated_by_source_filename():
     ) is True
 
 
+def test_single_hop_controller_preserves_exact_user_query_for_retrieval():
+    plan = RetrievalPlan(
+        mode="single",
+        rationale="direct lookup",
+        hops=[
+            RetrievalHop(
+                hop_id="hop_1",
+                objective="Find the installed distance",
+                query="What is the installed distance?",
+                strategy="dense",
+            )
+        ],
+    )
+    observed: list[tuple[str, str]] = []
+
+    def retrieve(query, _corpus_ids, _filters, strategy, _limit):
+        observed.append((query, strategy))
+        return [_result("answer", "doc", "IV-H500CA installed distance is 50 mm.")]
+
+    def verifier(_hop, _query, results, _assessment):
+        return {
+            "trust_state": "confirmed",
+            "claim_supported": True,
+            "supporting_chunk_ids": [results[0].chunk_id],
+        }
+
+    original = "What is the IV-H500CA installed distance in millimeters?"
+    for builder, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+            verifier=verifier,
+        )
+        builder(controller=controller).invoke(
+            {
+                "query": original,
+                "corpus_ids": ["manuals"],
+                "filters": {},
+                "max_hops": 1,
+            }
+        )
+
+    assert observed == [(original, "hybrid"), (original, "hybrid")]
+
+
 def test_model_planners_split_multi_product_reported_clauses(monkeypatch):
     query = (
         "Prepare a commissioning note that states the VJ-H500CX weight and whether it includes the lens, "
@@ -958,7 +1007,7 @@ def test_controller_emits_live_plan_hop_and_completion_events():
         "hop_completed",
         "retrieval_completed",
     ]
-    assert events[1]["executed_query"] == "ALPHA-1 corrective action"
+    assert events[1]["executed_query"] == "Compare the corrective actions for ALPHA-1 and BETA-2."
     assert events[2]["trust_state"] == "confirmed"
     assert events[3]["results"][0]["chunk_id"] == "alpha"
     assert events[4]["trace"]["stop_reason"] == "sufficient"

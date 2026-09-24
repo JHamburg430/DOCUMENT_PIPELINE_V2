@@ -460,6 +460,31 @@ def test_agent_evaluation_rejects_negated_action_against_affirmative_source():
     assert relation["polarity_mismatch"] is True
 
 
+def test_agent_evaluation_accepts_answer_with_expected_action_and_extra_targets():
+    case = _quantity_case()
+    case["expected_snippet"] = "Do not use this product in a hazardous location."
+    case["expected_terms"] = ["not", "use", "hazardous", "location"]
+    case["expected_evidence"][0]["snippet"] = case["expected_snippet"]
+    case["expected_evidence"][0]["expected_terms"] = case["expected_terms"]
+
+    evaluation = score_agent_run(
+        case,
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": (
+                "Do not use this product as explosion-proof equipment in a hazardous "
+                "location or potentially explosive atmosphere."
+            ),
+            "citations": [{"chunk_id": "setup-values"}],
+        },
+    )
+
+    relation = evaluation["cells"]["grounded_answer"]["metrics"]["relation_grounding"]
+    assert relation["passed"] is True
+    assert relation["action_target_superset_accepted"] is True
+
+
 def test_agent_evaluation_ignores_relations_from_truncated_structured_cell():
     case = _quantity_case()
     case["expected_snippet"] = (

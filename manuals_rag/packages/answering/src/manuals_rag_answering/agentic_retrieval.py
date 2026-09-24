@@ -4375,6 +4375,7 @@ class AgenticRetrievalController:
             # retriever that is validated independently.  Agent strategy lanes
             # are for decomposed branches; narrowing a direct lookup can only
             # discard proven answer-bearing evidence.
+            executed_query = state["query"]
             executed_strategy = "hybrid"
         if dependency_anchors and hop.strategy == "hybrid":
             deterministic_query = _deterministic_identifier_facet_query(hop, dependency_anchors)
@@ -4748,6 +4749,12 @@ class LlamaIndexAgenticController:
         dependency_anchors = _dependency_anchors(dependency_results)
         executed_query = self.transformer(hop, dependency_results) if hop.depends_on else hop.query
         plan = RetrievalPlan.model_validate(state["plan"])
+        if plan.mode == "single" and not hop.depends_on and not hop.recovery_for:
+            # Preserve the exact user query for the independently validated
+            # production retriever.  A planner paraphrase can silently drop a
+            # model, mode, unit, or qualifier and turn a known-good baseline
+            # lookup into a different retrieval task.
+            executed_query = state["query"]
         executed_strategy: RetrievalStrategy = (
             "hybrid"
             if plan.mode == "single" and not hop.depends_on and not hop.recovery_for

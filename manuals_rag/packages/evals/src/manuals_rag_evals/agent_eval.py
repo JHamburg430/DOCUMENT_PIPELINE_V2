@@ -130,6 +130,29 @@ def _relation_grounding(case: dict[str, Any], answer_text: str) -> dict[str, Any
     if not checked:
         return {"checked": False, "passed": True, "expected": {}, "answer": {}}
     passed, details = profile_is_preserved(expected_profile, actual_profile)
+    # The generic evidence guard intentionally rejects every action target in
+    # an answer that is absent from one bounded evidence unit.  Benchmark
+    # grounding has a different job: prove that the source relation required
+    # by the case survives in the answer.  A fuller answer may repeat extra
+    # targets from the cited chunk, so an action-target *superset* is valid as
+    # long as the expected action, polarity, and every expected target remain.
+    if not passed and not details.get("missing_or_mismatched"):
+        expected_actions = expected_profile.actions
+        actual_actions = actual_profile.actions
+        expected_polarities = expected_profile.action_polarities
+        actual_polarities = actual_profile.action_polarities
+        expected_targets_preserved = all(
+            targets.issubset(actual_profile.action_targets.get(signature, frozenset()))
+            for signature, targets in expected_profile.action_targets.items()
+        )
+        if (
+            expected_actions.issubset(actual_actions)
+            and expected_polarities == actual_polarities
+            and expected_targets_preserved
+            and not details.get("role_polarity_mismatch")
+        ):
+            passed = True
+            details["action_target_superset_accepted"] = True
     return {"checked": True, "passed": passed, **details}
 
 
