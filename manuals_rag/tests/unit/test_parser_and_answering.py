@@ -3153,6 +3153,36 @@ def test_comparison_troubleshooting_fallback_prefers_side_specific_symptom_rows(
     assert "Color to Grayscale" not in "\n".join(result.content for result in selected[:2])
 
 
+def test_single_hop_fallback_scores_evidence_instead_of_blindly_using_rank_one():
+    query = "When is the green status light on an IV-500C sensor normally connected?"
+    wrong = SearchResult(
+        chunk_id="focus-status",
+        score=0.95,
+        title="IV Installation Manual",
+        document_version_id="v1",
+        source_document_id="doc-iv",
+        pages=[4],
+        section_path=["STATUS"],
+        content="Green means the focus status is OK.",
+        metadata={"chunk_type": "spec_record"},
+    )
+    correct = SearchResult(
+        chunk_id="connection-status",
+        score=0.90,
+        title="IV Installation Manual",
+        document_version_id="v1",
+        source_document_id="doc-iv",
+        pages=[4],
+        section_path=["STATUS"],
+        content="Green (ON): Normally connected with monitor or PC.",
+        metadata={"chunk_type": "spec_record"},
+    )
+
+    selected = _fallback_evidence_results(query, [wrong, correct])
+
+    assert [result.chunk_id for result in selected] == ["connection-status"]
+
+
 def test_comparison_troubleshooting_fallback_rejects_wrong_sibling_answer():
     query = (
         "Compare the corrective action for unstable gray-binary inspection on CV-X482 "

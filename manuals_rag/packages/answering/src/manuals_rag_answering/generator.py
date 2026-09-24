@@ -6099,7 +6099,7 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
         if multi_part_results:
             return multi_part_results
         if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
-            if not _is_procedure_rule_query(query):
+            if not query.strip() and not _is_procedure_rule_query(query):
                 return ordered_results[:1]
             scored = [
                 (_fallback_evidence_score(query, result), index, result)

@@ -817,6 +817,31 @@ def test_scope_matching_does_not_accept_incidental_prose_model_mention():
     ) is False
 
 
+def test_scope_matching_accepts_exact_model_enumerated_by_source_filename():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "status",
+        "iv-doc",
+        "The status table lists the indicator state.",
+    ).model_copy(
+        update={
+            "title": "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM.pdf",
+            "metadata": {
+                "chunk_type": "section_window",
+                "product_model": "IV-HG500CA",
+                "product_models": ["IV-HG500CA"],
+                "source_filename": "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM.pdf",
+            },
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "What does the IV-H500CA status indicator mean?",
+        result,
+    ) is True
+
+
 def test_model_planners_split_multi_product_reported_clauses(monkeypatch):
     query = (
         "Prepare a commissioning note that states the VJ-H500CX weight and whether it includes the lens, "

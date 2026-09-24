@@ -1362,7 +1362,9 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         for value in values:
             candidates.update(
                 compact(identifier)
-                for identifier in analyze_query(str(value)).product_identifiers
+                for identifier in analyze_query(
+                    re.sub(r"[_./]+", " ", str(value))
+                ).product_identifiers
                 if compact(identifier)
             )
         return any(
@@ -1418,6 +1420,19 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         if matches_requested([product_model]):
             return True
         if structured_scope_matches:
+            return True
+
+        # Some legacy chunks carry an over-specific or OCR-corrupted primary
+        # model while the source filename still enumerates the requested model
+        # exactly.  The filename is document identity, unlike incidental prose,
+        # so it may safely establish an alias without weakening the conflict
+        # guard below.
+        source_identity_values = [
+            str(metadata.get("source_filename") or ""),
+            str(metadata.get("document_title") or ""),
+            str(result.title or ""),
+        ]
+        if matches_requested([value for value in source_identity_values if value]):
             return True
 
     legacy_scope_values: list[str] = []

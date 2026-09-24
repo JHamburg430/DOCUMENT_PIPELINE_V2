@@ -972,6 +972,14 @@ def test_query_analysis_routes_connector_type_as_spec_lookup():
     assert "table_record" in analysis.preferred_chunk_types
 
 
+def test_query_analysis_does_not_treat_connector_standard_as_product_model():
+    analysis = analyze_query(
+        "What is the approximate weight of the laser sensor with an M12 connector?"
+    )
+
+    assert "M12" not in analysis.product_identifiers
+
+
 def test_contextual_lexical_search_targets_exact_numeric_error_record(monkeypatch):
     analysis = analyze_query("What causes error 14506 on the LJ-S8000 Series USB port?")
 

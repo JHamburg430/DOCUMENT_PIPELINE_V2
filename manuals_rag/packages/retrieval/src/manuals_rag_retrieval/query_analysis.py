@@ -223,6 +223,14 @@ def analyze_query(query: str) -> QueryAnalysis:
     ):
         group_name = "model" if match.group("model") else "article_model"
         model = match.group(group_name).upper()
+        # Connector standards such as M8/M12 describe an interface, not a
+        # product identity.  Treating ``with an M12 connector`` as a model
+        # makes otherwise valid evidence fail the product-scope guard.
+        suffix = query[match.end(group_name) : match.end(group_name) + 24]
+        if model in {"M8", "M12", "M16", "M23"} and re.match(
+            r"\s+(?:\d+[- ]?pin\s+)?connector\b", suffix, flags=re.IGNORECASE
+        ):
+            continue
         start = match.start(group_name)
         span = (start, match.end(group_name))
         if not any(existing_start == start for existing_start, _value in model_matches):
