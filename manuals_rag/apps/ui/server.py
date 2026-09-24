@@ -123,7 +123,11 @@ UI_EVENT_JOURNAL_PATH = os.getenv("MANUALS_RAG_UI_EVENT_JOURNAL")
 UI_EVENT_JOURNAL_MAX_EVENTS = max(100, int(os.getenv("MANUALS_RAG_UI_EVENT_MAX_EVENTS", "4000")))
 UI_EVENT_JOURNAL: SQLiteEventJournal | None = None
 UI_EVENT_JOURNAL_LOCK = Lock()
-LOCAL_EVENT_RUN_PREFIXES = ("matrix-", "agent-run-", "agent-matrix-")
+EXTERNAL_EVAL_RUN_PREFIX = "external-eval-"
+LOCAL_EVENT_RUN_PREFIXES = ("matrix-", "agent-run-", "agent-matrix-", EXTERNAL_EVAL_RUN_PREFIX)
+EXTERNAL_EVAL_OBSERVATIONS: dict[str, tuple[int, str]] = {}
+EXTERNAL_EVAL_FILE_COUNTS: dict[str, tuple[int, int, int]] = {}
+EXTERNAL_EVAL_LOCK = Lock()
 TERMINAL_RUN_STATUSES = {"completed", "succeeded", "failed", "cancelled", "canceled", "stopped"}
 
 
@@ -152,6 +156,8 @@ def _is_component_event_run(run_id: str) -> bool:
 
 
 def _component_run_snapshot(run_id: str) -> dict | None:
+    if run_id.startswith(EXTERNAL_EVAL_RUN_PREFIX):
+        return _external_eval_run(run_id)
     if run_id.startswith("agent-matrix-"):
         with AGENT_MATRIX_LOCK:
             job = deepcopy(AGENT_MATRIX_JOBS.get(run_id))
@@ -169,6 +175,8 @@ def _component_run_snapshot(run_id: str) -> dict | None:
 
 
 def _component_workflow(run_id: str, snapshot: dict | None = None) -> str:
+    if run_id.startswith(EXTERNAL_EVAL_RUN_PREFIX):
+        return "evaluation"
     if run_id.startswith("agent-matrix-"):
         return "agent_matrix"
     if run_id.startswith("agent-run-"):
@@ -411,6 +419,8 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             return
         try:
             if _is_component_event_run(run_id):
+                if run_id.startswith(EXTERNAL_EVAL_RUN_PREFIX):
+                    _sync_external_eval_event(run_id)
                 snapshot = _component_run_snapshot(run_id)
                 rows = _component_event_rows(run_id, after=after, limit=limit)
                 workflow = _component_workflow(run_id, snapshot)
@@ -478,6 +488,8 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def _local_run_event_stream(self, run_id: str, *, after: int, limit: int) -> None:
         try:
+            if run_id.startswith(EXTERNAL_EVAL_RUN_PREFIX):
+                _sync_external_eval_event(run_id)
             snapshot = (
                 _component_run_snapshot(run_id)
                 if _is_component_event_run(run_id)
@@ -518,6 +530,8 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             if not self._write(encode_snapshot(registry_snapshot.to_dict())):
                 return
             while time.monotonic() - started < RUN_EVENT_STREAM_MAX_SECONDS:
+                if run_id.startswith(EXTERNAL_EVAL_RUN_PREFIX):
+                    _sync_external_eval_event(run_id)
                 if _is_component_event_run(run_id):
                     envelopes = list(_ui_event_journal().replay(run_id, after=cursor, limit=limit).events)
                 else:
@@ -1363,6 +1377,105 @@ def _result_run_id(path: Path) -> str:
     return name.removeprefix("retrieval_eval_results_").removesuffix(".jsonl")
 
 
+def _external_eval_suffix(path: Path) -> str:
+    return path.name.removeprefix("retrieval_eval_dataset_").removesuffix(".jsonl")
+
+
+def _external_eval_artifacts(suffix: str) -> dict[str, Path]:
+    return {
+        "dataset": TEST_REPORTS_DIR / f"retrieval_eval_dataset_{suffix}.jsonl",
+        "partial": TEST_REPORTS_DIR / f"retrieval_eval_results_{suffix}.partial.jsonl",
+        "results": TEST_REPORTS_DIR / f"retrieval_eval_results_{suffix}.jsonl",
+        "summary": TEST_REPORTS_DIR / f"retrieval_eval_summary_{suffix}.json",
+        "manifest": TEST_REPORTS_DIR / f"retrieval_eval_manifest_{suffix}.json",
+    }
+
+
+def _jsonl_record_count(path: Path) -> int:
+    stat = path.stat()
+    cache_key = str(path)
+    cached = EXTERNAL_EVAL_FILE_COUNTS.get(cache_key)
+    signature = (stat.st_mtime_ns, stat.st_size)
+    if cached and cached[:2] == signature:
+        return cached[2]
+    with path.open("rb") as handle:
+        count = sum(1 for line in handle if line.strip())
+    EXTERNAL_EVAL_FILE_COUNTS[cache_key] = (*signature, count)
+    return count
+
+
+def _external_eval_run(run_id: str | None = None) -> dict | None:
+    requested_suffix = (
+        str(run_id).removeprefix(EXTERNAL_EVAL_RUN_PREFIX)
+        if run_id and str(run_id).startswith(EXTERNAL_EVAL_RUN_PREFIX)
+        else None
+    )
+    candidates = sorted(
+        TEST_REPORTS_DIR.glob("retrieval_eval_dataset_*.jsonl"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for dataset_path in candidates:
+        suffix = _external_eval_suffix(dataset_path)
+        if requested_suffix is not None and suffix != requested_suffix:
+            continue
+        paths = _external_eval_artifacts(suffix)
+        if not paths["partial"].exists() and not paths["results"].exists():
+            continue
+        try:
+            result_path = paths["results"] if paths["results"].exists() else paths["partial"]
+            total = _jsonl_record_count(dataset_path)
+            completed = _jsonl_record_count(result_path)
+        except OSError:
+            continue
+        terminal = paths["results"].exists() and paths["summary"].exists() and completed >= total
+        updated_at = max(dataset_path.stat().st_mtime, result_path.stat().st_mtime)
+        return {
+            "id": f"{EXTERNAL_EVAL_RUN_PREFIX}{suffix}",
+            "artifact_run_id": suffix,
+            "run_type": "external_retrieval_eval",
+            "workflow": "evaluation",
+            "status": "completed" if terminal else "running",
+            "total": total,
+            "completed": min(completed, total),
+            "dataset_path": str(dataset_path.relative_to(MANUALS_ROOT)),
+            "results_path": str(result_path.relative_to(MANUALS_ROOT)),
+            "summary_path": str(paths["summary"].relative_to(MANUALS_ROOT)) if paths["summary"].exists() else None,
+            "manifest_path": str(paths["manifest"].relative_to(MANUALS_ROOT)) if paths["manifest"].exists() else None,
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(updated_at)),
+        }
+    return None
+
+
+def _sync_external_eval_event(run_id: str) -> dict | None:
+    snapshot = _external_eval_run(run_id)
+    if snapshot is None:
+        return None
+    observation = (int(snapshot["completed"]), str(snapshot["status"]))
+    with EXTERNAL_EVAL_LOCK:
+        if EXTERNAL_EVAL_OBSERVATIONS.get(run_id) == observation:
+            return snapshot
+        EXTERNAL_EVAL_OBSERVATIONS[run_id] = observation
+    terminal = snapshot["status"] == "completed"
+    _try_publish_component_event(
+        run_id,
+        workflow="evaluation",
+        phase="job_completed" if terminal else "evaluation_progress",
+        status=str(snapshot["status"]),
+        provisional=not terminal,
+        total=int(snapshot["total"]),
+        artifact_ref=str(snapshot["results_path"]) if terminal else None,
+        payload={
+            "event": "external_evaluation_completed" if terminal else "external_evaluation_progress",
+            "completed_questions": int(snapshot["completed"]),
+            "total_questions": int(snapshot["total"]),
+            "dataset_path": snapshot["dataset_path"],
+            "results_path": snapshot["results_path"],
+        },
+    )
+    return snapshot
+
+
 def _completed_result_run_ids() -> set[str]:
     completed = {
         path.name.removeprefix("retrieval_eval_summary_").removesuffix(".json")
@@ -1782,7 +1895,94 @@ def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, d
     return cells
 
 
+def _mark_cells_provisional(cells: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
+    marked = deepcopy(cells)
+    for cell in marked.values():
+        final_status = str(cell.get("status") or "blank")
+        if final_status not in {"pass", "fail"}:
+            continue
+        cell["final_status"] = final_status
+        cell["status"] = "provisional"
+        cell["label"] = f"LIVE {final_status.upper()}"
+        cell["detail"] = f"{cell.get('detail') or final_status} · provisional until terminal reconciliation"
+    return marked
+
+
+def _build_external_eval_matrix(current_run: dict) -> dict:
+    dataset_path = MANUALS_ROOT / str(current_run["dataset_path"])
+    results_path = MANUALS_ROOT / str(current_run["results_path"])
+    cases = _read_jsonl(dataset_path)
+    results = _read_jsonl(results_path) if results_path.exists() else []
+    result_index = {
+        _case_key(result.get("case") or {}): result
+        for result in results
+        if _case_key(result.get("case") or {})
+    }
+    provisional = current_run["status"] != "completed"
+    dataset_rel = str(current_run["dataset_path"])
+    rows: list[dict] = []
+    for row_index, case in enumerate(cases, start=1):
+        case_key = _case_key(case)
+        result = result_index.get(case_key)
+        item = None
+        latest_result = None
+        if result:
+            item = {
+                "evaluation": result.get("retrieval_evaluation") or result.get("evaluation") or {},
+                "answer": result.get("answer") or {},
+                "answer_evaluation": result.get("answer_evaluation") or {},
+                "query_debug_result": result.get("query_debug_result") or {},
+            }
+            latest_result = {
+                "run_id": current_run["artifact_run_id"],
+                "path": current_run["results_path"],
+                **item,
+            }
+        cells = _build_row_cells(item, case)
+        if provisional and result:
+            cells = _mark_cells_provisional(cells)
+        elif provisional:
+            for cell in cells.values():
+                cell["detail"] = "waiting for the current evaluation run"
+        rows.append(
+            {
+                "key": _matrix_row_key(dataset_rel, case_key),
+                "dataset": dataset_rel,
+                "dataset_status": "current_run" if provisional else "latest_completed_run",
+                "question_number": row_index,
+                "case": case,
+                "question_type": _question_type(case),
+                "generation_review": _generation_review_cell(case),
+                "latest_result": latest_result,
+                "provisional": provisional,
+                "cells": cells,
+            }
+        )
+    single_step = sum(1 for case in cases if not _question_type(case)["multi_step"])
+    return {
+        "manifest_path": current_run.get("manifest_path") or dataset_rel,
+        "official_total_questions": len(cases),
+        "official_single_step_questions": single_step,
+        "official_multi_step_questions": len(cases) - single_step,
+        "loaded_questions": len(rows),
+        "datasets": [
+            {
+                "path": dataset_rel,
+                "status": "current_run" if provisional else "latest_completed_run",
+                "total_questions": len(cases),
+            }
+        ],
+        "question_view": {"hide_bank_questions": True, "generated_datasets": []},
+        "active_job": None,
+        "current_run": current_run,
+        "rows": rows,
+    }
+
+
 def _build_question_matrix() -> dict:
+    current_run = _external_eval_run()
+    if current_run is not None and _active_question_matrix_job_id() is None:
+        return _build_external_eval_matrix(current_run)
     manifest_path = TEST_REPORTS_DIR / "retrieval_accuracy_question_bank_manifest.json"
     manifest = _read_json(manifest_path)
     question_bank = manifest.get("question_bank") or {}

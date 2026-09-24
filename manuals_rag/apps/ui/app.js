@@ -26,6 +26,7 @@ const state = {
   questionMatrix: null,
   matrixJob: null,
   matrixJobTimer: null,
+  externalEvalTimer: null,
   matrixSort: { key: "number", direction: "asc" },
   matrixFilters: { text: "", run: "", type: "", anyStatus: "", stages: {} },
   matrixVisibleColumns: null,
@@ -506,7 +507,8 @@ function summarizeMatrixRows(items = []) {
   const rows = items.map((item, index) => {
     const cells = matrixCellsForItem(item);
     for (const stage of MATRIX_STAGES) {
-      const status = cells[stage.key]?.status || "blank";
+      const cell = cells[stage.key] || {};
+      const status = cell.status === "provisional" ? (cell.final_status || "blank") : (cell.status || "blank");
       totals[stage.key][status] += 1;
     }
     return { item, index, cells };
@@ -880,10 +882,16 @@ function renderQuestionMatrix(payload) {
   const items = [...baseItems, ...liveItems];
   const loaded = Number(payload?.loaded_questions || baseItems.length || 0) + liveItems.length;
   const official = Number(payload?.official_total_questions || 0);
-  const countText = official && official !== loaded
+  const currentRun = payload?.current_run;
+  const countText = currentRun?.status === "running"
+    ? `${Number(currentRun.completed || 0)} / ${Number(currentRun.total || loaded || 0)} current-run questions`
+    : official && official !== loaded
     ? `${loaded} loaded / ${official} official`
     : `${loaded || official || 0} questions`;
-  $("matrix-run-id").textContent = payload ? `${countText} from ${payload.manifest_path || "question-bank manifest"}` : "Loading question-bank matrix...";
+  const sourceText = currentRun
+    ? `${currentRun.status === "running" ? "current" : "latest completed"} run ${currentRun.artifact_run_id}`
+    : payload?.manifest_path || "question-bank manifest";
+  $("matrix-run-id").textContent = payload ? `${countText} from ${sourceText}` : "Loading question-bank matrix...";
   if (!items.length) {
     renderMatrixSummary({}, 0);
     $("matrix-table").innerHTML = "";
@@ -903,7 +911,7 @@ function renderQuestionMatrix(payload) {
     ...Object.entries(state.matrixFilters.stages || {}).filter(([, value]) => value).map(([key, value]) => `${MATRIX_STAGES.find((stage) => stage.key === key)?.label || key}: ${value}`),
     hiddenCount ? `${hiddenCount} hidden column(s)` : "",
   ].filter(Boolean);
-  $("matrix-run-id").textContent = `${countText} from ${payload.manifest_path || "question-bank manifest"}${filterBits.length ? ` | showing ${rows.length} filtered | ${filterBits.join(" | ")}` : ""}`;
+  $("matrix-run-id").textContent = `${countText} from ${sourceText}${filterBits.length ? ` | showing ${rows.length} filtered | ${filterBits.join(" | ")}` : ""}`;
   $("matrix-table").innerHTML = `
     <table class="matrix-grid">
       <thead>
@@ -1622,6 +1630,33 @@ function renderMatrixDetail(row) {
   `;
 }
 
+function scheduleExternalEvaluationRefresh() {
+  if (state.externalEvalTimer) clearTimeout(state.externalEvalTimer);
+  state.externalEvalTimer = setTimeout(() => {
+    state.externalEvalTimer = null;
+    loadQuestionMatrix().catch(console.error);
+  }, 50);
+}
+
+async function pollExternalEvaluation(runId) {
+  const payload = await localJson("/local/question-matrix");
+  state.questionMatrix = payload;
+  renderQuestionMatrix(payload);
+  const currentRun = payload.current_run;
+  if (currentRun?.id === runId && currentRun.status === "running") {
+    state.externalEvalTimer = setTimeout(() => pollExternalEvaluation(runId).catch(console.error), MATRIX_JOB_POLL_MS);
+  }
+}
+
+function watchExternalEvaluation(runId) {
+  return streamRunEvents(runId, {
+    streamKey: "external-evaluation",
+    onEvent: scheduleExternalEvaluationRefresh,
+    reconcile: async () => loadQuestionMatrix(),
+    fallback: async () => pollExternalEvaluation(runId),
+  });
+}
+
 async function loadQuestionMatrix() {
   $("matrix-summary").className = "matrix-summary empty-state";
   $("matrix-summary").textContent = "Loading question bank matrix...";
@@ -1643,6 +1678,13 @@ async function loadQuestionMatrix() {
       renderMatrixJobStatus(state.matrixJob);
     }
     renderQuestionMatrix(payload);
+    const currentRun = payload.current_run;
+    const activeExternalStream = state.realtimeStreams["external-evaluation"];
+    if (currentRun?.status === "running" && activeExternalStream?.runId !== currentRun.id) {
+      watchExternalEvaluation(currentRun.id).catch(console.error);
+    } else if (currentRun?.status !== "running" && activeExternalStream) {
+      closeRunEventStream("external-evaluation");
+    }
   } catch (error) {
     $("matrix-summary").className = "matrix-summary empty-state";
     $("matrix-summary").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;

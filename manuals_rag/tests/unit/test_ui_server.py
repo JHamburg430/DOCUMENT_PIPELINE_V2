@@ -260,6 +260,9 @@ def test_evaluation_workflows_use_sse_first_with_polling_fallback_and_terminal_r
     assert "finish(reconcile)" in app_js
     assert "streamEvalRunToCompletion" in app_js
     assert "watchMatrixJob" in app_js
+    assert "watchExternalEvaluation" in app_js
+    assert 'streamKey: "external-evaluation"' in app_js
+    assert "current-run questions" in app_js
     assert "watchAgentChatJob" in app_js
     assert "watchAgentLiveJob" in app_js
     assert "watchAgentMatrixJob" in app_js
@@ -542,6 +545,97 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
     assert payload["rows"][0]["cells"]["answer"]["status"] == "fail"
     assert payload["rows"][0]["latest_result"]["answer"]["answer"] == "Reset the trigger signal error."
     assert payload["rows"][0]["latest_result"]["query_debug_result"]["answer"]["answer"] == "Reset the trigger signal error."
+
+
+def test_question_matrix_prefers_current_external_200_question_run(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    bank = reports / "bank.jsonl"
+    bank.write_text("\n".join(ui_server.json.dumps({"case_id": f"old-{index}", "query": "old"}) for index in range(198)) + "\n", encoding="utf-8")
+    (reports / "retrieval_accuracy_question_bank_manifest.json").write_text(
+        ui_server.json.dumps(
+            {"question_bank": {"total_questions": 198, "datasets": [{"path": "test_reports/bank.jsonl", "status": "generated"}]}}
+        ),
+        encoding="utf-8",
+    )
+    cases = [{"case_id": f"current-{index}", "query": f"Current question {index}?"} for index in range(200)]
+    dataset = reports / "retrieval_eval_dataset_20260924_192816.jsonl"
+    dataset.write_text("\n".join(ui_server.json.dumps(case) for case in cases) + "\n", encoding="utf-8")
+    partial = reports / "retrieval_eval_results_20260924_192816.partial.jsonl"
+    partial.write_text(
+        "\n".join(
+            ui_server.json.dumps({"case": case, "evaluation": {"passed": True, "rank": 1}})
+            for case in cases[:2]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+
+    payload = ui_server._build_question_matrix()
+
+    assert payload["loaded_questions"] == 200
+    assert payload["current_run"]["id"] == "external-eval-20260924_192816"
+    assert payload["current_run"]["status"] == "running"
+    assert payload["current_run"]["completed"] == 2
+    assert payload["rows"][0]["latest_result"]["run_id"] == "20260924_192816"
+    assert payload["rows"][0]["cells"]["retrieval"]["status"] == "provisional"
+    assert payload["rows"][0]["cells"]["retrieval"]["final_status"] == "pass"
+    assert payload["rows"][2]["latest_result"] is None
+
+    (reports / "retrieval_eval_results_20260924_192816.jsonl").write_text(
+        "\n".join(
+            ui_server.json.dumps({"case": case, "evaluation": {"passed": True, "rank": 1}})
+            for case in cases
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (reports / "retrieval_eval_summary_20260924_192816.json").write_text('{"total_queries":200}', encoding="utf-8")
+    reconciled = ui_server._build_question_matrix()
+
+    assert reconciled["current_run"]["status"] == "completed"
+    assert reconciled["rows"][0]["cells"]["retrieval"]["status"] == "pass"
+    assert "final_status" not in reconciled["rows"][0]["cells"]["retrieval"]
+
+
+def test_external_evaluation_progress_events_are_change_driven_and_terminal(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    cases = [{"case_id": f"case-{index}", "query": f"Question {index}?"} for index in range(3)]
+    dataset = reports / "retrieval_eval_dataset_live.jsonl"
+    dataset.write_text("\n".join(ui_server.json.dumps(case) for case in cases) + "\n", encoding="utf-8")
+    partial = reports / "retrieval_eval_results_live.partial.jsonl"
+    partial.write_text(ui_server.json.dumps({"case": cases[0], "evaluation": {"passed": True}}) + "\n", encoding="utf-8")
+    journal = ui_server.SQLiteEventJournal(tmp_path / "events.sqlite3")
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "UI_EVENT_JOURNAL", journal)
+    with ui_server.EXTERNAL_EVAL_LOCK:
+        ui_server.EXTERNAL_EVAL_OBSERVATIONS.clear()
+
+    run_id = "external-eval-live"
+    ui_server._sync_external_eval_event(run_id)
+    ui_server._sync_external_eval_event(run_id)
+    first_page = journal.replay(run_id)
+    assert len(first_page.events) == 1
+    assert first_page.events[0].phase == "evaluation_progress"
+    assert first_page.events[0].payload["completed_questions"] == 1
+    assert first_page.events[0].artifact_ref is None
+
+    (reports / "retrieval_eval_results_live.jsonl").write_text(
+        "\n".join(ui_server.json.dumps({"case": case, "evaluation": {"passed": True}}) for case in cases) + "\n",
+        encoding="utf-8",
+    )
+    (reports / "retrieval_eval_summary_live.json").write_text('{"total_queries":3}', encoding="utf-8")
+    ui_server._sync_external_eval_event(run_id)
+    final_page = journal.replay(run_id)
+    assert [event.phase for event in final_page.events] == ["evaluation_progress", "job_completed"]
+    assert final_page.events[-1].completed is True
+    assert final_page.events[-1].provisional is False
+    assert final_page.events[-1].artifact_ref == "test_reports/retrieval_eval_results_live.jsonl"
+    journal.close()
 
 
 def test_question_matrix_qualifies_duplicate_case_ids_by_dataset(monkeypatch, tmp_path):
