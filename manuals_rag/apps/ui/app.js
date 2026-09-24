@@ -2,7 +2,8 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260911-agent-chat";
+const ASSET_VERSION = "20260924-evaluation-workspace";
+const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
 const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
@@ -52,6 +53,7 @@ const state = {
     payload: null,
     job: null,
     timer: null,
+    replayVersion: 0,
     selectedCaseId: null,
   },
   evalRuntime: null,
@@ -2958,8 +2960,106 @@ function agentMatrixCell(result, layer) {
   return backends.map(([backend, label]) => {
     const cell = result?.[backend]?.agent_evaluation?.cells?.[layer];
     const status = cell?.status || "blank";
-    return `<span class="matrix-cell ${escapeHtml(status)}" title="${escapeHtml(cell?.detail || `${label} not evaluated`)}">${label} ${escapeHtml(cell?.label || "—")}</span>`;
+    return `<span class="matrix-cell ${escapeHtml(status)}" data-agent-matrix-backend="${backend}" data-agent-matrix-layer="${escapeHtml(layer)}" title="${escapeHtml(cell?.detail || `${label} not evaluated`)}" aria-label="${escapeHtml(`${label} ${cell?.label || status}`)}">${label} ${escapeHtml(cell?.label || (status === "provisional" ? "LIVE" : "—"))}</span>`;
   }).join(" ");
+}
+
+function ensureAgentMatrixResult(row, backend) {
+  row.result ||= {};
+  row.result[backend] ||= {};
+  row.result[backend].agent_evaluation ||= { passed: false, cells: {} };
+  row.result[backend].agent_evaluation.cells ||= {};
+  return row.result[backend];
+}
+
+function applyAgentMatrixLiveCell(event) {
+  const row = (state.agentMatrix.payload?.rows || []).find((item) => item.case_id === event.case_id);
+  if (!row || !["langgraph", "llamaindex"].includes(event.backend)) return;
+  const result = ensureAgentMatrixResult(row, event.backend);
+  result.agent_evaluation.cells[event.layer] = { ...event.cell };
+  if (event.answer) result.answer = event.answer;
+  if (event.trace) result.trace = event.trace;
+  if (event.elapsed_ms != null) result.elapsed_ms = event.elapsed_ms;
+  if (event.passed != null) result.agent_evaluation.passed = Boolean(event.passed);
+
+  const rowElement = Array.from(document.querySelectorAll("[data-agent-matrix-case]")).find((node) => node.dataset.agentMatrixCase === event.case_id);
+  const cellElement = rowElement?.querySelector(`[data-agent-matrix-backend="${event.backend}"][data-agent-matrix-layer="${event.layer}"]`);
+  if (cellElement) {
+    const backendLabel = event.backend === "langgraph" ? "LG" : "LI";
+    const status = event.cell?.status || "blank";
+    cellElement.className = `matrix-cell ${status}`;
+    cellElement.textContent = `${backendLabel} ${event.cell?.label || (status === "provisional" ? "LIVE" : "—")}`;
+    cellElement.title = event.cell?.detail || `${backendLabel} not evaluated`;
+    cellElement.setAttribute("aria-label", `${backendLabel} ${event.cell?.label || status}`);
+  }
+  if (state.agentMatrix.selectedCaseId === event.case_id) renderAgentMatrixDetail();
+}
+
+function mergeAgentMatrixJobSnapshot(job) {
+  const payload = state.agentMatrix.payload;
+  if (!payload) return;
+  for (const [caseId, result] of Object.entries(job.live_results || {})) {
+    const row = (payload.rows || []).find((item) => item.case_id === caseId);
+    if (row) row.result = { ...(row.result || {}), ...result };
+  }
+  if (!["queued", "running"].includes(job.status)) return;
+  const pendingRow = (payload.rows || [])[Math.max(0, Number(job.completed_questions || 0))];
+  if (!pendingRow) return;
+  for (const backend of ["langgraph", "llamaindex"]) {
+    const result = ensureAgentMatrixResult(pendingRow, backend);
+    for (const [layer, label] of AGENT_MATRIX_LAYERS) {
+      result.agent_evaluation.cells[layer] ||= {
+        status: "provisional",
+        label: "LIVE",
+        detail: `${label} is being evaluated; this provisional result will be replaced by the scored cell.`,
+      };
+    }
+  }
+}
+
+async function replayAgentMatrixFixture() {
+  const replayVersion = ++state.agentMatrix.replayVersion;
+  const fixtureMode = new URLSearchParams(window.location.search).get("evaluationFixture") || "replay";
+  const button = $("replay-agent-matrix-fixture");
+  button.disabled = true;
+  $("agent-matrix-status").textContent = "Loading fixture";
+  $("agent-matrix-status").className = "status-pill running";
+  try {
+    const fixture = await localJson(EVALUATION_REALTIME_FIXTURE);
+    if (fixture.question_summary) {
+      renderMatrixSummary(fixture.question_summary, Number(fixture.question_rows || 1));
+      $("matrix-run-id").textContent = "Fixture-backed question matrix · preserved stage progress bars";
+    }
+    state.agentMatrix.selectedCaseId = fixture.payload?.rows?.[0]?.case_id || null;
+    renderAgentMatrix(structuredClone(fixture.payload));
+    if (new URLSearchParams(window.location.search).get("focus") === "agent-matrix") {
+      $("agent-matrix-workspace").scrollIntoView({ block: "start" });
+    }
+    for (const event of fixture.events || []) {
+      if (fixtureMode === "provisional" && Number(event.sequence) > 14) break;
+      await sleep(Math.max(0, Number(event.delay_ms || 0)));
+      if (replayVersion !== state.agentMatrix.replayVersion) return;
+      applyAgentMatrixLiveCell(event);
+      $("agent-matrix-status").textContent = `${event.sequence}/${fixture.events.length} · ${event.case_id} · ${event.backend} · ${event.layer}`;
+    }
+    if (fixtureMode === "provisional") {
+      $("agent-matrix-status").textContent = "Fixture paused · 14 provisional cells";
+      $("agent-matrix-workspace").scrollIntoView({ block: "start" });
+      return;
+    }
+    if (fixture.final_summary) state.agentMatrix.payload.summary = fixture.final_summary;
+    renderAgentMatrix(state.agentMatrix.payload);
+    if (new URLSearchParams(window.location.search).get("focus") === "agent-matrix") {
+      $("agent-matrix-workspace").scrollIntoView({ block: "start" });
+    }
+    $("agent-matrix-status").textContent = "Fixture complete";
+    $("agent-matrix-status").className = "status-pill pass";
+  } catch (error) {
+    $("agent-matrix-status").textContent = `Fixture failed: ${error.message}`;
+    $("agent-matrix-status").className = "status-pill fail";
+  } finally {
+    if (replayVersion === state.agentMatrix.replayVersion) button.disabled = false;
+  }
 }
 
 function renderAgentMatrix(payload) {
@@ -3036,6 +3136,8 @@ async function pollAgentMatrixJob(jobId) {
   if (state.agentMatrix.timer) clearTimeout(state.agentMatrix.timer);
   const job = await localJson(`/local/agent-matrix/jobs/${encodeURIComponent(jobId)}`);
   state.agentMatrix.job = job;
+  mergeAgentMatrixJobSnapshot(job);
+  if (state.agentMatrix.payload) renderAgentMatrix(state.agentMatrix.payload);
   const status = $("agent-matrix-status");
   status.textContent = [job.status, `${job.completed_questions}/${job.limit}`, job.current_case_id].filter(Boolean).join(" · ");
   status.className = `status-pill ${job.status === "completed" ? "pass" : job.status === "failed" ? "fail" : "running"}`;
@@ -3048,6 +3150,7 @@ async function pollAgentMatrixJob(jobId) {
 }
 
 async function runAgentMatrix() {
+  state.agentMatrix.replayVersion += 1;
   $("run-agent-matrix").disabled = true;
   const job = await localPostJson("/local/agent-matrix/run", {
     dataset: $("agent-matrix-dataset").value.trim(),
@@ -3095,11 +3198,8 @@ async function recoverAfterPageReturn() {
   if (document.visibilityState && document.visibilityState !== "visible") return;
   try {
     const activeTab = document.querySelector(".tab.active")?.dataset.tab;
-    if (activeTab === "matrix") {
-      await loadQuestionMatrix();
-    }
-    if (activeTab === "agent-lab") {
-      await Promise.all([loadAgentMatrix(), loadAgentLiveJob()]);
+    if (activeTab === "evaluation") {
+      await Promise.all([loadQuestionMatrix(), loadAgentMatrix(), loadAgentLiveJob()]);
     }
     if (activeTab === "agent-chat") await loadAgentChatJob();
     if (activeTab === "ingestion") {
@@ -3386,6 +3486,15 @@ function maybePollIngestion() {
   });
 }
 
+function setupEvaluationWorkspace() {
+  const workspace = $("evaluation");
+  const agentLab = $("agent-lab");
+  if (!workspace || !agentLab || agentLab.parentElement === workspace) return;
+  agentLab.classList.remove("tab-panel");
+  agentLab.classList.add("evaluation-agent-lab");
+  workspace.appendChild(agentLab);
+}
+
 function setupTabs() {
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -3393,12 +3502,12 @@ function setupTabs() {
       document.querySelectorAll(".tab-panel").forEach((item) => item.classList.remove("active"));
       tab.classList.add("active");
       $(tab.dataset.tab).classList.add("active");
-      if (tab.dataset.tab === "matrix") loadQuestionMatrix();
-      if (tab.dataset.tab === "agent-chat") loadAgentChatJob().catch(console.error);
-      if (tab.dataset.tab === "agent-lab") {
+      if (tab.dataset.tab === "evaluation") {
+        loadQuestionMatrix();
         loadAgentMatrix();
         loadAgentLiveJob().catch(console.error);
       }
+      if (tab.dataset.tab === "agent-chat") loadAgentChatJob().catch(console.error);
       if (tab.dataset.tab === "ingestion") maybePollIngestion();
       if (tab.dataset.tab === "history") loadHistory();
     });
@@ -3427,6 +3536,12 @@ function setupProgressInteractions() {
 }
 
 async function init() {
+  const evaluationFixtureMode = new URLSearchParams(window.location.search).get("evaluationFixture");
+  setupEvaluationWorkspace();
+  document.body.classList.toggle(
+    "fixture-agent-matrix-focus",
+    Boolean(evaluationFixtureMode) && new URLSearchParams(window.location.search).get("focus") === "agent-matrix",
+  );
   setupTabs();
   setupMatrixControls();
   $("run-query").addEventListener("click", runQuery);
@@ -3454,6 +3569,10 @@ async function init() {
     $("agent-matrix-status").className = "status-pill fail";
   }));
   $("refresh-agent-matrix").addEventListener("click", loadAgentMatrix);
+  $("replay-agent-matrix-fixture").addEventListener("click", replayAgentMatrixFixture);
+  if (["replay", "provisional"].includes(evaluationFixtureMode)) {
+    replayAgentMatrixFixture();
+  }
   $("refresh-history").addEventListener("click", loadHistory);
   $("refresh-ingestion").addEventListener("click", loadIngestionStatus);
   $("ingestion-upload").addEventListener("click", uploadIngestionDocuments);
@@ -3475,7 +3594,8 @@ async function init() {
   });
   setConnectionStatus("UI ready · synchronizing active views");
   state.ingestionTimer = setInterval(maybePollIngestion, 5000);
-  Promise.allSettled([loadQuestionMatrix(), loadAgentLiveJob(), loadAgentChatJob()]).then((results) => {
+  const initialLoads = evaluationFixtureMode ? [] : [loadQuestionMatrix(), loadAgentMatrix(), loadAgentLiveJob(), loadAgentChatJob()];
+  Promise.allSettled(initialLoads).then((results) => {
     const failure = results.find((result) => result.status === "rejected");
     if (failure) {
       setConnectionStatus(`View sync pending: ${failure.reason?.message || failure.reason}`, "idle");

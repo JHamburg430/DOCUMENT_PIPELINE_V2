@@ -178,16 +178,15 @@ summary {
   gap: 16px;
 }
 
-#matrix.tab-panel.active,
+#evaluation.tab-panel.active,
 #search.tab-panel.active,
 #agent-chat.tab-panel.active,
-#agent-lab.tab-panel.active,
 #history.tab-panel.active,
 #ingestion.tab-panel.active {
   display: block;
 }
 
-#matrix.tab-panel.active,
+#evaluation.tab-panel.active,
 #ingestion.tab-panel.active {
   width: 100%;
 }
@@ -208,9 +207,60 @@ summary {
   overflow-x: auto;
 }
 
-#matrix > .panel,
+#evaluation > .panel,
 #ingestion > .panel {
   width: 100%;
+}
+
+.evaluation-workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  border-top: 4px solid var(--accent);
+}
+
+.evaluation-workspace-header h2,
+.evaluation-workspace-header p {
+  margin: 0;
+}
+
+.evaluation-jump-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.evaluation-jump-links a {
+  border: 1px solid var(--line);
+  padding: 7px 10px;
+  color: var(--accent-dark);
+  background: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.evaluation-section {
+  scroll-margin-top: 16px;
+}
+
+.evaluation-agent-lab {
+  display: block;
+  margin-top: 16px;
+}
+
+.fixture-agent-matrix-focus .evaluation-workspace-header,
+.fixture-agent-matrix-focus #question-matrix-workspace,
+.fixture-agent-matrix-focus .agent-lab-controls,
+.fixture-agent-matrix-focus #agent-results {
+  display: none;
+}
+
+.fixture-agent-matrix-focus .evaluation-agent-lab,
+.fixture-agent-matrix-focus .agent-matrix-panel {
+  margin-top: 0;
 }
 
 .agent-lab-controls {
@@ -1174,6 +1224,18 @@ summary {
 .matrix-cell.blank {
   color: transparent;
   background: #f1f4f7;
+}
+
+.matrix-cell.provisional {
+  color: var(--warn);
+  border-color: #e4b84c;
+  background: #fff4c2;
+  animation: provisional-cell-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes provisional-cell-pulse {
+  from { box-shadow: 0 0 0 0 rgba(154, 103, 0, 0.12); }
+  to { box-shadow: 0 0 0 3px rgba(154, 103, 0, 0.24); }
 }
 
 .matrix-cell.current-run-cell {

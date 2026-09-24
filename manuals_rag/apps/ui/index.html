@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260911-agent-chat" />
+    <link rel="stylesheet" href="/styles.css?v=20260924-evaluation-workspace" />
   </head>
   <body>
     <main class="app-shell">
@@ -14,17 +14,27 @@
           <p id="connection-status">Connecting to API...</p>
         </div>
         <nav class="tabs" aria-label="Views">
-          <button class="tab active" data-tab="matrix">Eval Matrix</button>
+          <button class="tab active" data-tab="evaluation">Evaluation</button>
           <button class="tab" data-tab="agent-chat">Agent</button>
           <button class="tab" data-tab="search">Search</button>
-          <button class="tab" data-tab="agent-lab">Agent Lab</button>
           <button class="tab" data-tab="ingestion">Ingestion</button>
           <button class="tab" data-tab="history">Run History</button>
         </nav>
       </header>
 
-      <section id="matrix" class="tab-panel active">
-        <section class="panel">
+      <section id="evaluation" class="tab-panel active">
+        <header class="panel evaluation-workspace-header">
+          <div>
+            <h2>Evaluation workspace</h2>
+            <p class="muted">Question-bank diagnostics, live agent traces, and agent scoring in one workspace.</p>
+          </div>
+          <nav class="evaluation-jump-links" aria-label="Evaluation workspace sections">
+            <a href="#question-matrix-workspace">Question matrix</a>
+            <a href="#agent-lab">Live agent lab</a>
+            <a href="#agent-matrix-workspace">Agent matrix</a>
+          </nav>
+        </header>
+        <section id="question-matrix-workspace" class="panel evaluation-section">
           <div class="section-heading">
             <h2>Eval Matrix</h2>
             <span id="matrix-run-id" class="muted">Loading question-bank matrix...</span>
@@ -209,7 +219,7 @@
       </section>
 
       <section id="agent-lab" class="tab-panel">
-        <section class="panel agent-lab-controls">
+        <section class="panel agent-lab-controls evaluation-section">
           <div class="section-heading">
             <div>
               <h2>Live Agent Retrieval Lab</h2>
@@ -244,7 +254,7 @@
         <section id="agent-results" class="agent-results" aria-live="polite">
           <div class="empty-state">Run a question to compare the agent backends and inspect every retrieval hop.</div>
         </section>
-        <section class="panel agent-matrix-panel">
+        <section id="agent-matrix-workspace" class="panel agent-matrix-panel evaluation-section">
           <div class="section-heading">
             <div>
               <h2>Agent Evaluation Matrix</h2>
@@ -260,6 +270,7 @@
             <label class="inline-check"><input id="agent-matrix-no-llm" type="checkbox" /><span>Deterministic planners</span></label>
             <button id="run-agent-matrix" type="button">Run Agent Matrix</button>
             <button id="refresh-agent-matrix" type="button">Refresh</button>
+            <button id="replay-agent-matrix-fixture" class="secondary-button" type="button">Replay Live Fixture</button>
           </div>
           <div id="agent-matrix-summary" class="matrix-summary empty-state">No agent evaluation loaded.</div>
           <div id="agent-matrix-table"></div>
@@ -366,6 +377,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260911-agent-chat"></script>
+    <script src="/app.js?v=20260924-evaluation-workspace"></script>
   </body>
 </html>

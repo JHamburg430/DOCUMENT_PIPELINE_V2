@@ -1,0 +1,78 @@
+{
+  "schema": "manuals-rag-evaluation-realtime-fixture-v1",
+  "question_rows": 4,
+  "question_summary": {
+    "query_classify": {"pass": 4, "fail": 0, "blank": 0},
+    "filters": {"pass": 4, "fail": 0, "blank": 0},
+    "dense": {"pass": 3, "fail": 1, "blank": 0},
+    "sparse": {"pass": 4, "fail": 0, "blank": 0},
+    "special": {"pass": 3, "fail": 1, "blank": 0},
+    "fuse": {"pass": 4, "fail": 0, "blank": 0},
+    "rerank": {"pass": 4, "fail": 0, "blank": 0},
+    "assemble": {"pass": 4, "fail": 0, "blank": 0},
+    "metadata": {"pass": 4, "fail": 0, "blank": 0},
+    "retrieval": {"pass": 4, "fail": 0, "blank": 0},
+    "relevance": {"pass": 4, "fail": 0, "blank": 0},
+    "summaries": {"pass": 4, "fail": 0, "blank": 0},
+    "generation": {"pass": 4, "fail": 0, "blank": 0},
+    "answer_docs": {"pass": 4, "fail": 0, "blank": 0},
+    "citations": {"pass": 4, "fail": 0, "blank": 0},
+    "terms": {"pass": 4, "fail": 0, "blank": 0},
+    "answer": {"pass": 4, "fail": 0, "blank": 0}
+  },
+  "payload": {
+    "schema": "manuals-rag-agent-evaluation-matrix-v2",
+    "dataset": "fixtures/evaluation-realtime.json",
+    "summary": {},
+    "category_counts": {
+      "dependent_lookup": 1
+    },
+    "rows": [
+      {
+        "number": 1,
+        "case_id": "fixture-dependent-cable",
+        "question": "Which cable connects the LJ-X8000 RS-232C port, and what is its connector orientation?",
+        "retrieval_task": "dependent multi-hop lookup",
+        "agent_case_category": "dependent_lookup",
+        "expected_graph_mode": "dependent",
+        "expected_evidence_count": 2,
+        "expected_document_count": 1,
+        "result": null
+      }
+    ]
+  },
+  "events": [
+    {"sequence": 1, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "tool_selection", "cell": {"status": "provisional", "label": "LIVE", "detail": "Selecting the retrieval tool."}},
+    {"sequence": 2, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "candidate_recall", "cell": {"status": "provisional", "label": "LIVE", "detail": "Collecting candidate chunks."}},
+    {"sequence": 3, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "document_retention", "cell": {"status": "provisional", "label": "LIVE", "detail": "Checking source-document retention."}},
+    {"sequence": 4, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "hop_dependencies", "cell": {"status": "provisional", "label": "LIVE", "detail": "Resolving the dependent cable lookup."}},
+    {"sequence": 5, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "evidence_sufficiency", "cell": {"status": "provisional", "label": "LIVE", "detail": "Assessing evidence sufficiency."}},
+    {"sequence": 6, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "grounded_answer", "cell": {"status": "provisional", "label": "LIVE", "detail": "Grounding the answer."}},
+    {"sequence": 7, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "latency_token_cost", "cell": {"status": "provisional", "label": "LIVE", "detail": "Measuring latency and token cost."}},
+    {"sequence": 8, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "tool_selection", "cell": {"status": "provisional", "label": "LIVE", "detail": "Selecting the retrieval tool."}},
+    {"sequence": 9, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "candidate_recall", "cell": {"status": "provisional", "label": "LIVE", "detail": "Collecting candidate chunks."}},
+    {"sequence": 10, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "document_retention", "cell": {"status": "provisional", "label": "LIVE", "detail": "Checking source-document retention."}},
+    {"sequence": 11, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "hop_dependencies", "cell": {"status": "provisional", "label": "LIVE", "detail": "Resolving the dependent cable lookup."}},
+    {"sequence": 12, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "evidence_sufficiency", "cell": {"status": "provisional", "label": "LIVE", "detail": "Assessing evidence sufficiency."}},
+    {"sequence": 13, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "grounded_answer", "cell": {"status": "provisional", "label": "LIVE", "detail": "Grounding the answer."}},
+    {"sequence": 14, "delay_ms": 40, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "latency_token_cost", "cell": {"status": "provisional", "label": "LIVE", "detail": "Measuring latency and token cost."}},
+    {"sequence": 15, "delay_ms": 900, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "tool_selection", "cell": {"status": "pass", "label": "PASS", "detail": "The retrieval tool was selected correctly."}},
+    {"sequence": 16, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "candidate_recall", "cell": {"status": "pass", "label": "PASS", "detail": "Both expected evidence candidates were recalled."}},
+    {"sequence": 17, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "document_retention", "cell": {"status": "pass", "label": "PASS", "detail": "The source manual remained in the candidate set."}},
+    {"sequence": 18, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "hop_dependencies", "cell": {"status": "pass", "label": "PASS", "detail": "The second hop used the cable identity from the first hop."}},
+    {"sequence": 19, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "evidence_sufficiency", "cell": {"status": "pass", "label": "PASS", "detail": "Evidence covered cable identity and orientation."}},
+    {"sequence": 20, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "grounded_answer", "cell": {"status": "pass", "label": "PASS", "detail": "The answer was grounded in both evidence targets."}},
+    {"sequence": 21, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "langgraph", "layer": "latency_token_cost", "cell": {"status": "pass", "label": "PASS", "detail": "Runtime stayed within the fixture budget."}, "elapsed_ms": 842, "passed": true},
+    {"sequence": 22, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "tool_selection", "cell": {"status": "pass", "label": "PASS", "detail": "The retrieval tool was selected correctly."}},
+    {"sequence": 23, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "candidate_recall", "cell": {"status": "pass", "label": "PASS", "detail": "Both expected evidence candidates were recalled."}},
+    {"sequence": 24, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "document_retention", "cell": {"status": "pass", "label": "PASS", "detail": "The source manual remained in the candidate set."}},
+    {"sequence": 25, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "hop_dependencies", "cell": {"status": "pass", "label": "PASS", "detail": "The second hop used the cable identity from the first hop."}},
+    {"sequence": 26, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "evidence_sufficiency", "cell": {"status": "pass", "label": "PASS", "detail": "Evidence covered cable identity and orientation."}},
+    {"sequence": 27, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "grounded_answer", "cell": {"status": "pass", "label": "PASS", "detail": "The answer was grounded in both evidence targets."}},
+    {"sequence": 28, "delay_ms": 90, "case_id": "fixture-dependent-cable", "backend": "llamaindex", "layer": "latency_token_cost", "cell": {"status": "pass", "label": "PASS", "detail": "Runtime stayed within the fixture budget."}, "elapsed_ms": 917, "passed": true, "answer": {"answer": "Fixture answer: the cable identity is resolved first, then its connector orientation is verified.", "citations": []}, "trace": {"stop_reason": "evidence_sufficient", "completed_hops": ["identify-cable", "resolve-orientation"], "duration_ms": 917}}
+  ],
+  "final_summary": {
+    "langgraph": {"agent_matrix_passed": 1},
+    "llamaindex": {"agent_matrix_passed": 1}
+  }
+}
