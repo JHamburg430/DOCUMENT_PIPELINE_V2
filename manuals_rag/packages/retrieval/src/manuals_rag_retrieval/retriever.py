@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import lru_cache
+from threading import BoundedSemaphore, Lock
+from time import perf_counter
 from typing import Any, Iterable
 
 from manuals_rag_common.config import settings
@@ -32,6 +36,8 @@ logger = logging.getLogger(__name__)
 _active_stage_capture: ContextVar[list[dict[str, Any]] | None] = ContextVar(
     "manuals_rag_retrieval_stage_capture", default=None
 )
+_RERANK_LOCK = Lock()
+_QDRANT_BRANCH_SEMAPHORE = BoundedSemaphore(settings.retrieval_qdrant_max_concurrency)
 FUSED_CANDIDATE_POOL_LIMIT = 30
 DOCUMENT_METADATA_SELECTION_LIMIT = 5
 IDENTIFIER_METADATA_SELECTION_LIMIT = 20
@@ -133,6 +139,72 @@ def _record_stage_snapshot(stage: str, query: str, results: list[SearchResult]) 
             ],
         }
     )
+
+
+def _record_substage_timing(
+    substage: str,
+    query: str,
+    duration_ms: float,
+    *,
+    result_count: int | None = None,
+) -> None:
+    """Persist deterministic per-substage wall time beside retrieval snapshots."""
+    capture = _active_stage_capture.get()
+    if capture is None:
+        return
+    payload: dict[str, Any] = {
+        "stage": "timing",
+        "snapshot_type": "timing",
+        "substage": substage,
+        "query": query,
+        "duration_ms": round(duration_ms, 2),
+    }
+    if result_count is not None:
+        payload["result_count"] = result_count
+    capture.append(payload)
+
+
+def _measure_substage(substage: str, query: str, operation):
+    started = perf_counter()
+    result = operation()
+    duration_ms = (perf_counter() - started) * 1000
+    result_count = len(result) if isinstance(result, (list, tuple, dict, set)) else None
+    _record_substage_timing(substage, query, duration_ms, result_count=result_count)
+    return result
+
+
+def _measure_value(operation):
+    """Measure a worker-thread operation without mutating request-local capture."""
+    started = perf_counter()
+    result = operation()
+    return result, (perf_counter() - started) * 1000
+
+
+def _run_qdrant_branch(operation: Callable[[], list[SearchResult]]) -> list[SearchResult]:
+    """Bound aggregate vector-store fan-out across concurrent retrieval cases."""
+    with _QDRANT_BRANCH_SEMAPHORE:
+        return operation()
+
+
+def _run_parallel_branches(
+    query: str,
+    branch_operations: list[tuple[str, Callable[[], list[SearchResult]]]],
+    *,
+    max_workers: int,
+) -> dict[str, list[SearchResult]]:
+    """Execute independent branches concurrently and publish timings in declared order."""
+    branch_results: dict[str, list[SearchResult]] = {}
+    worker_count = min(max(1, max_workers), len(branch_operations))
+    with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="retrieval-branch") as executor:
+        futures = {
+            name: executor.submit(_measure_value, operation)
+            for name, operation in branch_operations
+        }
+        for name, _operation in branch_operations:
+            results, duration_ms = futures[name].result()
+            branch_results[name] = results
+            _record_substage_timing(name, query, duration_ms, result_count=len(results))
+    return branch_results
 
 
 @dataclass(frozen=True)
@@ -919,26 +991,25 @@ def run_table_lexical_search(
         if like_terms:
             where.append(
                 "("
-                + " or ".join(["content ilike %s"] * len(like_terms))
+                + " or ".join(["content_search_compact ilike %s"] * len(like_terms))
                 + ")"
             )
-            params.extend([f"%{term}%" for term in like_terms])
+            params.extend([f"%{_compact_identifier(term)}%" for term in like_terms])
     elif troubleshooting_phrase:
         where.append(
-            "(regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s "
-            "or metadata_json->>'table_row_headers' ilike %s)"
+            "(content_search_compact like %s or metadata_search_compact ilike %s)"
         )
         params.extend([f"%{troubleshooting_phrase}%", f"%{troubleshooting_phrase}%"])
     elif required_terms and len(symbol_terms) < 3:
-        where.extend(["regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s"] * len(required_terms))
+        where.extend(["content_search_compact like %s"] * len(required_terms))
         params.extend([f"%{term}%" for term in required_terms])
     if symbol_terms and not is_comparison_lookup:
-        where.append("(" + " or ".join(["regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s"] * len(symbol_terms)) + ")")
+        where.append("(" + " or ".join(["content_search_compact like %s"] * len(symbol_terms)) + ")")
         params.extend([f"%{term}%" for term in symbol_terms])
     if not is_comparison_lookup and not required_terms and not symbol_terms:
         like_terms = terms[:8]
-        where.append("(" + " or ".join(["content ilike %s"] * len(like_terms)) + ")")
-        params.extend([f"%{term}%" for term in like_terms])
+        where.append("(" + " or ".join(["content_search_compact ilike %s"] * len(like_terms)) + ")")
+        params.extend([f"%{_compact_identifier(term)}%" for term in like_terms])
     order_by = "order by priority_score desc, id"
     order_params: list[object] = []
     if is_comparison_lookup:
@@ -956,10 +1027,7 @@ def run_table_lexical_search(
             ]
             product_fragments = [
                 (
-                    "case when metadata_json->>'product_model' ilike %s "
-                    "or metadata_json->>'product_family' ilike %s "
-                    "or metadata_json->>'product_models' ilike %s "
-                    "or metadata_json->>'devices' ilike %s then 3 else 0 end"
+                    "case when metadata_search_compact ilike %s then 3 else 0 end"
                 )
                 for _ in product_patterns
             ]
@@ -968,14 +1036,14 @@ def run_table_lexical_search(
                 + " + ".join(
                     [
                         *product_fragments,
-                        *(["case when content ilike %s then 1 else 0 end"] * len(order_terms)),
+                        *(["case when content_search_compact ilike %s then 1 else 0 end"] * len(order_terms)),
                     ]
                 )
                 + " desc, priority_score desc, id"
             )
             for pattern in product_patterns:
-                order_params.extend([pattern, pattern, pattern, pattern])
-            order_params.extend([f"%{term}%" for term in order_terms])
+                order_params.append(f"%{_compact_identifier(pattern)}%")
+            order_params.extend([f"%{_compact_identifier(term)}%" for term in order_terms])
     else:
         order_terms = []
         for term in terms:
@@ -989,11 +1057,8 @@ def run_table_lexical_search(
                 "order by "
                 + " + ".join(
                     [
-                        "case when regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s "
-                        "or regexp_replace(lower(coalesce(metadata_json->>'table_row_headers', '')), "
-                        "'[^a-z0-9]+', '', 'g') like %s "
-                        "or regexp_replace(lower(coalesce(metadata_json->>'table_column_headers', '')), "
-                        "'[^a-z0-9]+', '', 'g') like %s then 1 else 0 end"
+                        "case when content_search_compact like %s "
+                        "or metadata_search_compact like %s then 1 else 0 end"
                     ]
                     * len(order_terms)
                 )
@@ -1001,7 +1066,7 @@ def run_table_lexical_search(
             )
             for term in order_terms:
                 pattern = f"%{term}%"
-                order_params.extend([pattern, pattern, pattern])
+                order_params.extend([pattern, pattern])
     rows = fetch_all(
         f"""
         select id, document_version_id, source_document_id, title, section_path_text,
@@ -1022,28 +1087,25 @@ def run_table_lexical_search(
             supplemental_where.append(
                 "("
                 + " or ".join(
-                    ["metadata_json->>'table_row_headers' ilike %s or content ilike %s"] * len(row_key_terms)
+                    ["metadata_search_compact ilike %s or content_search_compact ilike %s"] * len(row_key_terms)
                 )
                 + ")"
             )
             for term in row_key_terms:
-                supplemental_params.extend([f"%{term}%", f"%{term}%"])
+                compact_term = _compact_identifier(term)
+                supplemental_params.extend([f"%{compact_term}%", f"%{compact_term}%"])
             supplemental_where.append(
                 "("
                 + " or ".join(
                     [
-                        "metadata_json->>'product_model' ilike %s "
-                        "or metadata_json->>'product_family' ilike %s "
-                        "or metadata_json->>'product_models' ilike %s "
-                        "or metadata_json->>'devices' ilike %s "
-                        "or title ilike %s"
+                        "metadata_search_compact ilike %s or title ilike %s"
                     ]
                     * len(product_patterns)
                 )
                 + ")"
             )
             for pattern in product_patterns:
-                supplemental_params.extend([pattern, pattern, pattern, pattern, pattern])
+                supplemental_params.extend([f"%{_compact_identifier(pattern)}%", pattern])
             rows.extend(
                 fetch_all(
                     f"""
@@ -1063,27 +1125,23 @@ def run_table_lexical_search(
             supplemental_where = [*where]
             supplemental_params = [*params]
             supplemental_where.append(
-                "(" + " or ".join(["content ilike %s or metadata_json->>'table_row_headers' ilike %s"] * len(setting_phrases)) + ")"
+                "(" + " or ".join(["content_search_compact ilike %s or metadata_search_compact ilike %s"] * len(setting_phrases)) + ")"
             )
             for phrase in setting_phrases:
-                pattern = f"%{'%'.join(phrase.split())}%"
+                pattern = f"%{_compact_identifier(phrase)}%"
                 supplemental_params.extend([pattern, pattern])
             supplemental_where.append(
                 "("
                 + " or ".join(
                     [
-                        "metadata_json->>'product_model' ilike %s "
-                        "or metadata_json->>'product_family' ilike %s "
-                        "or metadata_json->>'product_models' ilike %s "
-                        "or metadata_json->>'devices' ilike %s "
-                        "or title ilike %s"
+                        "metadata_search_compact ilike %s or title ilike %s"
                     ]
                     * len(product_patterns)
                 )
                 + ")"
             )
             for pattern in product_patterns:
-                supplemental_params.extend([pattern, pattern, pattern, pattern, pattern])
+                supplemental_params.extend([f"%{_compact_identifier(pattern)}%", pattern])
             rows.extend(
                 fetch_all(
                     f"""
@@ -1463,7 +1521,7 @@ def run_contextual_lexical_search(
     if exact_error_code:
         compact_error_code = re.sub(r"[^a-z0-9]+", "", exact_error_code.lower())
         where.append(
-            "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s"
+            "content_search_compact ilike %s"
         )
         params.append(f"%errornumber{compact_error_code}%")
     elif technical_acronyms:
@@ -1475,60 +1533,60 @@ def run_contextual_lexical_search(
         params.extend([acronym_pattern, acronym_pattern])
     elif len(named_setting_label) >= 6:
         where.append(
-            "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s"
+            "content_search_compact ilike %s"
         )
         params.append(f"%{named_setting_label}%")
     elif indicator_lookup:
         where.append(
-            "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s"
+            "content_search_compact ilike %s"
         )
         params.append("%indicators%")
     elif mode_detection_count_lookup:
         where.extend(
             [
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "content_search_compact ilike %s",
+                "content_search_compact ilike %s",
             ]
         )
         params.extend(["%operationmode%", "%detections%"])
     elif input_terminal_count_lookup:
         where.extend(
             [
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "content_search_compact ilike %s",
+                "content_search_compact ilike %s",
             ]
         )
         params.extend(["%numberofinputs%", "%in1toin%"])
     elif first_input_function_lookup:
         where.extend(
             [
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "content_search_compact ilike %s",
+                "content_search_compact ilike %s",
             ]
         )
         params.extend(["%rowheadersfunction%", "%in1%"])
     elif analog_output_option_lookup:
         where.extend(
             [
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "content_search_compact ilike %s",
+                "content_search_compact ilike %s",
             ]
         )
         params.extend(["%outputinanalogformat%", "%displayvalue%"])
     elif password_disable_lookup:
         where.extend(
             [
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "content_search_compact ilike %s",
+                "content_search_compact ilike %s",
             ]
         )
         params.extend(["%password%", "%notberequired%"])
     elif external_trigger_timing_lookup:
         where.extend(
             [
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "content_search_compact ilike %s",
+                "content_search_compact ilike %s",
+                "content_search_compact ilike %s",
             ]
         )
         params.extend(["%externaltrigger%", "%risingtiming%", "%fallingtiming%"])
@@ -1538,14 +1596,14 @@ def run_contextual_lexical_search(
         terminal_field = "terminalno" if terminal.startswith(("a", "b")) else "name"
         where.extend(
             [
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "content_search_compact ilike %s",
+                "content_search_compact ilike %s",
             ]
         )
         params.extend([f"%wiringcolor{color}%", f"%{terminal_field}{terminal}%"])
     elif default_error_terminal_lookup:
         where.append(
-            "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s"
+            "content_search_compact ilike %s"
         )
         params.append("%assigningdefaultvalueerror%")
     source_document_ids = filters.get("source_document_id")
@@ -1570,9 +1628,9 @@ def run_contextual_lexical_search(
             "("
             + " or ".join(
                 [
-                    "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
-                    "or regexp_replace(coalesce(metadata_json->>'local_rerank_context', ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
-                    "or regexp_replace(metadata_json::text, '[^a-zA-Z0-9]+', '', 'g') ilike %s"
+                    "content_search_compact ilike %s "
+                    "or local_context_search_compact ilike %s "
+                    "or metadata_search_compact ilike %s"
                 ]
                 * min(3, len(product_terms))
             )
@@ -1585,9 +1643,8 @@ def run_contextual_lexical_search(
         "("
         + " or ".join(
             [
-                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
-                "or regexp_replace(coalesce(metadata_json->>'local_rerank_context', ''), "
-                "'[^a-zA-Z0-9]+', '', 'g') ilike %s"
+                "content_search_compact ilike %s "
+                "or local_context_search_compact ilike %s"
             ]
             * len(like_terms)
         )
@@ -1606,17 +1663,16 @@ def run_contextual_lexical_search(
     for term in order_terms:
         if any(char.isdigit() for char in term):
             order_fragments.append(
-                "(case when regexp_replace(metadata_json::text, '[^a-zA-Z0-9]+', '', 'g') ilike %s then 2 else 0 end "
-                "+ case when regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
-                "or regexp_replace(coalesce(metadata_json->>'local_rerank_context', ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
+                "(case when metadata_search_compact ilike %s then 2 else 0 end "
+                "+ case when content_search_compact ilike %s "
+                "or local_context_search_compact ilike %s "
                 "then 1 else 0 end)"
             )
             order_params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
         else:
             order_fragments.append(
-                "(case when regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
-                "or regexp_replace(coalesce(metadata_json->>'local_rerank_context', ''), "
-                "'[^a-zA-Z0-9]+', '', 'g') ilike %s then 1 else 0 end)"
+                "(case when content_search_compact ilike %s "
+                "or local_context_search_compact ilike %s then 1 else 0 end)"
             )
             order_params.extend([f"%{term}%", f"%{term}%"])
     order_by = ""
@@ -3653,7 +3709,8 @@ def rerank_results(results: list[SearchResult], query: str, *, limit: int = 12) 
     try:
         analysis = analyze_query(query)
         documents = _to_rerank_documents(candidate_results)
-        reranked_documents = _get_reranker().run(query=query, documents=documents)["documents"]
+        with _RERANK_LOCK:
+            reranked_documents = _get_reranker().run(query=query, documents=documents)["documents"]
         result_by_id = {result.chunk_id: result for result in candidate_results}
         reranked_results: list[SearchResult] = []
         for post_rank, document in enumerate(reranked_documents, start=1):
@@ -4198,12 +4255,16 @@ def _retrieve_once(
 ) -> list[SearchResult]:
     store = QdrantStore()
     analysis = analyze_query(query)
-    search_filters, metadata_document_hits = select_documents_from_metadata(
-        store,
+    search_filters, metadata_document_hits = _measure_substage(
+        "metadata_selection",
         query,
-        corpus_ids,
-        filters,
-        limit=_metadata_selection_limit(analysis),
+        lambda: select_documents_from_metadata(
+            store,
+            query,
+            corpus_ids,
+            filters,
+            limit=_metadata_selection_limit(analysis),
+        ),
     )
     exact_document_ids: list[str] = []
     if not force_broad and not _has_explicit_document_scope(filters):
@@ -4218,16 +4279,36 @@ def _retrieve_once(
     )
     broad_vector_enabled = force_broad or _should_run_broad_vector_search(analysis)
     table_lexical_results = (
-        _annotate_stage_metadata(_run_cached_table_lexical_search(query, corpus_ids, supplemental_filters, analysis), "table_lexical")
+        _measure_substage(
+            "table_lexical",
+            query,
+            lambda: _annotate_stage_metadata(
+                _run_cached_table_lexical_search(
+                    query,
+                    corpus_ids,
+                    supplemental_filters,
+                    analysis,
+                ),
+                "table_lexical",
+            ),
+        )
         if _should_run_table_lexical_search(analysis)
         else []
     )
     exact_troubleshooting = _exact_troubleshooting_table_results(table_lexical_results, analysis, limit=12)
     if exact_troubleshooting and not force_broad:
-        siblings = _troubleshooting_table_siblings(exact_troubleshooting, analysis)
-        assembled = assemble_context(
-            _dedupe_results([*exact_troubleshooting, *siblings], analysis),
-            limit=limit,
+        siblings = _measure_substage(
+            "troubleshooting_siblings",
+            query,
+            lambda: _troubleshooting_table_siblings(exact_troubleshooting, analysis),
+        )
+        assembled = _measure_substage(
+            "context_assembly",
+            query,
+            lambda: assemble_context(
+                _dedupe_results([*exact_troubleshooting, *siblings], analysis),
+                limit=limit,
+            ),
         )
         _record_stage_snapshot("dense", query, [])
         _record_stage_snapshot("fusion", query, exact_troubleshooting)
@@ -4235,64 +4316,141 @@ def _retrieve_once(
         _record_stage_snapshot("final_context", query, assembled)
         return _attach_document_selection(assembled, metadata_document_hits, query=query)
     branch_limit = 60 if force_broad else 40
-    dense_results = (
-        _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters, limit=branch_limit), "dense")
-        if broad_vector_enabled
-        else []
-    )
-    sparse_results = (
-        _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, chunk_search_filters, limit=branch_limit), "sparse")
-        if broad_vector_enabled
-        else []
-    )
-    table_results = (
-        _annotate_stage_metadata(run_table_search(store, query, corpus_ids, chunk_search_filters, limit=branch_limit), "table")
-        if _should_run_extra_table_vector_search(analysis)
-        else []
-    )
-    metadata_balanced_table_results = (
-        _annotate_stage_metadata(
-            run_metadata_balanced_table_search(
-                store,
-                query,
-                corpus_ids,
-                filters,
-                metadata_document_hits,
-            ),
-            "metadata_balanced_table",
-        )
-        if _should_run_table_search(analysis) and metadata_document_hits
-        else []
-    )
-    contextual_lexical_results = _annotate_stage_metadata(
-        run_contextual_lexical_search(
-            query,
-            corpus_ids,
-            supplemental_filters,
-            analysis,
-            limit=_contextual_lexical_limit(query),
-        ),
-        "contextual_lexical",
-    )
-    special_results = _annotate_stage_metadata(
-        run_special_search(store, query, corpus_ids, chunk_search_filters, analysis, limit=branch_limit),
-        "special",
-    )
-    fused = _annotate_stage_metadata(
-        fuse_results(
-            store,
+    branch_operations: list[tuple[str, Callable[[], list[SearchResult]]]] = []
+    if broad_vector_enabled:
+        branch_operations.extend(
             [
-                dense_results,
-                sparse_results,
-                table_results,
-                metadata_balanced_table_results,
-                table_lexical_results,
-                contextual_lexical_results,
-                special_results,
-            ],
-            limit=candidate_pool_limit,
+                (
+                    "dense",
+                    lambda: _run_qdrant_branch(
+                        lambda: _annotate_stage_metadata(
+                            run_dense_search(
+                                store,
+                                query,
+                                corpus_ids,
+                                chunk_search_filters,
+                                limit=branch_limit,
+                            ),
+                            "dense",
+                        ),
+                    ),
+                ),
+                (
+                    "sparse",
+                    lambda: _run_qdrant_branch(
+                        lambda: _annotate_stage_metadata(
+                            run_sparse_search(
+                                store,
+                                query,
+                                corpus_ids,
+                                chunk_search_filters,
+                                limit=branch_limit,
+                            ),
+                            "sparse",
+                        ),
+                    ),
+                ),
+            ]
+        )
+    if _should_run_extra_table_vector_search(analysis):
+        branch_operations.append(
+            (
+                "table",
+                lambda: _run_qdrant_branch(
+                    lambda: _annotate_stage_metadata(
+                        run_table_search(
+                            store,
+                            query,
+                            corpus_ids,
+                            chunk_search_filters,
+                            limit=branch_limit,
+                        ),
+                        "table",
+                    ),
+                ),
+            )
+        )
+    if _should_run_table_search(analysis) and metadata_document_hits:
+        branch_operations.append(
+            (
+                "metadata_balanced_table",
+                lambda: _run_qdrant_branch(
+                    lambda: _annotate_stage_metadata(
+                        run_metadata_balanced_table_search(
+                            store,
+                            query,
+                            corpus_ids,
+                            filters,
+                            metadata_document_hits,
+                        ),
+                        "metadata_balanced_table",
+                    ),
+                ),
+            )
+        )
+    branch_operations.extend(
+        [
+            (
+                "contextual_lexical",
+                lambda: _annotate_stage_metadata(
+                    run_contextual_lexical_search(
+                        query,
+                        corpus_ids,
+                        supplemental_filters,
+                        analysis,
+                        limit=_contextual_lexical_limit(query),
+                    ),
+                    "contextual_lexical",
+                ),
+            ),
+            (
+                "special",
+                lambda: _run_qdrant_branch(
+                    lambda: _annotate_stage_metadata(
+                        run_special_search(
+                            store,
+                            query,
+                            corpus_ids,
+                            chunk_search_filters,
+                            analysis,
+                            limit=branch_limit,
+                        ),
+                        "special",
+                    ),
+                ),
+            ),
+        ]
+    )
+    branch_results = _run_parallel_branches(
+        query,
+        branch_operations,
+        max_workers=settings.retrieval_branch_max_workers,
+    )
+    dense_results = branch_results.get("dense", [])
+    sparse_results = branch_results.get("sparse", [])
+    table_results = branch_results.get("table", [])
+    metadata_balanced_table_results = branch_results.get("metadata_balanced_table", [])
+    contextual_lexical_results = branch_results["contextual_lexical"]
+    special_results = branch_results["special"]
+    fused = _measure_substage(
+        "fusion",
+        query,
+        lambda: _annotate_stage_metadata(
+            fuse_results(
+                store,
+                [
+                    dense_results,
+                    sparse_results,
+                    table_results,
+                    metadata_balanced_table_results,
+                    table_lexical_results,
+                    contextual_lexical_results,
+                    special_results,
+                ],
+                limit=candidate_pool_limit,
+            ),
+            "fused",
         ),
-        "fused",
     )
     _record_stage_snapshot("dense", query, dense_results)
     _record_stage_snapshot("fusion", query, fused)
@@ -4302,12 +4460,45 @@ def _retrieve_once(
         analysis,
         limit=candidate_pool_limit,
     )
-    rescored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored")[:candidate_pool_limit], "family_scored")
-    completed = _annotate_stage_metadata(_annotate_completeness(rescored), "completeness_scored")
-    aligned = _annotate_stage_metadata(_apply_query_alignment(completed, analysis, stage="query_aligned"), "query_aligned")
-    family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12), "family_selected")
-    enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
-    reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
+    rescored = _measure_substage(
+        "family_scoring",
+        query,
+        lambda: _annotate_stage_metadata(
+            _apply_family_scoring(fused, analysis, stage="family_scored")[:candidate_pool_limit],
+            "family_scored",
+        ),
+    )
+    completed = _measure_substage(
+        "completeness_scoring",
+        query,
+        lambda: _annotate_stage_metadata(_annotate_completeness(rescored), "completeness_scored"),
+    )
+    aligned = _measure_substage(
+        "query_alignment",
+        query,
+        lambda: _annotate_stage_metadata(
+            _apply_query_alignment(completed, analysis, stage="query_aligned"),
+            "query_aligned",
+        ),
+    )
+    family_selected = _measure_substage(
+        "family_selection",
+        query,
+        lambda: _annotate_stage_metadata(
+            _select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12),
+            "family_selected",
+        ),
+    )
+    enriched = _measure_substage(
+        "rerank_enrichment",
+        query,
+        lambda: enrich_candidates_for_rerank(family_selected, analysis, limit=12),
+    )
+    reranked = _measure_substage(
+        "rerank",
+        query,
+        lambda: _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked"),
+    )
     _record_stage_snapshot("rerank", query, reranked)
     troubleshooting_siblings = _troubleshooting_table_siblings(reranked, analysis)
     table_supplemental = [*metadata_balanced_table_results, *table_lexical_results]
@@ -4361,15 +4552,30 @@ def _retrieve_once(
         analysis=analysis,
         limit=12,
     )
-    deduped = _dedupe_results(reranked, analysis)
-    assembled = assemble_context(deduped, limit=limit)
+    deduped = _measure_substage(
+        "deduplication",
+        query,
+        lambda: _dedupe_results(reranked, analysis),
+    )
+    assembled = _measure_substage(
+        "context_assembly",
+        query,
+        lambda: assemble_context(deduped, limit=limit),
+    )
     _record_stage_snapshot("final_context", query, assembled)
     return _attach_document_selection(assembled, metadata_document_hits, query=query)
 
 
 def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 10) -> list[SearchResult]:
     """Retrieve once, then perform one broad corrective pass when requested facets are absent."""
-    primary_results = rank_by_applicability(query, _retrieve_once(query, corpus_ids, filters, limit=limit))
+    primary_results = _measure_substage(
+        "applicability_ranking",
+        query,
+        lambda: rank_by_applicability(
+            query,
+            _retrieve_once(query, corpus_ids, filters, limit=limit),
+        ),
+    )
     primary_assessment = assess_evidence_sufficiency(query, primary_results)
     if primary_assessment.sufficient:
         return _attach_corrective_trace(
@@ -4392,11 +4598,30 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
         for result in source_results:
             strategy_sources.setdefault(result.chunk_id, []).append(source)
     store = QdrantStore()
-    fused = fuse_results(store, [primary_results, corrective_results], limit=30)
+    fused = _measure_substage(
+        "corrective_fusion",
+        query,
+        lambda: fuse_results(store, [primary_results, corrective_results], limit=30),
+    )
     analysis = analyze_query(query)
-    enriched = enrich_candidates_for_rerank(fused, analysis, limit=30)
-    reranked = rerank_results(enriched, query, limit=max(limit, 12))
-    final_results = rank_by_applicability(query, assemble_context(_dedupe_results(reranked, analysis), limit=limit))
+    enriched = _measure_substage(
+        "corrective_rerank_enrichment",
+        query,
+        lambda: enrich_candidates_for_rerank(fused, analysis, limit=30),
+    )
+    reranked = _measure_substage(
+        "corrective_rerank",
+        query,
+        lambda: rerank_results(enriched, query, limit=max(limit, 12)),
+    )
+    final_results = _measure_substage(
+        "corrective_context_assembly",
+        query,
+        lambda: rank_by_applicability(
+            query,
+            assemble_context(_dedupe_results(reranked, analysis), limit=limit),
+        ),
+    )
     _record_stage_snapshot("corrective_fusion", query, fused)
     _record_stage_snapshot("corrective_rerank", query, reranked)
     _record_stage_snapshot("corrective_final_context", query, final_results)

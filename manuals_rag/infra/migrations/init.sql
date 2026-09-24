@@ -94,6 +94,20 @@ create table if not exists retrieval_chunks (
     content_for_dense text not null,
     content_for_rerank text not null,
     metadata_json jsonb not null default '{}'::jsonb,
+    content_search_compact text generated always as (
+        regexp_replace(lower(coalesce(content, '')), '[^a-z0-9]+', '', 'g')
+    ) stored,
+    local_context_search_compact text generated always as (
+        regexp_replace(
+            lower(coalesce(metadata_json->>'local_rerank_context', '')),
+            '[^a-z0-9]+',
+            '',
+            'g'
+        )
+    ) stored,
+    metadata_search_compact text generated always as (
+        regexp_replace(lower(metadata_json::text), '[^a-z0-9]+', '', 'g')
+    ) stored,
     is_active boolean not null default true,
     priority_score double precision not null default 0
 );
@@ -101,6 +115,30 @@ create table if not exists retrieval_chunks (
 create index if not exists retrieval_chunks_active_table_content_trgm_idx
     on retrieval_chunks using gin ((regexp_replace(lower(content), '[^a-z0-9]+', '', 'g')) gin_trgm_ops)
     where is_active = true and chunk_type = 'table_record';
+
+create index if not exists retrieval_chunks_active_content_search_trgm_idx
+    on retrieval_chunks using gin (content_search_compact gin_trgm_ops)
+    where is_active = true;
+
+create index if not exists retrieval_chunks_active_local_context_search_trgm_idx
+    on retrieval_chunks using gin (local_context_search_compact gin_trgm_ops)
+    where is_active = true;
+
+create index if not exists retrieval_chunks_active_metadata_search_trgm_idx
+    on retrieval_chunks using gin (metadata_search_compact gin_trgm_ops)
+    where is_active = true;
+
+create index if not exists retrieval_chunks_active_corpus_type_idx
+    on retrieval_chunks ((metadata_json->>'corpus_id'), chunk_type)
+    where is_active = true;
+
+create index if not exists retrieval_chunks_active_source_document_idx
+    on retrieval_chunks (source_document_id)
+    where is_active = true;
+
+create index if not exists retrieval_chunks_active_document_version_idx
+    on retrieval_chunks (document_version_id)
+    where is_active = true;
 
 create table if not exists document_metadata_extractions (
     source_document_id uuid primary key references source_documents(id) on delete cascade,

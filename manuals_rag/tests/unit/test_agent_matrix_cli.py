@@ -1,5 +1,9 @@
 import importlib.util
+import json
+import threading
+import time
 from pathlib import Path
+from types import SimpleNamespace
 import pytest
 
 
@@ -62,3 +66,64 @@ def test_matrix_cli_refuses_to_overwrite_an_existing_artifact_set(tmp_path, monk
 
     assert output.read_text() == '{"immutable":true}\n'
     assert exit_file.read_text() == '0\n'
+
+
+def test_matrix_case_concurrency_keeps_single_writer_and_dataset_order(tmp_path, monkeypatch):
+    module = _runner()
+    dataset = tmp_path / "input.jsonl"
+    dataset.write_text("".join(json.dumps({"case_id": case_id}) + "\n" for case_id in ("a", "b", "c")))
+    output = tmp_path / "report.json"
+    lock = threading.Lock()
+    active = 0
+    maximum_active = 0
+    writer_threads: list[int] = []
+    real_atomic_write = module._atomic_write_json
+
+    def fake_evaluate(_args, raw_case, _question_number):
+        nonlocal active, maximum_active
+        with lock:
+            active += 1
+            maximum_active = max(maximum_active, active)
+        time.sleep(0.03 if raw_case["case_id"] == "a" else 0.01)
+        with lock:
+            active -= 1
+        return {
+            "case_id": raw_case["case_id"],
+            "agent_case_category": "single_hop",
+            "baseline": {},
+            "langgraph": {"agent_evaluation": {}},
+            "llamaindex": {"agent_evaluation": {}},
+        }
+
+    def recording_write(path, payload):
+        writer_threads.append(threading.get_ident())
+        real_atomic_write(path, payload)
+
+    monkeypatch.setattr(module, "_evaluate_case", fake_evaluate)
+    monkeypatch.setattr(module, "_atomic_write_json", recording_write)
+    monkeypatch.setattr(module, "_summary", lambda *_args: {})
+    monkeypatch.setattr(module, "_category_summary", lambda *_args: {})
+    provenance = {
+        "run_id": "concurrency-test",
+        "dataset": {"ordered_case_keys": ["a", "b", "c"]},
+    }
+    args = SimpleNamespace(
+        dataset=dataset,
+        limit=3,
+        offset=0,
+        provenance=provenance,
+        case_concurrency=2,
+        output=output,
+        progress_jsonl=False,
+        max_hops=4,
+        no_llm=True,
+    )
+
+    report = module.run(args)
+    partial = json.loads(output.with_suffix(".partial.json").read_text())
+
+    assert maximum_active == 2
+    assert [item["case_id"] for item in report["items"]] == ["a", "b", "c"]
+    assert [item["case_id"] for item in partial["items"]] == ["a", "b", "c"]
+    assert partial["completed_case_keys"] == ["a", "b", "c"]
+    assert set(writer_threads) == {threading.get_ident()}

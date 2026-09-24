@@ -1,3 +1,5 @@
+from threading import Barrier, BoundedSemaphore, Lock
+from time import sleep
 from types import SimpleNamespace
 
 import pytest
@@ -34,6 +36,81 @@ def test_stage_capture_persists_ranked_bounded_evidence():
     assert snapshots[0]["results"][0]["chunk_id"] == "chunk-1"
     assert len(snapshots[0]["results"][0]["evidence_text"]) == 1200
     assert snapshots[0]["results"][0]["evidence_truncated"] is True
+
+
+def test_substage_timings_are_persisted_with_result_counts():
+    with retriever.capture_retrieval_stages() as snapshots:
+        result = retriever._measure_substage("metadata_selection", "setup query", lambda: [1, 2])
+
+    assert result == [1, 2]
+    assert snapshots[0]["stage"] == "timing"
+    assert snapshots[0]["snapshot_type"] == "timing"
+    assert snapshots[0]["substage"] == "metadata_selection"
+    assert snapshots[0]["query"] == "setup query"
+    assert snapshots[0]["duration_ms"] >= 0
+    assert snapshots[0]["result_count"] == 2
+
+
+def test_parallel_branches_execute_concurrently_and_publish_in_declared_order():
+    rendezvous = Barrier(2)
+
+    def branch(chunk_id: str):
+        def run():
+            rendezvous.wait(timeout=2)
+            return [
+                SearchResult(
+                    chunk_id=chunk_id,
+                    score=1.0,
+                    title="Manual",
+                    document_version_id="version-1",
+                    source_document_id="document-1",
+                    pages=[1],
+                    section_path=["Setup"],
+                    content=chunk_id,
+                    metadata={},
+                )
+            ]
+
+        return run
+
+    with retriever.capture_retrieval_stages() as snapshots:
+        results = retriever._run_parallel_branches(
+            "setup query",
+            [("dense", branch("dense-1")), ("sparse", branch("sparse-1"))],
+            max_workers=2,
+        )
+
+    assert list(results) == ["dense", "sparse"]
+    assert [results[name][0].chunk_id for name in results] == ["dense-1", "sparse-1"]
+    assert [snapshot["substage"] for snapshot in snapshots] == ["dense", "sparse"]
+
+
+def test_qdrant_branch_concurrency_is_globally_bounded(monkeypatch):
+    active = 0
+    maximum_active = 0
+    lock = Lock()
+    monkeypatch.setattr(retriever, "_QDRANT_BRANCH_SEMAPHORE", BoundedSemaphore(1))
+
+    def branch():
+        def run():
+            nonlocal active, maximum_active
+            with lock:
+                active += 1
+                maximum_active = max(maximum_active, active)
+            sleep(0.02)
+            with lock:
+                active -= 1
+            return []
+
+        return lambda: retriever._run_qdrant_branch(run)
+
+    retriever._run_parallel_branches(
+        "setup query",
+        [("dense", branch()), ("sparse", branch())],
+        max_workers=2,
+    )
+
+    assert maximum_active == 1
 
 
 def test_measurement_promotion_keeps_locally_bound_mode_value_after_rerank():
@@ -1231,9 +1308,10 @@ def test_contextual_lexical_search_promotes_product_family_context(monkeypatch):
     )
 
     def fake_fetch_all(query, params):
-        assert "local_rerank_context" in query
+        assert "local_context_search_compact" in query
         assert "order by" in query.lower()
-        assert "metadata_json::text" in query
+        assert "metadata_search_compact" in query
+        assert "regexp_replace" not in query
         assert any(param == "%x8000%" for param in params)
         return [
             {
@@ -4083,7 +4161,8 @@ def test_table_lexical_search_scores_structured_troubleshooting_row_groups(monke
     assert results[0].metadata["table_row_group"] is True
     assert results[0].section_path == ["A-1"]
     assert "source_document_id = any" in str(captured["query"])
-    assert "metadata_json->>'table_row_headers' ilike" in str(captured["query"])
+    assert "metadata_search_compact ilike" in str(captured["query"])
+    assert "regexp_replace" not in str(captured["query"])
     assert "priority_score desc, id" in str(captured["query"])
     assert captured["params"][0] == ["corpus-1"]
     assert captured["params"][1] == ["doc-1"]
@@ -4614,9 +4693,10 @@ def test_comparison_table_lexical_adds_bounded_row_key_supplement(monkeypatch):
 
     assert [result.chunk_id for result in results] == ["rto2l"]
     assert len(calls) == 2
-    assert "metadata_json->>'table_row_headers' ilike" in calls[1][0]
+    assert "metadata_search_compact ilike" in calls[1][0]
+    assert "regexp_replace" not in calls[1][0]
     assert "%rto2l%" in calls[1][1]
-    assert "%LJ-S8000%" in calls[1][1]
+    assert "%ljs8000%" in calls[1][1]
 
 
 def test_comparison_table_promotion_adds_named_product_table_cell():

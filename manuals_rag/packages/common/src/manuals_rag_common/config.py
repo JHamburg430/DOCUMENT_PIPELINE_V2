@@ -23,6 +23,14 @@ class Settings:
     redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
     qdrant_url: str = os.getenv("QDRANT_URL", "http://qdrant:6333")
     indexed_bm25_enabled: bool = _as_bool(os.getenv("INDEXED_BM25_ENABLED"), False)
+    retrieval_branch_max_workers: int = max(
+        1,
+        int(os.getenv("RETRIEVAL_BRANCH_MAX_WORKERS", "4")),
+    )
+    retrieval_qdrant_max_concurrency: int = max(
+        1,
+        int(os.getenv("RETRIEVAL_QDRANT_MAX_CONCURRENCY", "2")),
+    )
     visual_retrieval_enabled: bool = _as_bool(os.getenv("VISUAL_RETRIEVAL_ENABLED"), False)
     visual_retrieval_model: str = os.getenv("VISUAL_RETRIEVAL_MODEL", "vidore/colSmol-256M")
     visual_retrieval_prefetch_limit: int = int(os.getenv("VISUAL_RETRIEVAL_PREFETCH_LIMIT", "40"))

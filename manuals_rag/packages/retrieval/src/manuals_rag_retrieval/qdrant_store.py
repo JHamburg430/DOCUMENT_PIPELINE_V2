@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from threading import Lock
 from typing import Any
 
 import httpx
@@ -89,6 +90,7 @@ class QdrantStore:
         options = {"timeout": timeout} if timeout is not None else {}
         self.client = QdrantClient(url=settings.qdrant_url, **options)
         self._dense_query_cache: dict[tuple[str, str], tuple[float, ...]] = {}
+        self._dense_query_lock = Lock()
 
     def _dense_query_vector(self, query: str, *, instruction: str | None = None) -> list[float]:
         """Embed each query/instruction pair once per retrieval request.
@@ -101,13 +103,16 @@ class QdrantStore:
         key = (query, instruction or "")
         cached = self._dense_query_cache.get(key)
         if cached is None:
-            vector = (
-                embed_query_dense(query, instruction=instruction)
-                if instruction
-                else embed_dense([query])[0]
-            )
-            cached = tuple(float(value) for value in vector)
-            self._dense_query_cache[key] = cached
+            with self._dense_query_lock:
+                cached = self._dense_query_cache.get(key)
+                if cached is None:
+                    vector = (
+                        embed_query_dense(query, instruction=instruction)
+                        if instruction
+                        else embed_dense([query])[0]
+                    )
+                    cached = tuple(float(value) for value in vector)
+                    self._dense_query_cache[key] = cached
         return list(cached)
 
     def ensure_collection(self, corpus_id: str, vector_size: int) -> None:

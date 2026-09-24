@@ -12,10 +12,12 @@ import subprocess
 import sys
 import uuid
 from collections import Counter, defaultdict
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager, nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import mean
+from threading import Lock
 from time import perf_counter
 from typing import Any
 
@@ -36,6 +38,7 @@ from manuals_rag_schemas.documents import SearchResult
 
 
 ARTIFACT_SCHEMA_VERSION = "agentic-retrieval-matrix-v2"
+_PROGRESS_LOCK = Lock()
 
 
 def _utc_now() -> str:
@@ -132,6 +135,9 @@ def _build_provenance(args: argparse.Namespace, raw_cases: list[dict[str, Any]])
             "rerank_model": settings.haystack_rerank_model,
             "rerank_device": settings.haystack_rerank_device,
             "result_limit": settings.agentic_retrieval_result_limit,
+            "retrieval_branch_max_workers": settings.retrieval_branch_max_workers,
+            "retrieval_qdrant_max_concurrency": settings.retrieval_qdrant_max_concurrency,
+            "case_concurrency": int(getattr(args, "case_concurrency", 1)),
         },
     }
 
@@ -235,145 +241,187 @@ def _category_summary(items: list[dict[str, Any]], backend: str) -> dict[str, An
     return {category: _summary(category_items, backend) for category, category_items in grouped.items()}
 
 
+def _emit_progress(enabled: bool, payload: dict[str, Any]) -> None:
+    if not enabled:
+        return
+    with _PROGRESS_LOCK:
+        print(json.dumps(payload), flush=True)
+
+
+def _evaluate_case(
+    args: argparse.Namespace,
+    raw_case: dict[str, Any],
+    question_number: int,
+) -> dict[str, Any]:
+    case = RetrievalEvalCase(**raw_case)
+    _emit_progress(
+        getattr(args, "progress_jsonl", False),
+        {"event": "agent_case_started", "case_id": case.case_id, "question_number": question_number},
+    )
+    evidence_graph = build_expected_evidence_graph(raw_case)
+    filters = build_filters(case.query, {})
+    baseline_started = perf_counter()
+    with capture_retrieval_stages() as baseline_stage_snapshots:
+        baseline_results = retrieve(case.query, args.corpus_id, filters)
+    baseline_elapsed_ms = round((perf_counter() - baseline_started) * 1000, 2)
+    baseline_evaluation = score_search_results(
+        case,
+        [result.model_dump() for result in baseline_results],
+        top_k=10,
+    )
+    baseline_sufficiency = assess_evidence_sufficiency(case.query, baseline_results)
+    comparison = compare_agentic_backends(
+        case.query,
+        args.corpus_id,
+        filters,
+        max_hops=args.max_hops,
+        use_llm=not args.no_llm,
+    )
+    item: dict[str, Any] = {
+        "case_id": case.case_id,
+        "query": case.query,
+        "retrieval_task": case.retrieval_task,
+        "agent_case_category": evidence_graph.category,
+        "expected_evidence_graph": evidence_graph.model_dump(),
+        "expected_document_ids": sorted(
+            {
+                case.source_document_id,
+                *[
+                    str(evidence.get("source_document_id") or "")
+                    for evidence in case.expected_evidence or []
+                    if evidence.get("source_document_id")
+                ],
+            }
+        ),
+        "equivalent_result_chunks": comparison["equivalent_result_chunks"],
+        "baseline": {
+            "elapsed_ms": baseline_elapsed_ms,
+            "sufficient": baseline_sufficiency.sufficient,
+            "stop_reason": "single_pass",
+            "result_chunk_ids": [result.chunk_id for result in baseline_results],
+            "result_document_ids": sorted({result.source_document_id for result in baseline_results}),
+            "results": [result.model_dump() for result in baseline_results],
+            "stage_snapshots": baseline_stage_snapshots,
+            "trace": {"completed_hops": ["baseline"]},
+            "evaluation": baseline_evaluation,
+        },
+    }
+    for backend in ("langgraph", "llamaindex"):
+        _emit_progress(
+            getattr(args, "progress_jsonl", False),
+            {"event": "answer_started", "case_id": case.case_id, "backend": backend},
+        )
+        output = comparison[backend]
+        evaluation = score_search_results(case, output["results"], top_k=10)
+        with capture_ollama_usage() as answer_usage_events:
+            answer = (
+                generate_answer(
+                    case.query,
+                    [SearchResult.model_validate(result) for result in output["results"]],
+                )
+                if output["sufficient"]
+                else insufficient_agent_answer(case.query, output["trace"])
+            ).model_dump()
+        answer_usage = summarize_ollama_usage(answer_usage_events)
+        retrieval_cost = dict(output["trace"].get("cost") or {})
+        retrieval_by_purpose = dict(retrieval_cost.get("by_purpose") or {})
+        answer_by_purpose = dict(answer_usage.get("by_purpose") or {})
+        output["trace"]["cost"] = {
+            **retrieval_cost,
+            "retrieval_tokens": int(retrieval_cost.get("total_tokens") or 0),
+            "answer_tokens": int(answer_usage.get("total_tokens") or 0),
+            "answer_generation": answer_usage,
+            "model_calls": int(retrieval_cost.get("model_calls") or 0)
+            + int(answer_usage.get("model_calls") or 0),
+            "prompt_tokens": int(retrieval_cost.get("prompt_tokens") or 0)
+            + int(answer_usage.get("prompt_tokens") or 0),
+            "completion_tokens": int(retrieval_cost.get("completion_tokens") or 0)
+            + int(answer_usage.get("completion_tokens") or 0),
+            "total_tokens": int(retrieval_cost.get("total_tokens") or 0)
+            + int(answer_usage.get("total_tokens") or 0),
+            "total_duration_ms": round(
+                float(retrieval_cost.get("total_duration_ms") or 0.0)
+                + float(answer_usage.get("total_duration_ms") or 0.0),
+                2,
+            ),
+            "by_purpose": {**retrieval_by_purpose, **answer_by_purpose},
+        }
+        agent_evaluation = score_agent_run(
+            raw_case,
+            trace=output["trace"],
+            results=output["results"],
+            answer=answer,
+            elapsed_ms=output["elapsed_ms"],
+        )
+        item[backend] = dict(output) | {
+            "evaluation": evaluation,
+            "answer": answer,
+            "agent_evaluation": agent_evaluation,
+        }
+    return item
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
     raw_cases = _read_cases(args.dataset, limit=args.limit, offset=args.offset)
     provenance = getattr(args, "provenance", None) or _build_provenance(args, raw_cases)
     items: list[dict[str, Any]] = []
-    for raw_case in raw_cases:
-        case = RetrievalEvalCase(**raw_case)
-        if getattr(args, "progress_jsonl", False):
-            print(json.dumps({"event": "agent_case_started", "case_id": case.case_id,
-                              "question_number": len(items) + 1}), flush=True)
-        evidence_graph = build_expected_evidence_graph(raw_case)
-        filters = build_filters(case.query, {})
-        baseline_started = perf_counter()
-        with capture_retrieval_stages() as baseline_stage_snapshots:
-            baseline_results = retrieve(case.query, args.corpus_id, filters)
-        baseline_elapsed_ms = round((perf_counter() - baseline_started) * 1000, 2)
-        baseline_evaluation = score_search_results(
-            case,
-            [result.model_dump() for result in baseline_results],
-            top_k=10,
-        )
-        baseline_sufficiency = assess_evidence_sufficiency(case.query, baseline_results)
-        comparison = compare_agentic_backends(
-            case.query,
-            args.corpus_id,
-            filters,
-            max_hops=args.max_hops,
-            use_llm=not args.no_llm,
-        )
-        item: dict[str, Any] = {
-            "case_id": case.case_id,
-            "query": case.query,
-            "retrieval_task": case.retrieval_task,
-            "agent_case_category": evidence_graph.category,
-            "expected_evidence_graph": evidence_graph.model_dump(),
-            "expected_document_ids": sorted(
-                {
-                    case.source_document_id,
-                    *[
-                        str(evidence.get("source_document_id") or "")
-                        for evidence in case.expected_evidence or []
-                        if evidence.get("source_document_id")
-                    ],
-                }
-            ),
-            "equivalent_result_chunks": comparison["equivalent_result_chunks"],
-            "baseline": {
-                "elapsed_ms": baseline_elapsed_ms,
-                "sufficient": baseline_sufficiency.sufficient,
-                "stop_reason": "single_pass",
-                "result_chunk_ids": [result.chunk_id for result in baseline_results],
-                "result_document_ids": sorted({result.source_document_id for result in baseline_results}),
-                "results": [result.model_dump() for result in baseline_results],
-                "stage_snapshots": baseline_stage_snapshots,
-                "trace": {"completed_hops": ["baseline"]},
-                "evaluation": baseline_evaluation,
-            },
-        }
-        for backend in ("langgraph", "llamaindex"):
-            if getattr(args, "progress_jsonl", False):
-                print(json.dumps({"event": "answer_started", "case_id": case.case_id,
-                                  "backend": backend}), flush=True)
-            output = comparison[backend]
-            evaluation = score_search_results(case, output["results"], top_k=10)
-            with capture_ollama_usage() as answer_usage_events:
-                answer = (
-                    generate_answer(
-                        case.query,
-                        [SearchResult.model_validate(result) for result in output["results"]],
-                    )
-                    if output["sufficient"]
-                    else insufficient_agent_answer(case.query, output["trace"])
-                ).model_dump()
-            answer_usage = summarize_ollama_usage(answer_usage_events)
-            retrieval_cost = dict(output["trace"].get("cost") or {})
-            retrieval_by_purpose = dict(retrieval_cost.get("by_purpose") or {})
-            answer_by_purpose = dict(answer_usage.get("by_purpose") or {})
-            output["trace"]["cost"] = {
-                **retrieval_cost,
-                "retrieval_tokens": int(retrieval_cost.get("total_tokens") or 0),
-                "answer_tokens": int(answer_usage.get("total_tokens") or 0),
-                "answer_generation": answer_usage,
-                "model_calls": int(retrieval_cost.get("model_calls") or 0)
-                + int(answer_usage.get("model_calls") or 0),
-                "prompt_tokens": int(retrieval_cost.get("prompt_tokens") or 0)
-                + int(answer_usage.get("prompt_tokens") or 0),
-                "completion_tokens": int(retrieval_cost.get("completion_tokens") or 0)
-                + int(answer_usage.get("completion_tokens") or 0),
-                "total_tokens": int(retrieval_cost.get("total_tokens") or 0)
-                + int(answer_usage.get("total_tokens") or 0),
-                "total_duration_ms": round(
-                    float(retrieval_cost.get("total_duration_ms") or 0.0)
-                    + float(answer_usage.get("total_duration_ms") or 0.0),
-                    2,
-                ),
-                "by_purpose": {**retrieval_by_purpose, **answer_by_purpose},
-            }
-            agent_evaluation = score_agent_run(
-                raw_case,
-                trace=output["trace"],
-                results=output["results"],
-                answer=answer,
-                elapsed_ms=output["elapsed_ms"],
+    case_concurrency = max(1, int(getattr(args, "case_concurrency", 1)))
+    max_workers = min(case_concurrency, len(raw_cases) or 1)
+    executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="matrix-case")
+    active: dict[int, Future[dict[str, Any]]] = {}
+    next_to_submit = 0
+    try:
+        while next_to_submit < min(max_workers, len(raw_cases)):
+            active[next_to_submit] = executor.submit(
+                _evaluate_case,
+                args,
+                raw_cases[next_to_submit],
+                next_to_submit + 1,
             )
-            item[backend] = {
-                key: value for key, value in output.items()
-            } | {
-                "evaluation": evaluation,
-                "answer": answer,
-                "agent_evaluation": agent_evaluation,
-            }
-        items.append(item)
-        if getattr(args, "output", None):
-            partial = args.output.with_suffix(".partial.json")
-            _atomic_write_json(
-                partial,
+            next_to_submit += 1
+        for case_index, _raw_case in enumerate(raw_cases):
+            future = active.pop(case_index)
+            item = future.result()
+            items.append(item)
+            if getattr(args, "output", None):
+                _atomic_write_json(
+                    args.output.with_suffix(".partial.json"),
+                    {
+                        "artifact_schema_version": ARTIFACT_SCHEMA_VERSION,
+                        "run_id": provenance["run_id"],
+                        "complete": False,
+                        "completed_cases": len(items),
+                        "expected_cases": len(raw_cases),
+                        "completed_case_keys": provenance["dataset"]["ordered_case_keys"][: len(items)],
+                        "provenance": provenance,
+                        "items": items,
+                    },
+                )
+            _emit_progress(
+                getattr(args, "progress_jsonl", False),
                 {
-                    "artifact_schema_version": ARTIFACT_SCHEMA_VERSION,
-                    "run_id": provenance["run_id"],
-                    "complete": False,
-                    "completed_cases": len(items),
-                    "expected_cases": len(raw_cases),
-                    "completed_case_keys": provenance["dataset"]["ordered_case_keys"][: len(items)],
-                    "provenance": provenance,
-                    "items": items,
+                    "event": "agent_case_completed",
+                    "case_id": item["case_id"],
+                    "question_number": case_index + 1,
+                    "langgraph": item["langgraph"]["agent_evaluation"],
+                    "llamaindex": item["llamaindex"]["agent_evaluation"],
                 },
             )
-        if getattr(args, "progress_jsonl", False):
-            print(
-                json.dumps(
-                    {
-                        "event": "agent_case_completed",
-                        "case_id": case.case_id,
-                        "question_number": len(items),
-                        "langgraph": item["langgraph"]["agent_evaluation"],
-                        "llamaindex": item["llamaindex"]["agent_evaluation"],
-                    }
-                ),
-                flush=True,
-            )
+            if next_to_submit < len(raw_cases):
+                active[next_to_submit] = executor.submit(
+                    _evaluate_case,
+                    args,
+                    raw_cases[next_to_submit],
+                    next_to_submit + 1,
+                )
+                next_to_submit += 1
+    except BaseException:
+        for future in active.values():
+            future.cancel()
+        executor.shutdown(wait=True, cancel_futures=True)
+        raise
+    else:
+        executor.shutdown(wait=True)
 
     dataset_bytes = args.dataset.read_bytes()
     return {
@@ -406,6 +454,12 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--max-hops", type=int, default=4)
+    parser.add_argument(
+        "--case-concurrency",
+        type=int,
+        default=int(os.getenv("AGENT_MATRIX_CASE_CONCURRENCY", "2")),
+        help="Maximum cases evaluated concurrently; artifacts are still written in dataset order.",
+    )
     parser.add_argument("--no-llm", action="store_true", help="Use the deterministic fallback planner/refiner.")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--progress-jsonl", action="store_true")

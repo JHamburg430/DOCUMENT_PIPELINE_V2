@@ -11,6 +11,8 @@ services:
       POSTGRES_DSN: postgresql://manuals:manuals@postgres:5432/manuals_rag
       REDIS_URL: redis://redis:6379/0
       QDRANT_URL: http://qdrant:6333
+      RETRIEVAL_BRANCH_MAX_WORKERS: ${RETRIEVAL_BRANCH_MAX_WORKERS:-4}
+      RETRIEVAL_QDRANT_MAX_CONCURRENCY: ${RETRIEVAL_QDRANT_MAX_CONCURRENCY:-2}
       MINIO_ENDPOINT: minio:9000
       MINIO_PUBLIC_ENDPOINT: 127.0.0.1:9000
       MINIO_ACCESS_KEY: minioadmin
