@@ -1,0 +1,8 @@
+{
+  "generated_at": "2026-09-24T16:52:19.939138+00:00",
+  "gate": "manuals_rag_production_acceptance_v1",
+  "accepted": false,
+  "blockers": [
+    "unverifiable input: FileNotFoundError: [Errno 2] No such file or directory: 'test_reports/retrieval_improvement/readiness_integration_20260924/does-not-exist.json'"
+  ]
+}

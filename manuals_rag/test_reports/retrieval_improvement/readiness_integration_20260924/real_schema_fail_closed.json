@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-09-24T16:52:19.883099+00:00",
+  "gate": "manuals_rag_production_acceptance_v1",
+  "accepted": false,
+  "blockers": [
+    "source revision does not match the expected release revision",
+    "launch provenance configuration is missing required runtime fields",
+    "langgraph: 1 cases fail one or more required cells",
+    "langgraph: category gates fail for single_hop_control",
+    "langgraph: 1 answerable cases fail claim/citation correctness",
+    "llamaindex: 1 cases fail one or more required cells",
+    "llamaindex: category gates fail for single_hop_control",
+    "llamaindex: 1 answerable cases fail claim/citation correctness"
+  ],
+  "dataset": {
+    "sha256": "43960bae5bc355cef6bf2897760292fce31ab5eebdd15ecd7c0e050ebc15fa25",
+    "case_count": 1,
+    "minimum_case_count": 1,
+    "non_held_out_case_count": 0,
+    "unadjudicated_case_count": 0,
+    "tuning_document_overlap": []
+  },
+  "source": {
+    "revision": "f79530310e6dd8ed94cbb15af2fd0d9083edeb26",
+    "branch": "release/manuals-rag-agentic-disabled-20260919",
+    "dirty": false,
+    "dirty_status": [],
+    "dirty_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_paths": []
+  },
+  "backends": {
+    "langgraph": {
+      "case_count": 1,
+      "passed_case_count": 0,
+      "failed_case_ids": [
+        "79f175fd-38b1-5162-ad44-a3055a78cd2c::1"
+      ],
+      "category_counts": {
+        "single_hop_control": 1
+      },
+      "category_passes": {},
+      "failed_categories": [
+        "single_hop_control"
+      ],
+      "missing_categories": [],
+      "citation_failure_case_ids": [
+        "79f175fd-38b1-5162-ad44-a3055a78cd2c::1"
+      ],
+      "abstention_failure_case_ids": [],
+      "p95_latency_ms": 54409.81,
+      "max_p95_latency_ms": 120000.0
+    },
+    "llamaindex": {
+      "case_count": 1,
+      "passed_case_count": 0,
+      "failed_case_ids": [
+        "79f175fd-38b1-5162-ad44-a3055a78cd2c::1"
+      ],
+      "category_counts": {
+        "single_hop_control": 1
+      },
+      "category_passes": {},
+      "failed_categories": [
+        "single_hop_control"
+      ],
+      "missing_categories": [],
+      "citation_failure_case_ids": [
+        "79f175fd-38b1-5162-ad44-a3055a78cd2c::1"
+      ],
+      "abstention_failure_case_ids": [],
+      "p95_latency_ms": 95325.97,
+      "max_p95_latency_ms": 120000.0
+    }
+  }
+}
