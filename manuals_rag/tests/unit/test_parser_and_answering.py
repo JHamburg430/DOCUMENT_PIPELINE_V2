@@ -9123,3 +9123,28 @@ def test_summary_recovery_cannot_override_missing_dependent_fact():
                           section_path=[], content="AB-100 uses cable OP-12345.", metadata={})
     summaries = [{"chunk_id": "port", "summary": result.content}]
     assert generator_module._fallback_answer_from_summaries(query, summaries, [result]) is None
+
+
+def test_structured_table_answer_binds_model_name_pivot_row():
+    result = SearchResult(
+        chunk_id="y-reference-distance",
+        score=0.9,
+        title="LJ-S8000 Easy Configuration Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[3],
+        section_path=["Specifications"],
+        content=(
+            "Model name: Y Reference distance; LJ-S015: 25mm; LJ-S025: 51.2mm; "
+            "LJ-S040: 80mm; LJ-S080: 160mm"
+        ),
+        metadata={"chunk_type": "table_record", "product_models": ["LJ-S8000"]},
+    )
+
+    answer, support = _concise_structured_table_answer(
+        "What is the Y-axis reference distance for the LJ-S080 model?",
+        [result],
+    )
+
+    assert answer == "Y Reference distance — LJ-S080: 160mm"
+    assert [item.chunk_id for item in support] == [result.chunk_id]

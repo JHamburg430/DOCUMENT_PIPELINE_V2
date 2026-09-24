@@ -1807,6 +1807,121 @@ def test_atomic_measurement_gate_rejects_neighboring_torque_value():
     ) == []
 
 
+def test_verifier_confirms_model_matrix_axis_measurement_without_llm(monkeypatch):
+    objective = "What is the Y-axis reference distance for the LJ-S080 model?"
+    hop = RetrievalHop(hop_id="measurement", objective=objective, query=objective)
+    result = _result(
+        "y-reference-distance",
+        "ljs-doc",
+        "Model name: Y Reference distance; LJ-S015: 25mm; LJ-S025: 51.2mm; "
+        "LJ-S040: 80mm; LJ-S080: 160mm",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_model": "LJ: S8000 Series Easy Configuration Manual",
+                "product_models": ["LJ-S8000"],
+            }
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
+def test_verifier_does_not_bind_model_matrix_to_wrong_axis(monkeypatch):
+    objective = "What is the Y-axis reference distance for the LJ-S080 model?"
+    hop = RetrievalHop(hop_id="measurement", objective=objective, query=objective)
+    result = _result(
+        "x-reference-distance",
+        "ljs-doc",
+        "Model name: X Reference distance; LJ-S015: 15mm; LJ-S025: 23mm; "
+        "LJ-S040: 35mm; LJ-S080: 72mm",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_model": "LJ: S8000 Series Easy Configuration Manual",
+                "product_models": ["LJ-S8000"],
+            }
+        }
+    )
+    calls = 0
+
+    def unresolved(**_kwargs):
+        nonlocal calls
+        calls += 1
+        return (
+            {
+                "trust_state": "unresolved",
+                "claim_supported": False,
+                "supporting_chunk_ids": [],
+                "conflicting_chunk_ids": [],
+                "applicability": "not_requested",
+                "scope_entity": "LJ-S080",
+                "rationale": "Only the X-axis row was supplied.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", unresolved)
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert calls == 1
+    assert output["claim_supported"] is False
+
+
+def test_verifier_confirms_named_calibration_mode_without_llm(monkeypatch):
+    objective = "Which W500 calibration mode detects a single specific color?"
+    hop = RetrievalHop(hop_id="mode", objective=objective, query=objective)
+    result = _result(
+        "point-calibration",
+        "lrw-doc",
+        "z 1: point calibration (use to detect 1 specific color)",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "spec_record",
+                "product_family": "LR",
+                "product_model": "W500",
+                "product_models": ["W500"],
+            }
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
 def test_verifier_treats_firmware_error_text_as_troubleshooting_not_applicability(monkeypatch):
     hop = RetrievalHop(
         hop_id="cause",

@@ -831,7 +831,9 @@ def _focused_model_field_record_answer_text(query: str, result: SearchResult) ->
         return ""
     content = str(result.content or "").strip()
     query_models = _model_tokens(query)
-    if not query_models or not re.search(r"(?:^|\s)Model\s*:", content, flags=re.IGNORECASE):
+    if not query_models or not re.search(
+        r"(?:^|\s)Model(?:\s+name)?\s*:", content, flags=re.IGNORECASE
+    ):
         return ""
     query_terms = _material_claim_terms(query)
     # In specification questions, "unit" commonly means the physical device,
@@ -854,8 +856,14 @@ def _focused_model_field_record_answer_text(query: str, result: SearchResult) ->
             next((value for value in requested_field_match.groupdict().values() if value), "")
         )
     candidates: list[tuple[int, int, int, str]] = []
-    for index, block in enumerate(re.split(r"(?=Model\s*:)", content, flags=re.IGNORECASE)):
-        field_match = re.match(r"Model\s*:\s*(?P<field>[^;]+);\s*(?P<rest>.*)", block.strip(), flags=re.IGNORECASE)
+    for index, block in enumerate(
+        re.split(r"(?=Model(?:\s+name)?\s*:)", content, flags=re.IGNORECASE)
+    ):
+        field_match = re.match(
+            r"Model(?:\s+name)?\s*:\s*(?P<field>[^;]+);\s*(?P<rest>.*)",
+            block.strip(),
+            flags=re.IGNORECASE,
+        )
         if not field_match:
             continue
         field = field_match.group("field").strip()
@@ -864,7 +872,7 @@ def _focused_model_field_record_answer_text(query: str, result: SearchResult) ->
         for model in query_models:
             value_match = re.search(
                 rf"{re.escape(model)}\s*:\s*(?P<value>.*?)"
-                r"(?=\s+Model\s*:|\s+[A-Z0-9]+(?:-[A-Z0-9]+)+\s*:|"
+                r"(?=\s+Model(?:\s+name)?\s*:|\s+[A-Z0-9]+(?:-[A-Z0-9]+)+\s*:|"
                 r"\s+[A-Z][A-Za-z ]{1,40}\s*\||$)",
                 rest,
                 flags=re.IGNORECASE | re.DOTALL,

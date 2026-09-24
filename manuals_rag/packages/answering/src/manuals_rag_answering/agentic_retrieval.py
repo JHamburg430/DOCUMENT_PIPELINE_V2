@@ -2747,6 +2747,162 @@ def _direct_atomic_measurement_support(
     return [chunk_id for chunk_id, _values in matches]
 
 
+def _direct_model_matrix_measurement_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm one model-bound measurement in a pivoted specification row.
+
+    Manuals commonly serialize a table as ``Model name: <property>; MODEL:
+    <value>``.  That is an exact cell lookup even though it is not the
+    column/row/cell serialization handled by ``_direct_structured_lookup_support``.
+    Keep the gate narrow: require a measurement question, an explicit requested
+    model, matching axis qualifiers, authoritative product scope, and one unique
+    value across every qualifying row.
+    """
+    if not re.match(r"^\s*(?:what|which|how\s+(?:much|many))\b", query, flags=re.I):
+        return []
+    if not re.search(
+        r"\b(?:accuracy|current|diameter|distance|frequency|height|length|"
+        r"power|pressure|range|resolution|speed|temperature|torque|voltage|"
+        r"wavelength|weight|width)\b",
+        query,
+        flags=re.I,
+    ):
+        return []
+
+    requested_models = {
+        re.sub(r"[^a-z0-9]+", "", value.lower())
+        for value in analyze_query(query).product_identifiers
+        if re.sub(r"[^a-z0-9]+", "", value.lower())
+    }
+    if not requested_models:
+        return []
+    query_axes = set(re.findall(r"\b([xyz])(?:[- ]axis)?\b", query.lower()))
+    stopwords = {
+        "axis", "for", "how", "is", "many", "model", "much", "name",
+        "of", "the", "to", "what", "which",
+    }
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", query.lower())
+        if len(term) >= 2
+        and term not in stopwords
+        and re.sub(r"[^a-z0-9]+", "", term) not in requested_models
+    }
+    measurement_pattern = re.compile(
+        r"(?<![\w.])\d+(?:\.\d+)?\s*(?:"
+        r"n\s*[\u00b7.]?\s*m|nm|mm|cm|m|\u00b5m|um|kg|g|ms|s|"
+        r"vdc|vac|v|ma|a|w|hz|khz|mhz|mpa|kpa|pa|%|\u00b0c|c)\b",
+        flags=re.I,
+    )
+    matches: list[tuple[str, str]] = []
+    for result in results:
+        if (
+            not _result_supports_branch_scope(query, result)
+            or str((result.metadata or {}).get("chunk_type") or "")
+            not in {"table_record", "spec_record"}
+        ):
+            continue
+        for row in re.finditer(
+            r"Model\s+name\s*:\s*(?P<label>[^;\n]+)\s*;\s*(?P<body>[^\n]+)",
+            str(result.content or ""),
+            flags=re.I,
+        ):
+            label = row.group("label")
+            label_axes = set(re.findall(r"\b([xyz])(?:[- ]axis)?\b", label.lower()))
+            if query_axes and (not label_axes or query_axes.isdisjoint(label_axes)):
+                continue
+            label_terms = set(re.findall(r"[a-z0-9]+", label.lower())).difference(stopwords)
+            if not label_terms or len(query_terms.intersection(label_terms)) < min(2, len(label_terms)):
+                continue
+            for cell in re.finditer(
+                r"(?P<model>[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\s*:\s*"
+                r"(?P<value>.*?)(?=\s*;\s*[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\s*:|$)",
+                row.group("body"),
+                flags=re.I,
+            ):
+                model = re.sub(r"[^a-z0-9]+", "", cell.group("model").lower())
+                if model not in requested_models:
+                    continue
+                values = measurement_pattern.findall(cell.group("value"))
+                if len(values) != 1:
+                    continue
+                value = re.sub(r"[^a-z0-9.%]+", "", values[0].lower())
+                matches.append((value, result.chunk_id))
+    if not matches or len({value for value, _chunk_id in matches}) != 1:
+        return []
+    return list(dict.fromkeys(chunk_id for _value, chunk_id in matches))
+
+
+def _direct_named_mode_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an explicitly named mode whose source states its exact purpose."""
+    if not re.match(r"^\s*(?:what|which)\b", query, flags=re.I):
+        return []
+    if not re.search(r"\b(?:calibration|mode)\b", query, flags=re.I):
+        return []
+    if not preliminary_assessment.get("claim_supported"):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    if not preliminary_ids:
+        return []
+
+    synonyms = {"single": "1", "one": "1"}
+
+    def terms(text: str) -> set[str]:
+        output: set[str] = set()
+        for token in re.findall(r"[a-z0-9]+", text.lower()):
+            if token in {
+                "a", "an", "for", "is", "mode", "the", "to", "use", "used",
+                "what", "which",
+            }:
+                continue
+            normalized = synonyms.get(token, token)
+            if len(normalized) > 4 and normalized.endswith("s") and not normalized.endswith("ss"):
+                normalized = normalized[:-1]
+            output.add(normalized)
+        return output
+
+    purpose_terms = terms(query).difference(
+        re.sub(r"[^a-z0-9]+", "", value.lower())
+        for value in analyze_query(query).product_identifiers
+    ).difference({"calibration"})
+    matches: list[tuple[str, str]] = []
+    for result in results:
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+            or str((result.metadata or {}).get("chunk_type") or "")
+            not in {"atomic_text", "spec_record", "table_record"}
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not content or len(content) > 500:
+            continue
+        for match in re.finditer(
+            r"(?:^|[;|])\s*(?:[z\u2022]\s*)?(?:\d+\s*:\s*)?"
+            r"(?P<label>[a-z0-9][a-z0-9 /+-]{0,80}?\bcalibration)\s*"
+            r"\(\s*(?:use|used)\s+to\s+(?P<purpose>[^)]+)\)",
+            content,
+            flags=re.I,
+        ):
+            overlap = len(purpose_terms.intersection(terms(match.group("purpose"))))
+            if purpose_terms and overlap / len(purpose_terms) < 0.75:
+                continue
+            label = re.sub(r"[^a-z0-9]+", " ", match.group("label").lower()).strip()
+            matches.append((label, result.chunk_id))
+    if not matches or len({label for label, _chunk_id in matches}) != 1:
+        return []
+    return list(dict.fromkeys(chunk_id for _label, chunk_id in matches))
+
+
 def _direct_procedure_support(
     query: str,
     results: list[SearchResult],
@@ -3359,6 +3515,47 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic measurement verification matched one scoped atomic "
                     "specification with the requested quantity and a unique measured value."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_model_matrix_support = _direct_model_matrix_measurement_support(
+            hop.objective,
+            results,
+        )
+        if direct_model_matrix_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_model_matrix_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic model-matrix verification matched the requested property, "
+                    "axis qualifier, model column, and unique measured value."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_mode_support = _direct_named_mode_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_mode_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_mode_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic named-mode verification matched one scoped mode label to its "
+                    "explicitly stated purpose."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
