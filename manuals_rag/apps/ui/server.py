@@ -25,6 +25,27 @@ from urllib.parse import parse_qs, urlparse
 import psycopg
 from psycopg.rows import dict_row
 
+try:
+    from .run_registry import RunRegistry
+    from .sse_replay import (
+        ReplayRequestError,
+        encode_heartbeat,
+        encode_snapshot,
+        encode_sse,
+        envelope_from_persisted_row,
+        parse_replay_cursor,
+    )
+except ImportError:  # pragma: no cover - direct ``python apps/ui/server.py`` execution
+    from run_registry import RunRegistry
+    from sse_replay import (
+        ReplayRequestError,
+        encode_heartbeat,
+        encode_snapshot,
+        encode_sse,
+        envelope_from_persisted_row,
+        parse_replay_cursor,
+    )
+
 
 API_BASE = os.getenv("MANUALS_RAG_API_BASE", "http://api:8600").rstrip("/")
 POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://manuals:manuals@postgres:5432/manuals_rag")
@@ -92,6 +113,10 @@ AGENT_LIVE_LOCK = Lock()
 AGENT_LIVE_LATEST_ID: str | None = None
 AGENT_LIVE_JOB_LIMIT = 10
 UI_AUTH_TOKEN = os.getenv("MANUALS_RAG_AUTH_TOKEN", "admin-token")
+RUN_EVENT_REGISTRY = RunRegistry()
+RUN_EVENT_POLL_SECONDS = max(0.05, float(os.getenv("MANUALS_RAG_EVENT_POLL_SECONDS", "0.2")))
+RUN_EVENT_HEARTBEAT_SECONDS = max(1.0, float(os.getenv("MANUALS_RAG_EVENT_HEARTBEAT_SECONDS", "15")))
+RUN_EVENT_STREAM_MAX_SECONDS = max(1.0, float(os.getenv("MANUALS_RAG_EVENT_STREAM_MAX_SECONDS", "3600")))
 
 
 class MatrixJobCancelled(RuntimeError):
@@ -260,30 +285,38 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.send_error(400, "run_id is required")
             return
         try:
-            after = max(0, int((query.get("after") or ["0"])[0]))
+            after = parse_replay_cursor(
+                self.headers.get("Last-Event-ID"),
+                (query.get("after") or [None])[0],
+            )
             limit = max(1, min(int((query.get("limit") or ["1000"])[0]), 2000))
-        except ValueError:
-            self.send_error(400, "after and limit must be integers")
+        except (ReplayRequestError, ValueError) as error:
+            self.send_error(400, str(error))
+            return
+        if parsed.path == "/local/run-events/subscribe":
+            self._local_run_event_stream(run_id, after=after, limit=limit)
+            return
+        if parsed.path != "/local/run-events":
+            self.send_error(404, "Not found")
             return
         try:
-            with psycopg.connect(POSTGRES_DSN, row_factory=dict_row) as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        select event_index, event_json, created_at
-                        from app_run_events
-                        where run_id = %s
-                          and event_index > %s
-                          and coalesce(event_json #>> '{query_event,event}', '') <> 'llm_token'
-                        order by event_index asc
-                        limit %s
-                        """,
-                        (run_id, after, limit),
-                    )
-                    rows = cur.fetchall()
+            rows = self._query_run_events(run_id, after=after, limit=limit)
+            snapshot = self._query_run_snapshot(run_id)
+            workflow = str((snapshot or {}).get("run_type") or "application")
+            for row in rows:
+                row["envelope"] = envelope_from_persisted_row(run_id, row, workflow=workflow).to_dict()
+            last_sequence = int(rows[-1]["event_index"]) if rows else after
+            RUN_EVENT_REGISTRY.observe(
+                run_id,
+                workflow=workflow,
+                status=str((snapshot or {}).get("status") or "unknown"),
+                last_sequence=last_sequence,
+                metadata=snapshot or {},
+            )
             payload = json.dumps(rows, default=str).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
+            self.send_header("X-Event-Replay-After", str(after))
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self._write(payload)
@@ -294,6 +327,106 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self._write(payload)
+
+    def _query_run_events(self, run_id: str, *, after: int, limit: int) -> list[dict]:
+        """Read the inspected application-owned event schema without mutating it."""
+        with psycopg.connect(POSTGRES_DSN, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    select event_index, event_json, created_at
+                    from app_run_events
+                    where run_id = %s
+                      and event_index > %s
+                      and coalesce(event_json #>> '{query_event,event}', '') <> 'llm_token'
+                    order by event_index asc
+                    limit %s
+                    """,
+                    (run_id, after, limit),
+                )
+                return [dict(row) for row in cur.fetchall()]
+
+    def _query_run_snapshot(self, run_id: str) -> dict | None:
+        with psycopg.connect(POSTGRES_DSN, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    select id, run_type, status, progress_json, error, created_at, updated_at
+                    from app_runs
+                    where id = %s
+                    """,
+                    (run_id,),
+                )
+                row = cur.fetchone()
+                return dict(row) if row else None
+
+    def _local_run_event_stream(self, run_id: str, *, after: int, limit: int) -> None:
+        try:
+            snapshot = self._query_run_snapshot(run_id)
+        except Exception as error:
+            self.send_error(500, f"Run snapshot lookup failed: {error.__class__.__name__}: {error}")
+            return
+        if snapshot is None:
+            self.send_error(404, "Run not found")
+            return
+
+        workflow = str(snapshot.get("run_type") or "application")
+        registry_snapshot = RUN_EVENT_REGISTRY.observe(
+            run_id,
+            workflow=workflow,
+            status=str(snapshot.get("status") or "unknown"),
+            last_sequence=after,
+            metadata=snapshot,
+        )
+        RUN_EVENT_REGISTRY.subscriber_opened(run_id)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("X-Event-Replay-After", str(after))
+        self.end_headers()
+
+        cursor = after
+        started = time.monotonic()
+        last_write = started
+        try:
+            if not self._write(encode_snapshot(registry_snapshot.to_dict())):
+                return
+            while time.monotonic() - started < RUN_EVENT_STREAM_MAX_SECONDS:
+                rows = self._query_run_events(run_id, after=cursor, limit=limit)
+                for row in rows:
+                    envelope = envelope_from_persisted_row(run_id, row, workflow=workflow)
+                    if not self._write(encode_sse(envelope)):
+                        return
+                    cursor = envelope.sequence
+                    last_write = time.monotonic()
+                snapshot = self._query_run_snapshot(run_id) or snapshot
+                observed = RUN_EVENT_REGISTRY.observe(
+                    run_id,
+                    workflow=workflow,
+                    status=str(snapshot.get("status") or "unknown"),
+                    last_sequence=cursor,
+                    metadata=snapshot,
+                )
+                if observed.terminal and not rows:
+                    return
+                if time.monotonic() - last_write >= RUN_EVENT_HEARTBEAT_SECONDS:
+                    if not self._write(encode_heartbeat()):
+                        return
+                    last_write = time.monotonic()
+                time.sleep(RUN_EVENT_POLL_SECONDS)
+        except (BrokenPipeError, ConnectionResetError):
+            return
+        except Exception as error:
+            error_payload = json.dumps(
+                {"detail": f"Run event stream failed: {error.__class__.__name__}: {error}"},
+                separators=(",", ":"),
+            )
+            self._write(f"event: error\ndata: {error_payload}\n\n".encode("utf-8"))
+        finally:
+            RUN_EVENT_REGISTRY.subscriber_closed(run_id)
+            self.close_connection = True
 
     def _local_question_matrix(self) -> None:
         try:
