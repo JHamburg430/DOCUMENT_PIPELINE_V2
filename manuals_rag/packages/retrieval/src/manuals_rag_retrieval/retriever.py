@@ -330,6 +330,34 @@ def _exact_identifier_document_ids(
     return matched
 
 
+def _explicit_title_document_ids(
+    metadata_hits: list[dict[str, object]],
+    query: str,
+) -> list[str]:
+    """Resolve a manual named verbatim in the query before model-wide routing.
+
+    Product identifiers often occur in several manuals.  When the user names a
+    specific manual title, keeping every identifier-matched document in scope
+    lets a larger neighboring manual outrank the requested source.  Only accept
+    substantial normalized titles that appear contiguously in the query.
+    """
+
+    def normalized_title(text: str) -> str:
+        return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+
+    normalized_query = normalized_title(query)
+    matched: list[str] = []
+    for hit in metadata_hits:
+        payload = hit.get("payload") if isinstance(hit.get("payload"), dict) else {}
+        title = normalized_title(str(payload.get("title") or ""))
+        if len(title) < 20 or title not in normalized_query:
+            continue
+        document_id = str(hit.get("source_document_id") or "")
+        if document_id and document_id not in matched:
+            matched.append(document_id)
+    return matched
+
+
 def _metadata_selection_limit(analysis: QueryAnalysis) -> int:
     """Search a wider document pool when the query names an exact identifier."""
     if getattr(analysis, "product_model", None) or getattr(analysis, "part_number", None):
@@ -4268,7 +4296,9 @@ def _retrieve_once(
     )
     exact_document_ids: list[str] = []
     if not force_broad and not _has_explicit_document_scope(filters):
-        exact_document_ids = _exact_identifier_document_ids(metadata_document_hits, analysis)
+        exact_document_ids = _explicit_title_document_ids(metadata_document_hits, query)
+        if not exact_document_ids:
+            exact_document_ids = _exact_identifier_document_ids(metadata_document_hits, analysis)
         if exact_document_ids:
             search_filters = {**filters, "source_document_id": exact_document_ids}
     chunk_search_filters = filters if force_broad else _chunk_search_filters(filters, search_filters, analysis)

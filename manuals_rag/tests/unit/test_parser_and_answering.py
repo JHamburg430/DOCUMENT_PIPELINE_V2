@@ -3523,6 +3523,40 @@ def test_validate_answer_restores_user_supplied_model_scope_when_chunk_inherits_
     assert validated.answer.startswith("For VJ-H500CX,")
 
 
+def test_structured_fact_route_preserves_requested_model_scope(monkeypatch):
+    result = SearchResult(
+        chunk_id="transfer",
+        score=0.9,
+        title="VJ-H500CX Data Sheet",
+        document_version_id="v1",
+        source_document_id="camera-doc",
+        pages=[1],
+        section_path=["Document"],
+        content=(
+            "Model | | VJ-H500CX\n"
+            "Transfer time | | 5 megapixel mode: 29.2 ms "
+            "2 megapixel mode: 11.7 ms"
+        ),
+        metadata={"agent_context_reasons": ["required_claim:lookup"]},
+    )
+    monkeypatch.setattr(
+        generator_module,
+        "_concise_structured_fact_answer",
+        lambda _query, _results: (
+            "Transfer time | | 5 megapixel mode: 29.2 ms 2 megapixel mode: 11.7 ms",
+            [result],
+        ),
+    )
+
+    answer, trace = generator_module.generate_answer_with_trace(
+        "How long does image transfer take for VJ-H500CX in 5 megapixel mode?",
+        [result],
+    )
+
+    assert trace["final_answer"]["prompt_kind"] == "structured_fact"
+    assert answer.answer.startswith("For VJ-H500CX,")
+
+
 def test_validate_answer_does_not_prefix_one_side_of_multi_model_query():
     result = SearchResult(
         chunk_id="comparison",

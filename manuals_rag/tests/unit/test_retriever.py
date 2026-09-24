@@ -3327,6 +3327,27 @@ def test_exact_model_identifier_uses_wider_metadata_candidate_pool():
     assert retriever._metadata_selection_limit(general_analysis) == retriever.DOCUMENT_METADATA_SELECTION_LIMIT
 
 
+def test_explicit_manual_title_narrows_identifier_wide_routing():
+    hits = [
+        {
+            "source_document_id": "user-manual",
+            "payload": {"title": "LJ-X8000 User Manual"},
+        },
+        {
+            "source_document_id": "simple-setup",
+            "payload": {"title": "LJ: X8000 Series 3D Mode Volume Simple Setup Manual"},
+        },
+    ]
+
+    assert retriever._explicit_title_document_ids(
+        hits,
+        (
+            "In the LJ: X8000 Series 3D Mode Volume Simple Setup Manual, "
+            "what allowable One Shot Time range controls the OR terminal?"
+        ),
+    ) == ["simple-setup"]
+
+
 def test_exact_identifier_prefers_scoped_aliases_over_unscoped_mentions():
     cvx_analysis = analyze_query("How do I configure CVX482?")
     external_plc_analysis = analyze_query("How do I configure KV-7500?")

@@ -7405,7 +7405,12 @@ def generate_answer_with_trace(
             structured_fact_results,
             query=query,
         )
-        answer.answer = _clean_final_answer_text(structured_fact_answer, query)
+        clean_structured_fact = _clean_final_answer_text(structured_fact_answer, query)
+        answer.answer = _restore_single_requested_model_scope(
+            clean_structured_fact,
+            query,
+            structured_fact_results,
+        )
         trace["relevance_review"].update(
             {"provider": "deterministic", "model": None, "prompt_kind": "structured_fact"}
         )
