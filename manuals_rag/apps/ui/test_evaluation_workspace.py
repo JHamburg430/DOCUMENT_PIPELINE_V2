@@ -65,6 +65,13 @@ class EvaluationWorkspaceContractTest(unittest.TestCase):
         self.assertIn('status: "provisional"', self.js)
         self.assertIn('label: "LIVE"', self.js)
 
+    def test_expanded_agent_stage_details_have_isolated_responsive_layout(self):
+        self.assertIn('class="agent-matrix-stage-details"', self.js)
+        self.assertIn(".agent-matrix-stage-details > div", self.css)
+        self.assertIn("grid-template-columns: minmax(150px, 190px) minmax(0, 1fr)", self.css)
+        self.assertIn("overflow-wrap: normal", self.css)
+        self.assertIn("word-break: normal", self.css)
+
 
 if __name__ == "__main__":
     unittest.main()

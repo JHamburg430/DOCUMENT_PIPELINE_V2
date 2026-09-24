@@ -640,6 +640,41 @@ summary {
   margin: 0.12rem;
 }
 
+.agent-matrix-stage-details {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 12px 0;
+  min-width: 0;
+}
+
+.agent-matrix-stage-details > div {
+  display: grid;
+  grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+}
+
+.agent-matrix-stage-details dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-transform: uppercase;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.agent-matrix-stage-details dd {
+  min-width: 0;
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .agent-event-log ol {
   max-height: 220px;
   overflow: auto;
@@ -1713,6 +1748,11 @@ dd {
 
   dl {
     grid-template-columns: 1fr;
+  }
+
+  .agent-matrix-stage-details > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 
   pre,

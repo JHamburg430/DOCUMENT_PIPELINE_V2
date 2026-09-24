@@ -3116,7 +3116,7 @@ function renderAgentMatrixDetail() {
         const result = row.result[backend] || {};
         return `<details open><summary><strong>${escapeHtml(backend)}</strong> · ${result.agent_evaluation?.passed ? "PASS" : "FAIL"} · ${Number(result.elapsed_ms || 0).toFixed(0)} ms</summary>
           <p>${escapeHtml(result.answer?.answer || "No answer")}</p>
-          <dl class="agent-hop-meta">${AGENT_MATRIX_LAYERS.map(([key, label]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(result.agent_evaluation?.cells?.[key]?.detail || "Not scored")}</dd></div>`).join("")}</dl>
+          <dl class="agent-matrix-stage-details">${AGENT_MATRIX_LAYERS.map(([key, label]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(result.agent_evaluation?.cells?.[key]?.detail || "Not scored")}</dd></div>`).join("")}</dl>
           <details><summary>Trace JSON</summary><pre>${escapeHtml(JSON.stringify(result.trace || {}, null, 2))}</pre></details>
         </details>`;
       }).join("")}
