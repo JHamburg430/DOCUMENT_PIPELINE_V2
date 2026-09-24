@@ -2807,6 +2807,13 @@ def _direct_procedure_support(
         r"\b(?:after|before|first|next|then|when)\b|\[[^\]]+\]",
         flags=re.I,
     )
+    document_chunk_texts: dict[str, set[str]] = {}
+    for result in results:
+        normalized_content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if normalized_content:
+            document_chunk_texts.setdefault(result.source_document_id, set()).add(
+                normalized_content
+            )
     matches: list[tuple[float, int, int, str, str]] = []
     for index, result in enumerate(results):
         metadata = result.metadata or {}
@@ -2831,10 +2838,15 @@ def _direct_procedure_support(
                 " ",
                 str(metadata.get("parent_context") or content),
             ).strip()
+            source_bound = (
+                procedure_window in source_context
+                or procedure_window
+                in document_chunk_texts.get(result.source_document_id, set())
+            )
             if (
                 not procedure_window
                 or len(procedure_window) > 900
-                or procedure_window not in source_context
+                or not source_bound
             ):
                 continue
             evidence_text = procedure_window

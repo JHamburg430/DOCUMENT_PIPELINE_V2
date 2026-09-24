@@ -2442,7 +2442,7 @@ def test_direct_procedure_support_confirms_source_bound_parent_and_section_windo
             "chunk_type": "parent_section",
             "product_model": "W500",
             "context_window": procedure,
-            "parent_context": parent.content,
+            "parent_context": "OCR-normalized parent shell",
         }
     )
     window = _result("w500-window", "w500-doc", "Master addition calibration")
@@ -2451,13 +2451,15 @@ def test_direct_procedure_support_confirms_source_bound_parent_and_section_windo
             "chunk_type": "section_window",
             "product_model": "W500",
             "context_window": procedure,
-            "parent_context": parent.content,
+            "parent_context": "OCR-normalized parent shell",
         }
     )
+    source_chunk = _result("w500-source-window", "w500-doc", procedure)
+    source_chunk.metadata.update({"chunk_type": "atomic_text", "product_model": "W500"})
 
     supported = _direct_procedure_support(
         query,
-        [parent, window],
+        [parent, window, source_chunk],
         {
             "claim_supported": False,
             "supporting_chunk_ids": [parent.chunk_id, window.chunk_id],
