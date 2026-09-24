@@ -802,6 +802,53 @@ def test_scope_matching_accepts_exact_structured_model_label_with_family_metadat
     ) is True
 
 
+def test_scope_matching_accepts_exact_model_in_compact_spec_row():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "illumination",
+        "guided-robotics",
+        "High-intensity smart ring illumination CA-DEW10X (white)",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "spec_record",
+                "product_family": "VS Series",
+                "product_model": None,
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "What illumination type is specified for the CA-DEW10X white smart ring?",
+        result,
+    ) is True
+
+
+def test_scope_matching_rejects_exact_model_only_in_long_incidental_spec_prose():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "incidental",
+        "other-doc",
+        ("This section describes a different product and its installation details. " * 8)
+        + "An optional CA-DEW10X may be nearby.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "spec_record",
+                "product_family": "OTHER",
+                "product_model": "OTHER-1",
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "What illumination type is specified for the CA-DEW10X white smart ring?",
+        result,
+    ) is False
+
+
 def test_scope_matching_does_not_accept_incidental_prose_model_mention():
     from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
 
@@ -4373,3 +4420,49 @@ def test_dependency_binding_excludes_unverified_candidates_after_recovery():
     selected = _results_for_ids(state, ['discover'])
     assert [result.chunk_id for result in selected] == ['confirmed']
     assert _dependency_anchors(selected) == ['GOOD-9']
+
+
+def test_verifier_confirms_height_gradient_from_bounded_atomic_sentence():
+    query = "How does the LJ-S8000 display height differences within a selected rectangle region?"
+    hop = RetrievalHop(hop_id="height", objective=query, query=query)
+    exact = _result(
+        "height-gradient",
+        "lj-s8000-doc",
+        (
+            "Click 2 points on the screen to set rectangle region. The range of heights "
+            "between the height of the max and minimum in the region will be displayed "
+            "gradationally from orange to light blue."
+        ),
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "LJ: S8000 Series",
+                "product_family": "LJ-S8000 Series",
+            }
+        }
+    )
+    unrelated = _result(
+        "trend-direction",
+        "lj-s8000-doc",
+        "For a rotated rectangle, the vertical trend direction is available.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "section_window",
+                "product_model": "LJ: S8000 Series",
+                "product_family": "LJ-S8000 Series",
+            }
+        }
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [unrelated, exact],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["height-gradient"]

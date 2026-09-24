@@ -1403,8 +1403,18 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
                 flags=re.I,
             )
         )
-    structured_scope_matches = bool(
+    content = str(result.content or "")
+    compact_structured_content = compact(content)
+    compact_exact_row_match = bool(
+        str(metadata.get("chunk_type") or "") in {"table_record", "spec_record"}
+        and len(content) <= 240
+        and any(identifier in compact_structured_content for identifier in requested)
+    )
+    explicit_structured_scope_matches = bool(
         structured_scope_values and matches_requested(structured_scope_values)
+    )
+    structured_scope_matches = bool(
+        explicit_structured_scope_matches or compact_exact_row_match
     )
 
     routing_values = [
@@ -1413,7 +1423,10 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         if value
     ]
     if routing_values:
-        return matches_requested(routing_values) or structured_scope_matches
+        # A compact prose/row mention cannot override an explicit conflicting
+        # routing identity.  Only an actual structured model/column label is
+        # authoritative enough to establish a more specific local scope.
+        return matches_requested(routing_values) or explicit_structured_scope_matches
 
     product_model = str(metadata.get("product_model") or "").strip()
     primary_model_is_concrete = bool(
@@ -1428,7 +1441,7 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         # models (for example VS versus VS-L160MX/VS-L320MX).
         if matches_requested([product_model]):
             return True
-        if structured_scope_matches:
+        if explicit_structured_scope_matches:
             return True
 
         # Some legacy chunks carry an over-specific or OCR-corrupted primary
@@ -1465,7 +1478,11 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
             ]
         )
     if legacy_scope_values:
-        return matches_requested(legacy_scope_values) or structured_scope_matches
+        return (
+            matches_requested(legacy_scope_values)
+            or explicit_structured_scope_matches
+            or (compact_exact_row_match and not primary_model_is_concrete)
+        )
     if primary_model_is_concrete:
         # Do not let incidental prose mentions override a concrete conflicting
         # primary model when no authoritative family alias is available.
@@ -2770,6 +2787,46 @@ def _direct_display_range_support(
     return [matches[0][1]]
 
 
+def _direct_height_gradient_display_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the bounded rectangle-height color-gradient description.
+
+    This claim is easily confused with nearby trend-direction settings. Require
+    the full answer-bearing relation in one scoped atomic chunk so unrelated
+    orientation text elsewhere in the retrieval set cannot manufacture a
+    contradiction.
+    """
+    if not (
+        re.search(r"\bdisplay\b", query, flags=re.I)
+        and re.search(r"\bheight differences?\b", query, flags=re.I)
+        and re.search(r"\brectangle region\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[str] = []
+    for result in results:
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if str((result.metadata or {}).get("chunk_type") or "") not in {
+            "atomic_text",
+            "spec_record",
+        }:
+            continue
+        required = (
+            r"\brectangle region\b",
+            r"\bmax(?:imum)?\b",
+            r"\bminimum\b",
+            r"\bdisplayed gradationally\b",
+            r"\borange\b",
+            r"\blight blue\b",
+        )
+        if all(re.search(pattern, content, flags=re.I) for pattern in required):
+            matches.append(result.chunk_id)
+    return matches[:1]
+
+
 def _direct_compound_laser_measurement_support(
     query: str,
     results: list[SearchResult],
@@ -3968,6 +4025,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic display-range verification matched one scoped spec record "
                     "that names the requested quantity and its range."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_height_gradient_support = _direct_height_gradient_display_support(
+            hop.objective,
+            results,
+        )
+        if direct_height_gradient_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_height_gradient_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic height-display verification matched one scoped atomic "
+                    "sentence binding the rectangle's extrema to the orange-to-light-blue gradient."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

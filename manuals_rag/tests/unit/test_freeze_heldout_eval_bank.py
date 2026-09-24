@@ -656,10 +656,69 @@ def test_repairs_lj_s8000_ocr_model_separator_in_frozen_query():
             "What numerical inputs can be specified for the electronic shutter setting?",
             "CV-X camera specifications",
         ),
+        (
+            "What action must be taken after saving settings to enable them on the VS Series device?",
+            "VS Series KUKA robot connection manual",
+        ),
+        (
+            "What installation precaution applies when adjusting a manual-focus sensor after installation?",
+            "IV-500C",
+        ),
+        ("Which amplifier models support the Intelligent Monitor feature?", "IV Series amplifier types"),
+        (
+            "Which dent-depth conditions can be inspected by freely setting the reference plane?",
+            "XG-X inline 3D inspection system",
+        ),
+        (
+            "Which numeric value should I use for devId if my XG controller connects via Ethernet?",
+            "XG-7000 or XG-8000",
+        ),
+        ("What functions can OUT3 control when its default is set to Error?", "IV Series IN1 input"),
+        (
+            "What conditions allow the ShapeTrax TM 3A Search tool to maintain stable target search?",
+            "CV-X catalog",
+        ),
+        (
+            "What is the maximum image count for an XR 15 mm lens with binning enabled?",
+            "LJ-X8000 line-scan system",
+        ),
+        (
+            "How do I add a new EtherNet/IP module to the controller configuration?",
+            "LJ-X8000 EtherNet/IP setup",
+        ),
+        (
+            "Which parameters can be adjusted to set the optimal evaluation tolerance for a given application?",
+            "ceramic protective-sheet lifting example",
+        ),
+        (
+            "What additional distance applies to horizontal sensing without vertical sensing?",
+            "SZ-V safety scanner",
+        ),
+        (
+            "What power source supplies the WM-C6010 laser-scanning probe relay unit?",
+            "How is the WM-C6010",
+        ),
     ],
 )
 def test_repairs_generated_query_with_explicit_source_scope(query, required_scope):
     assert required_scope in _MODULE.normalize_frozen_query(query)
+
+
+def test_focuses_safety_step_on_action_sentence_only():
+    snippet = (
+        "Check that power (24 VDC) is not being supplied to the CA-EN100U, and then "
+        "connect the encoder head CA-EN100H to the encoder connector of the CA-EN100U. "
+        "The cable length between the encoder head and the CA-EN100U can be extended up "
+        "to 30 m."
+    )
+
+    focused = _MODULE.focus_expected_snippet(
+        "What safety step must be taken before connecting the encoder head CA-EN100H to the CA-EN100U?",
+        snippet,
+    )
+
+    assert focused.startswith("Check that power (24 VDC) is not being supplied")
+    assert "30 m" not in focused
 
 
 def test_enriches_multivalue_measurement_contract_with_milliwatts():

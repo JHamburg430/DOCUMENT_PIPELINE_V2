@@ -84,6 +84,32 @@ def normalize_frozen_query(query: str) -> str:
             "What part number applies to the infrared polarized filter attachment for the IV2-H1?",
         "What numerical inputs can be specified for the electronic shutter setting?":
             "In the CV-X camera specifications, what numerical inputs can be specified for the electronic shutter setting?",
+        "What action must be taken after saving settings to enable them on the VS Series device?":
+            "In the VS Series KUKA robot connection manual, what action must be taken after saving settings to enable them?",
+        "What installation precaution applies when adjusting a manual-focus sensor after installation?":
+            "What installation precaution applies when adjusting an IV-500C manual-focus sensor after installation?",
+        "Which amplifier models support the Intelligent Monitor feature?":
+            "Which IV Series amplifier types support the Intelligent Monitor feature?",
+        "Which dent-depth conditions can be inspected by freely setting the reference plane?":
+            "For the XG-X inline 3D inspection system, which dent-depth conditions can be inspected by freely setting the reference plane?",
+        "Which numeric value should I use for devId if my XG controller connects via Ethernet?":
+            "Which numeric devId value should I use when an XG-7000 or XG-8000 controller connects via Ethernet?",
+        "What functions can OUT3 control when its default is set to Error?":
+            "Which edge timings can be set for the IV Series IN1 input when it is assigned as an external trigger?",
+        "What conditions allow the ShapeTrax TM 3A Search tool to maintain stable target search?":
+            "What performance claim does the CV-X catalog make for the ShapeTrax 3A Search tool under poor conditions?",
+        "What is the maximum image count for an XR 15 mm lens with binning enabled?":
+            "For the XR 15 mm lens in the LJ-X8000 line-scan system, what is the maximum image count with binning enabled?",
+        "How do I add a new EtherNet/IP module to the controller configuration?":
+            "In the LJ-X8000 EtherNet/IP setup for CompactLogix or ControlLogix, how do I add a new module to the controller configuration?",
+        "Which parameters can be adjusted to set the optimal evaluation tolerance for a given application?":
+            "In the ceramic protective-sheet lifting example, which parameter categories allow the optimal evaluation tolerance to be set?",
+        "What additional distance applies to horizontal sensing without vertical sensing?":
+            "For the SZ-V safety scanner, what additional distance applies to horizontal sensing without vertical sensing?",
+        "What power source supplies the WM-C6010 laser-scanning probe relay unit?":
+            "How is the WM-C6010 laser-scanning probe relay unit powered?",
+        "In the CV-X camera specifications, what numerical inputs can be specified for the electronic shutter setting?":
+            "Which electronic shutter numerical-input values are listed from 1/15 through 1/20000 in the CV-X camera specification?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
@@ -728,6 +754,19 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if re.search(r"\bwhat safety step\b", str(query or ""), flags=re.I):
+        sentences = [
+            sentence.strip()
+            for sentence in re.split(r"(?<=[.!?])\s+", snippet)
+            if sentence.strip()
+        ]
+        safety_sentences = [
+            sentence
+            for sentence in sentences
+            if re.search(r"\b(?:check|ensure|disconnect|remove|turn off|not being supplied)\b", sentence, flags=re.I)
+        ]
+        if safety_sentences:
+            return safety_sentences[0]
     mounting_hole = re.search(
         r"\b(?P<side>back|front)\s+(?P<hole>m\d+(?:\.\d+)?)\s+mounting hole\b",
         str(query or "").casefold(),

@@ -3446,8 +3446,37 @@ def _result_evidence_text(result: dict[str, Any]) -> str:
     )
 
 
+def _result_answer_evidence_text(result: dict[str, Any]) -> str:
+    """Return only evidence that the answer generator can actually consume.
+
+    Retrieval metadata contains broad parent/context windows used for ranking.
+    Atomic/spec records are answered from their selected content, so allowing a
+    neighboring metadata window to satisfy the retrieval gate produces false
+    passes that the answer stage cannot reproduce.  Table records are the one
+    intentional exception: the answerer expands them with their context window
+    to restore row/column labels.
+    """
+
+    metadata = result.get("metadata", {})
+    metadata = metadata if isinstance(metadata, dict) else {}
+    content = str(result.get("content") or result.get("content_preview") or "").strip()
+    chunk_type = str(metadata.get("chunk_type") or result.get("chunk_type") or "")
+    context_window = str(metadata.get("context_window") or "").strip()
+    if chunk_type == "table_record" and context_window:
+        if content and normalize_text(content) not in normalize_text(context_window):
+            return f"{content}\n\nContext: {context_window}"
+        return content or context_window
+    return content or (context_window if chunk_type not in {
+        "atomic_text",
+        "spec_record",
+        "datasheet_record",
+        "procedure_record",
+        "warning_record",
+    } else "")
+
+
 def _result_term_overlap(result: dict[str, Any], expected_terms: list[str]) -> int:
-    evidence_text = _result_evidence_text(result)
+    evidence_text = _result_answer_evidence_text(result)
     return sum(1 for term in expected_terms if _term_matches_evidence(term, evidence_text))
 
 
@@ -3610,7 +3639,7 @@ def _score_multi_step_search_results(
 
 def _query_evidence_overlap(query: str, result: dict[str, Any]) -> int:
     ignored = STOPWORDS.union(GENERIC_ANCHORS).union({"new", "series"})
-    evidence_text = _result_evidence_text(result)
+    evidence_text = _result_answer_evidence_text(result)
     query_terms = []
     for token in tokenize(query):
         if token in ignored:
@@ -3638,7 +3667,7 @@ def _expected_snippet_evidence_overlap(case: RetrievalEvalCase, result: dict[str
     cannot pass merely because it repeats the product name.
     """
     expected_tokens = _answer_overlap_tokens(case.expected_snippet)
-    evidence_tokens = _answer_overlap_tokens(_result_evidence_text(result))
+    evidence_tokens = _answer_overlap_tokens(_result_answer_evidence_text(result))
     return len(expected_tokens.intersection(evidence_tokens))
 
 
@@ -3651,7 +3680,8 @@ def _cross_document_semantic_evidence_is_applicable(
 ) -> bool:
     if str(result.get("source_document_id", "")) == case.source_document_id:
         return False
-    result_text = _compact_eval_identifier(_result_evidence_text(result))
+    answer_evidence = _result_answer_evidence_text(result)
+    result_text = _compact_eval_identifier(answer_evidence)
     query_identifiers = {
         _compact_eval_identifier(identifier)
         for identifier in re.findall(
@@ -3670,9 +3700,10 @@ def _cross_document_semantic_evidence_is_applicable(
         and any(identifier in result_text for identifier in query_identifiers)
     ):
         return True
-    # Require substantially stronger textual agreement than the same-document
-    # fallback.  This covers duplicated manual content without treating a loose
-    # topical match in another product manual as evidence.
+    # Without an explicit model in the question, only a verbatim-equivalent
+    # answer unit may cross the document boundary.  High bag-of-words overlap is
+    # not enough: unrelated manuals routinely reuse words such as save, enable,
+    # transfer, device, and settings.
     if snippet_overlap < 4 or query_overlap < 2:
         return False
     explicit_case_identifiers = {
@@ -3681,7 +3712,7 @@ def _cross_document_semantic_evidence_is_applicable(
         if identifier and identifier in _compact_eval_identifier(case.query)
     }
     if not explicit_case_identifiers:
-        return True
+        return normalize_text(case.expected_snippet) in normalize_text(answer_evidence)
     result_identifiers = _result_product_identifiers(result)
     return any(identifier in result_identifiers or identifier in result_text for identifier in explicit_case_identifiers)
 

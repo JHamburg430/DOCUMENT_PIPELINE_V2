@@ -6627,6 +6627,79 @@ def test_score_search_results_accepts_short_duplicate_fact_with_explicit_model()
     assert evaluation["match_reason"] == "cross_document_semantic_evidence"
 
 
+def test_score_search_results_does_not_count_atomic_ranking_context_as_answer_evidence():
+    case = RetrievalEvalCase(
+        case_id="atomic-context-false-pass",
+        query="What action enables changed settings on the VS Series device?",
+        source_document_id="expected-doc",
+        document_version_id="expected-version",
+        source_chunk_id="expected-chunk",
+        source_title="VS Robot Manual",
+        source_filename="vs-robot.pdf",
+        chunk_type="atomic_text",
+        section_path="Settings",
+        page_from=3,
+        page_to=3,
+        expected_terms=["restart", "device", "enable", "changed"],
+        expected_snippet="Restart the device to enable the changed settings.",
+        generation_method="unit",
+        source_metadata={"product_family": "VS Series"},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "unrelated-chunk",
+                "source_document_id": "unrelated-doc",
+                "section_path": ["Database"],
+                "content": "Refer to the manual for supported database versions.",
+                "metadata": {
+                    "chunk_type": "atomic_text",
+                    "context_window": "Restart the device to enable the changed settings.",
+                },
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is False
+
+
+def test_score_search_results_rejects_loose_cross_document_procedure_overlap():
+    case = RetrievalEvalCase(
+        case_id="generic-transfer-false-pass",
+        query="Which menu path transfers data from the PC to the PLC?",
+        source_document_id="expected-doc",
+        document_version_id="expected-version",
+        source_chunk_id="expected-chunk",
+        source_title="PLC Manual",
+        source_filename="plc.pdf",
+        chunk_type="atomic_text",
+        section_path="PLC",
+        page_from=12,
+        page_to=12,
+        expected_terms=["select", "communications", "download", "transfer"],
+        expected_snippet='Select "Communications" > "Download" to transfer the data to the PLC.',
+        generation_method="unit",
+        source_metadata={},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "other-transfer",
+                "source_document_id": "other-doc",
+                "section_path": ["PC"],
+                "content": "Transfers settings data saved on the PC to the sensor.",
+                "metadata": {"chunk_type": "atomic_text"},
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is False
+
+
 def test_score_search_results_passes_on_same_document_term_overlap():
     case = RetrievalEvalCase(
         case_id="c1",
