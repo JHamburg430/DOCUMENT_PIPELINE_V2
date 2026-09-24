@@ -37,6 +37,8 @@ DOCLING_NUM_THREADS = int(os.getenv("DOCLING_NUM_THREADS", "4"))
 DOCLING_LAYOUT_BATCH_SIZE = int(os.getenv("DOCLING_LAYOUT_BATCH_SIZE", "1"))
 DOCLING_TABLE_BATCH_SIZE = int(os.getenv("DOCLING_TABLE_BATCH_SIZE", "1"))
 DOCLING_OCR_BATCH_SIZE = int(os.getenv("DOCLING_OCR_BATCH_SIZE", "1"))
+DOCLING_ENABLE_OCR = os.getenv("DOCLING_ENABLE_OCR", "false").lower() not in {"0", "false", "no"}
+DOCLING_FORCE_FULL_PAGE_OCR = os.getenv("DOCLING_FORCE_FULL_PAGE_OCR", "false").lower() not in {"0", "false", "no"}
 DOCLING_ENABLE_TABLE_STRUCTURE = os.getenv("DOCLING_ENABLE_TABLE_STRUCTURE", "true").lower() not in {"0", "false", "no"}
 DOCLING_TABLEFORMER_MODE = os.getenv("DOCLING_TABLEFORMER_MODE", "accurate").lower()
 
@@ -557,13 +559,15 @@ def _merge_docling_artifacts(filename: str, total_pages: int, batches: list[dict
         "source_filename": filename,
         "original_page_count": total_pages,
         "batch_count": len(batches),
+        "ocr_used": DOCLING_ENABLE_OCR,
         "batches": batches,
     }
 
 
 def _docling_pipeline_options(profile: ParseProfile, *, device: str) -> PdfPipelineOptions:
     pipeline_options = PdfPipelineOptions()
-    pipeline_options.do_ocr = False
+    pipeline_options.do_ocr = DOCLING_ENABLE_OCR
+    pipeline_options.ocr_options.force_full_page_ocr = DOCLING_FORCE_FULL_PAGE_OCR
     pipeline_options.do_table_structure = DOCLING_ENABLE_TABLE_STRUCTURE and profile != ParseProfile.fast_text
     if pipeline_options.do_table_structure and TableFormerMode is not None:
         pipeline_options.table_structure_options.do_cell_matching = True
@@ -571,7 +575,7 @@ def _docling_pipeline_options(profile: ParseProfile, *, device: str) -> PdfPipel
     pipeline_options.generate_page_images = False
     pipeline_options.generate_picture_images = False
     pipeline_options.generate_table_images = False
-    pipeline_options.force_backend_text = True
+    pipeline_options.force_backend_text = not DOCLING_ENABLE_OCR
     pipeline_options.layout_batch_size = DOCLING_LAYOUT_BATCH_SIZE
     pipeline_options.table_batch_size = DOCLING_TABLE_BATCH_SIZE
     pipeline_options.ocr_batch_size = DOCLING_OCR_BATCH_SIZE

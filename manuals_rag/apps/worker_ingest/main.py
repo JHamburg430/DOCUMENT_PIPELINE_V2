@@ -296,7 +296,7 @@ def process_job(job: dict[str, str]) -> None:
             "revision_date": inferred_metadata.revision_date.isoformat() if inferred_metadata.revision_date else None,
             "ingest_run_id": run_id,
             "parse_profile": result.profile.value,
-            "ocr_used": False,
+            "ocr_used": bool(result.docling_artifact.get("ocr_used")),
             "is_active": True,
         }
         complete_ingestion_step(
@@ -443,7 +443,7 @@ def process_job(job: dict[str, str]) -> None:
                 parse_profile = %s,
                 revision_date = %s,
                 effective_date = %s,
-                ocr_used = false,
+                ocr_used = %s,
                 table_extraction_used = %s,
                 parse_warnings = %s::jsonb,
                 quality_score = %s,
@@ -456,6 +456,7 @@ def process_job(job: dict[str, str]) -> None:
                 result.profile.value,
                 inferred_metadata.revision_date,
                 inferred_metadata.effective_date,
+                bool(result.docling_artifact.get("ocr_used")),
                 table_extraction_used,
                 json.dumps(result.parse_warnings),
                 result.quality_score,

@@ -8911,6 +8911,17 @@ def test_docling_pipeline_enables_tableformer_for_standard_manuals():
     assert options.accelerator_options.device == "cuda"
 
 
+def test_docling_pipeline_can_enable_full_page_ocr(monkeypatch):
+    monkeypatch.setattr("manuals_rag_parsers.docling_parser.DOCLING_ENABLE_OCR", True)
+    monkeypatch.setattr("manuals_rag_parsers.docling_parser.DOCLING_FORCE_FULL_PAGE_OCR", True)
+
+    options = _docling_pipeline_options(ParseProfile.standard_manual, device="cuda")
+
+    assert options.do_ocr is True
+    assert options.ocr_options.force_full_page_ocr is True
+    assert options.force_backend_text is False
+
+
 def _read_pdf(pdf_path: Path) -> bytes:
     return pdf_path.read_bytes()
 

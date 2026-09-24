@@ -91,6 +91,8 @@ services:
       DEFAULT_CORPUS_ID: manuals_vendor_keyence
       DOCLING_DEVICE: cuda
       DOCLING_ENABLE_TABLE_STRUCTURE: "true"
+      DOCLING_ENABLE_OCR: "${DOCLING_ENABLE_OCR:-false}"
+      DOCLING_FORCE_FULL_PAGE_OCR: "${DOCLING_FORCE_FULL_PAGE_OCR:-false}"
       DOCLING_TABLEFORMER_MODE: accurate
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility

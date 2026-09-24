@@ -423,6 +423,27 @@ def test_grounding_preserves_late_identifier_in_full_table_quote():
     assert "ZX-2400" in claims[0]["source_quote"]
 
 
+def test_code_only_footer_cannot_become_primary_product_family():
+    extracted = ScopedMetadataExtraction.model_validate({"entities": [
+        {
+            "value": "KA-US", "kind": "product_family", "relation": "primary_product",
+            "source_quote": "KA-US 2114-1 689034", "confidence": 0.95,
+        },
+        {
+            "value": "SZ-V", "kind": "product_family", "relation": "primary_product",
+            "source_quote": "SZ-V Series laser safety scanner", "confidence": 0.95,
+        },
+    ]})
+    segment = MetadataSourceSegment(
+        "SZ-V Series laser safety scanner\nKA-US 2114-1 689034", 2, 2
+    )
+
+    claims = _ground_scoped_candidates(extracted, [segment])
+
+    assert next(item for item in claims if item["value"] == "KA-US")["relation"] == "mentioned"
+    assert next(item for item in claims if item["value"] == "SZ-V")["relation"] == "primary_product"
+
+
 def test_model_column_coverage_excludes_compatible_products():
     from manuals_rag_parsers.metadata import (
         _compatible_model_column_claims,
@@ -447,6 +468,49 @@ def test_model_column_coverage_excludes_compatible_products():
     assert " ".join(claims[3]["source_quote"].split()) == " ".join(segment.text.split())
     assert all(_literal_compatible_model_column_claim_is_confirmed(item) for item in claims)
     assert _model_column_identifiers(MetadataSourceSegment("Model name | ZX-15 | ZX-25\nRange | 5 | 10", 2, 2)) == ["ZX-15", "ZX-25"]
+
+
+def test_verified_compatibility_subject_counts_for_model_column_coverage():
+    from manuals_rag_parsers.metadata import _verified_model_identifiers
+
+    claims = [{
+        "value": "GL-R191F",
+        "kind": "product_model",
+        "relation": "compatible_with",
+        "subject": "GL-FB2400",
+        "grounded": True,
+        "verification_status": "confirmed",
+    }]
+
+    assert _verified_model_identifiers(claims) == {"GLR191F", "GLFB2400"}
+
+
+def test_dedupe_preserves_grounded_upload_identity_provenance_for_routing():
+    from manuals_rag_parsers.metadata import _dedupe_evidence
+
+    model_claim = {
+        "value": "CA-EN100U", "kind": "product_model", "relation": "mentioned",
+        "subject": None, "page_from": 1, "source_method": "page_aware_model_extraction",
+    }
+    upload_claim = {
+        **model_claim, "source_method": "upload_identity_page_grounded", "confidence": 0.45,
+    }
+
+    assert _dedupe_evidence([model_claim, upload_claim])[0]["source_method"] == "upload_identity_page_grounded"
+
+
+def test_verified_upload_identity_requires_deterministic_provenance():
+    from manuals_rag_parsers.metadata import _verified_upload_identity_identifiers
+
+    common = {
+        "value": "CA-EN100U", "kind": "product_model", "relation": "mentioned",
+        "grounded": True, "verification_status": "confirmed",
+    }
+    assert _verified_upload_identity_identifiers([{**common, "source": "upload_identity_page_grounded"}]) == {"CAEN100U"}
+    assert _verified_upload_identity_identifiers([{**common, "source_method": "page_aware_model_extraction"}]) == set()
+    assert _verified_upload_identity_identifiers([{
+        **common, "relation": "primary_product", "source_method": "page_aware_model_extraction",
+    }]) == {"CAEN100U"}
 
 
 def test_compatibility_bullet_cannot_replace_catalog_title():
@@ -663,6 +727,67 @@ def test_title_selection_prefers_page_one_identifier_heading_over_preface(monkey
     assert metadata.product_model is None
     assert metadata.routing_product_models == []
     assert metadata.routing_part_numbers == ["OP-88310", "OP-88381"]
+
+
+def test_title_selection_rejects_competing_accessory_callout(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(
+            document_kind="brochure", title="All-Purpose Laser Sensor",
+        ),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ({"entities": []}, "{}"),
+    )
+
+    metadata = infer_document_metadata_from_segments(
+        "AS_79692_LR-T_C_611C20_KA_US_2074_3_unlocked.pdf",
+        [MetadataSourceSegment(
+            "New Standard! All-Purpose Laser Sensor\n"
+            "Multi-Sensor Controller MU-N Series\nLR-T\nSERIES",
+            1,
+            1,
+        )],
+    )
+
+    assert metadata.title == "All-Purpose Laser Sensor"
+    assert metadata.product_model == "LR-T"
+    assert metadata.routing_product_models == ["LR-T"]
+
+
+def test_title_selection_rejects_competing_model_list_from_title_fallback(monkeypatch):
+    from manuals_rag_parsers.metadata import _select_document_title
+
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_printed_title",
+        lambda _text: "CA-HL02MX/04MX/08MX, CA-H048CX/MX, CA-H200CX/MX, CA-H500CX/MX",
+    )
+    title, evidence = _select_document_title(
+        "CA-S20D_Datasheet.pdf",
+        "CA-HL02MX/04MX/08MX, CA-H048CX/MX, CA-H200CX/MX, CA-H500CX/MX",
+        [MetadataSourceSegment(
+            "CA-S20D\nSupported camera models:\n"
+            "CA-HL02MX/04MX/08MX, CA-H048CX/MX, CA-H200CX/MX, CA-H500CX/MX",
+            1,
+            1,
+        )],
+    )
+
+    assert title == "CA-S20D Datasheet"
+    assert evidence is None
+
+
+def test_competing_short_series_cover_callout_is_not_primary():
+    from manuals_rag_parsers.metadata import _demote_competing_cover_callouts
+
+    evidence = [{
+        "value": "MU-N", "kind": "product_model", "relation": "primary_product",
+        "page_from": 1,
+    }]
+    identity = [{"value": "LR-T", "kind": "product_model", "relation": "mentioned"}]
+
+    assert _demote_competing_cover_callouts(evidence, identity)[0]["relation"] == "mentioned"
 
 
 def test_scalar_metadata_normalizes_array_shape_dates_and_kind_synonyms(monkeypatch):

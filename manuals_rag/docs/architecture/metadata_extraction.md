@@ -2,6 +2,16 @@
 
 Document-level metadata is extracted by a local Ollama model, not by filename or text-pattern heuristics. The current default model is `qwen3.5:9b`, configured with `OLLAMA_METADATA_MODEL`.
 
+Before a planned metadata report can be widened beyond a canary, it may be
+audited against rendered source pages with
+`scripts/benchmark/audit_visual_document_understanding.py`. The visual gate is
+read-only and uses a model different from the text metadata extractor. It
+requires exact page-image support for every confirmed claim, contiguous source
+anchors, and independently answered page-specific questions with strict
+number/unit/identifier/qualifier checks. ColPali-style visual embeddings remain
+an optional page-retrieval sidecar; they rank candidate pages but do not certify
+metadata or answer correctness.
+
 The extraction implementation lives in `packages/parsers/src/manuals_rag_parsers/metadata.py`. Framework-neutral stage functions are orchestrated by a LangGraph Map–Reduce–Verify workflow:
 
 1. **Map:** process every page-aware batch with bounded parallelism, supplying a deterministic high-recall candidate list to Qwen.

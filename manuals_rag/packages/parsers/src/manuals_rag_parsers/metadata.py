@@ -1391,12 +1391,23 @@ def _ground_scoped_candidates(
         if kind == "part_number" and re.search(r"copyright|printed in", quote, re.I) and not re.search(r"\b(?:part|order|model|accessory)\b", quote, re.I):
             # Publication/footer codes are not component part numbers.
             continue
-        if kind in {"product_model", "product_family"} and relation == "primary_product" and re.search(
-            r"\b(?:bracket|column|cable|adapter|accessory)\b.{0,100}\bfor\s+" + re.escape(value), quote, re.I
-        ):
-            # The receiver of an accessory is only mentioned here; this quote
-            # does not establish it as the product being specified.
-            relation = "mentioned"
+        if kind in {"product_model", "product_family"} and relation == "primary_product":
+            if re.search(
+                r"\b(?:bracket|column|cable|adapter|accessory)\b.{0,100}\bfor\s+" + re.escape(value), quote, re.I
+            ):
+                # The receiver of an accessory is only mentioned here; this quote
+                # does not establish it as the product being specified.
+                relation = "mentioned"
+            elif not any(char.isdigit() for char in value) and not re.search(
+                r"\b(?:series|family|product|model|controller|sensor|scanner|camera|unit|system|"
+                r"manual|datasheet|data\s+sheet|bracket|column|cable|adapter|accessory)\b",
+                quote,
+                re.IGNORECASE,
+            ):
+                # Short alphabetic publication/region codes can look like
+                # product families (for example "KA-US 2114-1 689034").  A
+                # code-only footer cannot establish a primary product.
+                relation = "mentioned"
         subject = candidate.subject.strip() if candidate.subject else None
         if subject and not _value_is_grounded(subject, quote):
             continue
@@ -1533,7 +1544,11 @@ def _extract_scoped_metadata(
 
 def _dedupe_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     deduped: list[dict[str, Any]] = []
-    seen: set[tuple[str, str, str, str, int | None]] = set()
+    seen: dict[tuple[str, str, str, str, int | None], int] = {}
+    provenance_priority = {
+        "upload_identity_page_grounded": 3,
+        "opening_title_candidate": 4,
+    }
     for item in evidence:
         fingerprint = (
             str(item.get("kind") or ""),
@@ -1543,8 +1558,17 @@ def _dedupe_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
             item.get("page_from"),
         )
         if fingerprint in seen:
+            existing_index = seen[fingerprint]
+            existing = deduped[existing_index]
+            item_source = str(item.get("source_method") or item.get("source") or "")
+            existing_source = str(existing.get("source_method") or existing.get("source") or "")
+            if provenance_priority.get(item_source, 0) > provenance_priority.get(existing_source, 0):
+                # Preserve deterministic identity provenance when the model
+                # independently emits the same mentioned identifier. Routing
+                # policy depends on this provenance, not on raw confidence.
+                deduped[existing_index] = item
             continue
-        seen.add(fingerprint)
+        seen[fingerprint] = len(deduped)
         deduped.append(item)
     return deduped
 
@@ -2399,6 +2423,9 @@ def _select_document_title(
     segments: list[MetadataSourceSegment],
 ) -> tuple[str, dict[str, Any] | None]:
     def plausible_title(value: str) -> bool:
+        if "|" in value:
+            # Pipe-delimited text is a parsed table row, never a publication title.
+            return False
         if value.lstrip().startswith(("■", "●", "•", "・")):
             return False
         return not re.search(
@@ -2412,16 +2439,39 @@ def _select_document_title(
 
     opening_segments = _opening_page_segments(segments)
     opening_text = "\n\n".join(_segment_text(segment) for segment in opening_segments)[:TITLE_SOURCE_MAX_CHARS]
+    grounded_filename_identity_keys = {
+        _compact_identifier(str(item.get("value") or ""))
+        for item in _filename_grounded_identifier_evidence(filename, opening_segments)
+    }
     descriptive_candidates: list[tuple[int, int, str]] = []
     title_kind_pattern = re.compile(
         r"\b(?:user|instruction|configuration|installation|operation|reference|service)?\s*"
         r"(?:manual|guide|datasheet|data\s+sheet|catalog|brochure|handbook|specifications?)\b",
         re.IGNORECASE,
     )
+    product_type_pattern = re.compile(
+        r"\b(?:adapter|amplifier|bracket|camera|controller|encoder|laser|module|reader|scanner|"
+        r"sensor|system|unit)\b",
+        re.IGNORECASE,
+    )
     for segment in opening_segments:
         for raw_line in segment.text.splitlines():
             line = " ".join(raw_line.split()).strip(" |")
             has_identifier = IDENTIFIER_CANDIDATE_PATTERN.search(line) is not None
+            line_identifier_keys = {
+                _compact_identifier(match.group(0))
+                for match in IDENTIFIER_CANDIDATE_PATTERN.finditer(line)
+            }
+            if (
+                grounded_filename_identity_keys
+                and line_identifier_keys
+                and not (grounded_filename_identity_keys & line_identifier_keys)
+                and not title_kind_pattern.search(line)
+            ):
+                # Covers often advertise a compatible accessory in a small
+                # callout. Do not let that competing identifier outrank the
+                # filename-grounded primary identity printed on the same page.
+                continue
             has_kind = title_kind_pattern.search(line) is not None
             has_series_identity = has_identifier and re.search(r"\bseries\b", line, re.IGNORECASE)
             page_one_identifier_heading = (
@@ -2457,25 +2507,79 @@ def _select_document_title(
         return deterministic_title, _title_evidence(deterministic_title, opening_segments)
     proposed = " ".join(proposed_title.split()).strip()
     proposed_has_identifier = IDENTIFIER_CANDIDATE_PATTERN.search(proposed) is not None
+    proposed_identifier_keys = {
+        _compact_identifier(match.group(0))
+        for match in IDENTIFIER_CANDIDATE_PATTERN.finditer(proposed)
+    }
+    proposed_identity_conflict = bool(
+        grounded_filename_identity_keys
+        and proposed_identifier_keys
+        and not (grounded_filename_identity_keys & proposed_identifier_keys)
+        and not title_kind_pattern.search(proposed)
+    )
     proposed_has_kind = title_kind_pattern.search(proposed) is not None
     proposed_has_series_identity = proposed_has_identifier and re.search(
         r"\bseries\b", proposed, re.IGNORECASE
     )
     if (
         proposed
+        and not proposed_identity_conflict
         and _value_is_grounded(proposed, opening_text)
         and plausible_title(proposed)
-        and (proposed_has_identifier or proposed_has_kind or proposed_has_series_identity)
+        and (
+            proposed_has_identifier
+            or proposed_has_kind
+            or proposed_has_series_identity
+            or (grounded_filename_identity_keys and product_type_pattern.search(proposed))
+        )
     ):
         return proposed, _title_evidence(proposed, opening_segments)
     printed_title = _extract_printed_title(opening_text) if opening_text else None
-    if printed_title and plausible_title(printed_title) and (
-        IDENTIFIER_CANDIDATE_PATTERN.search(printed_title)
-        or title_kind_pattern.search(printed_title)
-        or (len(printed_title) >= 20 and len(printed_title.split()) >= 4)
-    ):
-        return printed_title, _title_evidence(printed_title, opening_segments)
+    if printed_title:
+        printed_identifier_keys = {
+            _compact_identifier(match.group(0))
+            for match in IDENTIFIER_CANDIDATE_PATTERN.finditer(printed_title)
+        }
+        printed_identity_conflict = bool(
+            grounded_filename_identity_keys
+            and printed_identifier_keys
+            and not (grounded_filename_identity_keys & printed_identifier_keys)
+            and not title_kind_pattern.search(printed_title)
+        )
+        if not printed_identity_conflict and plausible_title(printed_title) and (
+            IDENTIFIER_CANDIDATE_PATTERN.search(printed_title)
+            or title_kind_pattern.search(printed_title)
+            or (len(printed_title) >= 20 and len(printed_title.split()) >= 4)
+        ):
+            return printed_title, _title_evidence(printed_title, opening_segments)
     return _normalize_title(filename), None
+
+
+def _demote_competing_cover_callouts(
+    evidence: list[dict[str, Any]], upload_identity: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Demote a competing short-series cover callout beside the upload identity."""
+    identity_keys = {
+        _compact_identifier(str(item.get("value") or ""))
+        for item in upload_identity
+        if re.fullmatch(r"[A-Za-z]{2,4}[-:][A-Za-z]{1,2}", str(item.get("value") or ""))
+    }
+    if not identity_keys:
+        return evidence
+    adjusted: list[dict[str, Any]] = []
+    for raw_item in evidence:
+        item = dict(raw_item)
+        value = str(item.get("value") or "")
+        if (
+            item.get("kind") in {"product_model", "product_family"}
+            and item.get("relation") == "primary_product"
+            and int(item.get("page_from") or 10**9) <= TITLE_PAGE_LIMIT
+            and re.fullmatch(r"[A-Za-z]{2,4}[-:][A-Za-z]{1,2}", value)
+            and _compact_identifier(value) not in identity_keys
+        ):
+            item["relation"] = "mentioned"
+        adjusted.append(item)
+    return adjusted
 
 
 def _materialize_verified_metadata(
@@ -2735,6 +2839,43 @@ def _compatible_model_column_claims(
     return _dedupe_evidence(evidence)
 
 
+def _verified_model_identifiers(claims: list[dict[str, Any]]) -> set[str]:
+    """Return every source model identifier retained by verified relations.
+
+    Catalog compatibility rows encode the catalog model as the relationship
+    subject and the compatible model as its value.  Both sides are explicit
+    source identifiers, even though only the value is eligible for the usual
+    value-based completeness scan.
+    """
+    found: set[str] = set()
+    for item in claims:
+        if item.get("verification_status") != "confirmed" or item.get("grounded") is not True:
+            continue
+        if item.get("kind") in {"product_model", "part_number"}:
+            found.add(_compact_identifier(str(item.get("value") or "")))
+        if item.get("relation") == "compatible_with" and item.get("subject"):
+            found.add(_compact_identifier(str(item["subject"])))
+    return {value for value in found if value}
+
+
+def _verified_upload_identity_identifiers(claims: list[dict[str, Any]]) -> set[str]:
+    """Return verified upload identities or stronger equivalent relationships."""
+    return {
+        _compact_identifier(str(item.get("value") or ""))
+        for item in claims
+        if item.get("verification_status") == "confirmed"
+        and item.get("grounded") is True
+        and item.get("kind") in {"product_model", "part_number"}
+        and (
+            (item.get("source_method") or item.get("source")) in {
+                "upload_identity_page_grounded", "opening_title_candidate",
+            }
+            or item.get("relation") in {"primary_product", "applies_to"}
+        )
+        and _compact_identifier(str(item.get("value") or ""))
+    }
+
+
 def _focused_model_column_claims(filename, segments):
     evidence = []
     for segment in segments:
@@ -2762,14 +2903,16 @@ def _reduce_metadata_claims(state: MetadataWorkflowState) -> dict[str, Any]:
             str(item.get("relation") or ""),
         ),
     )
+    upload_identity = _filename_grounded_identifier_evidence(state["filename"], state["segments"])
     evidence = _dedupe_evidence(
         mapped
         + _focused_model_column_claims(state["filename"], state["segments"])
         + _compatible_model_column_claims(state["segments"])
         + _opening_title_identifier_evidence(state["selected_title"], state["segments"])
-        + _filename_grounded_identifier_evidence(state["filename"], state["segments"])
+        + upload_identity
         + _deterministic_protocol_evidence(state["segments"])
     )
+    evidence = _demote_competing_cover_callouts(evidence, upload_identity)
     return {"claims": reconcile_metadata_claims(evidence)}
 
 
@@ -2804,10 +2947,19 @@ def _verify_metadata_workflow_claims(state: MetadataWorkflowState) -> dict[str, 
         _compact_identifier(str(item["value"]))
         for item in _compatible_model_column_claims(state["segments"])
     )
-    found_models = {_compact_identifier(item["value"]) for item in verified_claims
-                    if item.get("verification_status") == "confirmed" and item.get("kind") in {"product_model", "part_number"}}
+    found_models = _verified_model_identifiers(verified_claims)
     if expected_models - found_models:
         raise MetadataExtractionIncomplete(f"Verification lost model-column identifiers: {sorted(expected_models - found_models)}")
+    expected_upload_identity = {
+        _compact_identifier(str(item.get("value") or ""))
+        for item in _filename_grounded_identifier_evidence(state["filename"], state["segments"])
+    }
+    verified_upload_identity = _verified_upload_identity_identifiers(verified_claims)
+    if expected_upload_identity - verified_upload_identity:
+        raise MetadataExtractionIncomplete(
+            "Verification lost grounded upload-identity identifiers: "
+            f"{sorted(expected_upload_identity - verified_upload_identity)}"
+        )
     return {"verified_claims": verified_claims}
 
 
