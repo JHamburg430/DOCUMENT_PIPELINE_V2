@@ -159,6 +159,42 @@ def test_accepts_display_range_question_with_displayed_quantity():
     ) == []
 
 
+def test_rejects_response_time_question_that_drops_mu_n_controller_scope():
+    assert _MODULE.missing_query_qualifiers(
+        "What response times are selectable for the LR-TB5000(C) laser sensor?",
+        (
+            "Response time | LR-TB5000(C), LR-TB2000(C): "
+            "7 ms/15 ms/30 ms/105 ms/1000 ms selectable"
+        ),
+        (
+            "Response time | LR-TB5000(C), LR-TB2000(C): "
+            "7 ms/15 ms/30 ms/105 ms/1000 ms selectable"
+        ),
+        (
+            "Column headers: MU-N11 > MU-N12; "
+            "Model: Main unit/expansion unit; MU-N11: Main unit; MU-N12: Expansion unit"
+        ),
+    ) == ["MU-N controller"]
+
+
+def test_accepts_response_time_question_with_mu_n_controller_scope():
+    assert _MODULE.missing_query_qualifiers(
+        "For an MU-N controller connected to LR-TB5000(C), what response times are selectable?",
+        (
+            "Response time | LR-TB5000(C), LR-TB2000(C): "
+            "7 ms/15 ms/30 ms/105 ms/1000 ms selectable"
+        ),
+        (
+            "Response time | LR-TB5000(C), LR-TB2000(C): "
+            "7 ms/15 ms/30 ms/105 ms/1000 ms selectable"
+        ),
+        (
+            "Column headers: MU-N11 > MU-N12; "
+            "Model: Main unit/expansion unit; MU-N11: Main unit; MU-N12: Expansion unit"
+        ),
+    ) == []
+
+
 def test_rejects_duration_question_anchored_to_neighboring_current_row():
     case = {
         **_case(),

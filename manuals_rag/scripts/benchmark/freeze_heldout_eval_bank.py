@@ -146,6 +146,22 @@ def missing_query_qualifiers(
         for label, source_pattern, query_pattern in display_quantity_rules:
             if re.search(source_pattern, expected) and not re.search(query_pattern, normalized_query):
                 missing.append(label)
+    # The LR-T manual exposes separate response-time settings for the laser
+    # sensor and for an attached MU-N main/expansion controller.  A question
+    # naming only the sensor cannot identify which table is authoritative.
+    # Require the controller scope whenever the expected row is explicitly
+    # inside the MU-N unit table.
+    normalized_context = _normalized(source_context)
+    if (
+        re.search(r"\bresponse times?\b", normalized_query)
+        and re.search(r"\bmu[- ]?n(?:11|12)?\b", normalized_context)
+        and re.search(r"\bmain unit\b|\bexpansion unit\b", normalized_context)
+        and not re.search(
+            r"\bmu[- ]?n(?:11|12)?\b|\bcontroller\b|\bmain unit\b|\bexpansion unit\b",
+            normalized_query,
+        )
+    ):
+        missing.append("MU-N controller")
     return missing
 
 
