@@ -427,6 +427,10 @@ def test_model_planners_route_exact_count_and_accessory_lookups_to_hybrid(monkey
             "On IV4-G120, how many objects are counted at one time when the count "
             "value is 9 and ON equals the set value?"
         ): "hybrid",
+        (
+            "How many area cameras can be connected across two CA-E100 input "
+            "units using XG-X2902?"
+        ): "hybrid",
         "For CA-DRM10X, is OP-42284 the accessory code for the CA-DRx9 light?": "hybrid",
         (
             "On CV-X482, what adjustment is recommended when Contrast detection "

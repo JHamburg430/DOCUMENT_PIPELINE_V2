@@ -630,7 +630,16 @@ def _reported_clause_plan(query: str) -> RetrievalPlan | None:
 def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     """Keep exact structured lookups in one lossless, deterministic hop."""
     strategy: RetrievalStrategy | None = None
-    if re.search(
+    if re.match(
+        r"^\s*how\s+many\b.+\bcan\s+be\s+connected\s+across\s+"
+        r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+"
+        r"[A-Z][A-Z0-9]*(?:[-:][A-Z0-9]+)+\s+input\s+units?\s+using\s+"
+        r"[A-Z][A-Z0-9]*(?:[-:][A-Z0-9]+)+\s*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    elif re.search(
         r"\bhow\s+many\b.+\bcount\s+value\b.+\bset\s+value\b",
         query,
         flags=re.I,
