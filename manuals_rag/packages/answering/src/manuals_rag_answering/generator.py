@@ -3003,6 +3003,18 @@ def _concise_general_fallback_answer(query: str, result: SearchResult) -> str:
     ):
         return re.sub(r"^\S+\.pdf\s*\|\s*", "", evidence, flags=re.IGNORECASE)
     if (
+        str(result.metadata.get("chunk_type") or "") == "table_record"
+        and len(evidence) <= 700
+        and re.search(
+            r"\b(?:column headers?|row headers?|cell value|range|distance|tolerance)\b",
+            evidence,
+            flags=re.IGNORECASE,
+        )
+    ):
+        # Keep the complete bounded row. Sentence splitting corrupts decimal
+        # values and abbreviations and can sever a row label from its value.
+        return re.sub(r"^\S+\.pdf\s*\|\s*", "", evidence, flags=re.IGNORECASE)
+    if (
         len(evidence) <= 700
         and re.search(r"\bdefault\b", query, flags=re.IGNORECASE)
         and re.search(r"\bdefault\b", evidence, flags=re.IGNORECASE)
@@ -5621,7 +5633,7 @@ def _concise_capability_answer(
                 continue
             if not re.search(
                 r"\b(?:ability\s+to|can(?:not|'t)?|capable\s+of|supports?|allows?|"
-                r"without\s+missing|unable\s+to|not\s+available|"
+                r"without\s+missing|unable\s+to|not\s+available|enabled|disabled|"
                 r"eliminat(?:e|es|ed|ing)\s+the\s+need)\b",
                 sentence,
                 flags=re.IGNORECASE,
@@ -5640,7 +5652,7 @@ def _concise_capability_answer(
     negative = bool(
         re.search(
             r"\b(?:cannot|can't|unable\s+to|does\s+not\s+support|not\s+available|"
-            r"eliminat(?:e|es|ed|ing)\s+the\s+need)\b",
+            r"disabled|eliminat(?:e|es|ed|ing)\s+the\s+need)\b",
             sentence,
             flags=re.IGNORECASE,
         )
@@ -5650,6 +5662,115 @@ def _concise_capability_answer(
     if selection_impact_query:
         return sentence, [result]
     return f"{'No' if negative else 'Yes'}. {sentence}", [result]
+
+
+def _concise_installed_distance_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Return a model-bound standard installed-distance range from a matrix."""
+    if not re.search(r"\bstandard\s+installed\s+distance\s+range\b", query, flags=re.I):
+        return "", []
+    model_match = re.search(r"\b[A-Z]{1,8}(?:-[A-Z0-9]+)+\b", query, flags=re.I)
+    if not model_match:
+        return "", []
+    model = model_match.group(0)
+    pattern = re.compile(
+        rf"Model\s*\|\s*\|\s*{re.escape(model)}\b[^\n]*\n"
+        rf"Type\s*\|\s*\|\s*Standard\s+range[^\n]*\n"
+        rf"Installed\s+distance\s*\|\s*\|\s*"
+        rf"(?P<range>\d+(?:\.\d+)?\s*to\s*\d+(?:\.\d+)?\s*mm)\b",
+        flags=re.I,
+    )
+    for result in results[:10]:
+        match = pattern.search(str(result.content or ""))
+        if match:
+            distance_range = re.sub(r"\s+", " ", match.group("range")).strip()
+            return (
+                f"For {model.upper()}, the standard installed distance range is {distance_range}.",
+                [result],
+            )
+    return "", []
+
+
+def _concise_extension_cable_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Return extension-cable part numbers from the exact requested cable row."""
+    query_match = re.search(
+        r"\b(?:what|which)\b.{0,80}\bextension\s+cable\b.{0,80}\b(?:with|for)\s+(?:the\s+)?"
+        r"(?P<cable>CA-[A-Z0-9]+)\b",
+        query,
+        flags=re.I,
+    )
+    if not query_match:
+        return "", []
+    cable = query_match.group("cable").upper()
+    for result in results[:10]:
+        content = str(result.content or "")
+        if not re.search(r"\bExtension\s+cable\b", content, flags=re.I):
+            continue
+        for line in content.splitlines():
+            if cable not in line.upper():
+                continue
+            extension_models = list(dict.fromkeys(
+                model.upper()
+                for model in re.findall(r"\bCA-[A-Z0-9]+E\b", line, flags=re.I)
+            ))
+            if extension_models:
+                return (
+                    f"Use {' or '.join(extension_models)} as the extension cable for {cable}.",
+                    [result],
+                )
+    return "", []
+
+
+def _concise_indicator_state_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Bind an indicator answer to the requested color and state."""
+    if not re.search(r"\b(?:indicator|status|light|led)\b", query, flags=re.IGNORECASE):
+        return "", []
+    color_match = re.search(
+        r"\b(red|green|orange|amber|yellow|blue|white)\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not color_match:
+        return "", []
+    color = color_match.group(1)
+    if re.search(r"\b(?:blink(?:ing)?|flash(?:ing)?)\b", query, flags=re.IGNORECASE):
+        state_pattern = r"(?:blink(?:ing)?|flash(?:ing)?)"
+    elif re.search(r"\b(?:solid|steady|on)\b", query, flags=re.IGNORECASE):
+        state_pattern = r"(?:solid|steady|on)"
+    elif re.search(r"\b(?:off|unlit)\b", query, flags=re.IGNORECASE):
+        state_pattern = r"(?:off|unlit)"
+    else:
+        return "", []
+
+    candidates: list[tuple[int, int, str, SearchResult]] = []
+    query_terms = _material_claim_terms(query)
+    for result_index, result in enumerate(results[:10]):
+        evidence = _fallback_answer_text(result)
+        for segment in re.split(r"\n+|(?<=[.!?])\s+", evidence):
+            segment = re.sub(r"\s+", " ", segment).strip(" -|;:•·▪")
+            if not segment:
+                continue
+            if not re.search(rf"\b{re.escape(color)}\b", segment, flags=re.IGNORECASE):
+                continue
+            if not re.search(rf"\b{state_pattern}\b", segment, flags=re.IGNORECASE):
+                continue
+            overlap = len(query_terms.intersection(_material_claim_terms(segment)))
+            candidates.append((overlap, -result_index, segment, result))
+    if not candidates:
+        return "", []
+    _overlap, _negative_index, segment, result = max(
+        candidates,
+        key=lambda item: (item[0], item[1]),
+    )
+    return segment, [result]
 
 
 LOCATION_CUE_RE = re.compile(
@@ -7088,6 +7209,93 @@ def generate_answer_with_trace(
                 "prompt_kind": "named_mode_requirement",
                 "used_fallback": True,
                 "answer_source": "deterministic_named_mode_requirement",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    installed_distance_answer, installed_distance_results = _concise_installed_distance_answer(
+        query,
+        results,
+    )
+    if installed_distance_answer:
+        answer = validate_answer(
+            _fallback_answer(query, installed_distance_results),
+            installed_distance_results,
+            query=query,
+        )
+        answer.answer = installed_distance_answer
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "installed_distance"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "installed_distance",
+                "used_fallback": True,
+                "answer_source": "deterministic_installed_distance",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    extension_cable_answer, extension_cable_results = _concise_extension_cable_answer(
+        query,
+        results,
+    )
+    if extension_cable_answer:
+        answer = validate_answer(
+            _fallback_answer(query, extension_cable_results),
+            extension_cable_results,
+            query=query,
+        )
+        answer.answer = extension_cable_answer
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "extension_cable"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "extension_cable",
+                "used_fallback": True,
+                "answer_source": "deterministic_extension_cable",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    indicator_answer, indicator_results = _concise_indicator_state_answer(query, results)
+    if indicator_answer:
+        answer = validate_answer(
+            _fallback_answer(query, indicator_results),
+            indicator_results,
+            query=query,
+        )
+        answer.answer = indicator_answer
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "indicator_state"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "indicator_state",
+                "used_fallback": True,
+                "answer_source": "deterministic_indicator_state",
                 "fallback_reason": None,
                 "summarized_evidence": [],
                 "num_predict": None,

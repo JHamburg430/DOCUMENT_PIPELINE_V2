@@ -74,6 +74,175 @@ def test_concise_answer_keeps_bullets_required_by_following_precautions_referenc
     assert "magnetic fields" in answer
 
 
+def test_concise_answer_preserves_complete_bounded_measurement_row():
+    result = SearchResult(
+        chunk_id="z-range",
+        score=0.9,
+        title="3D Vision",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[22],
+        section_path=["Specifications"],
+        content=(
+            'Far Side\nZ Range (via Reference Distance) | ±2 mm ±0.08" | '
+            '±6 mm ±0.24"'
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+
+    answer = _concise_general_fallback_answer(
+        "What is the Far Side Z Range tolerance via reference distance?",
+        result,
+    )
+
+    assert answer == result.content
+
+
+def test_generate_answer_binds_standard_installed_distance_to_requested_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="iv-distance",
+        score=0.9,
+        title="IV Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[378],
+        section_path=["8-12"],
+        content=(
+            "Model | | IV-H500CA | IV-H500MA | IV-H150MA | IV-H2000MA\n"
+            "Type | | Standard range | | Short range | Long range\n"
+            "Installed distance | | 50 to 500mm | | 50 to 150mm | 300 to 2000mm\n"
+            "View | | Installed distance 50 mm: 25 x 18 mm"
+        ),
+        metadata={"chunk_type": "parent_section", "product_model": "IV-H500CA"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What standard installed distance range applies to the IV-H500CA model?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "For IV-H500CA, the standard installed distance range is 50 to 500mm."
+    )
+    assert trace["final_answer"]["answer_source"] == "deterministic_installed_distance"
+
+
+def test_generate_answer_extracts_extension_cables_from_requested_row(monkeypatch):
+    result = SearchResult(
+        chunk_id="camera-cables",
+        score=0.9,
+        title="CV-X Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[12],
+        section_path=["Cables"],
+        content=(
+            "Cable type | Camera cable length | Extension cable\n"
+            "For high-speed transmission cameras | CA-CF3 | "
+            "CA-CF5E (5 m) CA-CF10E (10 m)"
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "CA-CF3"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What extension cable should be used with the CA-CF3 camera cable?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "Use CA-CF5E or CA-CF10E as the extension cable for CA-CF3."
+    )
+    assert trace["final_answer"]["answer_source"] == "deterministic_extension_cable"
+
+
+def test_generate_answer_binds_green_blink_indicator_state(monkeypatch):
+    result = SearchResult(
+        chunk_id="status",
+        score=0.9,
+        title="IV Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[4],
+        section_path=["STATUS"],
+        content=(
+            "Green (ON): Normally connected with monitor or PC.\n"
+            "Green (Blink): IP address has been retrieved but the sensor is not correctly "
+            "connected with monitor or PC.\n"
+            "Orange (Blink): Indicates the focusing status while adjusting focus."
+        ),
+        metadata={"chunk_type": "section_window", "product_model": "IV-500C"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What does a blinking green status light indicate for the IV-500C sensor?",
+        [result],
+    )
+
+    assert "IP address has been retrieved" in answer.answer
+    assert "focusing status" not in answer.answer
+    assert trace["final_answer"]["answer_source"] == "deterministic_indicator_state"
+
+
+def test_generate_answer_treats_disabled_controls_as_negative_capability(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="broad",
+            score=0.95,
+            title="MU-N Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[1, 2, 3],
+            section_path=["NOTICE"],
+            content=(
+                "When using the MU-N Series as the main unit, verify that expansion products "
+                "can operate within its power-supply range."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+        SearchResult(
+            chunk_id="controls",
+            score=0.9,
+            title="MU-N Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[3],
+            section_path=["NOTICE"],
+            content=(
+                "When the MU-N Series and an LR-W70(C) are connected, the button operations "
+                "for the LR-W70(C) main unit are disabled."
+            ),
+            metadata={"chunk_type": "spec_record"},
+        ),
+    ]
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "Are the button functions on the LR-W70(C) main unit available when linked to an MU-N Series?",
+        results,
+    )
+
+    assert answer.answer.startswith("No.")
+    assert "button operations" in answer.answer
+    assert "disabled" in answer.answer
+    assert [citation["chunk_id"] for citation in answer.citations] == ["controls"]
+    assert trace["final_answer"]["answer_source"] == "deterministic_capability"
+
+
 def test_validate_answer_removes_terminal_table_coordinates():
     result = SearchResult(
         chunk_id="ac-warning",

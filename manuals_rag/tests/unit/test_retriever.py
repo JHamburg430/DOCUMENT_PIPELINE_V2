@@ -2347,6 +2347,28 @@ def test_requested_mode_phrases_excludes_hyphenated_product_and_camera_terms():
     assert phrases == {"standardlightingmode"}
 
 
+def test_mode_alignment_prefers_exact_result_row_over_generic_page_footer():
+    result = SearchResult(
+        chunk_id="high-speed-row",
+        score=0.9,
+        title="SZ-V manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[19],
+        section_path=["Specifications"],
+        content="High Speed Mode Scan Cycle | 84 ms (2 scans) to 672 ms (16 scans)",
+        metadata={
+            "chunk_type": "table_record",
+            "page_context": "The response time is affected by the operation mode.",
+        },
+    )
+
+    assert retriever.result_matches_requested_mode(
+        result,
+        "What is the scan cycle range for High Speed Mode with 2 to 16 scans?",
+    )
+
+
 def test_assemble_context_uses_nearest_table_row_group_for_table_cells(monkeypatch):
     result = SearchResult(
         chunk_id="cell-action",

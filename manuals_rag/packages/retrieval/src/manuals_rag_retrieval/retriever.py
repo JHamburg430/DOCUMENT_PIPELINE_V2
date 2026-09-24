@@ -2208,8 +2208,11 @@ def _requested_mode_phrases(query: str) -> set[str]:
         r"\b([a-z0-9][a-z0-9_\-./]*(?:\s+[a-z0-9][a-z0-9_\-./]*){0,3})\s+(?:mode|type)\b",
         lowered,
     ):
+        phrase_text = match.group(0)
+        if " for " in phrase_text:
+            phrase_text = phrase_text.rsplit(" for ", 1)[-1]
         phrase_text = re.sub(
-            r"^(?:in|on|for|the)\s+", "", match.group(0), flags=re.IGNORECASE
+            r"^(?:in|on|for|the)\s+", "", phrase_text, flags=re.IGNORECASE
         )
         phrase = _compact_identifier(phrase_text)
         if len(phrase) >= 5:
@@ -2251,6 +2254,15 @@ def _mode_phrase_alignment_adjustment(result: SearchResult, query: str) -> float
     requested_phrases = {phrase for phrase in _requested_mode_phrases(query) if len(phrase) >= 5}
     if not requested_phrases:
         return 0.0
+    # The result content is the narrowest available evidence boundary. A
+    # page-context footer or neighboring heading may omit the row's mode even
+    # when the row itself names it exactly.
+    compact_content = _compact_identifier(str(result.content or ""))
+    content_matches = {
+        phrase for phrase in requested_phrases if phrase in compact_content
+    }
+    if content_matches:
+        return min(0.8, len(content_matches) * 0.8)
     page_context = str(result.metadata.get("page_context") or "")
     if page_context:
         compact_page_context = _compact_identifier(page_context)

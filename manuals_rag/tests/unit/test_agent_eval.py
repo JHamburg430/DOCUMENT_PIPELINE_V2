@@ -620,6 +620,34 @@ def test_agent_evaluation_accepts_same_page_parent_with_values_bound_on_one_row(
     assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
 
 
+def test_agent_evaluation_accepts_same_document_equivalent_with_case_terms():
+    case = {
+        **_parent_equivalence_case(),
+        "expected_terms": ["200", "including", "cable", "connector"],
+        "expected_snippet": "Approx. 200 g including cable with connector.",
+    }
+    trace = _parent_equivalence_trace()
+    trace["evidence_ledger"]["one"]["chunk_ids"] = ["equivalent-spec"]
+    evaluation = score_agent_run(
+        case,
+        trace=trace,
+        results=[{
+            "chunk_id": "equivalent-spec",
+            "source_document_id": "doc-light",
+            "pages": [15],
+            "content": "Weight: 200 g, including the cable and connector.",
+            "metadata": {"chunk_type": "spec_record"},
+        }],
+        answer={
+            "answer": "The weight is 200 g including the cable and connector.",
+            "citations": [{"chunk_id": "equivalent-spec"}],
+        },
+    )
+
+    assert evaluation["cells"]["candidate_recall"]["status"] == "pass"
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+
+
 def test_agent_evaluation_rejects_parent_with_expected_values_scattered_across_rows():
     evaluation = score_agent_run(
         _parent_equivalence_case(),

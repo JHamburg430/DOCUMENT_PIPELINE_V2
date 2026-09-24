@@ -2286,6 +2286,12 @@ def _direct_cable_mapping_support(
     orientation_query = bool(
         re.search(r"\b(?:connector\s+orientation|orientation\s+of\s+the\s+connector)\b", query, flags=re.I)
     )
+    extension_mapping = re.search(
+        r"\b(?:what|which)\b.{0,80}\bextension\s+cable\b.{0,80}\b(?:with|for)\s+(?:the\s+)?"
+        r"(?P<cable>CA-[A-Z0-9]+)\b",
+        query,
+        flags=re.I,
+    )
     requested_cables = {
         re.sub(r"[^A-Z0-9]", "", value.upper())
         for value in re.findall(r"\bOP[- ]?\d+\b", query, flags=re.I)
@@ -2324,6 +2330,17 @@ def _direct_cable_mapping_support(
                     )
                 )
                 for cell in description_rows
+            )
+        elif extension_mapping:
+            requested = re.sub(r"[^A-Z0-9]", "", extension_mapping.group("cable").upper())
+            supported = bool(
+                _result_supports_branch_scope(query, result)
+                and re.search(r"\bExtension\s+cable\b", content, flags=re.I)
+                and any(
+                    requested in re.sub(r"[^A-Z0-9]", "", line.upper())
+                    and re.search(r"\bCA-[A-Z0-9]+E\b", line, flags=re.I)
+                    for line in str(result.content or "").splitlines()
+                )
             )
         if supported:
             preliminary = int(result.chunk_id in preliminary_ids)
@@ -3160,7 +3177,11 @@ def _direct_scoped_yes_no_support(
     preliminary_assessment: dict[str, Any],
 ) -> list[str]:
     """Confirm a scoped yes/no fact only when one source sentence mirrors it."""
-    if not re.search(r"^\s*(?:for\s+.+?,\s*)?can\b", query, flags=re.I):
+    if not re.search(
+        r"^\s*(?:for\s+.+?,\s*)?(?:can|do(?:es)?|is|are)\b",
+        query,
+        flags=re.I,
+    ):
         return []
     preliminary_ids = {
         str(chunk_id)
@@ -3172,6 +3193,10 @@ def _direct_scoped_yes_no_support(
         value = re.sub(r"^plac(?:e|ed|ing)$", "place", value)
         value = re.sub(r"^us(?:e|ed|ing)$", "use", value)
         value = re.sub(r"^protect(?:s|ed|ing)?$", "protect", value)
+        value = re.sub(r"^(?:support|supports|supported|supporting)$", "handle", value)
+        value = re.sub(r"^(?:handle|handles|handled|handling)$", "handle", value)
+        value = re.sub(r"^(?:change|changes|changed|changing)$", "change", value)
+        value = re.sub(r"^lenses$", "lens", value)
         if len(value) > 4 and value.endswith("s") and not value.endswith("ss"):
             value = value[:-1]
         return value
@@ -3184,7 +3209,7 @@ def _direct_scoped_yes_no_support(
     query_terms = {
         canonical(term) for term in analyze_query(query).normalized_terms
         if len(term) > 2
-        and term not in {"can", "for", "the", "with"}
+        and term not in {"are", "can", "do", "does", "for", "is", "the", "with"}
         and canonical(term) not in scope_terms
     }
     query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
@@ -3192,7 +3217,20 @@ def _direct_scoped_yes_no_support(
     for result_index, result in enumerate(results):
         if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
             continue
-        for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(result.content or "")):
+        sentences = [
+            sentence.strip()
+            for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(result.content or ""))
+            if sentence.strip()
+        ]
+        # Product capability copy commonly binds the capability in one short
+        # sentence and the no-change/no-selection qualifier in the next. Keep
+        # the verification window bounded to at most two adjacent sentences.
+        sentence_windows = list(sentences)
+        sentence_windows.extend(
+            f"{sentences[index]} {sentences[index + 1]}"
+            for index in range(len(sentences) - 1)
+        )
+        for sentence in sentence_windows:
             terms = {canonical(term) for term in analyze_query(sentence).normalized_terms}
             overlap = len(query_terms.intersection(terms)) / max(1, len(query_terms))
             sentence_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", sentence))

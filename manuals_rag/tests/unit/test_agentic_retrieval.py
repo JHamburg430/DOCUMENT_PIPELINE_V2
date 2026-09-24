@@ -2803,6 +2803,62 @@ def test_structured_accessory_mapping_rejects_neighboring_light():
     assert verified["claim_supported"] is False
 
 
+def test_scoped_yes_no_support_accepts_does_question_from_one_exact_sentence(monkeypatch):
+    query = (
+        "Does the VS Series single model support both wide and narrow fields of view "
+        "without changing lenses?"
+    )
+    hop = RetrievalHop(hop_id="capability", objective=query, query=query)
+    exact = _result(
+        "vs-capability",
+        "vs-manual",
+        "Single model handles everything from wide to narrow fields of view. "
+        "No more lens selection or changes.",
+    )
+    exact.metadata.update({"chunk_type": "spec_record", "product_family": "VS Series"})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [exact],
+        {"claim_supported": True, "supporting_chunk_ids": [exact.chunk_id]},
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["vs-capability"]
+
+
+def test_extension_cable_mapping_confirms_exact_source_row(monkeypatch):
+    query = "What extension cable should be used with the CA-CF3 camera cable?"
+    hop = RetrievalHop(hop_id="cable", objective=query, query=query)
+    mapping = _result(
+        "camera-cable-row",
+        "camera-manual",
+        "Cable type | Camera cable length | Extension cable\n"
+        "For high-speed transmission cameras | CA-CF3 | "
+        "CA-CF5E (5 m) CA-CF10E (10 m)",
+    )
+    mapping.metadata.update({"chunk_type": "table_record", "product_model": "CA-CF3"})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [mapping],
+        {"claim_supported": True, "supporting_chunk_ids": [mapping.chunk_id]},
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["camera-cable-row"]
+
+
 def test_structured_power_source_mapping_confirms_powered_by_without_model():
     query = "How is that encoder head powered; constrain the lookup to CA-EN100H, CA-EN100U?"
     hop = RetrievalHop(hop_id="power", objective=query, query=query, strategy="structural")

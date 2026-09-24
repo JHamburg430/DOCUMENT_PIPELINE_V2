@@ -511,7 +511,11 @@ def _equivalent_chunk_ids(
         }
         expected_terms = [
             _normalized(value)
-            for value in evidence.get("expected_terms") or []
+            for value in (
+                evidence.get("expected_terms")
+                or case.get("expected_terms")
+                or []
+            )
             if value
         ]
         field = _normalized(evidence.get("field"))
