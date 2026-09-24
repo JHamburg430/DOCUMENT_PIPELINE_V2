@@ -54,6 +54,7 @@ def _documents(
     limit: int | None = None,
     *,
     document_ids: list[str] | None = None,
+    corpus_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     query = """
         select
@@ -79,6 +80,10 @@ def _documents(
         placeholders = ",".join(["%s"] * len(document_ids))
         query += f" and sd.id in ({placeholders})"
         params = tuple(document_ids)
+    if corpus_ids:
+        placeholders = ",".join(["%s"] * len(corpus_ids))
+        query += f" and sd.corpus_id in ({placeholders})"
+        params = (*params, *corpus_ids)
     query += " order by sd.updated_at desc, sd.id"
     if limit is not None:
         query += " limit %s"
@@ -373,6 +378,12 @@ def main() -> None:
         help="Restrict processing to one source-document UUID. Repeat for multiple documents.",
     )
     parser.add_argument(
+        "--corpus-id",
+        action="append",
+        dest="corpus_ids",
+        help="Restrict processing to one corpus ID. Repeat for multiple corpora.",
+    )
+    parser.add_argument(
         "--node-limit",
         type=int,
         default=None,
@@ -470,8 +481,31 @@ def main() -> None:
     else:
         results = []
         report_path = _write_report(results)
+    documents = _documents(
+        limit=args.limit,
+        document_ids=args.document_ids,
+        corpus_ids=args.corpus_ids,
+    )
+    selected_keys = {
+        (str(document["document_id"]), str(document["version_id"]))
+        for document in documents
+    }
+    out_of_scope_results = [
+        result
+        for result in results
+        if (result.document_id, result.version_id) not in selected_keys
+    ]
+    if out_of_scope_results:
+        parser.error(
+            "resume report contains document/version entries outside the selected scope: "
+            + ", ".join(
+                f"{result.document_id}/{result.version_id}"
+                for result in out_of_scope_results[:5]
+            )
+        )
+
     failure_count = 0
-    for document in _documents(limit=args.limit, document_ids=args.document_ids):
+    for document in documents:
         print(json.dumps({"document_id": str(document["document_id"]), "status": "started"}), flush=True)
         already_current = (
             str(document.get("extracted_version_id") or "") == str(document["version_id"])

@@ -15,7 +15,7 @@ sys.modules[_SPEC.name] = _MODULE
 _SPEC.loader.exec_module(_MODULE)
 
 
-def test_documents_can_target_multiple_document_ids(monkeypatch):
+def test_documents_can_target_multiple_document_and_corpus_ids(monkeypatch):
     captured = {}
 
     def fake_fetch_all(query, params):
@@ -25,10 +25,15 @@ def test_documents_can_target_multiple_document_ids(monkeypatch):
 
     monkeypatch.setattr(_MODULE, "fetch_all", fake_fetch_all)
 
-    assert _MODULE._documents(limit=2, document_ids=["doc-a", "doc-b"]) == []
+    assert _MODULE._documents(
+        limit=2,
+        document_ids=["doc-a", "doc-b"],
+        corpus_ids=["corpus-a", "corpus-b"],
+    ) == []
     assert "sd.id in (%s,%s)" in captured["query"]
+    assert "sd.corpus_id in (%s,%s)" in captured["query"]
     assert captured["query"].rstrip().endswith("limit %s")
-    assert captured["params"] == ("doc-a", "doc-b", 2)
+    assert captured["params"] == ("doc-a", "doc-b", "corpus-a", "corpus-b", 2)
     assert "extracted_pipeline_version" in captured["query"]
     assert "authoritative_manufacturer" in captured["query"]
 
@@ -246,6 +251,51 @@ def test_interrupted_dry_run_resumes_without_reextracting_checkpointed_document(
         ("doc-a", "planned"),
         ("doc-b", "planned"),
     ]
+
+
+def test_resume_report_rejects_results_outside_selected_corpus(monkeypatch, tmp_path):
+    report_path = tmp_path / "planned.json"
+    report_path.write_text(
+        json.dumps([
+            {
+                "document_id": "validation-doc",
+                "version_id": "validation-v1",
+                "source_filename": "validation.pdf",
+                "status": "planned",
+            }
+        ]),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(_MODULE, "_ensure_metadata_table", lambda: None)
+    monkeypatch.setattr(
+        _MODULE,
+        "_documents",
+        lambda **_kwargs: [
+            {
+                "document_id": "production-doc",
+                "version_id": "production-v1",
+                "source_filename": "production.pdf",
+                "extracted_version_id": None,
+                "extracted_pipeline_version": None,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "backfill_document_metadata.py",
+            "--corpus-id",
+            "manuals_vendor_keyence",
+            "--resume-report",
+            str(report_path),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        _MODULE.main()
+
+    assert exc_info.value.code == 2
 
 
 def test_apply_metadata_commits_document_payload_atomically_before_enqueue(monkeypatch):
