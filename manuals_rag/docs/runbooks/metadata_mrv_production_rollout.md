@@ -199,7 +199,8 @@ The full-corpus mutation requires an explicit acknowledgement:
 ```bash
 docker compose -f infra/compose/docker-compose.yml exec -T api \
   python scripts/maintenance/backfill_document_metadata.py \
-  --apply --no-enqueue-embed --all
+  --apply --no-enqueue-embed \
+  --corpus-id PRODUCTION_CORPUS_ID --all
 ```
 
 Audit the full corpus before vector promotion:
@@ -216,7 +217,8 @@ Only after a zero-failure audit:
 ```bash
 docker compose -f infra/compose/docker-compose.yml exec -T api \
   python scripts/maintenance/backfill_document_metadata.py \
-  --enqueue-current --all
+  --enqueue-current \
+  --corpus-id PRODUCTION_CORPUS_ID --all
 ```
 
 ## Phase 6: user-facing canary

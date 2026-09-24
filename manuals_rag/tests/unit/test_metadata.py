@@ -756,6 +756,46 @@ def test_title_selection_rejects_competing_accessory_callout(monkeypatch):
     assert metadata.routing_product_models == ["LR-T"]
 
 
+def test_title_selection_recovers_split_cover_product_heading(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="brochure"),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ({"entities": []}, "{}"),
+    )
+
+    metadata = infer_document_metadata_from_segments(
+        "AS_79692_LR-T_C_611C20_KA_US_2074_3_unlocked.pdf",
+        [
+            MetadataSourceSegment("New Standard!  All-Purpose Laser Sensor", 1, 1),
+            MetadataSourceSegment("Multi-Sensor Controller MU-N Series", 1, 1),
+            MetadataSourceSegment("LR-T", 1, 1),
+            MetadataSourceSegment("SERIES", 1, 1),
+        ],
+    )
+
+    assert metadata.title == "All-Purpose Laser Sensor"
+    title_evidence = [
+        item for item in metadata.metadata_evidence
+        if item["kind"] == "document_title"
+    ]
+    assert title_evidence == [{
+        "value": "All-Purpose Laser Sensor",
+        "kind": "document_title",
+        "relation": "printed_title",
+        "subject": None,
+        "source_quote": "All-Purpose Laser Sensor",
+        "page_from": 1,
+        "page_to": 1,
+        "section_path": [],
+        "confidence": 0.95,
+        "grounded": True,
+        "source": "opening_page_title",
+    }]
+
+
 def test_title_selection_rejects_competing_model_list_from_title_fallback(monkeypatch):
     from manuals_rag_parsers.metadata import _select_document_title
 

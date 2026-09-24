@@ -2457,6 +2457,12 @@ def _select_document_title(
     for segment in opening_segments:
         for raw_line in segment.text.splitlines():
             line = " ".join(raw_line.split()).strip(" |")
+            line = re.sub(
+                r"^(?:new\s+standard|new)\s*!?\s*",
+                "",
+                line,
+                flags=re.IGNORECASE,
+            ).strip()
             has_identifier = IDENTIFIER_CANDIDATE_PATTERN.search(line) is not None
             line_identifier_keys = {
                 _compact_identifier(match.group(0))
@@ -2480,8 +2486,20 @@ def _select_document_title(
                 and "|" not in raw_line
                 and 2 <= len(line.split()) <= 12
             )
+            page_one_product_heading = (
+                int(segment.page_from or 10**9) == 1
+                and bool(grounded_filename_identity_keys)
+                and product_type_pattern.search(line) is not None
+                and "|" not in raw_line
+                and not line.endswith(":")
+                and not re.search(r"\b(?:supported|compatible|applicable)\b", line, re.IGNORECASE)
+                and 3 <= len(line.split()) <= 12
+            )
             if not (12 <= len(line) <= 180) or not (
-                has_kind or has_series_identity or page_one_identifier_heading
+                has_kind
+                or has_series_identity
+                or page_one_identifier_heading
+                or page_one_product_heading
             ):
                 continue
             if re.search(r"\b(?:copyright|all rights reserved|https?://|www\.)\b", line, re.IGNORECASE):
@@ -2498,6 +2516,8 @@ def _select_document_title(
             if has_series_identity:
                 score += 2
             if page_one_identifier_heading:
+                score += 2
+            if page_one_product_heading:
                 score += 2
             score += max(0, 3 - int(segment.page_from or 3))
             descriptive_candidates.append((score, -len(line), line))
