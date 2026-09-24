@@ -2795,6 +2795,10 @@ def _concise_instruction_answer(
             ):
                 continue
             score = float(overlap * 2)
+            if chunk_type in {"atomic_text", "procedure_record"}:
+                # Prefer the bounded instruction record over a larger section
+                # window that can append an unrelated neighboring precaution.
+                score += 6.0
             if disable_condition:
                 score += 20.0
                 if re.match(r"^\s*If\b", segment, flags=re.IGNORECASE):
@@ -3292,6 +3296,48 @@ def _concise_dependent_list_answer(
     if not candidates:
         return "", []
     _quality, _negative_index, answer, result = max(candidates, key=lambda item: (item[0], item[1]))
+    return answer, [result]
+
+
+def _concise_benefit_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Return the bounded evidence sentence that explains a named benefit."""
+
+    if not re.search(
+        r"^\s*how\s+(?:does|do)\b.+\b(?:reduce|improve|benefit)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        return "", []
+    query_terms = _material_claim_terms(query)
+    candidates: list[tuple[int, int, int, str, SearchResult]] = []
+    for result_index, result in enumerate(results[:12]):
+        evidence = _fallback_answer_text(result)
+        for segment in re.split(r"(?<=[.!?])\s+|\n+", evidence):
+            clean = re.sub(r"\s+", " ", segment).strip(" -|•·▪\t\r\n")
+            if not re.search(
+                r"\b(?:reduc(?:e|es|ed|ing)|eliminat(?:e|es|ed|ing)|"
+                r"avoid(?:s|ed|ing)?|sav(?:e|es|ed|ing))\b",
+                clean,
+                flags=re.IGNORECASE,
+            ):
+                continue
+            overlap = len(query_terms.intersection(_material_claim_terms(clean)))
+            if overlap < 3:
+                continue
+            bounded = int(
+                str(result.metadata.get("chunk_type") or "")
+                in {"atomic_text", "procedure_record"}
+            )
+            candidates.append((overlap, bounded, -result_index, clean, result))
+    if not candidates:
+        return "", []
+    _overlap, _bounded, _negative_index, answer, result = max(
+        candidates,
+        key=lambda item: item[:3],
+    )
     return answer, [result]
 
 
@@ -5529,6 +5575,27 @@ def _concise_part_number_answer(
         return "", []
     subject = (subject_match.group("subject") or subject_match.group("subject_after") or "").strip()
     subject_terms = _material_claim_terms(subject).difference({"required", "which"})
+    requested_material = re.search(r"\b(PVC|PUR)\b", query, flags=re.IGNORECASE)
+    if requested_material:
+        material = requested_material.group(1).upper()
+        for result in results[:12]:
+            evidence = "\n".join(
+                value
+                for value in (
+                    _fallback_answer_text(result),
+                    str(result.metadata.get("parent_context") or "").strip(),
+                )
+                if value
+            )
+            material_mapping = re.search(
+                rf"\b(?:OP[-:]?\s*)?(?P<number>\d{{5,8}})\s*"
+                rf"\(\s*for\s+{material}\s+(?:insulation|cable)\s*\)",
+                evidence,
+                flags=re.IGNORECASE,
+            )
+            if material_mapping:
+                code = f"OP-{material_mapping.group('number')}"
+                return f"The required {subject} part number is {code}.", [result]
     candidates: list[tuple[int, int, int, int, int, str, SearchResult]] = []
     subject_pattern = re.compile(
         r"\b" + r"\W+".join(re.escape(term) for term in re.findall(r"[A-Za-z0-9]+", subject)) + r"\b",
@@ -7317,6 +7384,34 @@ def generate_answer_with_trace(
             *prioritized_results,
             *(result for result in results if result.chunk_id not in prioritized_ids),
         ]
+    benefit_answer, benefit_results = _concise_benefit_answer(
+        query,
+        prioritized_results or results,
+    )
+    if benefit_answer:
+        answer = validate_answer(
+            _fallback_answer(query, benefit_results),
+            benefit_results,
+            query=query,
+        )
+        answer.answer = _clean_final_answer_text(benefit_answer, query)
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "benefit"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "benefit",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_benefit",
+            }
+        )
+        return answer, trace
     warning_answer, warning_results = _concise_warning_answer(query, warning_evidence)
     if warning_answer:
         answer = validate_answer(

@@ -6591,6 +6591,42 @@ def test_score_search_results_accepts_strong_duplicate_manual_evidence_for_unsco
     assert evaluation["match_reason"] == "cross_document_semantic_evidence"
 
 
+def test_score_search_results_accepts_short_duplicate_fact_with_explicit_model():
+    case = RetrievalEvalCase(
+        case_id="duplicate-short-fact",
+        query="What is the X-axis reference distance for the LJ-S015 sensor?",
+        source_document_id="doc-easy-config",
+        document_version_id="ver-easy-config",
+        source_chunk_id="expected-chunk",
+        source_title="LJ-S8000 Easy Configuration Manual",
+        source_filename="easy-config.pdf",
+        chunk_type="table_record",
+        section_path="Document",
+        page_from=1,
+        page_to=1,
+        expected_terms=["lj-s015", "15mm"],
+        expected_snippet="LJ-S015: 15mm",
+        generation_method="unit",
+        source_metadata={"product_family": "LJ-S8000 Easy Configuration Manual"},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "duplicate-answer",
+                "source_document_id": "doc-brochure",
+                "section_path": ["Specifications"],
+                "content": "Column headers: LJ-S015; Row headers: X: Reference distance; Cell value: 15 mm0.59\"",
+                "metadata": {"chunk_type": "table_record", "product_family": "Laser Snapshot Sensor"},
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "cross_document_semantic_evidence"
+
+
 def test_score_search_results_passes_on_same_document_term_overlap():
     case = RetrievalEvalCase(
         case_id="c1",

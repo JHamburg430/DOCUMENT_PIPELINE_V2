@@ -1,0 +1,227 @@
+{
+  "total_queries": 200,
+  "passed_queries": 200,
+  "failed_queries": 0,
+  "pass_rate": 1.0,
+  "pass_at_1": 0.96,
+  "pass_at_3": 0.995,
+  "pass_at_5": 1.0,
+  "mean_passing_rank": 1.055,
+  "by_chunk_type": {
+    "spec_record": {
+      "total": 54,
+      "passed": 54
+    },
+    "atomic_text": {
+      "total": 65,
+      "passed": 65
+    },
+    "table_record": {
+      "total": 78,
+      "passed": 78
+    },
+    "datasheet_record": {
+      "total": 2,
+      "passed": 2
+    },
+    "parent_section": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "by_retrieval_task": {
+    "single_step_retrieval": {
+      "total": 200,
+      "passed": 200
+    }
+  },
+  "by_document": {
+    "AS_124659_SZ-V_C_611O89_KA_US_2074_4.pdf": {
+      "total": 9,
+      "passed": 9
+    },
+    "AS_142767_2DVGR_C_611Y32_KA_US_2054_1.pdf": {
+      "total": 4,
+      "passed": 4
+    },
+    "AS_78620_CA-EN100U_IM_96M13845_WW_GB_2072_4a.pdf": {
+      "total": 12,
+      "passed": 12
+    },
+    "AS_143269_VS_CM_J23GB_WW_GB_2065_2.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_107533_IV_IM_96M12230_WW_GB_2082_3a.pdf": {
+      "total": 11,
+      "passed": 11
+    },
+    "AS_145624_IV_C_611Y54_KA_US_2084_2.pdf": {
+      "total": 8,
+      "passed": 8
+    },
+    "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf": {
+      "total": 5,
+      "passed": 5
+    },
+    "AS_126535_CV-X_C_611S71_KA_US_2124_5.pdf": {
+      "total": 7,
+      "passed": 7
+    },
+    "AS_141263_WM_C_611X50_KA_US_2035_2.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_140519_LR-W500_LR-W500-_LR-W500C_IM_96M17798_WW_GB_2034_1.pdf": {
+      "total": 12,
+      "passed": 12
+    },
+    "AS_130681_SR-1000_SR-2000_SR-PN1_CM_D65GB_WW_GB_2122_1.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_147320_LJ-S8000_SG_K47GB_WW_GB_2094_1.pdf": {
+      "total": 5,
+      "passed": 5
+    },
+    "CA-S20D_Datasheet.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_160148_XG-X_C_689246_KA_US_2085_1.pdf": {
+      "total": 9,
+      "passed": 9
+    },
+    "VJ-H500CX_Datasheet.pdf": {
+      "total": 4,
+      "passed": 4
+    },
+    "CA-U5_Datasheet.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_149615_IV4_C_689071_KA_US_2124_3.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_152333_LJ-S8000_IM_96M18473_WW_GB_2045_1.pdf": {
+      "total": 7,
+      "passed": 7
+    },
+    "AS_124150_LJ-X8000_CM_C10GB_WW_GB_2101_1.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_112204_VJ_C_611L77_KA_US_2124_5.pdf": {
+      "total": 4,
+      "passed": 4
+    },
+    "AS_79692_LR-T_C_611C20_KA_US_2074_3.pdf": {
+      "total": 5,
+      "passed": 5
+    },
+    "AS_103012_LineScan_C_611J12_KA_US_2073_3.pdf": {
+      "total": 5,
+      "passed": 5
+    },
+    "AS_145861_VS_C_611Y94_KA_US_2104_2.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_86111_LR-Z_C_611C85_KA_US_2074_4 (1).pdf": {
+      "total": 5,
+      "passed": 5
+    },
+    "AS_77987_LR-W_UM_542GB_WW_GB_1125_1.pdf": {
+      "total": 9,
+      "passed": 9
+    },
+    "AS_158438_3DVision_C_689228_KA_US_2065_1.pdf": {
+      "total": 5,
+      "passed": 5
+    },
+    "AS_151195_VS_C_689087_KA_US_2025_1.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_114958_TG_611O36_KA_US_2075_2.pdf": {
+      "total": 4,
+      "passed": 4
+    },
+    "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf": {
+      "total": 4,
+      "passed": 4
+    },
+    "AS_148740_IV4-400CA_IV4-400MA_IV4-500CA_IM_96M17956_WW_GB_2114_2.pdf": {
+      "total": 10,
+      "passed": 10
+    },
+    "LuaScriptManual_en.pdf": {
+      "total": 5,
+      "passed": 5
+    },
+    "AS_149074_SZ-V_GL-R_L_689034_KA_US_2114_1.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_151119_LJ-S8000_C_689103_KA_US_2025_1.pdf": {
+      "total": 5,
+      "passed": 5
+    },
+    "AS_152388_LR-ZH500C3P_LR-ZH500C3P-_LR-ZH500CN_IM_96M18539_WW_GB_2045_1.pdf": {
+      "total": 5,
+      "passed": 5
+    },
+    "AS_79692_LR-T_C_611C20_KA_US_2074_3_unlocked.pdf": {
+      "total": 7,
+      "passed": 7
+    },
+    "AS_160462_VS_C_689253_KA_US_2085_1.pdf": {
+      "total": 4,
+      "passed": 4
+    },
+    "SR-H8W_Datasheet.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "CA-DZW50X_Datasheet.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "WM-6025_Datasheet.pdf": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "by_question_family": {
+    "general": 138,
+    "procedure": 9,
+    "comparison": 8,
+    "quantity_specification": 43,
+    "configuration_location": 1,
+    "troubleshooting": 1
+  },
+  "representative_question_coverage": true,
+  "question_coverage_warning": null,
+  "failure_categories": {},
+  "benchmark_quality": {
+    "model_reviewed": 198,
+    "validated": 2
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 0.74,
+  "metadata_document_selection_attempts": 200,
+  "metadata_document_selection_recall_rate": 0.85,
+  "metadata_document_selection_rank_1_rate": 0.54,
+  "answer_eval_count": 0,
+  "answer_passed_queries": 0,
+  "answer_failed_queries": 0,
+  "answer_pass_rate": null,
+  "answer_failure_reasons": {},
+  "answer_latency": null,
+  "answer_fallback_count": null,
+  "answer_fallback_rate": null,
+  "answer_sources": {},
+  "answer_fallback_reasons": {},
+  "answer_mean_summary_count": null
+}

@@ -3651,6 +3651,25 @@ def _cross_document_semantic_evidence_is_applicable(
 ) -> bool:
     if str(result.get("source_document_id", "")) == case.source_document_id:
         return False
+    result_text = _compact_eval_identifier(_result_evidence_text(result))
+    query_identifiers = {
+        _compact_eval_identifier(identifier)
+        for identifier in re.findall(
+            r"\b(?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\d)[A-Z0-9]+(?:-[A-Z0-9]+)+\b",
+            case.query,
+            flags=re.IGNORECASE,
+        )
+    }
+    # Short structured facts can have only two material answer tokens (for
+    # example, model + value). Accept a duplicate manual only when the query's
+    # explicit model identifier is also present in the retrieved evidence.
+    if (
+        snippet_overlap >= 2
+        and query_overlap >= 2
+        and query_identifiers
+        and any(identifier in result_text for identifier in query_identifiers)
+    ):
+        return True
     # Require substantially stronger textual agreement than the same-document
     # fallback.  This covers duplicated manual content without treating a loose
     # topical match in another product manual as evidence.
@@ -3664,7 +3683,6 @@ def _cross_document_semantic_evidence_is_applicable(
     if not explicit_case_identifiers:
         return True
     result_identifiers = _result_product_identifiers(result)
-    result_text = _compact_eval_identifier(_result_evidence_text(result))
     return any(identifier in result_identifiers or identifier in result_text for identifier in explicit_case_identifiers)
 
 

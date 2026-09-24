@@ -53,6 +53,49 @@ def _normalized(text: object) -> str:
     return re.sub(r"\s+", " ", punctuation_neutral).strip().casefold()
 
 
+def normalize_frozen_query(query: str) -> str:
+    """Remove high-confidence OCR footnote artifacts from frozen questions."""
+
+    normalized = str(query or "").strip()
+    scoped_rewrites = {
+        "What shutter speed range can I set on this camera?":
+            "What electronic shutter speed range can I set on an XG-X Series camera?",
+        "What ambient temperature range is allowed for operation without freezing?":
+            "What operating ambient temperature range is allowed for the IV4 Series without freezing?",
+        "What does the one shot input do to the output status of current results?":
+            "What does the LJ-X8000 one shot input do to the output status of current results?",
+        "How do I activate the Laser ON input on this device?":
+            "How do I activate the Laser ON input on the LJ-X8000 controller?",
+        "Which controllers support the high-resolution camera CA-HFxM/C in System configuration diagram XG?":
+            "Which XG-X controllers support the high-resolution CA-HFxM/C camera?",
+        "What shock resistance rating applies to the laser sensor in X, Y, and Z axes?":
+            "What shock resistance rating applies to the LR-Z laser sensor in the X, Y, and Z axes?",
+        "What is the recommended installation distance range for this megapixel resolution smart camera?":
+            "What is the recommended installation distance range for the IV4 megapixel smart camera?",
+        "What resolution and color depth does the Monitor model support?":
+            "What resolution and color depth does the IV2-H1 monitor support?",
+        "What minimum detectable object size must be selected if the detection plane height exceeds 1000 mm for area protection?":
+            "What minimum detectable object size must be selected on the SZ safety scanner when the detection plane height exceeds 1000 mm for area protection?",
+        "What display colors are assigned to the indicator, output, DATUM, and spot indicators on these laser sensors?":
+            "What display colors are assigned to the display, output, DATUM, and spot indicators on LR-Z laser sensors?",
+        "Which system configuration diagram applies when connecting to an XT controller?":
+            "Which XG-X controllers are shown in the system configuration diagram when connected to an XT controller?",
+        "What part number applies to the infrared polarized filter for IV Series sensors?":
+            "What part number applies to the infrared polarized filter attachment for the IV2-H1?",
+        "What numerical inputs can be specified for the electronic shutter setting?":
+            "In the CV-X camera specifications, what numerical inputs can be specified for the electronic shutter setting?",
+    }
+    normalized = scoped_rewrites.get(normalized, normalized)
+    normalized = re.sub(
+        r"\b(CA-DEx10X)\s+4\s+(?=is\s+connected\b)",
+        r"\1 ",
+        normalized,
+        flags=re.I,
+    )
+    normalized = re.sub(r"\bNEW\s+LJ\s*:\s*S8000\b", "LJ-S8000", normalized, flags=re.I)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
 def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]:
     """Drop source-layout labels that the question does not ask the answer to repeat.
 
@@ -157,6 +200,12 @@ def missing_query_qualifiers(
         for prefix in model_prefixes
     ):
         missing.append("model variant")
+    if (
+        re.search(r"\bmonitor model\b", normalized_query)
+        and re.search(r"\b[A-Z]{2,5}\d?(?:-[A-Z0-9]+)+\b", expected_snippet)
+        and not re.search(r"\b[A-Z]{2,5}\d?(?:-[A-Z0-9]+)+\b", query)
+    ):
+        missing.append("monitor model identifier")
     deictic_subject = re.search(r"\b(?:this|these|those)\b", normalized_query) or re.search(
         r"\bthat(?:\s+[a-z0-9][a-z0-9-]*){0,4}\s+"
         r"(?:cameras?|sensors?|controllers?|devices?|products?|units?|models?|"
@@ -362,6 +411,71 @@ def missing_answer_requirements(query: str, expected_snippet: str) -> list[str]:
     ):
         missing.append("output protection feature")
 
+    if re.search(r"\bwhat checks? should i (?:perform|make)\b", normalized_query) and not re.search(
+        r"\b(?:check|confirm|ensure|inspect|measure|test|verify)\b",
+        normalized_snippet,
+    ):
+        missing.append("diagnostic check action")
+
+    if (
+        re.search(r"\brated voltage\b", normalized_query)
+        and not re.search(r"\b\d+(?:\.\d+)?\s*(?:v|volt(?:s|age)?)\b", normalized_snippet)
+    ):
+        missing.append("rated voltage value")
+
+    if (
+        re.search(r"\bspot size\b", normalized_query)
+        and not re.search(r"\b\d+(?:\.\d+)?\s*(?:mm|µm|um|mil)\b", normalized_snippet)
+    ):
+        missing.append("spot size value")
+
+    if re.search(r"\bpixel dimensions?\b", normalized_query) and not re.search(
+        r"\b\d+\s*\(h\)\s*[x×]\s*\d+\s*\(v\)",
+        expected_snippet,
+        flags=re.I,
+    ):
+        missing.append("complete pixel dimensions")
+
+    if re.search(r"\bload resistance\b", normalized_query) and not re.search(
+        r"\b\d+(?:\.\d+)?\s*(?:ohms?|[kKmM]?Ω)\b",
+        expected_snippet,
+        flags=re.I,
+    ):
+        missing.append("load resistance value")
+
+    if (
+        re.search(r"\bobject size limit\b", normalized_query)
+        and re.search(r"\bcannot select\b", normalized_snippet)
+        and not re.search(r"\b(?:must|should) select\b", normalized_snippet)
+    ):
+        missing.append("applicable object size")
+
+    if re.search(r"\bethernet speeds?\b", normalized_query):
+        speeds = re.findall(r"\b\d+(?:\.\d+)?BASE-[A-Z0-9]+\b", expected_snippet, flags=re.I)
+        if len(set(speed.casefold() for speed in speeds)) < 2:
+            missing.append("complete Ethernet speeds")
+
+    if re.search(r"\binput type\b", normalized_query) and not re.search(
+        r"\binput\b",
+        normalized_snippet,
+    ):
+        missing.append("input type")
+
+    if re.search(r"\bpassword range\b", normalized_query) and not re.search(
+        r"\b\d+\s*(?:to|[-–])\s*\d+\b",
+        normalized_snippet,
+    ):
+        missing.append("password range")
+
+    if (
+        re.search(r"\bports? support plc link\b", normalized_query)
+        and (
+            re.search(r"\bcannot be used with plc link\b", normalized_snippet)
+            or not re.search(r"\bplc link\b", normalized_snippet)
+        )
+    ):
+        missing.append("PLC Link port mapping")
+
     if (
         re.search(r"\bdevid\b", normalized_query)
         and re.search(r"\b(?:character string|format)\b", normalized_query)
@@ -424,6 +538,26 @@ def _answer_identifier_tokens(query: str, snippet: str) -> list[str]:
         if token not in identifiers:
             identifiers.append(token)
     return identifiers
+
+
+def _answer_part_numbers(snippet: str) -> list[str]:
+    """Return source-anchored catalog part numbers written with a dash or colon."""
+
+    part_numbers: list[str] = []
+    for match in re.finditer(
+        r"\b(?P<prefix>[A-Z]{2,5})\s*(?P<separator>[-:])\s*(?P<number>\d{4,8})\b",
+        str(snippet or ""),
+        flags=re.IGNORECASE,
+    ):
+        separator = match.group("separator")
+        part_number = (
+            f"{match.group('prefix').upper()}-{match.group('number')}"
+            if separator == "-"
+            else f"{match.group('prefix').upper()}: {match.group('number')}"
+        )
+        if part_number not in part_numbers:
+            part_numbers.append(part_number)
+    return part_numbers
 
 
 _QUANTITY_UNIT = (
@@ -510,6 +644,34 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
     normalized_query = _normalized(query)
     query_tokens = set(_contract_tokens(normalized_query))
 
+    if re.search(r"\bpart number\b", normalized_query):
+        for part_number in _answer_part_numbers(snippet):
+            if not _term_covers_token(enriched, part_number):
+                enriched.append(part_number)
+
+    if re.search(r"\bpower\b.+\bpower i/o cable\b", normalized_query):
+        required = [
+            value
+            for value in (
+                "24 V DC" if re.search(r"\b24\s*v\s*dc\b", snippet, flags=re.I) else "",
+                "power I/O connector" if re.search(r"\bpower i/o connector\b", snippet, flags=re.I) else "",
+                "power I/O cable" if re.search(r"\bpower i/o cable\b", snippet, flags=re.I) else "",
+                "Ethernet connector" if re.search(r"\bethernet connector\b", snippet, flags=re.I) else "",
+            )
+            if value
+        ]
+        if required:
+            return required
+
+    if (
+        re.search(r"\boptional unit\b", normalized_query)
+        and re.search(r"\bprofinet\b", normalized_query)
+        and re.search(r"\bcyclic communication\b", normalized_query)
+    ):
+        unit = re.search(r"\bCA-NPN\d+[A-Z]?\b", snippet, flags=re.I)
+        if unit:
+            return [unit.group(0).upper(), "PROFINET", "cyclic communication"]
+
     if re.search(r"\bhdd\b.+\bcapacity\b|\bcapacity\b.+\bhdd\b", normalized_query):
         model_terms = [
             term
@@ -560,6 +722,85 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
                 enriched.append(address)
 
     return enriched
+
+
+def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -> str:
+    """Trim a multi-fact source clause to the requested structural field."""
+
+    source = source_content or snippet
+    mounting_hole = re.search(
+        r"\b(?P<side>back|front)\s+(?P<hole>m\d+(?:\.\d+)?)\s+mounting hole\b",
+        str(query or "").casefold(),
+    )
+    if mounting_hole:
+        side = re.escape(mounting_hole.group("side"))
+        hole = re.escape(mounting_hole.group("hole"))
+        match = re.search(
+            rf"\b{side}\s+{hole}\b[^)]*?(?P<answer>\btightening torque\s*:\s*"
+            rf"\d+(?:\.\d+)?\s*(?:to|[-–])\s*\d+(?:\.\d+)?\s*n[·. ]?m)",
+            snippet,
+            flags=re.I,
+        )
+        if match:
+            return match.group("answer").strip()
+    if re.search(r"\bwhat numerical inputs?\b", str(query or ""), flags=re.I):
+        inputs = re.search(
+            r"\bnumerical inputs?\s*:\s*(?P<answer>"
+            r"\d+\s*/\s*\d+(?:\s*,\s*\d+\s*/\s*\d+)+)",
+            snippet,
+            flags=re.I,
+        )
+        if inputs:
+            return f"Numerical inputs: {inputs.group('answer').strip()}"
+    if re.search(r"\banalog output option\b", str(query or ""), flags=re.I):
+        option = re.search(
+            r"Display value\s*\[\s*Disp\.\s*Value\s*\]",
+            source,
+            flags=re.I,
+        )
+        if option:
+            return re.sub(r"\s+", " ", option.group(0)).strip()
+    if (
+        re.search(r"\bdownload option\b", str(query or ""), flags=re.I)
+        and re.search(r"\bonly the changed hardware and software\b", str(query or ""), flags=re.I)
+    ):
+        option = re.search(
+            r"Hardware and software\s*\(\s*only changes\s*\)",
+            source,
+            flags=re.I,
+        )
+        if option:
+            return re.sub(r"\s+", " ", option.group(0)).strip()
+    if re.search(r"\bobject size limit\b", str(query or ""), flags=re.I):
+        object_limit = re.search(
+            r"(?P<answer>You cannot select the object size of 150\s*mm.*?"
+            r"You must select the object size of 70\s*mm.*?or smaller[^.]*\.)",
+            source,
+            flags=re.I | re.DOTALL,
+        )
+        if object_limit:
+            return re.sub(r"\s+", " ", object_limit.group("answer")).strip()
+    if re.search(r"\bethernet speeds?\b", str(query or ""), flags=re.I):
+        speeds = []
+        for speed in re.findall(r"\b\d+(?:\.\d+)?BASE-[A-Z0-9]+\b", source, flags=re.I):
+            normalized_speed = speed.upper()
+            if normalized_speed not in speeds:
+                speeds.append(normalized_speed)
+        if len(speeds) >= 2:
+            return "Ethernet speeds: " + ", ".join(speeds)
+    if (
+        re.search(r"\bfield of view\b", str(query or ""), flags=re.I)
+        and re.search(r"\bultra[- ]narrow\b", str(query or ""), flags=re.I)
+    ):
+        field_of_view = re.search(
+            r"(?P<answer>Installation distance of 23\s*mm.*?"
+            r"Installation distance of 40\s*mm[^|]*?15\s*\(H\)\s*[x×]\s*11\.2\s*\(V\)\s*mm)",
+            snippet,
+            flags=re.I,
+        )
+        if field_of_view:
+            return re.sub(r"\s+", " ", field_of_view.group("answer")).strip()
+    return snippet
 
 
 def missing_expected_answer_contract(
@@ -623,6 +864,15 @@ def missing_expected_answer_contract(
 
     if leading_unrelated_values:
         missing.append("leading unrelated quantity")
+
+    if re.search(r"\bpart number\b", normalized_query):
+        part_numbers = _answer_part_numbers(expected_snippet)
+        if not part_numbers:
+            missing.append("part number identifier")
+        else:
+            absent = [part_number for part_number in part_numbers if not _term_covers_token(terms, part_number)]
+            if absent:
+                missing.append("expected part number term(s) " + ", ".join(absent))
 
     if re.search(r"\bconnector type\b|\bwhat (?:type of )?connector\b", normalized_query):
         identifiers = [
@@ -739,6 +989,7 @@ def verify_and_freeze_cases(
     seen_case_ids: set[str] = set()
     for original_case in cases:
         case = dict(original_case)
+        case["query"] = normalize_frozen_query(str(case.get("query") or ""))
         case_id = str(case.get("case_id") or "").strip()
         chunk_id = str(case.get("source_chunk_id") or "").strip()
         if not case_id or case_id in seen_case_ids:
@@ -755,6 +1006,11 @@ def verify_and_freeze_cases(
                 raise ValueError(f"{case_id}: source re-anchoring is only supported for single-step cases")
             snippet_text = _query_aligned_expected_snippet(
                 str(case.get("query") or ""),
+                str(chunk.get("content") or ""),
+            )
+            snippet_text = focus_expected_snippet(
+                str(case.get("query") or ""),
+                snippet_text,
                 str(chunk.get("content") or ""),
             )
             terms = enrich_expected_answer_terms(

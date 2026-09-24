@@ -165,6 +165,14 @@ def test_accepts_question_that_preserves_axis_qualifier():
     assert frozen[0]["query"].startswith("What X-axis")
 
 
+def test_rejects_generic_monitor_model_when_source_names_specific_model():
+    assert _MODULE.missing_query_qualifiers(
+        "What resolution and color depth does the Monitor model support?",
+        "IV2-H1: Resolution: 1024 × 768 pixels or higher, Display color: High Color (16 bit)",
+        "IV2-H1: Resolution: 1024 × 768 pixels or higher, Display color: High Color (16 bit)",
+    ) == ["monitor model identifier"]
+
+
 def test_rejects_family_wide_question_when_context_names_model_variant():
     assert _MODULE.missing_query_qualifiers(
         "What is the exposure time range for the VS Series camera?",
@@ -345,6 +353,79 @@ def test_rejects_output_protection_question_anchored_to_input_timing():
     ) == ["output protection feature"]
 
 
+def test_rejects_checklist_question_anchored_only_to_fault_description():
+    assert _MODULE.missing_answer_requirements(
+        "What checks should I perform if the LR-ZH500C3P shows ErC?",
+        "Display: ErC; Description: Current of 100 mA or more flows through the control output",
+    ) == ["diagnostic check action"]
+
+
+def test_rejects_rated_voltage_question_anchored_to_current_value():
+    assert _MODULE.missing_answer_requirements(
+        "What is the rated voltage for the WM-P6000 battery operation?",
+        "WM-P6000: 1.25 A",
+    ) == ["rated voltage value"]
+
+
+@pytest.mark.parametrize(
+    ("query", "snippet", "requirement"),
+    [
+        (
+            "What is the approximate spot size at a working distance of 240 mm?",
+            "Distance based laser sensor: 1.5 ms / 10 ms / 50 ms selectable",
+            "spot size value",
+        ),
+        (
+            "What pixel dimensions does the VJ-H048CX/H048MX model support?",
+            "0.47 megapixel mode: (H) × 596 (V), approx",
+            "complete pixel dimensions",
+        ),
+        (
+            "What load resistance limits apply to the 4-20 mA current output?",
+            "Current output: 4 to 20 mA with a max",
+            "load resistance value",
+        ),
+    ],
+)
+def test_rejects_question_when_requested_measurement_is_absent(query, snippet, requirement):
+    assert _MODULE.missing_answer_requirements(query, snippet) == [requirement]
+
+
+def test_rejects_object_size_limit_contract_that_only_names_forbidden_size():
+    assert _MODULE.missing_answer_requirements(
+        "What object size limit applies when detection plane height is 1000 mm or less?",
+        "You cannot select the object size of 150 mm when height is 1000 mm or less.",
+    ) == ["applicable object size"]
+
+
+def test_rejects_ethernet_speed_contract_with_truncated_second_standard():
+    assert _MODULE.missing_answer_requirements(
+        "Which Ethernet speeds does the XG-X2902LJ support?",
+        "Supports BOOTP functions; 1000BASE-T/100",
+    ) == ["complete Ethernet speeds"]
+
+
+def test_rejects_input_type_question_anchored_to_power_voltage_field():
+    assert _MODULE.missing_answer_requirements(
+        "What input type does the VJ-3302 model support?",
+        "VJ-3302: Power voltage",
+    ) == ["input type"]
+
+
+def test_rejects_password_range_question_without_numeric_range():
+    assert _MODULE.missing_answer_requirements(
+        "What password range disables the Key Lock on the W500?",
+        "An optional password can be set to prohibit unauthorized releasing of the Key Lock.",
+    ) == ["password range"]
+
+
+def test_rejects_plc_link_ports_question_anchored_to_incompatible_interface():
+    assert _MODULE.missing_answer_requirements(
+        "Which ports support PLC Link communication on the LJ-S8002?",
+        "Ethernet port or optional EtherNet/IP unit (Cannot be used with PLC Link).",
+    ) == ["PLC Link port mapping"]
+
+
 def test_rejects_devid_format_question_bound_to_neighboring_str_field():
     assert _MODULE.missing_answer_requirements(
         "What character string format does the devId parameter expect?",
@@ -407,6 +488,178 @@ def test_reanchors_hdd_capacity_to_capacity_value_instead_of_neighboring_details
 
     assert terms == ["lj-s8002", "HDD", "2TB"]
     assert _MODULE.missing_expected_answer_contract(query, snippet, terms) == []
+
+
+def test_focuses_mounting_hole_contract_on_requested_torque_clause():
+    query = "What tightening torque is required for the back M2.5 mounting hole?"
+    snippet = (
+        "In addition to the back M3 mounting hole, the sensor can be mounted by the "
+        "back M2.5 (depth 3.4 mm, tightening torque: 0.2 to 0.3 N·m) and the front "
+        "M4 (depth 4.1 mm, tightening torque: 0.8 to 1.2 N·m) hole."
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, snippet)
+
+    assert focused == "tightening torque: 0.2 to 0.3 N·m"
+    assert _MODULE._answer_quantity_values(query, focused) == ["0.2", "0.3"]
+
+
+def test_focuses_numerical_input_contract_on_the_requested_enumeration():
+    query = "What numerical inputs can be specified for the electronic shutter setting?"
+    snippet = (
+        "Electronic shutter | Can be set to 0.05 to 9000 msec by specifying the following "
+        "numerical inputs: 1/15, 1/30, 1/60, 1/120, 1/240, 1/500, 1/1000, 1/2000, "
+        "1/5000, 1/10000, 1/20000"
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, snippet)
+
+    assert focused == (
+        "Numerical inputs: 1/15, 1/30, 1/60, 1/120, 1/240, 1/500, 1/1000, "
+        "1/2000, 1/5000, 1/10000, 1/20000"
+    )
+
+
+def test_focuses_ultra_narrow_field_of_view_on_requested_distance_column():
+    query = "What is the field of view for the ultra-narrow model at 23 mm to 40 mm?"
+    snippet = (
+        'Field of view | Installation distance of 23 mm0.91": 9.8 (H) × 7.3 (V)mm '
+        'to Installation distance of 40 mm1.57": 15 (H) × 11.2 (V)mm | '
+        'Installation distance of 400 mm15.75": 58 (H) × 44 (V)mm'
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, snippet)
+
+    assert "9.8 (H) × 7.3 (V)" in focused
+    assert "15 (H) × 11.2 (V)" in focused
+    assert "400 mm" not in focused
+
+
+def test_focuses_analog_option_across_period_inside_bracketed_label():
+    focused = _MODULE.focus_expected_snippet(
+        "Which analog output option sends the unit's displayed value?",
+        "Select the data to output in analog format: Display value [Disp",
+        "Select the data to output in analog format: Display value [Disp. Value] *1.",
+    )
+
+    assert focused == "Display value [Disp. Value]"
+
+
+def test_focuses_download_option_on_exact_named_choice():
+    focused = _MODULE.focus_expected_snippet(
+        "Which download option transmits only the changed hardware and software?",
+        "After compilation, right-click the PLC and choose the download command.",
+        (
+            "After compilation, right-click the PLC, point to Download to device, and click "
+            "Hardware and software (only changes) to transmit the compiled program."
+        ),
+    )
+
+    assert focused == "Hardware and software (only changes)"
+
+
+def test_focuses_object_size_contract_on_forbidden_and_applicable_limits():
+    focused = _MODULE.focus_expected_snippet(
+        "What object size limit applies when detection plane height is 1000 mm or less?",
+        "You cannot select the object size of 150 mm when height is 1000 mm or less.",
+        (
+            "You cannot select the object size of 150 mm when height is 1000 mm or less. "
+            "You must select the object size of 70 mm or smaller."
+        ),
+    )
+
+    assert "150 mm" in focused
+    assert "70 mm or smaller" in focused
+
+
+def test_focuses_ethernet_speed_contract_on_complete_standards_from_source():
+    focused = _MODULE.focus_expected_snippet(
+        "Which Ethernet speeds does the XG-X2902LJ support?",
+        "Supports BOOTP functions; 1000BASE-T/100",
+        "Supports BOOTP functions; 1000BASE-T/100BASE-TX",
+    )
+
+    assert focused == "Ethernet speeds: 1000BASE-T, 100BASE-TX"
+
+
+def test_reanchors_power_cable_contract_to_answer_bearing_facts():
+    query = "How do I power the LJ-S8000 head using the power I/O cable?"
+    snippet = (
+        "Supply 24 V DC to the power I/O connector using the power I/O cable for head, "
+        "and connect the head Ethernet cable to the Ethernet connector."
+    )
+
+    terms = _MODULE.enrich_expected_answer_terms(query, snippet, ["supply", "power", "connector"])
+
+    assert terms == ["24 V DC", "power I/O connector", "power I/O cable", "Ethernet connector"]
+
+
+def test_reanchors_profinet_cyclic_optional_unit_to_ca_npn_identifier():
+    terms = _MODULE.enrich_expected_answer_terms(
+        "Which optional unit is required for PROFINET cyclic communication on the XG-X2902LJ?",
+        (
+            "XG-X2902LJ: Complies with Conformance Class A (Ethernet port) / C(CA-NPN20E). "
+            "Supports cyclic communication."
+        ),
+        ["xg-x2902lj", "complies", "conformance", "class"],
+    )
+
+    assert terms == ["CA-NPN20E", "PROFINET", "cyclic communication"]
+
+
+def test_removes_ca_dex10x_ocr_footnote_from_frozen_query():
+    assert _MODULE.normalize_frozen_query(
+        "How much power does the VS Series consume if CA-DEx10X 4 is connected?"
+    ) == "How much power does the VS Series consume if CA-DEx10X is connected?"
+
+
+def test_repairs_lj_s8000_ocr_model_separator_in_frozen_query():
+    assert _MODULE.normalize_frozen_query(
+        "What is the movable range for the NEW LJ: S8000 Series sensor?"
+    ) == "What is the movable range for the LJ-S8000 Series sensor?"
+
+
+@pytest.mark.parametrize(
+    ("query", "required_scope"),
+    [
+        ("What shutter speed range can I set on this camera?", "XG-X Series"),
+        ("What ambient temperature range is allowed for operation without freezing?", "IV4 Series"),
+        ("What does the one shot input do to the output status of current results?", "LJ-X8000"),
+        ("How do I activate the Laser ON input on this device?", "LJ-X8000 controller"),
+        (
+            "Which controllers support the high-resolution camera CA-HFxM/C in System configuration diagram XG?",
+            "XG-X controllers",
+        ),
+        ("What shock resistance rating applies to the laser sensor in X, Y, and Z axes?", "LR-Z"),
+        (
+            "What is the recommended installation distance range for this megapixel resolution smart camera?",
+            "IV4",
+        ),
+        ("What resolution and color depth does the Monitor model support?", "IV2-H1"),
+        (
+            "What minimum detectable object size must be selected if the detection plane height exceeds 1000 mm for area protection?",
+            "SZ safety scanner",
+        ),
+        (
+            "What display colors are assigned to the indicator, output, DATUM, and spot indicators on these laser sensors?",
+            "LR-Z laser sensors",
+        ),
+        (
+            "Which system configuration diagram applies when connecting to an XT controller?",
+            "XG-X controllers",
+        ),
+        (
+            "What part number applies to the infrared polarized filter for IV Series sensors?",
+            "IV2-H1",
+        ),
+        (
+            "What numerical inputs can be specified for the electronic shutter setting?",
+            "CV-X camera specifications",
+        ),
+    ],
+)
+def test_repairs_generated_query_with_explicit_source_scope(query, required_scope):
+    assert required_scope in _MODULE.normalize_frozen_query(query)
 
 
 def test_enriches_multivalue_measurement_contract_with_milliwatts():
@@ -711,6 +964,22 @@ def test_accepts_complete_quantitative_and_connector_contracts():
     )
 
     assert len(frozen) == 2
+
+
+def test_normalizes_and_requires_part_number_answer_contract():
+    query = "What part number applies to the infrared polarized filter attachment for the IV2-H1?"
+    snippet = "Infrared polarized filter attachment OP: 87437"
+
+    assert _MODULE._answer_part_numbers(snippet) == ["OP: 87437"]
+    assert _MODULE.enrich_expected_answer_terms(query, snippet, ["infrared polarized filter"]) == [
+        "infrared polarized filter",
+        "OP: 87437",
+    ]
+    assert _MODULE.missing_expected_answer_contract(query, snippet, ["OP: 87437"]) == []
+    assert _MODULE.missing_expected_answer_contract(query, snippet, ["infrared polarized filter"]) == [
+        "answer-specific expected term",
+        "expected part number term(s) OP: 87437",
+    ]
 
 
 def test_does_not_treat_voltage_in_safety_risk_condition_as_requested_value():

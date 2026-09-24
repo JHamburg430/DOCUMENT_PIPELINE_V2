@@ -7539,6 +7539,42 @@ def test_capability_answer_treats_eliminated_need_as_no_requirement():
     assert trace["final_answer"]["answer_source"] == "deterministic_capability"
 
 
+def test_benefit_answer_uses_exact_auto_image_selector_learning_statement():
+    exact = SearchResult(
+        chunk_id="auto-image-selector-learning",
+        score=0.9,
+        title="VS Series",
+        document_version_id="v1",
+        source_document_id="vs-doc",
+        pages=[11],
+        section_path=["KEYENCE AI"],
+        content=(
+            "With AI Auto Image Selector, the software automatically selects the images "
+            "for learning, eliminating the need for specialized skills and significantly "
+            "reducing the time needed for learning."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_family": "VS Series"},
+    )
+    distractor = exact.model_copy(
+        update={
+            "chunk_id": "auto-image-selector-promo",
+            "score": 1.0,
+            "content": "Significantly reduced startup time. Automatic selection of images for learning.",
+            "metadata": {"chunk_type": "section_window", "product_family": "VS Series"},
+        }
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "How does AI Auto Image Selector reduce learning time on the VS Series?",
+        [distractor, exact],
+    )
+
+    assert "automatically selects the images for learning" in answer.answer
+    assert "reducing the time needed for learning" in answer.answer
+    assert answer.citations[0]["chunk_id"] == "auto-image-selector-learning"
+    assert trace["final_answer"]["answer_source"] == "deterministic_benefit"
+
+
 def test_troubleshooting_answer_extracts_prose_remedy_after_symptom():
     result = SearchResult(
         chunk_id="one-spot-remedy",
@@ -8024,6 +8060,73 @@ def test_part_number_answer_selects_code_nearest_requested_component():
     assert "OP-87319" not in answer.answer
     assert answer.citations[0]["chunk_id"] == "lens-accessory-table"
     assert trace["final_answer"]["answer_source"] == "deterministic_part_number"
+
+
+@pytest.mark.parametrize(
+    ("material", "expected_code"),
+    [("PVC", "OP-88029"), ("PUR", "OP-88030")],
+)
+def test_part_number_answer_binds_mu_n_cable_material_to_its_code(material, expected_code):
+    result = SearchResult(
+        chunk_id="mu-n-connector-cable",
+        score=0.9,
+        title="MU-N Manual",
+        document_version_id="v1",
+        source_document_id="mu-n-doc",
+        pages=[2],
+        section_path=["MU-N"],
+        content="OP: 88029 (for PVC cable) / OP-88030 (for PUR cable) Connector cable for MU-N",
+        metadata={"chunk_type": "spec_record", "product_model": "MU-N"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        f"Which connector cable part number should I order for the MU-N series if I am using {material} insulation?",
+        [result],
+    )
+
+    assert answer.answer == f"The required connector cable part number is {expected_code}."
+    assert answer.citations[0]["chunk_id"] == "mu-n-connector-cable"
+    assert trace["final_answer"]["answer_source"] == "deterministic_part_number"
+
+
+def test_instruction_answer_prefers_bounded_light_shielding_record():
+    section = SearchResult(
+        chunk_id="lj-s8000-section",
+        score=1.0,
+        title="LJ-S8000 Manual",
+        document_version_id="v1",
+        source_document_id="lj-s8000",
+        pages=[4],
+        section_path=["Precautions"],
+        content=(
+            "Do not operate this device near lighting fixtures. If the unit must be used in such "
+            "a location, install a light shielding board or similar device so that the light will "
+            "not affect the measurement. Wait approximately 30 minutes after power-on."
+        ),
+        metadata={"chunk_type": "section_window", "product_model": "LJ-S8000"},
+    )
+    atomic = section.model_copy(
+        update={
+            "chunk_id": "lj-s8000-light-shielding",
+            "score": 0.9,
+            "content": (
+                "Do not operate this device near lighting fixtures. If the unit must be used in "
+                "such a location, install a light shielding board or similar device so that the "
+                "light will not affect the measurement."
+            ),
+            "metadata": {"chunk_type": "atomic_text", "product_model": "LJ-S8000"},
+        }
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "How should I shield the LJ-S8000 head from nearby lighting fixtures?",
+        [section, atomic],
+    )
+
+    assert "light shielding board" in answer.answer
+    assert "30 minutes" not in answer.answer
+    assert answer.citations[0]["chunk_id"] == "lj-s8000-light-shielding"
+    assert trace["final_answer"]["answer_source"] == "deterministic_instruction"
 
 
 def test_calibration_instruction_prefers_concrete_sensor_steps_over_controller_capability():
