@@ -1779,6 +1779,49 @@ def test_troubleshooting_descriptive_anchor_matches_cause_when_display_is_symbol
     assert [item.chunk_id for item in support] == ["overcurrent-cause"]
 
 
+def test_display_code_indicate_uses_exact_cause_cell_not_neighbor_context():
+    result = SearchResult(
+        chunk_id="erc-cause",
+        score=1.0,
+        title="LR-W500 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[4],
+        section_path=["Troubleshooting"],
+        content=(
+            "Column headers: Cause; Row headers: ErC; Cell value: "
+            "Excessive current (overcurrent) is flowing through the output wire.; "
+            "Row: 1; Column: 1"
+        ),
+        metadata={
+            "chunk_type": "table_record",
+            "table_row": 1,
+            "table_row_headers": ["ErC"],
+            "table_column_headers": ["Cause"],
+            "context_window": (
+                "ErC | OFF | OFF | Flashing in red\n"
+                "Display: ErE; Output Condition: Normal operation; Indicator Condition: Flashing in red"
+            ),
+            "table_row_group_context": (
+                "N.O. | N.C. | N.O. | N.C.\n"
+                "ErC | OFF | OFF | Flashing in red\n"
+                "Display: ErE; Output Condition: Normal operation; Indicator Condition: Flashing in red"
+            ),
+        },
+    )
+
+    answer = generate_answer(
+        "What does the ErC display code indicate on the LR-W500?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "Cause: Excessive current (overcurrent) is flowing through the output wire."
+    )
+    assert [citation["chunk_id"] for citation in answer.citations] == ["erc-cause"]
+    assert "ErE" not in answer.answer
+
+
 def test_troubleshooting_recommended_adjustment_selects_matching_status_row_only():
     result = SearchResult(
         chunk_id="grouped-status-rows",

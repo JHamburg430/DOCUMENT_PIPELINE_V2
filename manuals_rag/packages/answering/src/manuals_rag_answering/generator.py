@@ -1185,6 +1185,12 @@ def _is_troubleshooting_query(query: str) -> bool:
             query,
             flags=re.IGNORECASE,
         )
+        or re.search(
+            r"\b(?:display|error|alarm|fault)\s+code\b.*\b(?:indicate|mean|meaning)\b"
+            r"|\bwhat\s+does\b.*\b(?:display|error|alarm|fault)\s+code\b.*\b(?:indicate|mean)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
         or re.search(r"\bwhat should i do\b", query, flags=re.IGNORECASE)
         or re.search(r"\bhow do i stop\b.+\bfrom\b", query, flags=re.IGNORECASE)
         or re.search(
@@ -1736,6 +1742,13 @@ def _requested_troubleshooting_fields(query: str) -> tuple[bool, bool]:
             query_lower,
         )
     )
+    asks_code_meaning = bool(
+        re.search(r"\b(?:display|error|alarm|fault)\s+code\b", query_lower)
+        and re.search(r"\b(?:indicate|indicates|mean|means|meaning)\b", query_lower)
+    )
+    if asks_code_meaning:
+        wants_cause = True
+        wants_action = False
     if not wants_cause and not wants_action:
         wants_action = True
     return wants_cause, wants_action
@@ -1922,8 +1935,23 @@ def _concise_troubleshooting_answer(
             and not _troubleshooting_anchor_matches(anchor, anchor_evidence)
         ):
             continue
-        field_records: list[dict[str, str]] = []
-        if requested_display:
+        # The selected table cell is the strongest evidence. Row-group context
+        # may describe a different table with the same display-code row (for
+        # example, output state ``OFF`` beside an exact ``Cause`` cell). Parse
+        # the selected cell first and consult pipe context only when that cell
+        # has no structured troubleshooting fields.
+        field_records = _troubleshooting_field_records(str(result.content or ""))
+        if requested_display and field_records:
+            row_headers = {
+                _normalized_phrase(str(header))
+                for header in result.metadata.get("table_row_headers") or []
+                if header
+            }
+            if requested_display in row_headers:
+                for fields in field_records:
+                    fields.setdefault("display", requested_display_token)
+                    fields.setdefault("error message", requested_display_token)
+        if requested_display and not field_records:
             for pipe_row in evidence.splitlines():
                 cells = [
                     re.sub(r"\s+", " ", cell).strip(" ;")
@@ -1940,8 +1968,6 @@ def _concise_troubleshooting_answer(
                         "corrective action": cells[2],
                     }
                 )
-        if not field_records:
-            field_records = _troubleshooting_field_records(str(result.content or ""))
         if not field_records:
             pipe_fields = _pipe_troubleshooting_fields(matching_row)
             field_records = [pipe_fields] if pipe_fields else []

@@ -69,7 +69,7 @@ def test_optional_source_reanchor_replaces_answerless_generated_snippet():
     )
 
     assert frozen[0]["expected_snippet"] == "MODEL-7: 20 mm"
-    assert frozen[0]["expected_terms"] == ["model-7"]
+    assert frozen[0]["expected_terms"] == ["model-7", "20"]
 
 
 def test_drops_generic_model_header_when_question_asks_for_another_value():
@@ -104,6 +104,20 @@ def test_keeps_model_term_when_question_explicitly_asks_for_model():
         "Which model meets this EMC standard?",
         ["model", "standard", "ca-u5"],
     ) == ["model", "standard", "ca-u5"]
+
+
+def test_how_many_contract_drops_sibling_model_counts():
+    assert _MODULE.answer_relevant_expected_terms(
+        "How many protection zones does the SZ-V04 safety laser scanner support?",
+        ["protection zones", "2", "1"],
+    ) == ["protection zones", "2"]
+
+
+def test_display_code_meaning_contract_drops_layout_label():
+    assert _MODULE.answer_relevant_expected_terms(
+        "What does the ErC display code indicate on the LR-W500?",
+        ["display", "cause", "excessive", "current"],
+    ) == ["cause", "excessive", "current"]
 
 
 def test_rejects_question_that_drops_axis_qualifier():
@@ -291,7 +305,7 @@ def test_ignores_unrelated_output_label_after_input_answer():
         **_case(),
         "query": "What input voltage range does the supply accept?",
         "expected_snippet": "Input conditions | Rated input voltage | 85 to 264 VAC",
-        "expected_terms": ["input", "voltage"],
+        "expected_terms": ["input", "voltage", "85", "264"],
     }
     chunk = {
         **_chunk(),
@@ -309,6 +323,154 @@ def test_ignores_unrelated_output_label_after_input_answer():
     )
 
     assert frozen[0]["case_id"] == "case-1"
+
+
+def test_rejects_yes_no_question_anchored_to_unrelated_setting():
+    case = {
+        **_case(),
+        "query": "Does turning off the laser diode affect the ability to perform Universal Change Detection?",
+        "expected_snippet": "OFF (oFF): Sets the DSC function to OFF.",
+        "expected_terms": ["function"],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    with pytest.raises(ValueError, match="question subject/outcome alignment"):
+        _MODULE.verify_and_freeze_cases(
+            [case], {"chunk-1": chunk}, tuning_document_ids=set(),
+            verified_at="2026-09-23T00:00:00+00:00",
+        )
+
+
+def test_rejects_range_contract_without_numeric_answer_terms():
+    case = {
+        **_case(),
+        "query": "What length range do GL-FB models cover for robust floor mounting columns?",
+        "expected_snippet": "GL-FB models approximately 1000 to 2400 mm",
+        "expected_terms": ["robust", "floor", "mounting"],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    with pytest.raises(ValueError, match=r"expected answer value term.*1000, 2400"):
+        _MODULE.verify_and_freeze_cases(
+            [case], {"chunk-1": chunk}, tuning_document_ids=set(),
+            verified_at="2026-09-23T00:00:00+00:00",
+        )
+
+
+def test_rejects_connector_contract_that_omits_connector_identifier():
+    case = {
+        **_case(),
+        "query": "What connector type is used for the sensor-to-controller cable?",
+        "expected_snippet": "Sensor-to-controller cable (4-pin M12 connector type)",
+        "expected_terms": ["sensor", "cable", "4-pin"],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    with pytest.raises(ValueError, match="expected connector term.*m12"):
+        _MODULE.verify_and_freeze_cases(
+            [case], {"chunk-1": chunk}, tuning_document_ids=set(),
+            verified_at="2026-09-23T00:00:00+00:00",
+        )
+
+
+def test_rejects_command_question_without_command_identifier():
+    case = {
+        **_case(),
+        "query": "Which command should I use to save the current program settings?",
+        "expected_snippet": "Command details: the current program",
+        "expected_terms": ["command", "current", "program"],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    with pytest.raises(ValueError, match="command identifier"):
+        _MODULE.verify_and_freeze_cases(
+            [case], {"chunk-1": chunk}, tuning_document_ids=set(),
+            verified_at="2026-09-23T00:00:00+00:00",
+        )
+
+
+def test_rejects_interface_question_without_answer_interface_term():
+    case = {
+        **_case(),
+        "query": "Which interfaces connect directly to SZ-V Series scanners?",
+        "expected_snippet": "Connect through either USB or Ethernet.",
+        "expected_terms": ["connect", "series"],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    with pytest.raises(ValueError, match="expected interface term"):
+        _MODULE.verify_and_freeze_cases(
+            [case], {"chunk-1": chunk}, tuning_document_ids=set(),
+            verified_at="2026-09-23T00:00:00+00:00",
+        )
+
+
+def test_accepts_complete_quantitative_and_connector_contracts():
+    quantitative = {
+        **_case(),
+        "query": "What is the Z range tolerance for model XT-024?",
+        "expected_snippet": 'XT-024: ±2 mm ±0.08"',
+        "expected_terms": ["xt-024", "2 mm", "0.08"],
+    }
+    connector = {
+        **_case(),
+        "case_id": "case-2",
+        "source_chunk_id": "chunk-2",
+        "query": "What connector type is used for the sensor-to-controller cable?",
+        "expected_snippet": "Sensor-to-controller cable (4-pin M12 connector type)",
+        "expected_terms": ["4-pin", "m12"],
+    }
+    chunks = {
+        "chunk-1": {**_chunk(), "content": quantitative["expected_snippet"]},
+        "chunk-2": {**_chunk(), "id": "chunk-2", "content": connector["expected_snippet"]},
+    }
+
+    frozen = _MODULE.verify_and_freeze_cases(
+        [quantitative, connector], chunks, tuning_document_ids=set(),
+        verified_at="2026-09-23T00:00:00+00:00",
+    )
+
+    assert len(frozen) == 2
+
+
+def test_does_not_treat_voltage_in_safety_risk_condition_as_requested_value():
+    assert _MODULE.missing_expected_answer_contract(
+        "What safety risks occur if I use a voltage other than 24 VDC?",
+        "This may cause fire, electric shock, or equipment failure.",
+        ["fire", "electric shock", "equipment failure"],
+    ) == []
+
+
+def test_rejects_contract_whose_expected_terms_only_repeat_the_question():
+    missing = _MODULE.missing_expected_answer_contract(
+        "Which wire color corresponds to connector pin B1?",
+        "Connector pin number: B1; Wire color: Orange",
+        ["connector", "pin", "b1", "wire", "color"],
+    )
+
+    assert missing == ["answer-specific expected term"]
+
+
+def test_extracts_unitless_range_and_noun_bound_how_many_values():
+    assert _MODULE._answer_quantity_values(
+        "What is the display range for received light intensity?",
+        "Display range: 0 to 999",
+    ) == ["0", "999"]
+    assert _MODULE._answer_quantity_values(
+        "How many area cameras can be connected?",
+        "A maximum of 4 cameras can be connected across 2 units.",
+    ) == ["4"]
+    assert _MODULE._answer_quantity_values(
+        "How many protection zones does the SZ-V04 multi-function model support?",
+        "Protection zone | 2 zones | 1 zone | 1 zone | 2 zones",
+    ) == ["2"]
+
+
+def test_how_many_rejects_unrelated_speed_values():
+    assert _MODULE._answer_quantity_values(
+        "How many head input units are compatible?",
+        "Maximum speed is 16 kHz (63 us).",
+    ) == []
 
 
 def test_verifies_every_multi_step_evidence_chunk():

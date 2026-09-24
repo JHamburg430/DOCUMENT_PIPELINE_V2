@@ -64,6 +64,12 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
 
     normalized_query = _normalized(query)
     query_mentions_model = re.search(r"(?:^|\b)model(?:\b|$)", normalized_query) is not None
+    asks_display_code_meaning = bool(
+        re.search(r"\bdisplay\s+code\b", normalized_query)
+        and re.search(r"\b(?:indicate|indicates|mean|means|meaning)\b", normalized_query)
+    )
+    single_count_answer = re.match(r"^how many\b", normalized_query) is not None
+    kept_plain_count = False
     filtered: list[str] = []
     for term in terms:
         value = str(term).strip()
@@ -71,6 +77,12 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
             continue
         if _normalized(value) == "model" and not query_mentions_model:
             continue
+        if _normalized(value) == "display" and asks_display_code_meaning:
+            continue
+        if single_count_answer and re.fullmatch(r"\d+(?:\.\d+)?", _normalized(value)):
+            if kept_plain_count:
+                continue
+            kept_plain_count = True
         if value not in filtered:
             filtered.append(value)
     return filtered
@@ -234,6 +246,230 @@ def missing_answer_requirements(query: str, expected_snippet: str) -> list[str]:
     return missing
 
 
+_ANSWER_VALUE_INTENTS = {
+    "accuracy", "current", "distance", "frequency", "height", "length",
+    "limit", "range", "rating", "resolution", "speed", "temperature",
+    "time", "tolerance", "torque", "voltage", "weight", "width",
+}
+
+_SEMANTIC_QUERY_STOPWORDS = {
+    "a", "an", "and", "are", "can", "could", "did", "do", "does",
+    "for", "how", "is", "it", "of", "on", "or", "the", "to", "what",
+    "when", "which", "with", "would",
+}
+
+
+def _contract_tokens(text: object) -> list[str]:
+    return re.findall(r"[a-z0-9]+(?:[-/.][a-z0-9]+)*", _normalized(text))
+
+
+def _term_covers_token(terms: list[str], token: str) -> bool:
+    normalized_token = _normalized(token)
+    compact_token = re.sub(r"[^a-z0-9]+", "", normalized_token)
+    for term in terms:
+        normalized_term = _normalized(term)
+        compact_term = re.sub(r"[^a-z0-9]+", "", normalized_term)
+        if normalized_token.replace(".", "", 1).isdigit():
+            if normalized_token in re.findall(r"\d+(?:\.\d+)?", normalized_term):
+                return True
+            continue
+        if normalized_token in normalized_term or (compact_token and compact_token in compact_term):
+            return True
+    return False
+
+
+_QUANTITY_UNIT = (
+    r"%|vdc|vac|v|ma|a|kw|w|mm|cm|m|msec|ms|sec|s|hz|khz|mhz|ghz|fps|"
+    r"kg|g|n|nm|mpa|deg|gb|tb|bits?|pixels?|\u00b0c|in(?:ch(?:es)?)?|\""
+)
+
+
+def _answer_quantity_values(query: str, snippet: str) -> list[str]:
+    normalized_query = _normalized(query)
+    values: list[str] = []
+
+    how_many = re.match(
+        r"^how many (.+?) (?:are|can|could|does|do|fit|may|should|will)\b",
+        normalized_query,
+    )
+    if how_many:
+        target_tokens = {
+            token
+            for token in _contract_tokens(how_many.group(1))
+            if token not in _SEMANTIC_QUERY_STOPWORDS and len(token) >= 2
+        }
+        for match in re.finditer(r"(?<![*a-z0-9-])(\d+(?:\.\d+)?)\b", snippet, flags=re.IGNORECASE):
+            window = set(_contract_tokens(snippet[max(0, match.start() - 30) : match.end() + 70]))
+            if target_tokens.intersection(window):
+                value = match.group(1)
+                if value not in values:
+                    values.append(value)
+        # A single-target count question has one answer. Structured snippets
+        # may serialize sibling model columns after the requested cell; those
+        # values are context, not additional required answer values.
+        return values[:1]
+
+    if re.search(r"\brange\b", normalized_query):
+        for match in re.finditer(
+            r"(?<![*a-z0-9-])(\d+(?:\.\d+)?)\s*(?:to|[-\u2013])\s*(\d+(?:\.\d+)?)(?![a-z0-9])",
+            snippet,
+            flags=re.IGNORECASE,
+        ):
+            for value in match.groups():
+                if value not in values:
+                    values.append(value)
+
+    for match in re.finditer(
+        rf"(?<![*a-z0-9-])([+\-\u00b1]?\s*\d+(?:\.\d+)?)\s*(?:to|[-\u2013])\s*"
+        rf"([+\-\u00b1]?\s*\d+(?:\.\d+)?)\s*(?:{_QUANTITY_UNIT})(?![a-z])",
+        snippet,
+        flags=re.IGNORECASE,
+    ):
+        for raw in match.groups():
+            value_match = re.search(r"\d+(?:\.\d+)?", raw)
+            if value_match and value_match.group(0) not in values:
+                values.append(value_match.group(0))
+
+    for match in re.finditer(
+        rf"(?<![*a-z0-9-])(?:[+\-\u00b1]\s*)?(\d+(?:\.\d+)?)\s*(?:{_QUANTITY_UNIT})(?![a-z])",
+        snippet,
+        flags=re.IGNORECASE,
+    ):
+        value = match.group(1)
+        if value not in values:
+            values.append(value)
+    return values
+
+
+def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) -> list[str]:
+    """Add mechanically identifiable answer values to re-anchored terms."""
+
+    enriched = [str(term).strip() for term in terms if str(term).strip()]
+    normalized_query = _normalized(query)
+    query_tokens = set(_contract_tokens(normalized_query))
+
+    for value in _answer_quantity_values(query, snippet):
+        if value not in query_tokens and not _term_covers_token(enriched, value):
+            enriched.append(value)
+
+    if re.search(r"\bconnector type\b|\bwhat (?:type of )?connector\b", normalized_query):
+        for token in _contract_tokens(snippet):
+            if (
+                any(char.isalpha() for char in token)
+                and any(char.isdigit() for char in token)
+                and token not in query_tokens
+                and not _term_covers_token(enriched, token)
+            ):
+                enriched.append(token)
+
+    if re.search(r"\bwhich command\b|\bwhat command\b", normalized_query):
+        for command in re.findall(r"\b[a-z][a-z0-9_-]*command\b", _normalized(snippet)):
+            if command != "command" and not _term_covers_token(enriched, command):
+                enriched.append(command)
+
+    if re.search(r"\bwhich interfaces?\b|\bwhat interfaces?\b", normalized_query):
+        interface_pattern = r"\b(?:usb|ethernet(?:/ip)?|profinet|udp|tcp(?:/ip)?|rs-?232c?|rs-?485|cc-link|profisafe|cip safety)\b"
+        for interface in re.findall(interface_pattern, _normalized(snippet)):
+            if not _term_covers_token(enriched, interface):
+                enriched.append(interface)
+
+    return enriched
+
+
+def missing_expected_answer_contract(
+    query: str,
+    expected_snippet: str,
+    expected_terms: list[object],
+) -> list[str]:
+    """Return semantic answer-contract defects not caught by literal anchoring.
+
+    A literal source substring can still be the wrong row, omit the requested
+    value, or carry expected terms copied entirely from the question. These
+    checks cover only high-confidence question shapes for which the
+    answer-bearing token is mechanically identifiable.
+    """
+
+    normalized_query = _normalized(query)
+    normalized_snippet = _normalized(expected_snippet)
+    terms = [str(term).strip() for term in expected_terms if str(term).strip()]
+    missing: list[str] = []
+    query_tokens = set(_contract_tokens(normalized_query))
+
+    if query_tokens and terms and not any(
+        not set(_contract_tokens(term)).issubset(query_tokens)
+        for term in terms
+        if _contract_tokens(term)
+    ):
+        missing.append("answer-specific expected term")
+
+    asks_value = bool(
+        re.match(r"^what(?!\s+(?:do|does|did)\b)", normalized_query)
+        and not re.match(r"^what safety risks?\b", normalized_query)
+        and any(
+            re.search(rf"\b{re.escape(intent)}\b", normalized_query)
+            for intent in _ANSWER_VALUE_INTENTS
+        )
+    ) or bool(re.search(r"^how (?:many|much|long|wide|high|fast|far)\b", normalized_query))
+    quantities = [
+        value
+        for value in _answer_quantity_values(query, expected_snippet)
+        if value not in query_tokens
+    ]
+    if asks_value:
+        if not quantities:
+            missing.append("quantified answer value")
+        else:
+            absent_values = [value for value in quantities if not _term_covers_token(terms, value)]
+            if absent_values:
+                missing.append("expected answer value term(s) " + ", ".join(absent_values))
+
+    if re.search(r"\bconnector type\b|\bwhat (?:type of )?connector\b", normalized_query):
+        identifiers = [
+            token
+            for token in _contract_tokens(expected_snippet)
+            if any(char.isalpha() for char in token)
+            and any(char.isdigit() for char in token)
+            and token not in query_tokens
+        ]
+        if not identifiers:
+            missing.append("connector identifier")
+        else:
+            absent = [token for token in identifiers if not _term_covers_token(terms, token)]
+            if absent:
+                missing.append("expected connector term(s) " + ", ".join(absent))
+
+    if re.search(r"\bwhich command\b|\bwhat command\b", normalized_query):
+        commands = re.findall(r"\b[a-z][a-z0-9_-]*command\b", normalized_snippet)
+        commands = [command for command in commands if command != "command"]
+        if not commands:
+            missing.append("command identifier")
+        else:
+            absent = [command for command in commands if not _term_covers_token(terms, command)]
+            if absent:
+                missing.append("expected command term(s) " + ", ".join(absent))
+
+    if re.search(r"\bwhich interfaces?\b|\bwhat interfaces?\b", normalized_query):
+        interface_pattern = r"\b(?:usb|ethernet(?:/ip)?|profinet|udp|tcp(?:/ip)?|rs-?232c?|rs-?485|cc-link|profisafe|cip safety)\b"
+        interfaces = re.findall(interface_pattern, normalized_snippet)
+        if not interfaces:
+            missing.append("interface identifier")
+        elif not any(_term_covers_token(terms, interface) for interface in interfaces):
+            missing.append("expected interface term")
+
+    if re.match(r"^(?:does|do|did|can|could|is|are|will|would|should|has|have)\b", normalized_query):
+        meaningful_query_terms = {
+            token
+            for token in _contract_tokens(normalized_query)
+            if token not in _SEMANTIC_QUERY_STOPWORDS and len(token) >= 3
+        }
+        snippet_tokens = set(_contract_tokens(normalized_snippet))
+        overlap = meaningful_query_terms.intersection(snippet_tokens)
+        if len(overlap) < 2:
+            missing.append("question subject/outcome alignment")
+
+    return missing
+
+
 def referenced_document_ids(cases: list[dict[str, Any]]) -> set[str]:
     document_ids: set[str] = set()
     for case in cases:
@@ -287,7 +523,11 @@ def verify_and_freeze_cases(
                 str(case.get("query") or ""),
                 str(chunk.get("content") or ""),
             )
-            terms = extract_anchor_terms(snippet_text)[:4]
+            terms = enrich_expected_answer_terms(
+                str(case.get("query") or ""),
+                snippet_text,
+                extract_anchor_terms(snippet_text)[:4],
+            )
             if not snippet_text or not terms:
                 raise ValueError(f"{case_id}: source re-anchoring produced no usable evidence")
             case["expected_snippet"] = snippet_text
@@ -322,6 +562,13 @@ def verify_and_freeze_cases(
             missing_requirements = missing_answer_requirements(
                 str(case.get("query") or ""),
                 str(case.get("expected_snippet") or ""),
+            )
+            missing_requirements.extend(
+                missing_expected_answer_contract(
+                    str(case.get("query") or ""),
+                    str(case.get("expected_snippet") or ""),
+                    list(case.get("expected_terms") or []),
+                )
             )
             if missing_requirements:
                 raise ValueError(
@@ -375,7 +622,7 @@ def verify_and_freeze_cases(
                 "evaluation_split": "held_out",
                 "adjudication": {
                     "status": "source_verified",
-                    "method": "assistant_persisted_chunk_exact_snippet_v1",
+                    "method": "assistant_persisted_chunk_answer_contract_v2",
                     "verified_at": verified_at,
                     "human_reviewed": False,
                     "source_chunk_sha256": source_hash,
@@ -518,7 +765,7 @@ def main() -> int:
         ],
         "tuning_document_ids": sorted(referenced_document_ids(tuning_cases)),
         "document_disjoint": True,
-        "adjudication_method": "assistant_persisted_chunk_exact_snippet_v1",
+        "adjudication_method": "assistant_persisted_chunk_answer_contract_v2",
         "human_reviewed": False,
         "source_snippets_reanchored": args.reanchor_source_snippets,
     }
