@@ -1425,10 +1425,16 @@ def run_contextual_lexical_search(
         for identifier in analysis.product_identifiers
         if identifier
     }
+    model_prefix_acronyms = {
+        value.lower()
+        for value in re.findall(r"\b([A-Z]{2,3})\s*[:\-]\s*[A-Z]*\d", query)
+    }
     technical_acronyms = [
         acronym.lower()
         for acronym in re.findall(r"\b[A-Z]{2,3}\b", query)
-        if not any(acronym.lower() in identifier for identifier in identifier_compacts)
+        if acronym.lower() not in {"new"}
+        and acronym.lower() not in model_prefix_acronyms
+        and not any(acronym.lower() in identifier for identifier in identifier_compacts)
     ]
     named_setting_match = re.search(
         r"^\s*(?:how|what)\s+does\s+(?:the\s+)?(?P<label>.+?)\s+setting\b",
@@ -1468,7 +1474,7 @@ def run_contextual_lexical_search(
     )
     general_count_lookup = bool(
         re.search(
-            r"\b(?:how\s+many|number\s+of|quantity\s+of|count\s+of)\b",
+            r"\b(?:how\s+many|number\s+of|quantity\s+of|count\s+of|more\s+than\s+one)\b",
             query,
             flags=re.IGNORECASE,
         )
@@ -1763,7 +1769,8 @@ def _contextual_lexical_limit(query: str) -> int:
     if re.search(
         r"\b(?:capture\s+time|working\s+distance|profile\s+capture\s+rate|"
         r"sampling\s+frequency|trigger\s+interval|depth|torque|voltage|"
-        r"temperature|pressure)\b",
+        r"temperature|pressure)\b|\b(?:how\s+many|number\s+of|quantity\s+of|"
+        r"count\s+of|more\s+than\s+one)\b",
         query,
         flags=re.IGNORECASE,
     ):

@@ -1017,6 +1017,55 @@ def test_contextual_lexical_search_targets_exact_numeric_error_record(monkeypatc
     assert results[0].chunk_id == "error-14506"
 
 
+def test_more_than_one_quantity_query_uses_wide_contextual_pool():
+    query = "Can I connect more than one communication expansion unit to the NEW LJ: S8000 Series?"
+
+    assert retriever._contextual_lexical_limit(query) == 80
+
+
+def test_contextual_lexical_search_does_not_treat_new_as_protocol_acronym(monkeypatch):
+    query = "Can I connect more than one communication expansion unit to the NEW LJ: S8000 Series?"
+    analysis = analyze_query(query)
+
+    def fake_fetch_all(sql, params):
+        assert "~*" not in sql
+        assert not any(param == "(^|[^a-zA-Z0-9])new([^a-zA-Z0-9]|$)" for param in params)
+        assert not any(param == "(^|[^a-zA-Z0-9])lj([^a-zA-Z0-9]|$)" for param in params)
+        return [
+            {
+                "id": "expansion-limit",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "LJ-S8000 brochure",
+                "section_path_text": "HDD",
+                "page_from": 30,
+                "page_to": 30,
+                "content": (
+                    "Only one communication expansion unit "
+                    "(CB: NEC20E/NEP20E/NPN20EA) can be connected."
+                ),
+                "chunk_type": "spec_record",
+                "metadata_json": {
+                    "product_model": "NEW LJ: S8000 Series",
+                    "product_family": "Laser Snapshot Sensor",
+                },
+                "priority_score": 1.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        query,
+        ["manuals_vendor_keyence"],
+        {"is_active": True},
+        analysis,
+        limit=80,
+    )
+
+    assert [result.chunk_id for result in results] == ["expansion-limit"]
+
+
 def test_table_search_route_skips_safety_procedure_questions():
     analysis = analyze_query(
         "When installing the controller for LJ-X8000, what warning or caution about controller mounting should be followed?"

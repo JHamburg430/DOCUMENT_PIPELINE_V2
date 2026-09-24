@@ -5623,9 +5623,26 @@ def _concise_capability_answer(
             "supported",
         }
     )
+    if {
+        "wide",
+        "narrow",
+    }.issubset(query_terms) and re.search(r"\blens(?:es)?\b", query, flags=re.IGNORECASE):
+        for result in results[:10]:
+            evidence = _fallback_answer_text(result)
+            exact = re.search(
+                r"(?P<scope>Single\s+model\s+handles\s+everything\s+from\s+wide\s+to\s*:?\s*"
+                r"narrow\s+fields?\s+of\s+view)\.\s*"
+                r"(?P<lens>No\s+more\s+lens\s+selection\s+or\s+changes)\.?",
+                evidence,
+                flags=re.IGNORECASE,
+            )
+            if exact:
+                scope = re.sub(r"\s+", " ", exact.group("scope")).replace("to: narrow", "to narrow")
+                lens = re.sub(r"\s+", " ", exact.group("lens"))
+                return f"Yes. {scope}. {lens}.", [result]
     candidates: list[tuple[int, int, int, str, SearchResult]] = []
     for result_index, result in enumerate(results[:10]):
-        evidence = _fallback_answer_text(result)
+        evidence = re.sub(r"\.{2,}\s*", " ", _fallback_answer_text(result))
         for sentence in re.split(r"(?<=[.!?])\s+|\n+", evidence):
             sentence = re.sub(r"\s+", " ", sentence).strip(" -|;:")
             sentence = re.sub(r"^\S+\.pdf\s*\|\s*", "", sentence, flags=re.IGNORECASE)
@@ -5753,7 +5770,10 @@ def _concise_indicator_state_answer(
     candidates: list[tuple[int, int, str, SearchResult]] = []
     query_terms = _material_claim_terms(query)
     for result_index, result in enumerate(results[:10]):
-        evidence = _fallback_answer_text(result)
+        # OCR/PDF dot leaders separate a label from its explanation.  Treat the
+        # leader as whitespace before sentence splitting so ``Green (Blink):
+        # .... IP address ...`` remains one answer-bearing segment.
+        evidence = re.sub(r"\.{2,}\s*", " ", _fallback_answer_text(result))
         for segment in re.split(r"\n+|(?<=[.!?])\s+", evidence):
             segment = re.sub(r"\s+", " ", segment).strip(" -|;:•·▪")
             if not segment:

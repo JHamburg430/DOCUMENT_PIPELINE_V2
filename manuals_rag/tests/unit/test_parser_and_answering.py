@@ -195,6 +195,68 @@ def test_generate_answer_binds_green_blink_indicator_state(monkeypatch):
     assert trace["final_answer"]["answer_source"] == "deterministic_indicator_state"
 
 
+def test_generate_answer_ignores_dot_leader_inside_indicator_state(monkeypatch):
+    result = SearchResult(
+        chunk_id="status-dot-leader",
+        score=0.9,
+        title="IV Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[4],
+        section_path=["STATUS"],
+        content=(
+            "Green (ON): Normally connected with monitor or PC. "
+            "Green (Blink): .... IP address has been retrieved but the sensor is not correctly "
+            "connected with monitor or PC."
+        ),
+        metadata={"chunk_type": "section_window", "product_model": "IV-500C"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What does a blinking green status light indicate for the IV-500C sensor?",
+        [result],
+    )
+
+    assert "IP address has been retrieved" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "deterministic_indicator_state"
+
+
+def test_generate_answer_preserves_both_vs_field_extremes(monkeypatch):
+    result = SearchResult(
+        chunk_id="vs-capability",
+        score=0.9,
+        title="VS Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[12],
+        section_path=["MEGA"],
+        content=(
+            "Single model handles everything from wide to: narrow fields of view. "
+            "No more lens selection or changes. "
+            "A series of mechanical zoom lenses allows a single camera to be used across "
+            "a wide range of mounting distances and fields of view without changing lenses."
+        ),
+        metadata={"chunk_type": "section_window", "product_family": "VS Series"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "Does the VS Series single model support both wide and narrow fields of view without changing lenses?",
+        [result],
+    )
+
+    assert "wide to narrow fields of view" in answer.answer
+    assert "No more lens selection or changes" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "deterministic_capability"
+
+
 def test_generate_answer_treats_disabled_controls_as_negative_capability(monkeypatch):
     results = [
         SearchResult(
