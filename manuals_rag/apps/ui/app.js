@@ -56,6 +56,7 @@ const state = {
     replayVersion: 0,
     selectedCaseId: null,
   },
+  realtimeStreams: {},
   evalRuntime: null,
 };
 
@@ -277,6 +278,81 @@ async function localPostJson(path, payload = {}) {
     throw new Error(`${response.status} ${response.statusText}: ${body}`);
   }
   return response.json();
+}
+
+function closeRunEventStream(streamKey) {
+  const active = state.realtimeStreams[streamKey];
+  if (!active) return;
+  active.source.close();
+  delete state.realtimeStreams[streamKey];
+}
+
+function isTerminalRunEnvelope(envelope) {
+  return Boolean(envelope?.completed) && [
+    "eval_completed",
+    "eval_failed",
+    "job_completed",
+    "job_failed",
+    "job_cancelled",
+    "job_stopped_on_answer_failure",
+  ].includes(envelope.phase);
+}
+
+function streamRunEvents(runId, {
+  streamKey = runId,
+  after = 0,
+  onSnapshot = () => {},
+  onEvent = () => {},
+  reconcile = async () => {},
+  fallback = async () => {},
+} = {}) {
+  closeRunEventStream(streamKey);
+  return new Promise((resolve, reject) => {
+    let finished = false;
+    let consecutiveErrors = 0;
+    let lastSequence = Number(after) || 0;
+    const source = new EventSource(
+      `/local/run-events/subscribe?run_id=${encodeURIComponent(runId)}&after=${lastSequence}&limit=1000`,
+    );
+    state.realtimeStreams[streamKey] = { source, runId };
+
+    const finish = async (callback) => {
+      if (finished) return;
+      finished = true;
+      closeRunEventStream(streamKey);
+      try {
+        await callback();
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    source.addEventListener("snapshot", (message) => {
+      consecutiveErrors = 0;
+      const snapshot = JSON.parse(message.data);
+      onSnapshot(snapshot);
+      if (snapshot.terminal && Number(snapshot.last_sequence || 0) <= lastSequence) {
+        finish(reconcile);
+      }
+    });
+    source.addEventListener("run-event", (message) => {
+      consecutiveErrors = 0;
+      const envelope = JSON.parse(message.data);
+      lastSequence = Math.max(lastSequence, Number(envelope.sequence) || 0);
+      onEvent(envelope);
+      if (isTerminalRunEnvelope(envelope)) finish(reconcile);
+    });
+    source.onerror = () => {
+      if (finished) return;
+      consecutiveErrors += 1;
+      // Native EventSource reconnects with Last-Event-ID. Poll only after the
+      // stream is permanently closed or repeated reconnects fail.
+      if (source.readyState === EventSource.CLOSED || consecutiveErrors >= 3) {
+        finish(fallback);
+      }
+    };
+  });
 }
 
 function setStatus(message, mode = "idle") {
@@ -1219,6 +1295,53 @@ async function pollMatrixJob(jobId) {
   }
 }
 
+function applyQuestionMatrixEnvelope(envelope) {
+  const job = state.matrixJob;
+  if (!job || job.id !== envelope.run_id) return;
+  const payload = envelope.payload || {};
+  job.status = envelope.status || job.status;
+  if (envelope.phase === "matrix_cell") {
+    const caseId = String(payload.case_id || "");
+    const matrixKey = String(payload.matrix_key || "");
+    if (caseId && matrixKey) {
+      job.live_cells ||= {};
+      job.live_cells[caseId] ||= {};
+      job.live_cells[caseId][matrixKey] = {
+        ...(payload.cell || {}),
+        status: "provisional",
+        label: "LIVE",
+        detail: `${payload.cell?.detail || payload.cell?.label || matrixKey} · provisional until terminal reconciliation`,
+      };
+      job.current_row_key = caseId;
+      job.current_stage_key = matrixKey;
+    }
+  } else if (payload.event) {
+    job.events = [...(job.events || []), payload].slice(-200);
+    if (payload.case_id != null) job.current_case_id = payload.case_id;
+    if (payload.dataset != null) job.current_dataset = payload.dataset;
+    if (payload.matrix_key != null) job.current_stage_key = payload.matrix_key;
+    if (payload.question_number != null) job.current_question_number = payload.question_number;
+  }
+  renderMatrixJobStatus(job);
+  if (state.questionMatrix) updateQuestionMatrixLiveState();
+}
+
+function watchMatrixJob(jobId) {
+  if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+  state.matrixJobTimer = null;
+  return streamRunEvents(jobId, {
+    streamKey: "question-matrix",
+    onEvent: applyQuestionMatrixEnvelope,
+    reconcile: async () => {
+      state.matrixJob = await localJson(`/local/question-matrix/jobs/${encodeURIComponent(jobId)}`);
+      renderMatrixJobStatus(state.matrixJob);
+      if (state.matrixJob.current_row_key) state.selectedMatrixKey = state.matrixJob.current_row_key;
+      await loadQuestionMatrix();
+    },
+    fallback: async () => pollMatrixJob(jobId),
+  });
+}
+
 async function startMatrixJob({ mode, column = "retrieval" }) {
   if (state.matrixJob && ["queued", "running", "stopping"].includes(state.matrixJob.status)) {
     renderMatrixJobStatus(state.matrixJob);
@@ -1232,7 +1355,7 @@ async function startMatrixJob({ mode, column = "retrieval" }) {
     const job = await localPostJson("/local/question-matrix/run", { mode, column, use_model_judge: useModelJudge, stop_on_answer_failure: stopOnAnswerFailure });
     state.matrixJob = job;
     renderMatrixJobStatus(job);
-    pollMatrixJob(job.id);
+    watchMatrixJob(job.id).catch((error) => renderMatrixJobStatus({ ...job, status: "failed", error: error.message }));
   } catch (error) {
     renderMatrixJobStatus({ status: "failed", mode, column, use_model_judge: useModelJudge, stop_on_answer_failure: stopOnAnswerFailure, error: error.message, dataset_count: 0, completed_datasets: 0 });
   }
@@ -1274,7 +1397,7 @@ async function startQuestionGenerationJob() {
     const job = await localPostJson("/local/question-matrix/generate", payload);
     state.matrixJob = job;
     renderMatrixJobStatus(job);
-    pollMatrixJob(job.id);
+    watchMatrixJob(job.id).catch((error) => renderMatrixJobStatus({ ...job, status: "failed", error: error.message }));
   } catch (error) {
     renderMatrixJobStatus({ status: "failed", mode: "generate_questions", generation: payload, error: error.message, dataset_count: 1, completed_datasets: 0 });
   }
@@ -1287,7 +1410,7 @@ async function stopMatrixJob() {
     const job = await localPostJson(`/local/question-matrix/jobs/${encodeURIComponent(jobId)}/stop`, {});
     state.matrixJob = job;
     renderMatrixJobStatus(job);
-    pollMatrixJob(jobId);
+    watchMatrixJob(jobId).catch((error) => renderMatrixJobStatus({ ...job, status: "failed", error: error.message }));
   } catch (error) {
     renderMatrixJobStatus({ ...state.matrixJob, status: "failed", error: error.message });
   }
@@ -1509,9 +1632,9 @@ async function loadQuestionMatrix() {
       const wasDifferentJob = state.matrixJob?.id !== payload.active_job.id;
       state.matrixJob = payload.active_job;
       renderMatrixJobStatus(payload.active_job);
-      if (["queued", "running", "stopping"].includes(payload.active_job.status) && (wasDifferentJob || !state.matrixJobTimer)) {
+      if (["queued", "running", "stopping"].includes(payload.active_job.status) && (wasDifferentJob || !state.realtimeStreams["question-matrix"])) {
         if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
-        pollMatrixJob(payload.active_job.id);
+        watchMatrixJob(payload.active_job.id).catch(console.error);
       }
     } else if (!state.matrixJob) {
       state.matrixJob = null;
@@ -2119,6 +2242,39 @@ async function pollRunToCompletion(runtime) {
   throw new Error(`Timed out waiting for persisted run ${runtime.runId}`);
 }
 
+async function streamEvalRunToCompletion(runtime) {
+  appendRunDebug("Opening persisted run EventSource", {
+    runId: runtime.runId,
+    after: runtime.lastEventIndex,
+  });
+  await streamRunEvents(runtime.runId, {
+    streamKey: "evaluation",
+    after: runtime.lastEventIndex,
+    onSnapshot: (snapshot) => {
+      updateRunDebug({ httpStatus: "SSE connected" });
+      appendRunDebug("SSE snapshot", {
+        status: snapshot.status,
+        lastSequence: snapshot.last_sequence,
+      });
+    },
+    onEvent: (envelope) => {
+      processEvalEvent(envelope.payload, runtime, "sse", envelope.sequence);
+    },
+    reconcile: async () => {
+      appendRunDebug("SSE terminal event; reconciling persisted result", {
+        after: runtime.lastEventIndex,
+      });
+      await pollRunToCompletion(runtime);
+    },
+    fallback: async () => {
+      appendRunDebug("SSE unavailable; falling back to polling", {
+        after: runtime.lastEventIndex,
+      });
+      await pollRunToCompletion(runtime);
+    },
+  });
+}
+
 async function resumeEvalRun(runId) {
   if (!runId || state.running) return;
   state.running = true;
@@ -2146,7 +2302,7 @@ async function resumeEvalRun(runId) {
     if (run.progress_json?.event) {
       processEvalEvent(run.progress_json, runtime, "progress");
     }
-    await pollRunToCompletion(runtime);
+    await streamEvalRunToCompletion(runtime);
   } catch (error) {
     appendRunDebug("Resume failed", { message: error.message, name: error.name });
     setStatus("Failed", "error");
@@ -2291,7 +2447,7 @@ async function runEval() {
     updateRunDebug({ runId: runtime.runId, httpStatus: "started" });
     appendRunDebug("Persisted run started", started);
     processEvalEvent({ event: "eval_queued", run_id: runtime.runId, scope: { corpus_ids: payload.corpus_ids, document_id: payload.document_id }, sample_limit: sampleLimit }, runtime, "start");
-    await pollRunToCompletion(runtime);
+    await streamEvalRunToCompletion(runtime);
   } catch (error) {
     appendRunDebug("Run failed", { message: error.message, name: error.name });
     if (runtime.runId) {
@@ -2785,11 +2941,48 @@ async function pollAgentChatJob(jobId) {
   $("agent-chat-send").disabled = false;
 }
 
+function applyAgentJobEnvelope(job, envelope) {
+  const payload = envelope.payload || {};
+  if (envelope.phase === "job_started") job.status = "running";
+  if (isTerminalRunEnvelope(envelope)) job.status = envelope.status;
+  const backend = payload.backend;
+  const sourceEvent = payload.source;
+  if (backend && job.runs?.[backend]) {
+    const run = job.runs[backend];
+    if (envelope.phase === "backend_started") run.status = "running";
+    if (sourceEvent) {
+      run.events = [...(run.events || []), sourceEvent];
+      if (sourceEvent.event === "run_completed") run.status = "completed";
+      if (sourceEvent.event === "run_failed") {
+        run.status = "failed";
+        run.error = sourceEvent.error;
+      }
+    }
+  }
+}
+
+function watchAgentChatJob(jobId) {
+  if (state.agentChat.timer) clearTimeout(state.agentChat.timer);
+  state.agentChat.timer = null;
+  return streamRunEvents(jobId, {
+    streamKey: "agent-chat",
+    onEvent: (envelope) => {
+      if (!state.agentChat.job || state.agentChat.job.id !== jobId) return;
+      applyAgentJobEnvelope(state.agentChat.job, envelope);
+      hydrateAgentChatJob(state.agentChat.job);
+    },
+    reconcile: async () => hydrateAgentChatJob(
+      await localJson(`/local/agent-runs/jobs/${encodeURIComponent(jobId)}`),
+    ),
+    fallback: async () => pollAgentChatJob(jobId),
+  });
+}
+
 async function loadAgentChatJob() {
   const payload = await localJson("/local/agent-chat/current");
   if (!payload.job) return;
   hydrateAgentChatJob(payload.job);
-  if (["queued", "running"].includes(payload.job.status)) await pollAgentChatJob(payload.job.id);
+  if (["queued", "running"].includes(payload.job.status)) watchAgentChatJob(payload.job.id).catch(console.error);
 }
 
 async function sendAgentChatMessage() {
@@ -2812,7 +3005,7 @@ async function sendAgentChatMessage() {
     const pending = state.agentChat.turns.find((item) => item.jobId === pendingId);
     if (pending) pending.jobId = job.id;
     hydrateAgentChatJob(job);
-    await pollAgentChatJob(job.id);
+    await watchAgentChatJob(job.id);
   } catch (error) {
     const pending = state.agentChat.turns.find((item) => item.jobId === pendingId);
     if (pending) {
@@ -2903,12 +3096,39 @@ async function pollAgentLiveJob(jobId) {
   $("run-agent-test").disabled = false;
 }
 
+function watchAgentLiveJob(jobId) {
+  if (state.agentLab.timer) clearTimeout(state.agentLab.timer);
+  state.agentLab.timer = null;
+  return streamRunEvents(jobId, {
+    streamKey: "agent-lab",
+    onEvent: (envelope) => {
+      const job = state.agentLab.job;
+      if (!job || job.id !== jobId) return;
+      applyAgentJobEnvelope(job, envelope);
+      const backend = envelope.payload?.backend;
+      const sourceEvent = envelope.payload?.source;
+      if (backend && sourceEvent && state.agentLab.runs[backend]) {
+        const event = { ...sourceEvent, receivedAt: performance.now() };
+        applyAgentEvent(state.agentLab.runs[backend], event, false);
+        renderAgentLab();
+      } else if (envelope.phase === "job_started") {
+        $("agent-lab-status").textContent = "Running · live event stream";
+        $("agent-lab-status").className = "status-pill running";
+      }
+    },
+    reconcile: async () => hydrateAgentLiveJob(
+      await localJson(`/local/agent-runs/jobs/${encodeURIComponent(jobId)}`),
+    ),
+    fallback: async () => pollAgentLiveJob(jobId),
+  });
+}
+
 async function loadAgentLiveJob() {
   const payload = await localJson("/local/agent-runs/current");
   if (!payload.job) return;
   hydrateAgentLiveJob(payload.job);
   if (["queued", "running"].includes(payload.job.status)) {
-    await pollAgentLiveJob(payload.job.id);
+    watchAgentLiveJob(payload.job.id).catch(console.error);
   }
 }
 
@@ -2942,7 +3162,7 @@ async function runAgentTest() {
     max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-max-hops").value || 4))),
   });
   hydrateAgentLiveJob(job);
-  await pollAgentLiveJob(job.id);
+  await watchAgentLiveJob(job.id);
 }
 
 const AGENT_MATRIX_LAYERS = [
@@ -3125,7 +3345,13 @@ function renderAgentMatrixDetail() {
 
 async function loadAgentMatrix() {
   try {
-    renderAgentMatrix(await localJson("/local/agent-matrix"));
+    const payload = await localJson("/local/agent-matrix");
+    renderAgentMatrix(payload);
+    if (payload.active_job && ["queued", "running"].includes(payload.active_job.status)) {
+      state.agentMatrix.job = payload.active_job;
+      mergeAgentMatrixJobSnapshot(payload.active_job);
+      if (!state.realtimeStreams["agent-matrix"]) watchAgentMatrixJob(payload.active_job.id).catch(console.error);
+    }
   } catch (error) {
     $("agent-matrix-summary").className = "matrix-summary empty-state";
     $("agent-matrix-summary").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
@@ -3149,6 +3375,61 @@ async function pollAgentMatrixJob(jobId) {
   await loadAgentMatrix();
 }
 
+function applyAgentMatrixEnvelope(envelope) {
+  const job = state.agentMatrix.job;
+  if (!job || job.id !== envelope.run_id) return;
+  const event = envelope.payload || {};
+  job.status = envelope.status || job.status;
+  if (event.case_id) {
+    job.current_case_id = event.case_id;
+    job.completed_questions = Number(event.question_number || job.completed_questions || 0);
+  }
+  if (envelope.phase === "agent_case_completed" && event.case_id) {
+    for (const backend of ["langgraph", "llamaindex"]) {
+      const result = event[backend] || {};
+      for (const [layer] of AGENT_MATRIX_LAYERS) {
+        const cell = result.agent_evaluation?.cells?.[layer];
+        if (!cell) continue;
+        applyAgentMatrixLiveCell({
+          case_id: event.case_id,
+          backend,
+          layer,
+          cell: {
+            ...cell,
+            status: "provisional",
+            label: "LIVE",
+            detail: `${cell.detail || cell.label || layer} · provisional until terminal reconciliation`,
+          },
+          answer: result.answer,
+          trace: result.trace,
+          elapsed_ms: result.elapsed_ms,
+          passed: result.agent_evaluation?.passed,
+        });
+      }
+    }
+  }
+  const status = $("agent-matrix-status");
+  status.textContent = [job.status, `${job.completed_questions}/${job.limit}`, job.current_case_id, "live"].filter(Boolean).join(" · ");
+  status.className = "status-pill running";
+}
+
+function watchAgentMatrixJob(jobId) {
+  if (state.agentMatrix.timer) clearTimeout(state.agentMatrix.timer);
+  state.agentMatrix.timer = null;
+  return streamRunEvents(jobId, {
+    streamKey: "agent-matrix",
+    onEvent: applyAgentMatrixEnvelope,
+    reconcile: async () => {
+      state.agentMatrix.job = await localJson(`/local/agent-matrix/jobs/${encodeURIComponent(jobId)}`);
+      $("run-agent-matrix").disabled = false;
+      await loadAgentMatrix();
+      $("agent-matrix-status").textContent = state.agentMatrix.job.status;
+      $("agent-matrix-status").className = `status-pill ${state.agentMatrix.job.status === "completed" ? "pass" : "fail"}`;
+    },
+    fallback: async () => pollAgentMatrixJob(jobId),
+  });
+}
+
 async function runAgentMatrix() {
   state.agentMatrix.replayVersion += 1;
   $("run-agent-matrix").disabled = true;
@@ -3160,7 +3441,7 @@ async function runAgentMatrix() {
     no_llm: $("agent-matrix-no-llm").checked,
   });
   state.agentMatrix.job = job;
-  await pollAgentMatrixJob(job.id);
+  await watchAgentMatrixJob(job.id);
 }
 
 async function loadHistory() {

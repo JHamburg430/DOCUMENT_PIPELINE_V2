@@ -102,9 +102,12 @@ def test_eval_matrix_view_is_available():
     index_html = (UI_DIR / "index.html").read_text()
     styles_css = (UI_DIR / "styles.css").read_text()
 
-    assert 'data-tab="matrix"' in index_html
-    assert 'class="tab active" data-tab="matrix"' in index_html
-    assert 'id="matrix" class="tab-panel active"' in index_html
+    assert 'class="tab active" data-tab="evaluation">Evaluation</button>' in index_html
+    assert 'id="evaluation" class="tab-panel active"' in index_html
+    assert 'id="question-matrix-workspace"' in index_html
+    assert 'id="agent-lab"' in index_html
+    assert 'id="agent-matrix-workspace"' in index_html
+    assert 'data-tab="matrix"' not in index_html
     assert "End-to-End Eval" not in index_html
     assert 'data-tab="eval"' not in index_html
     assert 'id="eval"' not in index_html
@@ -242,6 +245,32 @@ def test_agent_evaluation_matrix_view_exposes_independent_backend_layers():
     ):
         assert layer in app_js
     assert ".agent-matrix-grid" in styles_css
+
+
+def test_evaluation_workflows_use_sse_first_with_polling_fallback_and_terminal_reconciliation():
+    app_js = (UI_DIR / "app.js").read_text()
+
+    assert "new EventSource(" in app_js
+    assert "/local/run-events/subscribe?run_id=" in app_js
+    assert 'source.addEventListener("snapshot"' in app_js
+    assert 'source.addEventListener("run-event"' in app_js
+    assert "Native EventSource reconnects with Last-Event-ID" in app_js
+    assert "consecutiveErrors >= 3" in app_js
+    assert "finish(fallback)" in app_js
+    assert "finish(reconcile)" in app_js
+    assert "streamEvalRunToCompletion" in app_js
+    assert "watchMatrixJob" in app_js
+    assert "watchAgentChatJob" in app_js
+    assert "watchAgentLiveJob" in app_js
+    assert "watchAgentMatrixJob" in app_js
+    assert 'status: "provisional"' in app_js
+    assert "provisional until terminal reconciliation" in app_js
+    matrix_stage_block = re.search(
+        r"const MATRIX_STAGES = \[(?P<body>.*?)\n\];",
+        app_js,
+        re.S,
+    ).group("body")
+    assert len(re.findall(r'^\s+key: "', matrix_stage_block, re.M)) == 17
 
 
 def test_agent_live_runs_are_server_owned_and_reattachable(monkeypatch):
@@ -960,7 +989,8 @@ def test_question_matrix_job_preserves_failed_answer_row_for_polling(monkeypatch
     assert job["current_row_key"] == "test_reports/dataset.jsonl::case-1"
     assert job["current_question_number"] == 1
     assert "expected_terms_missing" in job["error"]
-    assert job["events"][-2]["event"] == "job_stopped_on_answer_failure"
+    assert [event["event"] for event in job["events"][:2]] == ["job_queued", "job_started"]
+    assert job["events"][-1]["event"] == "job_stopped_on_answer_failure"
 
 
 def test_question_matrix_retrieval_column_uses_retrieval_only(monkeypatch, tmp_path):

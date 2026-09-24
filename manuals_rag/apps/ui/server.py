@@ -26,6 +26,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 try:
+    from .durable_journal import ProgressJsonlBridge, SQLiteEventJournal
     from .run_registry import RunRegistry
     from .sse_replay import (
         ReplayRequestError,
@@ -36,6 +37,7 @@ try:
         parse_replay_cursor,
     )
 except ImportError:  # pragma: no cover - direct ``python apps/ui/server.py`` execution
+    from durable_journal import ProgressJsonlBridge, SQLiteEventJournal
     from run_registry import RunRegistry
     from sse_replay import (
         ReplayRequestError,
@@ -117,6 +119,12 @@ RUN_EVENT_REGISTRY = RunRegistry()
 RUN_EVENT_POLL_SECONDS = max(0.05, float(os.getenv("MANUALS_RAG_EVENT_POLL_SECONDS", "0.2")))
 RUN_EVENT_HEARTBEAT_SECONDS = max(1.0, float(os.getenv("MANUALS_RAG_EVENT_HEARTBEAT_SECONDS", "15")))
 RUN_EVENT_STREAM_MAX_SECONDS = max(1.0, float(os.getenv("MANUALS_RAG_EVENT_STREAM_MAX_SECONDS", "3600")))
+UI_EVENT_JOURNAL_PATH = os.getenv("MANUALS_RAG_UI_EVENT_JOURNAL")
+UI_EVENT_JOURNAL_MAX_EVENTS = max(100, int(os.getenv("MANUALS_RAG_UI_EVENT_MAX_EVENTS", "4000")))
+UI_EVENT_JOURNAL: SQLiteEventJournal | None = None
+UI_EVENT_JOURNAL_LOCK = Lock()
+LOCAL_EVENT_RUN_PREFIXES = ("matrix-", "agent-run-", "agent-matrix-")
+TERMINAL_RUN_STATUSES = {"completed", "succeeded", "failed", "cancelled", "canceled", "stopped"}
 
 
 class MatrixJobCancelled(RuntimeError):
@@ -125,6 +133,108 @@ class MatrixJobCancelled(RuntimeError):
 
 class MatrixAnswerFailure(RuntimeError):
     pass
+
+
+def _ui_event_journal() -> SQLiteEventJournal:
+    """Open the private UI journal lazily; importing this module creates no files."""
+    global UI_EVENT_JOURNAL
+    with UI_EVENT_JOURNAL_LOCK:
+        if UI_EVENT_JOURNAL is None:
+            UI_EVENT_JOURNAL = SQLiteEventJournal(
+                Path(UI_EVENT_JOURNAL_PATH) if UI_EVENT_JOURNAL_PATH else TEST_REPORTS_DIR / ".ui_run_events.sqlite3",
+                max_events_per_run=UI_EVENT_JOURNAL_MAX_EVENTS,
+            )
+        return UI_EVENT_JOURNAL
+
+
+def _is_component_event_run(run_id: str) -> bool:
+    return run_id.startswith(LOCAL_EVENT_RUN_PREFIXES)
+
+
+def _component_run_snapshot(run_id: str) -> dict | None:
+    if run_id.startswith("agent-matrix-"):
+        with AGENT_MATRIX_LOCK:
+            job = deepcopy(AGENT_MATRIX_JOBS.get(run_id))
+        return job
+    if run_id.startswith("agent-run-"):
+        with AGENT_LIVE_LOCK:
+            job = deepcopy(AGENT_LIVE_JOBS.get(run_id))
+        return job
+    if run_id.startswith("matrix-"):
+        _load_question_matrix_jobs_if_needed()
+        with MATRIX_JOBS_LOCK:
+            job = deepcopy(MATRIX_JOBS.get(run_id))
+        return job
+    return None
+
+
+def _component_workflow(run_id: str, snapshot: dict | None = None) -> str:
+    if run_id.startswith("agent-matrix-"):
+        return "agent_matrix"
+    if run_id.startswith("agent-run-"):
+        return "agent_chat" if (snapshot or {}).get("surface") == "chat" else "agent_lab"
+    return "question_matrix"
+
+
+def _publish_component_event(
+    run_id: str,
+    *,
+    workflow: str,
+    phase: str,
+    status: str,
+    entity_type: str = "run",
+    entity_id: str | None = None,
+    provisional: bool = True,
+    payload: dict | None = None,
+    total: int | None = None,
+    artifact_ref: str | None = None,
+) -> None:
+    completed = status.lower() in TERMINAL_RUN_STATUSES
+    event = _ui_event_journal().publish(
+        run_id=run_id,
+        workflow=workflow,
+        phase=phase,
+        entity_type=entity_type,
+        entity_id=entity_id or run_id,
+        status=status,
+        completed=completed,
+        total=total,
+        provisional=provisional and not completed,
+        payload=payload or {},
+        artifact_ref=artifact_ref,
+    )
+    RUN_EVENT_REGISTRY.observe(
+        run_id,
+        workflow=workflow,
+        status=status,
+        last_sequence=event.sequence,
+        metadata=_component_run_snapshot(run_id) or {},
+    )
+
+
+def _try_publish_component_event(run_id: str, **kwargs: object) -> None:
+    """Keep observability failures from changing evaluator outcomes."""
+    try:
+        _publish_component_event(run_id, **kwargs)
+    except Exception as error:  # pragma: no cover - exercised through degraded-host behavior
+        print(
+            f"UI event journal publish failed for {run_id}: {error.__class__.__name__}: {error}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
+def _component_event_rows(run_id: str, *, after: int, limit: int) -> list[dict]:
+    page = _ui_event_journal().replay(run_id, after=after, limit=limit)
+    return [
+        {
+            "event_index": event.sequence,
+            "event_json": {"event": event.phase, **deepcopy(event.payload)},
+            "created_at": event.timestamp,
+            "envelope": event.to_dict(),
+        }
+        for event in page.events
+    ]
 
 
 class ManualsRagUiHandler(SimpleHTTPRequestHandler):
@@ -300,11 +410,16 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.send_error(404, "Not found")
             return
         try:
-            rows = self._query_run_events(run_id, after=after, limit=limit)
-            snapshot = self._query_run_snapshot(run_id)
-            workflow = str((snapshot or {}).get("run_type") or "application")
-            for row in rows:
-                row["envelope"] = envelope_from_persisted_row(run_id, row, workflow=workflow).to_dict()
+            if _is_component_event_run(run_id):
+                snapshot = _component_run_snapshot(run_id)
+                rows = _component_event_rows(run_id, after=after, limit=limit)
+                workflow = _component_workflow(run_id, snapshot)
+            else:
+                rows = self._query_run_events(run_id, after=after, limit=limit)
+                snapshot = self._query_run_snapshot(run_id)
+                workflow = str((snapshot or {}).get("run_type") or "application")
+                for row in rows:
+                    row["envelope"] = envelope_from_persisted_row(run_id, row, workflow=workflow).to_dict()
             last_sequence = int(rows[-1]["event_index"]) if rows else after
             RUN_EVENT_REGISTRY.observe(
                 run_id,
@@ -317,6 +432,7 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("X-Event-Replay-After", str(after))
+            self.send_header("X-Event-Replay-Cursor", str(last_sequence))
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self._write(payload)
@@ -362,7 +478,11 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def _local_run_event_stream(self, run_id: str, *, after: int, limit: int) -> None:
         try:
-            snapshot = self._query_run_snapshot(run_id)
+            snapshot = (
+                _component_run_snapshot(run_id)
+                if _is_component_event_run(run_id)
+                else self._query_run_snapshot(run_id)
+            )
         except Exception as error:
             self.send_error(500, f"Run snapshot lookup failed: {error.__class__.__name__}: {error}")
             return
@@ -370,7 +490,11 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.send_error(404, "Run not found")
             return
 
-        workflow = str(snapshot.get("run_type") or "application")
+        workflow = (
+            _component_workflow(run_id, snapshot)
+            if _is_component_event_run(run_id)
+            else str(snapshot.get("run_type") or "application")
+        )
         registry_snapshot = RUN_EVENT_REGISTRY.observe(
             run_id,
             workflow=workflow,
@@ -394,14 +518,21 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             if not self._write(encode_snapshot(registry_snapshot.to_dict())):
                 return
             while time.monotonic() - started < RUN_EVENT_STREAM_MAX_SECONDS:
-                rows = self._query_run_events(run_id, after=cursor, limit=limit)
-                for row in rows:
-                    envelope = envelope_from_persisted_row(run_id, row, workflow=workflow)
+                if _is_component_event_run(run_id):
+                    envelopes = list(_ui_event_journal().replay(run_id, after=cursor, limit=limit).events)
+                else:
+                    rows = self._query_run_events(run_id, after=cursor, limit=limit)
+                    envelopes = [envelope_from_persisted_row(run_id, row, workflow=workflow) for row in rows]
+                for envelope in envelopes:
                     if not self._write(encode_sse(envelope)):
                         return
                     cursor = envelope.sequence
                     last_write = time.monotonic()
-                snapshot = self._query_run_snapshot(run_id) or snapshot
+                snapshot = (
+                    _component_run_snapshot(run_id)
+                    if _is_component_event_run(run_id)
+                    else self._query_run_snapshot(run_id)
+                ) or snapshot
                 observed = RUN_EVENT_REGISTRY.observe(
                     run_id,
                     workflow=workflow,
@@ -409,7 +540,7 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                     last_sequence=cursor,
                     metadata=snapshot,
                 )
-                if observed.terminal and not rows:
+                if observed.terminal and not envelopes:
                     return
                 if time.monotonic() - last_write >= RUN_EVENT_HEARTBEAT_SECONDS:
                     if not self._write(encode_heartbeat()):
@@ -769,6 +900,11 @@ def _build_agent_matrix() -> dict:
         dataset_path = MANUALS_ROOT / dataset_path
     cases = _read_jsonl(dataset_path) if dataset_path.exists() else []
     report_items = {str(item.get("case_id") or ""): item for item in report.get("items") or []}
+    with AGENT_MATRIX_LOCK:
+        active_job = next(
+            (deepcopy(job) for job in AGENT_MATRIX_JOBS.values() if job.get("status") in {"queued", "running"}),
+            None,
+        )
     rows = []
     for number, record in enumerate(cases, start=1):
         case = record.get("case") if isinstance(record.get("case"), dict) else record
@@ -808,6 +944,7 @@ def _build_agent_matrix() -> dict:
         "category_summary": report.get("category_summary") or {},
         "category_counts": report.get("category_counts") or {},
         "dataset_sha256": report.get("dataset_sha256"),
+        "active_job": active_job,
         "rows": rows,
         "layers": [
             "tool_selection",
@@ -851,6 +988,14 @@ def _start_agent_matrix_job(payload: dict) -> dict:
             "completed_at": None,
         }
         AGENT_MATRIX_JOBS[job_id] = job
+    _try_publish_component_event(
+        job_id,
+        workflow="agent_matrix",
+        phase="job_queued",
+        status="queued",
+        payload={"dataset": job["dataset"], "limit": limit, "max_hops": max_hops},
+        total=limit,
+    )
     Thread(target=_run_agent_matrix_job, args=(job_id, dataset_path), daemon=True).start()
     return dict(job)
 
@@ -907,6 +1052,15 @@ def _start_agent_live_job(payload: dict, *, surface: str = "lab") -> dict:
                 break
             AGENT_LIVE_JOBS.pop(oldest, None)
         snapshot = deepcopy(job)
+    workflow = "agent_chat" if surface == "chat" else "agent_lab"
+    _try_publish_component_event(
+        job_id,
+        workflow=workflow,
+        phase="job_queued",
+        status="queued",
+        payload={"surface": surface, "backends": backends, "query": query},
+        total=len(backends),
+    )
     Thread(target=_run_agent_live_job, args=(job_id,), daemon=True).start()
     return snapshot
 
@@ -915,6 +1069,17 @@ def _run_agent_live_backend(job_id: str, backend: str, request_payload: dict) ->
     with AGENT_LIVE_LOCK:
         run = AGENT_LIVE_JOBS[job_id]["runs"][backend]
         run["status"] = "running"
+        surface = AGENT_LIVE_JOBS[job_id].get("surface", "lab")
+    workflow = "agent_chat" if surface == "chat" else "agent_lab"
+    _try_publish_component_event(
+        job_id,
+        workflow=workflow,
+        phase="backend_started",
+        status="running",
+        entity_type="agent_backend",
+        entity_id=backend,
+        payload={"backend": backend},
+    )
     body = json.dumps({**request_payload, "retrieval_orchestrator": backend}).encode("utf-8")
     request = Request(
         f"{API_BASE}/query/stream",
@@ -945,6 +1110,17 @@ def _run_agent_live_backend(job_id: str, backend: str, request_payload: dict) ->
                     elif event.get("event") == "run_failed":
                         run["status"] = "failed"
                         run["error"] = event.get("error")
+                _try_publish_component_event(
+                    job_id,
+                    workflow=workflow,
+                    phase=str(event.get("event") or "agent_event"),
+                    status="running",
+                    entity_type="agent_backend",
+                    entity_id=backend,
+                    provisional=True,
+                    payload={"backend": backend, "source": deepcopy(event)},
+                )
+        failure_event = None
         with AGENT_LIVE_LOCK:
             run = AGENT_LIVE_JOBS[job_id]["runs"][backend]
             if run["status"] == "running":
@@ -955,6 +1131,18 @@ def _run_agent_live_backend(job_id: str, backend: str, request_payload: dict) ->
                     "error": run["error"],
                     "received_at_epoch": time.time(),
                 })
+                failure_event = deepcopy(run["events"][-1])
+        if failure_event:
+            _try_publish_component_event(
+                job_id,
+                workflow=workflow,
+                phase="run_failed",
+                status="running",
+                entity_type="agent_backend",
+                entity_id=backend,
+                provisional=True,
+                payload={"backend": backend, "source": failure_event},
+            )
     except Exception as error:
         failure = f"{error.__class__.__name__}: {error}"
         with AGENT_LIVE_LOCK:
@@ -962,6 +1150,17 @@ def _run_agent_live_backend(job_id: str, backend: str, request_payload: dict) ->
             run["status"] = "failed"
             run["error"] = failure
             run["events"].append({"event": "run_failed", "error": failure, "received_at_epoch": time.time()})
+            failure_event = deepcopy(run["events"][-1])
+        _try_publish_component_event(
+            job_id,
+            workflow=workflow,
+            phase="run_failed",
+            status="running",
+            entity_type="agent_backend",
+            entity_id=backend,
+            provisional=True,
+            payload={"backend": backend, "source": failure_event},
+        )
 
 
 def _run_agent_live_job(job_id: str) -> None:
@@ -976,6 +1175,15 @@ def _run_agent_live_job(job_id: str) -> None:
             "max_retrieval_hops": job["max_retrieval_hops"],
         }
         backends = list(job["backends"])
+        workflow = "agent_chat" if job.get("surface") == "chat" else "agent_lab"
+    _try_publish_component_event(
+        job_id,
+        workflow=workflow,
+        phase="job_started",
+        status="running",
+        payload={"backends": backends},
+        total=len(backends),
+    )
     workers = [
         Thread(target=_run_agent_live_backend, args=(job_id, backend, request_payload), daemon=True)
         for backend in backends
@@ -994,6 +1202,16 @@ def _run_agent_live_job(job_id: str) -> None:
         job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(completed_epoch))
         failures = [run.get("error") for run in job["runs"].values() if run.get("error")]
         job["error"] = "; ".join(failures) if failures else None
+        final_status = job["status"]
+    _try_publish_component_event(
+        job_id,
+        workflow=workflow,
+        phase="job_completed" if final_status == "completed" else "job_failed",
+        status=final_status,
+        provisional=False,
+        payload={"backends": backends},
+        total=len(backends),
+    )
 
 
 def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:
@@ -1002,6 +1220,19 @@ def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:
         job["status"] = "running"
         job["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         snapshot = dict(job)
+    _try_publish_component_event(
+        job_id,
+        workflow="agent_matrix",
+        phase="job_started",
+        status="running",
+        payload={"dataset": snapshot["dataset"]},
+        total=int(snapshot["limit"]),
+    )
+    try:
+        progress_bridge = ProgressJsonlBridge(_ui_event_journal(), run_id=job_id, workflow="agent_matrix")
+    except Exception as error:  # journal failure must not change benchmark behavior
+        progress_bridge = None
+        print(f"Agent matrix progress bridge unavailable: {error}", file=sys.stderr, flush=True)
     cmd = [
         sys.executable,
         str(MANUALS_ROOT / "scripts" / "benchmark" / "compare_agentic_retrieval.py"),
@@ -1036,6 +1267,19 @@ def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:
                 event = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if progress_bridge is not None:
+                try:
+                    bridged = progress_bridge.consume(line)
+                    component_snapshot = _component_run_snapshot(job_id) or {}
+                    RUN_EVENT_REGISTRY.observe(
+                        job_id,
+                        workflow="agent_matrix",
+                        status=str(component_snapshot.get("status") or "running"),
+                        last_sequence=bridged.sequence,
+                        metadata=component_snapshot,
+                    )
+                except Exception as error:
+                    print(f"Agent matrix progress bridge rejected a line: {error}", file=sys.stderr, flush=True)
             if event.get("event") != "agent_case_completed":
                 continue
             with AGENT_MATRIX_LOCK:
@@ -1057,12 +1301,32 @@ def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:
             job["status"] = "completed"
             job["current_case_id"] = None
             job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        _try_publish_component_event(
+            job_id,
+            workflow="agent_matrix",
+            phase="job_completed",
+            status="completed",
+            provisional=False,
+            payload={"completed_questions": int(job.get("completed_questions") or 0)},
+            total=int(snapshot["limit"]),
+            artifact_ref=str(AGENT_MATRIX_REPORT.relative_to(MANUALS_ROOT)),
+        )
     except Exception as error:
         with AGENT_MATRIX_LOCK:
             job = AGENT_MATRIX_JOBS[job_id]
             job["status"] = "failed"
             job["error"] = f"{error.__class__.__name__}: {error}"
             job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            failure = job["error"]
+        _try_publish_component_event(
+            job_id,
+            workflow="agent_matrix",
+            phase="job_failed",
+            status="failed",
+            provisional=False,
+            payload={"error": failure},
+            total=int(snapshot["limit"]),
+        )
 
 
 def _is_active_dataset(dataset: dict) -> bool:
@@ -1603,15 +1867,26 @@ def _update_question_matrix_job(job_id: str, **updates: object) -> None:
 def _update_question_matrix_live_cell(job_id: str, case_id: str, key: str, status: str, detail: str = "", label: str | None = None) -> None:
     if key not in MATRIX_STAGE_KEYS:
         return
+    cell = _matrix_cell(status, detail, label)
     with MATRIX_JOBS_LOCK:
         job = MATRIX_JOBS[job_id]
         live_cells = dict(job.get("live_cells") or {})
         row_cells = dict(live_cells.get(case_id) or {})
-        row_cells[key] = _matrix_cell(status, detail, label)
+        row_cells[key] = cell
         live_cells[case_id] = row_cells
         job["live_cells"] = live_cells
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         _persist_question_matrix_jobs_locked()
+    _try_publish_component_event(
+        job_id,
+        workflow="question_matrix",
+        phase="matrix_cell",
+        status="running",
+        entity_type="matrix_cell",
+        entity_id=f"{case_id}:{key}",
+        provisional=True,
+        payload={"case_id": case_id, "matrix_key": key, "cell": cell},
+    )
 
 
 def _replace_question_matrix_live_cells(job_id: str, case_id: str, cells: dict[str, dict[str, str]]) -> None:
@@ -1622,6 +1897,18 @@ def _replace_question_matrix_live_cells(job_id: str, case_id: str, cells: dict[s
         job["live_cells"] = live_cells
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         _persist_question_matrix_jobs_locked()
+    for key, cell in cells.items():
+        if key in MATRIX_STAGE_KEYS:
+            _try_publish_component_event(
+                job_id,
+                workflow="question_matrix",
+                phase="matrix_cell",
+                status="running",
+                entity_type="matrix_cell",
+                entity_id=f"{case_id}:{key}",
+                provisional=True,
+                payload={"case_id": case_id, "matrix_key": key, "cell": dict(cell)},
+            )
 
 
 def _update_question_matrix_live_result(job_id: str, case_id: str, record: dict) -> None:
@@ -1637,6 +1924,20 @@ def _update_question_matrix_live_result(job_id: str, case_id: str, record: dict)
         job["live_results"] = live_results
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         _persist_question_matrix_jobs_locked()
+    _try_publish_component_event(
+        job_id,
+        workflow="question_matrix",
+        phase="metrics",
+        status="running",
+        entity_type="question",
+        entity_id=case_id,
+        provisional=True,
+        payload={
+            "case_id": case_id,
+            "evaluation": deepcopy(record.get("evaluation") or {}),
+            "answer_evaluation": deepcopy(record.get("answer_evaluation") or {}),
+        },
+    )
 
 
 def _active_question_matrix_job_id() -> str | None:
@@ -1733,6 +2034,18 @@ def _record_question_matrix_job_event(job_id: str, event_type: str, **fields: ob
                 job["event_log_path"] = str(path)
         job["updated_at"] = event["timestamp"]
         _persist_question_matrix_jobs_locked()
+        job_status = str(job.get("status") or "running")
+    _try_publish_component_event(
+        job_id,
+        workflow="question_matrix",
+        phase=event_type,
+        status=job_status,
+        entity_type="question" if fields.get("case_id") else "run",
+        entity_id=str(fields.get("case_id") or job_id),
+        provisional=job_status.lower() not in TERMINAL_RUN_STATUSES,
+        payload=deepcopy(event),
+        artifact_ref=str(fields.get("results_path")) if fields.get("results_path") else None,
+    )
 
 
 def _persist_question_matrix_jobs_locked() -> None:
@@ -2178,9 +2491,9 @@ def _start_question_generation_job(payload: dict) -> dict:
     with MATRIX_JOBS_LOCK:
         MATRIX_JOBS[job_id] = job
         _persist_question_matrix_jobs_locked()
+    _record_question_matrix_job_event(job_id, "job_queued", mode="generate_questions", generation=job["generation"])
     thread = Thread(target=_run_question_generation_job, args=(job_id, cmd), daemon=True)
     thread.start()
-    _record_question_matrix_job_event(job_id, "job_queued", mode="generate_questions", generation=job["generation"])
     return _question_matrix_job_snapshot(job_id)
 
 
@@ -2432,8 +2745,6 @@ def _start_question_matrix_job(payload: dict) -> dict:
             raise ValueError(f"Matrix job {active_job_id} is already running.")
         MATRIX_JOBS[job_id] = job
         _persist_question_matrix_jobs_locked()
-    thread = Thread(target=_run_question_matrix_job, args=(job_id, datasets), daemon=True)
-    thread.start()
     _record_question_matrix_job_event(
         job_id,
         "job_queued",
@@ -2443,6 +2754,8 @@ def _start_question_matrix_job(payload: dict) -> dict:
         dataset_count=len(datasets),
         stop_on_answer_failure=job["stop_on_answer_failure"],
     )
+    thread = Thread(target=_run_question_matrix_job, args=(job_id, datasets), daemon=True)
+    thread.start()
     return _question_matrix_job_snapshot(job_id)
 
 

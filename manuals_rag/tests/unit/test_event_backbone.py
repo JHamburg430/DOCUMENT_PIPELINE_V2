@@ -232,3 +232,94 @@ def test_http_endpoint_rejects_malformed_last_event_id():
         assert error.value.code == 400
     finally:
         httpd.shutdown()
+
+
+def test_component_sse_drives_provisional_cell_to_terminal_reconciliation_and_poll_fallback(monkeypatch, tmp_path):
+    run_id = f"agent-matrix-{uuid4().hex[:12]}"
+    journal = SQLiteEventJournal(tmp_path / "ui-events.sqlite3")
+    monkeypatch.setattr(ui_server, "UI_EVENT_JOURNAL", journal)
+    ui_server.AGENT_MATRIX_JOBS[run_id] = {
+        "id": run_id,
+        "status": "running",
+        "limit": 1,
+        "completed_questions": 0,
+    }
+    ui_server._publish_component_event(
+        run_id,
+        workflow="agent_matrix",
+        phase="job_started",
+        status="running",
+        payload={"limit": 1},
+        total=1,
+    )
+    ui_server._publish_component_event(
+        run_id,
+        workflow="agent_matrix",
+        phase="matrix_cell",
+        status="running",
+        entity_type="matrix_cell",
+        entity_id="case-1:retrieval",
+        provisional=True,
+        payload={
+            "case_id": "case-1",
+            "matrix_key": "retrieval",
+            "cell": {"status": "pass", "label": "PASS", "detail": "source evidence retained"},
+        },
+        total=1,
+    )
+    ui_server.AGENT_MATRIX_JOBS[run_id].update(status="completed", completed_questions=1)
+    ui_server._publish_component_event(
+        run_id,
+        workflow="agent_matrix",
+        phase="job_completed",
+        status="completed",
+        provisional=False,
+        payload={"completed_questions": 1},
+        total=1,
+    )
+
+    httpd = _serve()
+    started = monotonic()
+    try:
+        with urlopen(
+            Request(
+                f"http://127.0.0.1:{httpd.server_port}/local/run-events/subscribe?run_id={run_id}",
+                headers={"Accept": "text/event-stream"},
+            ),
+            timeout=5,
+        ) as response:
+            body = response.read().decode()
+        elapsed = monotonic() - started
+        print(f"loopback_component_sse_latency_ms={elapsed * 1000:.2f}")
+        assert "event: snapshot" in body
+        assert '"phase":"matrix_cell"' in body
+        assert '"provisional":true' in body
+        assert body.index('"phase":"matrix_cell"') < body.index('"phase":"job_completed"')
+        assert '"provisional":false' in body
+        assert elapsed < 1.0
+
+        reconnect = Request(
+            f"http://127.0.0.1:{httpd.server_port}/local/run-events/subscribe?run_id={run_id}&after=0",
+            headers={"Last-Event-ID": "2", "Accept": "text/event-stream"},
+        )
+        with urlopen(reconnect, timeout=5) as response:
+            replay = response.read().decode()
+            assert response.headers["X-Event-Replay-After"] == "2"
+        assert "id: 3\nevent: run-event" in replay
+        assert "id: 1\n" not in replay
+        assert "id: 2\n" not in replay
+
+        with urlopen(
+            f"http://127.0.0.1:{httpd.server_port}/local/run-events?run_id={run_id}&after=1",
+            timeout=5,
+        ) as response:
+            rows = json.load(response)
+            assert response.headers["X-Event-Replay-Cursor"] == "3"
+        assert [row["event_index"] for row in rows] == [2, 3]
+        assert rows[0]["envelope"]["phase"] == "matrix_cell"
+        assert rows[1]["envelope"]["phase"] == "job_completed"
+    finally:
+        httpd.shutdown()
+        ui_server.AGENT_MATRIX_JOBS.pop(run_id, None)
+        journal.close()
+        ui_server.UI_EVENT_JOURNAL = None
