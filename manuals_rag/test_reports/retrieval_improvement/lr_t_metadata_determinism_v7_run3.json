@@ -1,0 +1,1380 @@
+{
+  "document_id": "e60ba2bb-ac5a-4fcb-93f4-491a8f5d2694",
+  "version_id": "12812782-31b9-412a-a696-cb93fb7a800e",
+  "source_filename": "AS_79692_LR-T_C_611C20_KA_US_2074_3_unlocked.pdf",
+  "metadata_pipeline_version": "evidence_source_native_verify_v7",
+  "canonical_ledger_count": 64,
+  "canonical_ledger_sha256": "300a2554e7754114ee07cde311604e0d63a056fc66e11737a63c1f2da990b17f",
+  "audit": {
+    "missing": [],
+    "extra": [],
+    "duplicate": [],
+    "role_overlap": [],
+    "nonliteral_contiguous_provenance": []
+  },
+  "canonical_ledger": [
+    {
+      "value": "LR-T",
+      "normalized_value": "LRT",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "LR-T",
+      "page_from": 1,
+      "page_to": 1,
+      "section_path": [
+        "LR-T"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.9000000000000001,
+      "grounded": true,
+      "support_pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        17,
+        24
+      ]
+    },
+    {
+      "value": "MU-N",
+      "normalized_value": "MUN",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Multi-Sensor Controller MU-N Series",
+      "page_from": 1,
+      "page_to": 1,
+      "section_path": [],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.9000000000000001,
+      "grounded": true,
+      "support_pages": [
+        1,
+        12,
+        14,
+        15,
+        23
+      ]
+    },
+    {
+      "value": "LR-TB5000",
+      "normalized_value": "LRTB5000",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "The LR-TB5000 Series models feature a rotary dial with multiple lenses.",
+      "page_from": 5,
+      "page_to": 5,
+      "section_path": [
+        "WORKPIECE"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        5,
+        7,
+        13,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    {
+      "value": "OP-87770",
+      "normalized_value": "OP87770",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Small bracket (For LR-TB2000 Series) (M3 screw × 2 supplied) | OP-87770 | SUS304 Approx. 80 g",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        20,
+        22
+      ]
+    },
+    {
+      "value": "OP-87771",
+      "normalized_value": "OP87771",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Adjustable angle bracket (For LR-TB2000 Series) (M3 screw × 2 supplied) | OP-87771 | SUS304 Approx. 110 g",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        20,
+        22
+      ]
+    },
+    {
+      "value": "OP-87772",
+      "normalized_value": "OP87772",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Adjustable bracket (For LR-TB2000 Series) (M3 screw × 2 supplied) | OP-87772 | Zinc nickel plating, etc. Approx. 110 g",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        21
+      ]
+    },
+    {
+      "value": "OP-87773",
+      "normalized_value": "OP87773",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Adjustable angle bracket (For LR-TB5000 Series) (M4 screw × 2 supplied) | OP-87773 | SUS304 Approx. 150 g",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        20
+      ]
+    },
+    {
+      "value": "OP-87774",
+      "normalized_value": "OP87774",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Adjustable bracket (For LR-TB5000 Series) (M4 screw × 2 supplied) | OP-87774 | Zinc nickel plating, etc. Approx. 120 g",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        21
+      ]
+    },
+    {
+      "value": "OP-87775",
+      "normalized_value": "OP87775",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Locking screw (For adjustable bracket) (85 mm3.35\") | OP-87775 | Iron nickel plating Approx. 120 g",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        21
+      ]
+    },
+    {
+      "value": "OP-87776",
+      "normalized_value": "OP87776",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| Front protection cover (For LR-TB2000 Series) | OP-87776 | SUS304, SUS430, PC, etc. Approx. 50 g",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        22
+      ]
+    },
+    {
+      "value": "OP-87778",
+      "normalized_value": "OP87778",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| Front protection cover (For LR-TB5000 Series) | OP-87778 | SUS304, PC, etc. Approx. 6 g",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        22
+      ]
+    },
+    {
+      "value": "LR-TB2000",
+      "normalized_value": "LRTB2000",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "(2 m6.6') M12 connector (Cable sold separately) | 60 to 2000 mm2.36\" to 78.74\" | (Approx. ø4 mmø0.16\") | [Control Output + External Input] | LR-TB2000 LR-TB2000C LR-TB2000CL",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    {
+      "value": "LR-TB2000C",
+      "normalized_value": "LRTB2000C",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "(2 m6.6') M12 connector (Cable sold separately) | 60 to 2000 mm2.36\" to 78.74\" | (Approx. ø4 mmø0.16\") | [Control Output + External Input] | LR-TB2000 LR-TB2000C LR-TB2000CL",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        16,
+        19
+      ]
+    },
+    {
+      "value": "LR-TB2000CL",
+      "normalized_value": "LRTB2000CL",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "(2 m6.6') M12 connector (Cable sold separately) | 60 to 2000 mm2.36\" to 78.74\" | (Approx. ø4 mmø0.16\") | [Control Output + External Input] | LR-TB2000 LR-TB2000C LR-TB2000CL",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        16,
+        18
+      ]
+    },
+    {
+      "value": "LR-TB5000C",
+      "normalized_value": "LRTB5000C",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "60 to 5000 mm2.36\" to 196.85\" M12 connector (Cable sold separately) Cable |  | Fixed | [Control Output + Control Output], or | LR-TB5000C LR-TB5000CL",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        16,
+        19
+      ]
+    },
+    {
+      "value": "LR-TB5000CL",
+      "normalized_value": "LRTB5000CL",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "60 to 5000 mm2.36\" to 196.85\" M12 connector (Cable sold separately) Cable |  | Fixed | [Control Output + Control Output], or | LR-TB5000C LR-TB5000CL",
+      "page_from": 13,
+      "page_to": 13,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        13,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "value": "OP-87634",
+      "normalized_value": "OP87634",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Standard |  | OP-87634 | Cable: PVC (Vinyl chloride) Connector: Zinc nickel plating | M12 4-pin (Straight) | Loose wires | 2 m6.6'",
+      "page_from": 14,
+      "page_to": 14,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        14,
+        22
+      ]
+    },
+    {
+      "value": "OP-87635",
+      "normalized_value": "OP87635",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "|  | OP-87635 |  |  |  | 10 m32.8'",
+      "page_from": 14,
+      "page_to": 14,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        14,
+        22
+      ]
+    },
+    {
+      "value": "OP-87636",
+      "normalized_value": "OP87636",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Oil resistant |  | OP-87636 | Cable: PUR (Polyurethane) Connector: Zinc nickel plating |  |  | 2 m6.6'",
+      "page_from": 14,
+      "page_to": 14,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        14,
+        15,
+        22
+      ]
+    },
+    {
+      "value": "OP-87637",
+      "normalized_value": "OP87637",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "|  | OP-87637 |  |  |  | 10 m32.8'",
+      "page_from": 14,
+      "page_to": 14,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        14,
+        22
+      ]
+    },
+    {
+      "value": "OP-26751",
+      "normalized_value": "OP26751",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| End unit (for expansion) | Used to secure the main and expansion units to DIN rail from both ends. End units must be used when an expansion unit is connected. (2 pieces included) | OP-26751 | Approx. 15 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        15,
+        23
+      ]
+    },
+    {
+      "value": "OP-76877",
+      "normalized_value": "OP76877",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| Mounting adapter (for main unit) | Allows the main unit to be mounted without a DIN rail. | OP-76877 | Approx. 11 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        15
+      ]
+    },
+    {
+      "value": "OP-88025",
+      "normalized_value": "OP88025",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| PVC (Polyvinyl chloride) | M12 4-pin straight | Connector | 2 m6.6' | OP-88025 | Approx. 75 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        15,
+        23
+      ]
+    },
+    {
+      "value": "OP-88026",
+      "normalized_value": "OP88026",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "|  |  |  | 10 m32.8' | OP-88026 * | Approx. 280 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        15
+      ]
+    },
+    {
+      "value": "OP-88029",
+      "normalized_value": "OP88029",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| For PVC (Polyvinyl chloride) cable | LR-TB2000/TB5000* | OP-88029 | Approx. 3 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        15
+      ]
+    },
+    {
+      "value": "OP-88030",
+      "normalized_value": "OP88030",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| For PUR (Polyurethane) cable | OP-87636/87637 | OP-88030 | Approx. 3 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        15
+      ]
+    },
+    {
+      "value": "MU-CB2",
+      "normalized_value": "MUCB2",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| Expansion unit |  | 2-core loose wires |  |  | MU-CB2 | Approx. 100 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        15,
+        23
+      ]
+    },
+    {
+      "value": "MU-CB4",
+      "normalized_value": "MUCB4",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| Main unit | PVC (Polyvinyl chloride) | 4-core loose wires | Connector | 2 m6.6' | MU-CB4* | Approx. 120 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        15,
+        23
+      ]
+    },
+    {
+      "value": "MU-CB8",
+      "normalized_value": "MUCB8",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "*1 MU-N11 only  *2 When the I/O setting is 'analog output + external input', the power supply cable should be MU-CB8(8-core loose wires). In this case, the white wire corresponds to the 'analog output' and the orange wire corresponds to the 'external input'.",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "PLC,"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        15
+      ]
+    },
+    {
+      "value": "MU-CC4",
+      "normalized_value": "MUCC4",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| Main unit |  | M12 4-pin straight |  | 0.3 m1.0' | MU-CC4 | Approx. 30 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        15,
+        23
+      ]
+    },
+    {
+      "value": "MU-N11",
+      "normalized_value": "MUN11",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Main unit | 2 outputs max. | 1 input max. | 1 output max.* | MU-N11 | Approx. 70 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        15,
+        17,
+        23
+      ]
+    },
+    {
+      "value": "MU-N12",
+      "normalized_value": "MUN12",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Expansion unit |  |  | - | MU-N12 | Approx. 70 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        15,
+        17,
+        23
+      ]
+    },
+    {
+      "value": "TB5000",
+      "normalized_value": "TB5000",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "| For PVC (Polyvinyl chloride) cable | LR-TB2000/TB5000* | OP-88029 | Approx. 3 g",
+      "page_from": 15,
+      "page_to": 15,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        15
+      ]
+    },
+    {
+      "value": "IEC60529",
+      "normalized_value": "IEC60529",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Environmental resistance | Enclosure rating | IP65/IP67 (IEC60529) |  |  |",
+      "page_from": 16,
+      "page_to": 16,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        16
+      ]
+    },
+    {
+      "value": "IEC60825-1",
+      "normalized_value": "IEC608251",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Light source | Laser class | Class 2 laser product (IEC60825-1, FDA(CDRH) Part1040.10 *3 ) | Class 1 laser product (IEC60825-1, FDA(CDRH) Part1040.10 *3 ) | Class 2 laser product (IEC60825-1, FDA(CDRH) Part1040.10 *3 ) | Class 1 laser product (IEC60825-1, FDA(CDRH) Part1040.10 *3 )",
+      "page_from": 16,
+      "page_to": 16,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        16
+      ]
+    },
+    {
+      "value": "TB2000CL",
+      "normalized_value": "TB2000CL",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Accompanying items |  | Instruction manual, Laser warning and explanation labels (except LR-TB5000CL/TB2000CL) |  |  |",
+      "page_from": 16,
+      "page_to": 16,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        16,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    {
+      "value": "TB5000C",
+      "normalized_value": "TB5000C",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Control output + analog output (LR-TB5000/TB5000C/TB5000CL only)",
+      "page_from": 16,
+      "page_to": 16,
+      "section_path": [
+        "24 VDC"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        16,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    {
+      "value": "TB5000CL",
+      "normalized_value": "TB5000CL",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Control output + analog output (LR-TB5000/TB5000C/TB5000CL only)",
+      "page_from": 16,
+      "page_to": 16,
+      "section_path": [
+        "24 VDC"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        16,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    {
+      "value": "io-link",
+      "normalized_value": "IOLINK",
+      "kind": "protocol",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "*7  IO-Link specification v.1.1/COM2 (38.4 kbps) is supported. You can download a setup file from the KEYENCE website (http://www.keyence.com). If you are using the product in an environment in which you cannot download files over the Internet, contact your nearest KEYENCE office.",
+      "page_from": 16,
+      "page_to": 16,
+      "section_path": [
+        "24 VDC"
+      ],
+      "source_method": "deterministic_protocol_mention",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        16
+      ]
+    },
+    {
+      "value": "LR-TB2000CL-8",
+      "normalized_value": "LRTB2000CL8",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Response time |  | LR-TB5000(C), LR-TB2000(C): 7 ms/15 ms/30 ms/105 ms/1000 ms selectable LR-TB5000CL, LR-TB2000CL: 8 ms/25 ms/55 ms/205 ms/2000 ms selectable |",
+      "page_from": 17,
+      "page_to": 17,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        17
+      ]
+    },
+    {
+      "value": "TB2000C",
+      "normalized_value": "TB2000C",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "LR-TB2000/TB2000C (Class 2 laser) |  |  |  |  |  |  |  |  |  | Unit: mm inch |",
+      "page_from": 18,
+      "page_to": 18,
+      "section_path": [
+        "16.4'"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    {
+      "value": "R0",
+      "normalized_value": "R0",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "2-R2 R0.08\"",
+      "page_from": 20,
+      "page_to": 20,
+      "section_path": [
+        "2-R2 R0.08\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8500000000000001,
+      "grounded": true,
+      "support_pages": [
+        20,
+        21
+      ]
+    },
+    {
+      "value": "R1",
+      "normalized_value": "R1",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "(4-R1.75)",
+      "page_from": 20,
+      "page_to": 20,
+      "section_path": [
+        "(4-R1.75)"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        20
+      ]
+    },
+    {
+      "value": "R10",
+      "normalized_value": "R10",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "2-R10",
+      "page_from": 20,
+      "page_to": 20,
+      "section_path": [
+        "2-R10"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        20
+      ]
+    },
+    {
+      "value": "R2",
+      "normalized_value": "R2",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "2-R2 R0.08\"",
+      "page_from": 20,
+      "page_to": 20,
+      "section_path": [
+        "2-R2 R0.08\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        20
+      ]
+    },
+    {
+      "value": "R20",
+      "normalized_value": "R20",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "2-R20",
+      "page_from": 20,
+      "page_to": 20,
+      "section_path": [
+        "2-R20"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        20
+      ]
+    },
+    {
+      "value": "R25",
+      "normalized_value": "R25",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "2-R25",
+      "page_from": 20,
+      "page_to": 20,
+      "section_path": [
+        "2-R25"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        20
+      ]
+    },
+    {
+      "value": "R3",
+      "normalized_value": "R3",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "2-R3.5",
+      "page_from": 20,
+      "page_to": 20,
+      "section_path": [
+        "2-R3.5"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        20
+      ]
+    },
+    {
+      "value": "R39",
+      "normalized_value": "R39",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "R39.9",
+      "page_from": 20,
+      "page_to": 20,
+      "section_path": [
+        "R39.9"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        20
+      ]
+    },
+    {
+      "value": "R4",
+      "normalized_value": "R4",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "2-R4.5",
+      "page_from": 20,
+      "page_to": 20,
+      "section_path": [
+        "2-R4.5"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        20
+      ]
+    },
+    {
+      "value": "P1",
+      "normalized_value": "P1",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "M12 × P1.75",
+      "page_from": 21,
+      "page_to": 21,
+      "section_path": [
+        "M12 × P1.75"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        21
+      ]
+    },
+    {
+      "value": "R15",
+      "normalized_value": "R15",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "R15",
+      "page_from": 21,
+      "page_to": 21,
+      "section_path": [
+        "R15"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        21
+      ]
+    },
+    {
+      "value": "OP-87634-2000",
+      "normalized_value": "OP876342000",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "OP-87634: 2000 78.74\" / OP-87635: 10000 393.7\"",
+      "page_from": 22,
+      "page_to": 22,
+      "section_path": [
+        "OP-87634: 2000 78.74\" / OP-87635: 10000 393.7\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        22
+      ]
+    },
+    {
+      "value": "OP-87635-10000",
+      "normalized_value": "OP8763510000",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "OP-87634: 2000 78.74\" / OP-87635: 10000 393.7\"",
+      "page_from": 22,
+      "page_to": 22,
+      "section_path": [
+        "OP-87634: 2000 78.74\" / OP-87635: 10000 393.7\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        22
+      ]
+    },
+    {
+      "value": "OP-87636-2000",
+      "normalized_value": "OP876362000",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "OP-87636: 2000 78.74\" / OP-87637: 10000 393.7\"",
+      "page_from": 22,
+      "page_to": 22,
+      "section_path": [
+        "OP-87636: 2000 78.74\" / OP-87637: 10000 393.7\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        22
+      ]
+    },
+    {
+      "value": "OP-87637-10000",
+      "normalized_value": "OP8763710000",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "OP-87636: 2000 78.74\" / OP-87637: 10000 393.7\"",
+      "page_from": 22,
+      "page_to": 22,
+      "section_path": [
+        "OP-87636: 2000 78.74\" / OP-87637: 10000 393.7\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        22
+      ]
+    },
+    {
+      "value": "OP-88025-2000",
+      "normalized_value": "OP880252000",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "OP-88025:2000 78.74\"/ OP-88026:10000 393.70\"",
+      "page_from": 23,
+      "page_to": 23,
+      "section_path": [
+        "OP-88025:2000 78.74\"/ OP-88026:10000 393.70\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        23
+      ]
+    },
+    {
+      "value": "OP-88026-10000",
+      "normalized_value": "OP8802610000",
+      "kind": "part_number",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "OP-88025:2000 78.74\"/ OP-88026:10000 393.70\"",
+      "page_from": 23,
+      "page_to": 23,
+      "section_path": [
+        "OP-88025:2000 78.74\"/ OP-88026:10000 393.70\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        23
+      ]
+    },
+    {
+      "value": "CB2",
+      "normalized_value": "CB2",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "MU-CB4/CB2",
+      "page_from": 23,
+      "page_to": 23,
+      "section_path": [
+        "MU-CB4/CB2"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        23
+      ]
+    },
+    {
+      "value": "PUR-28",
+      "normalized_value": "PUR28",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "PUR: 28.2 min.",
+      "page_from": 23,
+      "page_to": 23,
+      "section_path": [
+        "0.61\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        23
+      ]
+    },
+    {
+      "value": "PVC-8",
+      "normalized_value": "PVC8",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "PVC: 8.9 min.",
+      "page_from": 23,
+      "page_to": 23,
+      "section_path": [
+        "1.11\""
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        23
+      ]
+    },
+    {
+      "value": "L5N",
+      "normalized_value": "L5N",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "6775 Financial Dr., Suite 400, Mississauga, ON. L5N 0A4, Canada",
+      "page_from": 24,
+      "page_to": 24,
+      "section_path": [
+        "6775 Financial Dr., Suite 400, Mississauga, ON. L5N 0A4, Canada"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        24
+      ]
+    },
+    {
+      "value": "LRT-KA-C2-US",
+      "normalized_value": "LRTKAC2US",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "LRT-KA-C2-US 2074-3   611C20",
+      "page_from": 24,
+      "page_to": 24,
+      "section_path": [
+        "LRT-KA-C2-US 2074-3 611C20"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        24
+      ]
+    },
+    {
+      "value": "P11",
+      "normalized_value": "P11",
+      "kind": "product_model",
+      "relation": "mentioned",
+      "subject": null,
+      "source_quote": "Av. Paseo de la Reforma 243, P11, Col. Cuauhtémoc, C.P. 06500, Del. Cuauhtémoc, Ciudad de México, México",
+      "page_from": 24,
+      "page_to": 24,
+      "section_path": [
+        "CONTACT YOUR NEAREST OFFICE FOR RELEASE STATUS"
+      ],
+      "source_method": "source_native_identifier",
+      "verification_status": "confirmed",
+      "confidence": 0.8,
+      "grounded": true,
+      "support_pages": [
+        24
+      ]
+    }
+  ]
+}

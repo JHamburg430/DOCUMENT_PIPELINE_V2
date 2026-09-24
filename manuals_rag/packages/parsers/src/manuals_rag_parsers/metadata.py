@@ -116,7 +116,7 @@ IDENTIFIER_CANDIDATE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:]\s*[A-Z0-9]{1,16})+|"
     r"[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
 )
-METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v6"
+METADATA_PIPELINE_VERSION = "evidence_source_native_verify_v7"
 
 
 def _metadata_seed(purpose: str, attempt: int) -> int:
@@ -1136,6 +1136,56 @@ def harvest_metadata_candidates(segments: list[MetadataSourceSegment]) -> list[d
     return candidates
 
 
+def _source_native_identifier_evidence(
+    segments: list[MetadataSourceSegment],
+) -> list[dict[str, Any]]:
+    """Build the durable long-tail ledger from literal source lines.
+
+    Model classification is useful for enrichment, but it cannot decide
+    membership in a persisted evidence ledger: identical seeded LR-T calls
+    variably omitted identifiers and invented optional subjects. Neutral
+    ``mentioned`` claims retain safe lexical identifiers without promoting
+    them into routing relationships.
+    """
+    evidence: list[dict[str, Any]] = []
+    for segment in segments:
+        for raw_line in segment.text.splitlines():
+            quote = raw_line.strip()
+            if not quote:
+                continue
+            for match in IDENTIFIER_CANDIDATE_PATTERN.finditer(quote):
+                value = re.sub(r"\s*([-:])\s*", r"\1", match.group(0).strip())
+                canonical = _canonical_routing_identifier(value, repeated_lines=set())
+                if canonical is None or re.fullmatch(
+                    r"(?:COM\d+|M\d+|IP\d+|SUS\d+)", canonical, re.IGNORECASE
+                ):
+                    continue
+                kind = (
+                    "part_number"
+                    if re.fullmatch(r"OP-\d+[A-Z0-9-]*", canonical, re.IGNORECASE)
+                    else "product_model"
+                )
+                evidence.append(
+                    {
+                        "value": canonical,
+                        "kind": kind,
+                        "relation": "mentioned",
+                        "subject": None,
+                        "source_quote": quote,
+                        "page_from": segment.page_from,
+                        "page_to": segment.page_to,
+                        "section_path": list(segment.section_path),
+                        "source_method": "source_native_identifier",
+                        "confidence": 0.8,
+                        "grounded": True,
+                        "support_pages": [segment.page_from]
+                        if segment.page_from is not None
+                        else [],
+                    }
+                )
+    return _dedupe_evidence(evidence)
+
+
 def _opening_title_identifier_evidence(
     selected_title: str,
     segments: list[MetadataSourceSegment],
@@ -1261,6 +1311,13 @@ def _deterministic_version_evidence(
 ) -> list[dict[str, Any]]:
     """Recover explicit same-line version statements without inferring applicability."""
     patterns: dict[str, re.Pattern[str]] = {}
+    if "firmware_version" in expected_kinds:
+        patterns["firmware_version"] = re.compile(
+            r"(?P<subject>[A-Z][A-Z0-9_.:-]*\d[A-Z0-9_.:-]*)"
+            r"\s+(?:firmware|fw)(?:\s+version)?\s*"
+            r"(?:v(?:er(?:sion)?)?\.?\s*)?(?P<version>\d+(?:\.\d+){0,3})\b",
+            re.IGNORECASE,
+        )
     if "software_version" in expected_kinds:
         patterns["software_version"] = re.compile(
             r"(?P<subject>[A-Za-z][A-Za-z0-9+_.-]*(?:\s+[A-Za-z][A-Za-z0-9+_.-]*){0,3})"
@@ -1270,7 +1327,7 @@ def _deterministic_version_evidence(
     recovered: list[dict[str, Any]] = []
     for segment in segments:
         for raw_line in segment.text.splitlines():
-            line = " ".join(raw_line.split()).strip()
+            line = raw_line.strip()
             if "software_version" in expected_kinds and VERSION_SIGNAL_PATTERNS["software_version"].search(line):
                 for subject, version in _parenthesized_version_mentions(line):
                     recovered.append({
@@ -1661,6 +1718,14 @@ def reconcile_metadata_claims(evidence: list[dict[str, Any]]) -> list[dict[str, 
             groups.setdefault(_claim_group_key(item), []).append(item)
     reduced: list[dict[str, Any]] = []
     for items in groups.values():
+        items.sort(
+            key=lambda item: (
+                int(item.get("page_from") or 10**9),
+                int(item.get("page_to") or item.get("page_from") or 10**9),
+                " ".join(str(item.get("source_quote") or "").casefold().split()),
+                str(item.get("source_method") or item.get("source") or ""),
+            )
+        )
         representative = dict(items[0])
         pages = sorted(
             {
@@ -1681,6 +1746,16 @@ def reconcile_metadata_claims(evidence: list[dict[str, Any]]) -> list[dict[str, 
         representative["confidence"] = 0.45 if representative.get("grounded") is True else 0.0
         reduced.append(representative)
 
+    reduced.sort(
+        key=lambda item: (
+            int(item.get("page_from") or 10**9),
+            str(item.get("kind") or ""),
+            _normalized_claim_value(item),
+            str(item.get("relation") or ""),
+            _compact_identifier(str(item.get("subject") or "")),
+            " ".join(str(item.get("source_quote") or "").casefold().split()),
+        )
+    )
     relations_by_entity: dict[tuple[str, str, str], set[str]] = {}
     for item in reduced:
         key = _claim_scope_key(item)
@@ -1825,6 +1900,13 @@ def _literal_deterministic_version_claim_is_confirmed(claim: dict[str, Any]) -> 
         return False
     if claim.get("kind") == "software_version" and (subject, value) in _parenthesized_version_mentions(quote):
         return True
+    if claim.get("kind") == "firmware_version":
+        return re.search(
+            rf"{re.escape(subject)}\s+(?:firmware|fw)(?:\s+version)?\s*"
+            rf"(?:v(?:er(?:sion)?)?\.?\s*)?{re.escape(value)}\b",
+            quote,
+            re.IGNORECASE,
+        ) is not None
     return re.search(
         rf"{re.escape(subject)}\s+Ver(?:sion)?\.?\s*{re.escape(value)}\b",
         quote,
@@ -1852,6 +1934,86 @@ def _literal_compatible_model_column_claim_is_confirmed(
     )
 
 
+def _literal_source_native_identifier_claim_is_confirmed(
+    claim: dict[str, Any],
+) -> bool:
+    """Confirm only a neutral identifier mention copied from one source line."""
+    if (
+        claim.get("source_method") != "source_native_identifier"
+        or claim.get("kind") not in {"product_model", "part_number"}
+        or claim.get("relation") != "mentioned"
+        or claim.get("subject")
+        or claim.get("grounded") is not True
+    ):
+        return False
+    value = str(claim.get("value") or "")
+    quote = str(claim.get("source_quote") or "")
+    canonical = _canonical_routing_identifier(value, repeated_lines=set())
+    return bool(canonical) and _compact_identifier(canonical) in _compact_identifier(quote)
+
+
+def _canonical_source_native_claims(
+    filename: str,
+    selected_title: str,
+    segments: list[MetadataSourceSegment],
+) -> list[dict[str, Any]]:
+    """Return the deterministic persisted audit ledger for one document."""
+    expected_versions = _expected_version_kinds(segments)
+    versions = _deterministic_version_evidence(segments, expected_versions)
+    recovered_version_kinds = {str(item.get("kind") or "") for item in versions}
+    missing_version_kinds = expected_versions - recovered_version_kinds
+    if missing_version_kinds:
+        raise MetadataExtractionIncomplete(
+            "Source-native metadata ledger is missing grounded "
+            f"{sorted(missing_version_kinds)} evidence for {filename}"
+        )
+    claims = reconcile_metadata_claims(
+        _source_native_identifier_evidence(segments)
+        + _compatible_model_column_claims(segments)
+        + _opening_title_identifier_evidence(selected_title, segments)
+        + _filename_grounded_identifier_evidence(filename, segments)
+        + _deterministic_protocol_evidence(segments)
+        + versions
+    )
+    confirmed: list[dict[str, Any]] = []
+    for claim in claims:
+        literal = (
+            _literal_opening_title_claim_is_confirmed(claim)
+            or _literal_upload_identity_claim_is_confirmed(claim)
+            or _literal_protocol_mention_is_confirmed(claim)
+            or _literal_deterministic_version_claim_is_confirmed(claim)
+            or _literal_compatible_model_column_claim_is_confirmed(claim)
+            or _literal_source_native_identifier_claim_is_confirmed(claim)
+        )
+        if not literal and claim.get("source_method") in {
+            "opening_title_candidate",
+            "upload_identity_page_grounded",
+        }:
+            # Candidate discovery may canonicalize punctuation or encounter a
+            # filename prefix collision. Only literal candidates belong in the
+            # persisted source-native ledger.
+            continue
+        if not literal:
+            raise MetadataExtractionIncomplete(
+                "Source-native metadata ledger produced a nonliteral claim: "
+                f"{_claim_fingerprint(claim)!r}"
+            )
+        item = dict(claim)
+        score = 0.80
+        if len(item.get("support_pages") or []) > 1:
+            score += 0.05
+        if item.get("subject") and _value_is_grounded(
+            str(item["subject"]), str(item.get("source_quote") or "")
+        ):
+            score += 0.05
+        if int(item.get("page_from") or 10**9) <= TITLE_PAGE_LIMIT:
+            score += 0.05
+        item["verification_status"] = "confirmed"
+        item["confidence"] = min(score, 1.0)
+        confirmed.append(MetadataClaim.model_validate(item).model_dump())
+    return confirmed
+
+
 def verify_metadata_claims(
     filename: str,
     claims: list[dict[str, Any]],
@@ -1870,6 +2032,7 @@ def verify_metadata_claims(
             or _literal_protocol_mention_is_confirmed(claim)
             or _literal_deterministic_version_claim_is_confirmed(claim)
             or _literal_compatible_model_column_claim_is_confirmed(claim)
+            or _literal_source_native_identifier_claim_is_confirmed(claim)
         }
         verification_completed = False
         try:
@@ -2057,7 +2220,7 @@ def _deterministic_protocol_evidence(
     seen: set[str] = set()
     for segment in segments:
         for raw_line in segment.text.splitlines():
-            quote = " ".join(raw_line.split()).strip()
+            quote = raw_line.strip()
             for match in PROTOCOL_PATTERN.finditer(quote):
                 protocol = _canonical_protocol(match.group(0))
                 if not protocol or protocol in seen:
@@ -2650,6 +2813,7 @@ def _materialize_verified_metadata(
     printed_title_evidence: dict[str, Any] | None,
     claims: list[dict[str, Any]],
     segments: list[MetadataSourceSegment],
+    filename: str = "",
 ) -> DocumentMetadata:
     scoped_evidence = claims
     evidence = _dedupe_evidence(
@@ -2734,6 +2898,11 @@ def _materialize_verified_metadata(
         or (opening_title_models[0] if opening_title_models else None)
         or (upload_identity_models[0] if upload_identity_models else None)
     )
+    canonical_claims = _canonical_source_native_claims(
+        filename,
+        selected_title,
+        segments,
+    )
     return replace(
         base,
         title=selected_title,
@@ -2758,7 +2927,7 @@ def _materialize_verified_metadata(
             applicable_subjects=routing_product_models + product_families,
         ),
         software_applicability=_applicability_records(scoped_evidence, "software_version"),
-        metadata_claims=scoped_evidence,
+        metadata_claims=canonical_claims,
         metadata_pipeline_version=METADATA_PIPELINE_VERSION,
     )
 
@@ -2960,9 +3129,12 @@ def _reduce_metadata_claims(state: MetadataWorkflowState) -> dict[str, Any]:
         state.get("mapped_evidence", []),
         key=lambda item: (
             int(item.get("page_from") or 10**9),
+            int(item.get("page_to") or item.get("page_from") or 10**9),
             str(item.get("kind") or ""),
             _compact_identifier(str(item.get("value") or "")),
             str(item.get("relation") or ""),
+            _compact_identifier(str(item.get("subject") or "")),
+            " ".join(str(item.get("source_quote") or "").casefold().split()),
         ),
     )
     upload_identity = _filename_grounded_identifier_evidence(state["filename"], state["segments"])
@@ -3033,6 +3205,7 @@ def _publish_metadata_workflow(state: MetadataWorkflowState) -> dict[str, Any]:
             state.get("printed_title_evidence"),
             state["verified_claims"],
             state["segments"],
+            filename=state["filename"],
         )
     }
 

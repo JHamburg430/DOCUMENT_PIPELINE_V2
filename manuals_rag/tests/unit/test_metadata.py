@@ -405,6 +405,16 @@ def test_plain_ethernet_is_harvested_without_collapsing_ethernet_ip():
     assert all(c["relation"] == "mentioned" for c in claims)
 
 
+def test_deterministic_protocol_quote_is_a_literal_contiguous_source_span():
+    from manuals_rag_parsers.metadata import _deterministic_protocol_evidence
+
+    source = "  IO-Link   specification V.1.1/COM2 is supported.  "
+    claims = _deterministic_protocol_evidence([MetadataSourceSegment(source, 7, 7)])
+
+    assert claims[0]["source_quote"] == source.strip()
+    assert claims[0]["source_quote"] in source
+
+
 def test_software_version_gate_requires_each_explicit_value():
     from manuals_rag_parsers.metadata import _missing_explicit_software_versions
     source = [MetadataSourceSegment("ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later)", 3, 3)]
@@ -1759,6 +1769,56 @@ def test_metadata_retry_seeds_are_stable_and_attempt_specific():
     assert first != _metadata_seed("metadata_extraction.scoped_entities", 2)
     assert first != _metadata_seed("metadata_extraction.claim_verification", 1)
     assert 0 <= first <= 0x7FFFFFFF
+
+
+def test_source_native_identifier_ledger_is_literal_ordered_and_repeatable():
+    from manuals_rag_parsers.metadata import (
+        _source_native_identifier_evidence,
+        reconcile_metadata_claims,
+    )
+
+    segments = [
+        MetadataSourceSegment(
+            "  LR-TB2000 + OP-87772  \nM12 IP67 SUS304 COM2",
+            12,
+            12,
+            ("Accessories",),
+        ),
+        MetadataSourceSegment("OP-87770 for LR-TB2000", 11, 11, ("Accessories",)),
+    ]
+    first = reconcile_metadata_claims(_source_native_identifier_evidence(segments))
+    second = reconcile_metadata_claims(_source_native_identifier_evidence(segments))
+
+    assert json.dumps(first, sort_keys=True, separators=(",", ":")) == json.dumps(
+        second, sort_keys=True, separators=(",", ":")
+    )
+    assert [(item["page_from"], item["value"]) for item in first] == [
+        (11, "OP-87770"),
+        (11, "LR-TB2000"),
+        (12, "OP-87772"),
+    ]
+    assert next(item for item in first if item["value"] == "LR-TB2000")[
+        "support_pages"
+    ] == [11, 12]
+    source_lines = {line.strip() for segment in segments for line in segment.text.splitlines()}
+    assert all(item["source_quote"] in source_lines for item in first)
+    assert {item["value"] for item in first}.isdisjoint({"M12", "IP67", "SUS304", "COM2"})
+
+
+def test_source_native_identifier_claims_bypass_model_verifier(monkeypatch):
+    from manuals_rag_parsers.metadata import _canonical_source_native_claims
+
+    segment = MetadataSourceSegment("LR-TB2000 uses OP-87772", 7, 7, ("Accessories",))
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._call_scoped_model",
+        lambda *args, **kwargs: pytest.fail("literal source-native claims must not call the model"),
+    )
+
+    verified = _canonical_source_native_claims("LR-T.pdf", "LR-T", [segment])
+
+    assert len(verified) == 2
+    assert {item["verification_status"] for item in verified} == {"confirmed"}
+    assert {item["source_method"] for item in verified} == {"source_native_identifier"}
 
 
 def test_scoped_metadata_uses_deterministic_sampling_controls(monkeypatch):
