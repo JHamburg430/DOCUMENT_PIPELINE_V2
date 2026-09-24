@@ -10015,6 +10015,13 @@ def test_structured_table_answer_binds_model_name_pivot_row():
             "model | | WM-C6010 | WM-C6025\nPower supply | | Supplied from dedicated AC | adapter",
             "WM-C6010 is supplied from dedicated AC.",
         ),
+        (
+            "How does the LJ-S8000 display height differences within a selected rectangle region?",
+            "Click 2 points on the screen. The range of heights between the height of the 2 "
+            "points specified will be displayed gradationally from orange to light blue.",
+            "It displays the range of heights between the two specified points gradationally "
+            "from orange to light blue.",
+        ),
     ],
 )
 def test_generate_answer_uses_exact_control_evidence_without_model(

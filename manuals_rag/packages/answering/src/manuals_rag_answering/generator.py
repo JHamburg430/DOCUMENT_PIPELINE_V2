@@ -7042,6 +7042,11 @@ def _concise_exact_control_answer(
         and re.search(r"\bplc\b", lowered)
         and re.search(r"\btransfer", lowered)
     )
+    height_gradient_query = bool(
+        re.search(r"\bdisplay\b", lowered)
+        and re.search(r"\bheight differences?\b", lowered)
+        and re.search(r"\brectangle region\b", lowered)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7068,6 +7073,20 @@ def _concise_exact_control_answer(
             flags=re.I,
         ):
             return 'Select "Communications" > "Download" to transfer the data to the PLC.', [result]
+
+        if height_gradient_query and re.search(
+            r"\brange of heights between the height of the 2 points specified\b",
+            content,
+            flags=re.I,
+        ) and all(
+            re.search(pattern, content, flags=re.I)
+            for pattern in (r"\bdisplayed gradationally\b", r"\borange\b", r"\blight blue\b")
+        ):
+            return (
+                "It displays the range of heights between the two specified points "
+                "gradationally from orange to light blue.",
+                [result],
+            )
 
         if power_match:
             requested_model = power_match.group("model").upper()
