@@ -18,7 +18,9 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_compound_laser_measurement_support,
     _direct_indicator_meaning_support,
     _direct_illumination_type_support,
+    _direct_pc_to_plc_menu_path_support,
     _direct_procedure_support,
+    _direct_saved_settings_activation_support,
     _direct_variable_type_support,
     verify_retrieval_claim,
 )
@@ -932,6 +934,28 @@ def test_scope_matching_rejects_incidental_model_prose_in_section_window():
         update={
             "metadata": {
                 "chunk_type": "section_window",
+                "product_model": "OTHER-1",
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "How is the WM-C6010 laser-scanning probe relay unit powered?",
+        result,
+    ) is False
+
+
+def test_scope_matching_rejects_model_pipe_text_in_unstructured_prose():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "incidental-model-row",
+        "other-doc",
+        "Model | WM-C6010\nThis prose discusses a compatible accessory.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
                 "product_model": "OTHER-1",
             }
         }
@@ -3142,6 +3166,33 @@ def test_structured_power_source_mapping_confirms_powered_by_without_model():
     assert verified["supporting_chunk_ids"] == ["power-row"]
 
 
+def test_structured_power_source_mapping_prefers_bounded_table_record():
+    query = "How is the WM-C6010 laser-scanning probe relay unit powered?"
+    hop = RetrievalHop(hop_id="power", objective=query, query=query, strategy="structural")
+    section = _result(
+        "power-section",
+        "wm-doc",
+        "Model | | WM-C6010 | WM-C6025\nPower supply | | Supplied from dedicated AC adapter\n"
+        "Ratings | Rated voltage | 24VDC",
+    ).model_copy(update={"metadata": {"chunk_type": "section_window"}})
+    table = _result(
+        "power-table",
+        "wm-doc",
+        "Model: Power supply; WM-C6010: Supply from AC-ADAPTER",
+    ).model_copy(update={"metadata": {"chunk_type": "table_record"}})
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [section, table],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+        use_llm=False,
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["power-table"]
+
+
 def test_verifier_normalizes_single_list_wrapped_object(monkeypatch):
     hop = RetrievalHop(
         hop_id="lookup",
@@ -3841,6 +3892,91 @@ def test_illumination_type_support_rejects_wrong_color_or_unstructured_prose():
     ).model_copy(update={"metadata": {"chunk_type": "atomic_text"}})
 
     assert _direct_illumination_type_support(query, [wrong_color, prose]) == []
+
+
+def test_illumination_type_support_prefers_query_vocabulary_and_rejects_marketing_copy():
+    query = "What illumination type is specified for the CA-DEW10X white smart ring?"
+    exact = _result(
+        "exact-illumination",
+        "guide-doc",
+        "High-intensity smart ring illumination CA-DEW10X (white)",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+    synonym = _result(
+        "shorter-lighting",
+        "setup-doc",
+        "Smart ring lighting, High intensity CA-DEW10X (white)",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+    marketing = _result(
+        "marketing",
+        "catalog-doc",
+        "CA-DEW10X (white) delivers high-intensity smart ring illumination.",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+
+    assert _direct_illumination_type_support(query, [synonym, marketing, exact]) == [
+        "exact-illumination"
+    ]
+
+
+def test_saved_settings_activation_support_requires_save_yes_context():
+    query = (
+        "In the VS Series KUKA robot connection manual, after pressing Save and "
+        "selecting Yes, what must be done to enable the changed settings?"
+    )
+    supported = _result(
+        "restart-action",
+        "vs-kuka-doc",
+        "Restart the device to enable the changed settings. Reference - VS SERIES "
+        "ROBOT CONNECTION MANUAL, KUKA Roboter GmbH Edition -",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "local_rerank_context": (
+                    "Press the Save button, and then select Yes in the confirmation dialog. "
+                    "Restart the device to enable the changed settings."
+                ),
+            }
+        }
+    )
+    missing_context = supported.model_copy(
+        update={
+            "chunk_id": "missing-context",
+            "metadata": {"chunk_type": "atomic_text"},
+        }
+    )
+
+    assert _direct_saved_settings_activation_support(query, [missing_context, supported]) == [
+        "restart-action"
+    ]
+
+
+def test_pc_to_plc_menu_path_support_requires_literal_transfer_instruction():
+    query = (
+        "In the LJ-X8000 EtherNet/IP setup for CompactLogix or ControlLogix, which "
+        "menu path transfers data from the PC to the PLC?"
+    )
+    supported = _result(
+        "download-path",
+        "ljx-doc",
+        'Select "Communications" ＞ "Download" to transfer the data to the PLC.',
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_models": ["LJ-X8000"],
+                "document_protocol_terms": ["ethernet/ip"],
+            }
+        }
+    )
+    nearby = _result(
+        "nearby-menu",
+        "ljx-doc",
+        'Select "Communications" to inspect the PLC connection.',
+    ).model_copy(update={"metadata": supported.metadata})
+
+    assert _direct_pc_to_plc_menu_path_support(query, [nearby, supported]) == [
+        "download-path"
+    ]
 
 
 def test_dependent_hop_is_refined_from_prior_evidence():

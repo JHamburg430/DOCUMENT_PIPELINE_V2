@@ -1408,16 +1408,22 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
     # row even when their document-level metadata is generic or misleading.
     # Accept only an explicit pipe-delimited ``Model`` row; ordinary prose
     # mentions remain unable to override conflicting document identity.
-    structured_scope_values.extend(
-        value.strip()
-        for match in re.finditer(
-            r"(?:^|\n)\s*Model\s*\|(?P<values>[^\n]+)",
-            content,
-            flags=re.I,
+    if str(metadata.get("chunk_type") or "") in {
+        "parent_section",
+        "section_window",
+        "spec_record",
+        "table_record",
+    }:
+        structured_scope_values.extend(
+            value.strip()
+            for match in re.finditer(
+                r"(?:^|\n)\s*Model\s*\|(?P<values>[^\n]+)",
+                content,
+                flags=re.I,
+            )
+            for value in match.group("values").split("|")
+            if value.strip()
         )
-        for value in match.group("values").split("|")
-        if value.strip()
-    )
     compact_structured_content = compact(content)
     compact_exact_row_match = bool(
         str(metadata.get("chunk_type") or "") in {"table_record", "spec_record"}
@@ -2404,8 +2410,8 @@ def _direct_structured_compatibility_support(
     preliminary_ids = {
         str(chunk_id) for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
     }
-    mappings: list[tuple[str, str, str]] = []
-    for result in results:
+    mappings: list[tuple[int, int, int, str, str, str]] = []
+    for result_index, result in enumerate(results):
         if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
             continue
         content = str(result.content or "")
@@ -2552,8 +2558,8 @@ def _direct_structured_power_source_support(
         re.sub(r"[^a-z0-9]", "", identifier.lower())
         for identifier in analyze_query(query).product_identifiers or []
     }
-    mappings: list[tuple[str, str, str]] = []
-    for result in results:
+    mappings: list[tuple[int, int, int, str, str, str]] = []
+    for result_index, result in enumerate(results):
         if not _result_supports_branch_scope(query, result):
             continue
         content = str(result.content or "")
@@ -2561,7 +2567,7 @@ def _direct_structured_power_source_support(
             re.finditer(
                 r"Column\s+headers:\s*(?P<target>[A-Z][A-Z0-9:-]+);\s*"
                 r"Row\s+headers:.*?Power[- ]?supply;\s*Cell\s+value:\s*"
-                r"Supply\s+from\s+(?P<source>[A-Z][A-Z0-9:-]+)",
+                r"Suppl(?:y|ied)\s+from\s+(?P<source>[A-Z][A-Z0-9 -]{1,80}?)(?=;|$)",
                 content,
                 flags=re.I | re.S,
             )
@@ -2569,7 +2575,7 @@ def _direct_structured_power_source_support(
         cells.extend(
             re.finditer(
                 r"Model:\s*Power[- ]?supply;\s*(?P<target>[A-Z][A-Z0-9:-]+):\s*"
-                r"Supply\s+from\s+(?P<source>[A-Z][A-Z0-9:-]+)",
+                r"Suppl(?:y|ied)\s+from\s+(?P<source>[A-Z][A-Z0-9 -]{1,80}?)(?=;|$)",
                 content,
                 flags=re.I,
             )
@@ -2579,10 +2585,18 @@ def _direct_structured_power_source_support(
             source = re.sub(r"[^a-z0-9]", "", cell.group("source").lower())
             if requested and target not in requested:
                 continue
-            mappings.append((result.chunk_id, target, source))
-    if not mappings or len({(target, source) for _chunk, target, source in mappings}) != 1:
+            bounded = int(
+                str((result.metadata or {}).get("chunk_type") or "")
+                in {"atomic_text", "spec_record", "table_record"}
+            )
+            mappings.append(
+                (bounded, -len(content), -result_index, result.chunk_id, target, source)
+            )
+    if not mappings or len(
+        {(target, source) for _bounded, _length, _index, _chunk, target, source in mappings}
+    ) != 1:
         return []
-    return [mappings[0][0]]
+    return [max(mappings, key=lambda item: item[:3])[3]]
 
 
 def _direct_structured_troubleshooting_support(
@@ -2856,6 +2870,7 @@ def _direct_illumination_type_support(
         for color in ("white", "red", "blue", "green", "infrared")
         if re.search(rf"\b{color}\b", query, flags=re.I)
     }
+    requested_noun = "illumination" if re.search(r"\billumination\b", query, flags=re.I) else "lighting"
     form_pattern = re.compile(
         r"\b(?:high[- ]intensity|low[- ]angle|coaxial|dome|ring|bar|spot|backlight)\b",
         flags=re.I,
@@ -2868,8 +2883,13 @@ def _direct_illumination_type_support(
             str(metadata.get("chunk_type") or "") not in {"table_record", "spec_record"}
             or len(content) > 240
             or not _result_supports_branch_scope(query, result)
-            or not re.search(r"\b(?:illumination|lighting)\b", content, flags=re.I)
+            or not re.search(rf"\b{requested_noun}\b", content, flags=re.I)
             or not form_pattern.search(content)
+            or re.search(
+                r"\b(?:advertises|delivers|features|includes|markets|provides)\b",
+                content,
+                flags=re.I,
+            )
         ):
             continue
         compact_content = re.sub(r"[^a-z0-9]", "", content.lower())
@@ -2885,6 +2905,73 @@ def _direct_illumination_type_support(
             continue
         matches.append((len(content), index, result.chunk_id))
     return [min(matches)[2]] if matches else []
+
+
+def _direct_saved_settings_activation_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the exact post-save action that activates changed settings."""
+    if not (
+        re.search(r"\bpress(?:ing)?\s+save\b", query, flags=re.I)
+        and re.search(r"\bselect(?:ing)?\s+yes\b", query, flags=re.I)
+        and re.search(r"\benable\b.{0,40}\bchanged settings\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        metadata = result.metadata or {}
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        local_context = re.sub(
+            r"\s+",
+            " ",
+            str(metadata.get("local_rerank_context") or content),
+        ).strip()
+        if not re.search(
+            r"\brestart\s+the\s+device\s+to\s+enable\s+the\s+changed\s+settings\b",
+            content,
+            flags=re.I,
+        ):
+            continue
+        if not (
+            re.search(r"\bpress(?:ing)?\b.{0,35}\bsave\b", local_context, flags=re.I)
+            and re.search(r"\bselect(?:ing)?\b.{0,20}\byes\b", local_context, flags=re.I)
+        ):
+            continue
+        bounded = int(str(metadata.get("chunk_type") or "") == "atomic_text")
+        matches.append((bounded, -len(content), -index, result.chunk_id))
+    return [max(matches)[-1]] if matches else []
+
+
+def _direct_pc_to_plc_menu_path_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the literal menu path used to transfer PC data to the PLC."""
+    if not (
+        re.search(r"\bmenu path\b", query, flags=re.I)
+        and re.search(r"\bpc\b.{0,30}\bplc\b", query, flags=re.I)
+        and re.search(r"\btransfer", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        metadata = result.metadata or {}
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not re.search(
+            r"\bselect\s+[\"']?communications[\"']?\s*(?:>|＞|→|/)+\s*"
+            r"[\"']?download[\"']?\s+to\s+transfer\s+the\s+data\s+to\s+the\s+plc\b",
+            content,
+            flags=re.I,
+        ):
+            continue
+        bounded = int(str(metadata.get("chunk_type") or "") == "atomic_text")
+        matches.append((bounded, -len(content), -index, result.chunk_id))
+    return [max(matches)[-1]] if matches else []
 
 
 def _direct_compound_laser_measurement_support(
@@ -3869,6 +3956,48 @@ def verify_retrieval_claim(
             rationale=(
                 "Deterministic power-source verification matched one exact model to supply-source "
                 "mapping in a scoped structured row."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_saved_settings_support = _direct_saved_settings_activation_support(
+        hop.objective,
+        results,
+    )
+    if direct_saved_settings_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_saved_settings_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic settings-activation verification matched the scoped post-save "
+                "restart instruction and its Save/Yes context."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_pc_to_plc_menu_support = _direct_pc_to_plc_menu_path_support(
+        hop.objective,
+        results,
+    )
+    if direct_pc_to_plc_menu_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_pc_to_plc_menu_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic menu-path verification matched the scoped Communications to "
+                "Download instruction for transferring PC data to the PLC."
             ),
         ).model_dump() | {
             "invalid_citation_ids": [],

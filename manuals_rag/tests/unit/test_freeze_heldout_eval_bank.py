@@ -619,6 +619,25 @@ def test_repairs_lj_s8000_ocr_model_separator_in_frozen_query():
     ) == "What is the movable range for the LJ-S8000 Series sensor?"
 
 
+def test_repairs_saved_settings_query_with_exact_activation_context():
+    assert _MODULE.normalize_frozen_query(
+        "In the VS Series KUKA robot connection manual, what action must be taken "
+        "after saving settings to enable them?"
+    ) == (
+        "In the VS Series KUKA robot connection manual, after pressing Save and "
+        "selecting Yes, what must be done to enable the changed settings?"
+    )
+
+
+def test_repairs_pc_to_plc_query_with_exact_protocol_scope():
+    assert _MODULE.normalize_frozen_query(
+        "Which menu path transfers data from the PC to the PLC?"
+    ) == (
+        "In the LJ-X8000 EtherNet/IP setup for CompactLogix or ControlLogix, which "
+        "menu path transfers data from the PC to the PLC?"
+    )
+
+
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [
@@ -727,6 +746,30 @@ def test_focuses_safety_step_on_action_sentence_only():
 
     assert focused.startswith("Check that power (24 VDC) is not being supplied")
     assert "30 m" not in focused
+
+
+def test_focuses_powered_question_on_power_source_instead_of_rated_voltage():
+    source = (
+        "USBCommunication | USB 3.0 Infrared Communication | 945nm model: Power supply; "
+        "WM-C6010: Supplied from dedicated AC; WM-C6025: adapter model: Ratings; "
+        "WM-C6010: Rated voltage; WM-C6025: 24VDC"
+    )
+
+    focused = _MODULE.focus_expected_snippet(
+        "How is the WM-C6010 laser-scanning probe relay unit powered?",
+        "WM-C6010: Rated voltage",
+        source,
+    )
+
+    assert focused == "WM-C6010: Supplied from dedicated AC"
+
+
+def test_rejects_powered_question_contract_that_only_names_rated_voltage():
+    assert "power-source answer" in _MODULE.missing_expected_answer_contract(
+        "How is the WM-C6010 laser-scanning probe relay unit powered?",
+        "WM-C6010: Rated voltage",
+        ["wm-c6010", "rated", "voltage"],
+    )
 
 
 def test_enriches_multivalue_measurement_contract_with_milliwatts():

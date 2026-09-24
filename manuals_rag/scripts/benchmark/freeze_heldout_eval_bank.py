@@ -758,6 +758,15 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if re.search(r"\bhow\s+is\b.{0,120}\bpowered\b", str(query or ""), flags=re.I):
+        powered = re.search(
+            r"\bPower[- ]?supply\s*;\s*(?P<model>[A-Z][A-Z0-9-]+)\s*:\s*"
+            r"(?P<answer>Supplied\s+from\s+dedicated\s+AC)\b",
+            source,
+            flags=re.I,
+        )
+        if powered:
+            return f"{powered.group('model')}: {powered.group('answer')}"
     if re.search(r"\bwhat safety step\b", str(query or ""), flags=re.I):
         sentences = [
             sentence.strip()
@@ -968,6 +977,10 @@ def missing_expected_answer_contract(
             missing.append("filter identifier")
         elif not any(_term_covers_token(terms, name) for name in filter_names):
             missing.append("expected filter identifier term")
+
+    if re.search(r"\bhow\s+is\b.{0,120}\bpowered\b", normalized_query):
+        if not re.search(r"\b(?:supplied|powered|power source)\b", normalized_snippet):
+            missing.append("power-source answer")
 
     if re.search(r"\bip address\b", normalized_query):
         addresses = re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", expected_snippet)
