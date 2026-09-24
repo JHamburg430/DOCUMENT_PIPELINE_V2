@@ -3444,6 +3444,44 @@ def test_validate_answer_comparison_fallback_when_generated_answer_cites_only_on
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_restores_single_requested_model_scope_from_cited_evidence():
+    result = SearchResult(
+        chunk_id="transfer",
+        score=0.9,
+        title="VJ-H500CX Manual",
+        document_version_id="v1",
+        source_document_id="camera-doc",
+        pages=[12],
+        section_path=["Transfer time"],
+        content="VJ-H500CX image transfer in 5 megapixel mode takes 29.2 ms or 11.7 ms.",
+        metadata={"product_model": "VJ-H500CX"},
+    )
+    generated = AnswerResponse(
+        answer="Image transfer takes 29.2 ms or 11.7 ms in 5 megapixel mode.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "transfer",
+                "document_id": "camera-doc",
+                "pages": [12],
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+    validated = validate_answer(
+        generated,
+        [result],
+        query="How long does image transfer take for VJ-H500CX in 5 megapixel mode?",
+    )
+
+    assert validated.answer.startswith("For VJ-H500CX,")
+
+
 def test_comparison_fallback_keeps_second_distinct_document_when_only_one_side_match_is_exact():
     answer = AnswerResponse(
         answer="A memory read error occurred when the sensor started.",
@@ -3784,6 +3822,36 @@ def test_summarize_results_recognizes_legacy_chunk_family_as_structured(monkeypa
 
     assert summaries[0]["summary_source"] == "direct_evidence"
     assert "Standard Angle" in summaries[0]["summary"]
+
+
+def test_summarize_results_skips_model_for_verified_required_claim(monkeypatch):
+    result = SearchResult(
+        chunk_id="verified-parent",
+        score=1.0,
+        title="W500 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[10],
+        section_path=["Calibration"],
+        content="Master calibration makes the default setting value 950.",
+        metadata={
+            "chunk_type": "parent_section",
+            "agent_context_reasons": ["required_claim:lookup"],
+        },
+    )
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("summary model must not run")),
+    )
+
+    summaries = summarize_results_for_answer(
+        "What default setting value applies after master calibration?",
+        [result],
+    )
+
+    assert summaries[0]["summary_source"] == "direct_evidence"
+    assert "950" in summaries[0]["summary"]
 
 
 def test_prioritize_results_preserves_comparison_evidence_before_model_pruning(monkeypatch):

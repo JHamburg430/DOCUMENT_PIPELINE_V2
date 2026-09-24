@@ -6450,6 +6450,28 @@ def _clean_final_answer_text(text: str, query: str) -> str:
     return _repair_query_model_separators(clean_answer, query)
 
 
+def _restore_single_requested_model_scope(
+    answer: str,
+    query: str,
+    results: list[SearchResult],
+) -> str:
+    """Keep one explicit requested model visible in an otherwise grounded answer."""
+    explicit_models, _series_prefixes = _query_model_scope(query)
+    supported_models = [
+        model
+        for model in explicit_models
+        if any(_result_mentions_model(result, model) for result in results)
+    ]
+    if len(supported_models) != 1:
+        return answer
+    model = supported_models[0]
+    if re.sub(r"[^A-Z0-9]+", "", model.upper()) in re.sub(
+        r"[^A-Z0-9]+", "", answer.upper()
+    ):
+        return answer
+    return f"For {model}, {answer}"
+
+
 def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: str = "") -> AnswerResponse:
     if answer.insufficient_evidence and query and not any(
         _location_terms(query).intersection(_location_terms(result.content)) for result in results
@@ -6546,6 +6568,11 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
             ]
 
     clean_answer = _clean_final_answer_text(answer.answer, query)
+    clean_answer = _restore_single_requested_model_scope(
+        clean_answer,
+        query,
+        relevant_results,
+    )
 
     return answer.model_copy(
         update={
@@ -8122,7 +8149,17 @@ def _direct_evidence_summary(query: str, result: SearchResult) -> str | None:
         or result.metadata.get("chunk_family")
         or ""
     )
-    if chunk_type not in {"table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
+    verified_claim_evidence = any(
+        str(reason).startswith("required_claim:")
+        for reason in result.metadata.get("agent_context_reasons") or []
+    )
+    if not verified_claim_evidence and chunk_type not in {
+        "table_record",
+        "spec_record",
+        "datasheet_record",
+        "procedure_record",
+        "warning_record",
+    }:
         return None
     evidence = (_focused_table_record_answer_text(query, result) or _fallback_answer_text(result)).strip()
     if not evidence:

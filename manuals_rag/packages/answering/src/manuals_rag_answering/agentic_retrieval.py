@@ -1481,7 +1481,7 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
 
 
 def _verification_evidence(
-    results: list[SearchResult], *, query: str = "", max_bytes: int = 7000,
+    results: list[SearchResult], *, query: str = "", max_bytes: int = 6000,
 ) -> dict[str, Any]:
     evidence: list[dict[str, Any]] = []
     # Preserve complete evidence units. UTF-8 bytes conservatively bound token
