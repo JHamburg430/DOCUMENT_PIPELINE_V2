@@ -2747,6 +2747,98 @@ def _direct_atomic_measurement_support(
     return [chunk_id for chunk_id, _values in matches]
 
 
+def _direct_procedure_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm one bounded, scoped how-to procedure without an LLM verdict.
+
+    This deliberately excludes broad explanatory questions.  It only accepts a
+    preliminary-supported atomic/procedure chunk whose local source context
+    strongly mirrors the requested operation and whose cited text contains an
+    explicit action sequence.  Conflicting qualifying procedures fail closed.
+    """
+    if not re.match(
+        r"^\s*(?:how\s+(?:do|can|should)\b|what\s+(?:steps|procedure)\b)",
+        query,
+        flags=re.I,
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    if not preliminary_ids and preliminary_assessment.get("sufficient"):
+        preliminary_ids = {
+            str(assessment.get("chunk_id") or "")
+            for assessment in preliminary_assessment.get("result_assessments") or []
+            if assessment.get("claim_supported") is True
+            and assessment.get("scope_supported") is True
+            and float(assessment.get("term_coverage") or 0.0) >= 0.5
+        }
+    if not preliminary_ids:
+        return []
+    requested_identifiers = {
+        re.sub(r"[^a-z0-9]+", "", value.lower())
+        for value in analyze_query(query).product_identifiers
+    }
+    stopwords = {
+        "a", "an", "and", "can", "do", "for", "how", "i", "in", "is",
+        "on", "perform", "procedure", "should", "steps", "the", "to", "what",
+    }
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", query.lower())
+        if len(term) > 2
+        and term not in stopwords
+        and re.sub(r"[^a-z0-9]+", "", term) not in requested_identifiers
+    }
+    if len(query_terms) < 2:
+        return []
+
+    action_re = re.compile(
+        r"\b(?:connect|disconnect|enter|hold|install|open|place|position|press|"
+        r"remove|select|set|tap|turn)\b",
+        flags=re.I,
+    )
+    sequence_re = re.compile(
+        r"\b(?:after|before|first|next|then|when)\b|\[[^\]]+\]",
+        flags=re.I,
+    )
+    matches: list[tuple[float, int, int, str, str]] = []
+    for index, result in enumerate(results):
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+            or str((result.metadata or {}).get("chunk_type") or "")
+            not in {"atomic_text", "procedure_record"}
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not content or len(content) > 900:
+            continue
+        local_context = re.sub(
+            r"\s+",
+            " ",
+            str((result.metadata or {}).get("local_rerank_context") or content),
+        ).strip()
+        context_terms = set(re.findall(r"[a-z0-9]+", local_context.lower()))
+        overlap = len(query_terms.intersection(context_terms)) / len(query_terms)
+        actions = action_re.findall(content)
+        if overlap < 0.6 or len(actions) < 2 or not sequence_re.search(content):
+            continue
+        normalized_actions = " ".join(action.lower() for action in actions)
+        matches.append((overlap, len(actions), -index, result.chunk_id, normalized_actions))
+    if not matches:
+        return []
+    best_score = max(match[:2] for match in matches)
+    best = [match for match in matches if match[:2] == best_score]
+    if len({match[4] for match in best}) != 1:
+        return []
+    return [max(best, key=lambda match: match[2])[3]]
+
+
 def _direct_flowchart_rule_support(
     query: str,
     results: list[SearchResult],
@@ -3235,6 +3327,27 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic measurement verification matched one scoped atomic "
                     "specification with the requested quantity and a unique measured value."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_procedure_support = _direct_procedure_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_procedure_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_procedure_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic procedure verification matched one scoped atomic action "
+                    "sequence whose local source context mirrors the requested operation."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

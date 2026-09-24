@@ -14,6 +14,7 @@ from manuals_rag_answering.agentic_retrieval import (
     visual_evidence_unavailable_answer,
     _assess_hop_evidence,
     _direct_atomic_measurement_support,
+    _direct_procedure_support,
     verify_retrieval_claim,
 )
 from manuals_rag_common.config import settings
@@ -2364,6 +2365,68 @@ def test_structured_compatibility_mapping_confirms_applicability_without_model()
     assert verified["trust_state"] == "confirmed"
     assert verified["applicability"] == "applicable"
     assert verified["supporting_chunk_ids"] == ["compatibility-row"]
+
+
+def test_direct_procedure_support_confirms_scoped_atomic_action_sequence():
+    query = "How do I perform master addition calibration on the W500 sensor?"
+    matching = _result(
+        "w500-addition",
+        "w500-doc",
+        "Position a workpiece which is to be judged the same as the current registered "
+        "color. Then press and hold the [SET] button and the [down] button.",
+    )
+    matching.metadata.update(
+        {
+            "chunk_type": "atomic_text",
+            "product_model": "W500",
+            "local_rerank_context": (
+                "W500 | Master addition calibration (when adding workpieces to be permitted). "
+                + matching.content
+            ),
+        }
+    )
+
+    supported = _direct_procedure_support(
+        query,
+        [matching],
+        {
+            "sufficient": True,
+            "claim_supported": False,
+            "supporting_chunk_ids": [],
+            "result_assessments": [
+                {
+                    "chunk_id": matching.chunk_id,
+                    "claim_supported": True,
+                    "scope_supported": True,
+                    "term_coverage": 0.75,
+                }
+            ],
+        },
+    )
+
+    assert supported == ["w500-addition"]
+
+
+def test_direct_procedure_support_rejects_neighboring_or_unsequenced_evidence():
+    query = "How do I perform master addition calibration on the W500 sensor?"
+    overwrite = _result(
+        "w500-overwrite",
+        "w500-doc",
+        "Press the [SET] button to overwrite the current master color.",
+    )
+    overwrite.metadata.update(
+        {
+            "chunk_type": "atomic_text",
+            "product_model": "W500",
+            "local_rerank_context": "W500 | Master calibration overwrite. " + overwrite.content,
+        }
+    )
+
+    assert _direct_procedure_support(
+        query,
+        [overwrite],
+        {"claim_supported": True, "supporting_chunk_ids": [overwrite.chunk_id]},
+    ) == []
 
 
 def test_structured_accessory_mapping_confirms_exact_part_and_light(monkeypatch):
