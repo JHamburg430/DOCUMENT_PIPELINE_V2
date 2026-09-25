@@ -7241,6 +7241,12 @@ def _concise_exact_control_answer(
         and re.search(r"\bconnected LR-T laser sensor\b", query, flags=re.I)
         and re.search(r"\bmaximum detecting distance\b", query, flags=re.I)
     )
+    ca_en100u_pc_configuration_query = bool(
+        re.search(r"\bCA-EN100U\b", query, flags=re.I)
+        and re.search(r"\bconfigure\b.+\bsettings\b", query, flags=re.I)
+        and re.search(r"\busing\s+a\s+PC\b", query, flags=re.I)
+        and re.search(r"\binstead\s+of\s+the\s+image processing system controller\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7267,6 +7273,19 @@ def _concise_exact_control_answer(
             flags=re.I,
         ):
             return 'Select "Communications" > "Download" to transfer the data to the PLC.', [result]
+
+        if ca_en100u_pc_configuration_query and re.search(
+            r"You\s+can\s+also\s+configure\s+the\s+CA\s*:\s*EN100U\s+settings\s+"
+            r"from\s+a\s+device\s+other\s+than\s+(?:an?\s+)?image\s+processing\s+"
+            r"system\s+controller\s*\(\s*a\s+PC\s+for\s+example\s*\)\.?",
+            content,
+            flags=re.I,
+        ):
+            return (
+                "Yes. You can configure the CA-EN100U settings from a device other "
+                "than the image processing system controller, such as a PC.",
+                [result],
+            )
 
         if height_gradient_query and re.search(
             r"\brange of heights between the height of the 2 points specified\b",

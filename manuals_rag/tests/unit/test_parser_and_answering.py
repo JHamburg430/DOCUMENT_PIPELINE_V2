@@ -184,6 +184,35 @@ def test_exact_control_extracts_mu_n_section_lr_t_maximum_distance():
     assert [item.chunk_id for item in evidence] == ["mu-n-lr-t-distance"]
 
 
+def test_exact_control_extracts_ca_en100u_pc_configuration_branch():
+    result = SearchResult(
+        chunk_id="ca-en100u-pc",
+        score=0.9,
+        title="CA-EN100U Instruction Manual",
+        document_version_id="v1",
+        source_document_id="ca-en100u-doc",
+        pages=[3],
+        section_path=["CA-EN100U Settings"],
+        content=(
+            "You can also configure the CA: EN100U settings from a device other than "
+            "a image processing system controller (a PC for example)."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "CA-EN100U"},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "Can I configure CA-EN100U settings using a PC instead of the image processing "
+        "system controller?",
+        [result],
+    )
+
+    assert answer == (
+        "Yes. You can configure the CA-EN100U settings from a device other than the "
+        "image processing system controller, such as a PC."
+    )
+    assert [item.chunk_id for item in evidence] == ["ca-en100u-pc"]
+
+
 def test_generate_answer_extracts_requested_off_status_state():
     result = SearchResult(
         chunk_id="status-row",
