@@ -4974,14 +4974,8 @@ def _direct_vs_s_ca_dex10x_power_support(
         and re.search(r"\b24 V\b", query, flags=re.I)
     ):
         return []
-    preliminary_ids = {
-        str(chunk_id)
-        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
-    }
     matches: list[tuple[int, int, str]] = []
     for index, result in enumerate(results):
-        if result.chunk_id not in preliminary_ids:
-            continue
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
         scope_text = " ".join(
             (

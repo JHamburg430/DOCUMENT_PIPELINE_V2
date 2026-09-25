@@ -220,6 +220,9 @@ def test_direct_vs_s_ca_dex10x_power_support_requires_complete_scoped_row():
         query, [missing_current, wrong_family, complete], preliminary
     ) == [complete.chunk_id]
     assert _direct_vs_s_ca_dex10x_power_support(
+        query, [complete], {"supporting_chunk_ids": []}
+    ) == [complete.chunk_id]
+    assert _direct_vs_s_ca_dex10x_power_support(
         query, [missing_current, wrong_family], preliminary
     ) == []
 
