@@ -284,6 +284,21 @@ def test_planners_keep_scoped_xg_lua_output_function_lookup_hybrid(monkeypatch):
         assert plan.hops[0].strategy == "hybrid"
 
 
+def test_planners_keep_single_row_troubleshooting_remedy_structural(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    query = "How should I adjust the LR-ZH500C3P sensor if it shows excessive reflected light?"
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "structural"
+
+
 def test_direct_lj_x8000_head_extension_support_requires_complete_model_list():
     query = "Which head connection extension cable models are listed for the LJ-X8000 Series?"
     complete = _result(

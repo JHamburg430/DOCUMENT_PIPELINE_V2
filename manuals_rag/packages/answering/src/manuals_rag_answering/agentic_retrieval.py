@@ -682,6 +682,12 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     """Keep exact structured lookups in one lossless, deterministic hop."""
     strategy: RetrievalStrategy | None = None
     if re.match(
+        r"^\s*how\s+should\s+i\s+adjust\b.+\bif\s+it\s+shows\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
         r"^\s*how\s+many\b.+\bcan\s+be\s+connected\s+across\s+"
         r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+"
         r"[A-Z][A-Z0-9]*(?:[-:][A-Z0-9]+)+\s+input\s+units?\s+using\s+"
