@@ -2607,10 +2607,15 @@ def test_iv2_infrared_filter_part_requires_exact_scoped_accessory_row(monkeypatc
             "metadata": {"chunk_type": "atomic_text"},
         }
     )
+    unscoped_duplicate = _result(
+        "other-infrared-filter",
+        "other-doc",
+        "Infrared polarized filter attachment OP: 87437",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
 
     assert _direct_iv2_infrared_filter_part_support(
         query,
-        [visible_filter, ambiguous_footnote, exact],
+        [visible_filter, ambiguous_footnote, unscoped_duplicate, exact],
     ) == ["iv2-infrared-filter"]
     assert _direct_iv2_infrared_filter_part_support(
         query,

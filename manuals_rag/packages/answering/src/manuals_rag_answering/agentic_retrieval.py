@@ -2845,13 +2845,22 @@ def _direct_iv2_infrared_filter_part_support(
     ):
         return []
 
+    scoped_document_ids = {
+        result.source_document_id
+        for result in results
+        if re.search(
+            r"\bIV2-H1\b",
+            " ".join([*result.section_path, str(result.content or "")]),
+            flags=re.I,
+        )
+    }
     matches: list[tuple[int, int, str]] = []
     for index, result in enumerate(results):
         metadata = result.metadata or {}
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
         if (
             str(metadata.get("chunk_type") or "") not in {"spec_record", "atomic_text"}
-            or not _result_supports_branch_scope(query, result)
+            or result.source_document_id not in scoped_document_ids
             or not re.fullmatch(
                 r"Infrared\s+polarized\s+filter\s+attachment\s+OP\s*[: -]?\s*87437",
                 content,
