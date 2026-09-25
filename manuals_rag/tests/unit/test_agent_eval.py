@@ -214,6 +214,68 @@ def test_structured_equivalence_rejects_pipe_row_group_neighboring_cell():
     )
 
 
+def test_structured_equivalence_accepts_lr_tb2000_detecting_range_atomic_cell():
+    result = {
+        "chunk_id": "normalized-range-cell",
+        "source_document_id": "doc-lr-t",
+        "pages": [7],
+        "content": (
+            "Column headers: LR-TB2000 > - > LR-TB2000C > LR-TB2000CL; "
+            "Row headers: Detectable distance; "
+            'Cell value: 60 to 2000 mm 2.36" to 78.74" *2; Row: 2; Column: 4'
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="doc-lr-t",
+        expected_pages={1},
+        snippet='Detecting distance: 60 to 2000 mm2.36" to 78.74"',
+        query="What detecting distance range do LR-TB2000 laser sensors cover?",
+    )
+
+
+def test_structured_equivalence_rejects_lr_tb2000_range_with_wrong_model_or_value():
+    base = {
+        "source_document_id": "doc-lr-t",
+        "pages": [7],
+        "metadata": {"chunk_type": "table_record"},
+    }
+    snippet = 'Detecting distance: 60 to 2000 mm2.36" to 78.74"'
+    query = "What detecting distance range do LR-TB2000 laser sensors cover?"
+
+    wrong_model = {
+        **base,
+        "content": (
+            "Column headers: LR-TB5000C; Row headers: Detectable distance; "
+            'Cell value: 60 to 2000 mm 2.36" to 78.74"; Row: 2; Column: 4'
+        ),
+    }
+    wrong_value = {
+        **base,
+        "content": (
+            "Column headers: LR-TB2000; Row headers: Detectable distance; "
+            'Cell value: 60 to 1500 mm 2.36" to 59.06"; Row: 2; Column: 4'
+        ),
+    }
+
+    assert not _result_preserves_expected_evidence(
+        wrong_model,
+        source_document_id="doc-lr-t",
+        expected_pages={1},
+        snippet=snippet,
+        query=query,
+    )
+    assert not _result_preserves_expected_evidence(
+        wrong_value,
+        source_document_id="doc-lr-t",
+        expected_pages={1},
+        snippet=snippet,
+        query=query,
+    )
+
+
 def test_structured_equivalence_accepts_query_qualified_matrix_cell():
     case = {
         "query": "How many protection zones does the SZ-V04 multi-function model support?",

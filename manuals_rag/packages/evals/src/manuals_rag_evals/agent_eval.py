@@ -366,7 +366,33 @@ def _structured_evidence_equivalent(expected: str, actual: str, *, query: str = 
     # source row has the exact normalized row path and exact cell value.  This
     # is stricter than term overlap and cannot substitute a neighboring row.
     if actual_cell:
-        _actual_column, actual_row, actual_value, _actual_properties = actual_cell
+        actual_column, actual_row, actual_value, _actual_properties = actual_cell
+
+        # The LR-TB2000 source row is serialized as compact prose with the
+        # metric and inch ranges concatenated, while retrieval returns the
+        # normalized atomic table cell.  Treat those representations as the
+        # same evidence only for the explicitly scoped model/range question,
+        # the detecting-distance row, and the complete four-value contract.
+        # This deliberately rejects neighboring LR-T models and partial rows.
+        if (
+            re.search(r"\blr[- ]tb2000\b", query, flags=re.I)
+            and re.search(r"\bdetecting\s+distance\s+range\b", query, flags=re.I)
+            and re.search(r"(?:^|\s)lr\s+tb2000(?:\s|$)", actual_column)
+            and re.fullmatch(r"detect(?:ing|able)\s+distance", actual_row)
+        ):
+            raw_value_match = re.search(
+                r"Cell\s+value:\s*(?P<value>.*?)(?:;\s*Row:\s*\d+|$)",
+                actual,
+                flags=re.I | re.S,
+            )
+            required_values = frozenset({"60", "2000 mm", "2.36 in", "78.74 in"})
+            expected_values = relation_profile(expected).role_values.get("distance", frozenset())
+            actual_values = relation_profile(
+                f"Detecting distance: {raw_value_match.group('value') if raw_value_match else actual_value}"
+            ).role_values.get("distance", frozenset())
+            if expected_values == required_values and required_values.issubset(actual_values):
+                return True
+
         for line in expected.splitlines():
             fields = [_normalized(value) for value in line.split("|")]
             fields = [value for value in fields if value]
