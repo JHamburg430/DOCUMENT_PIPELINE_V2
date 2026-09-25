@@ -882,6 +882,16 @@ def test_iv4_output_question_requests_the_full_scored_configuration():
     )
 
 
+def test_qualifies_iv_output_rating_by_manual_and_full_scored_contract():
+    assert _MODULE.normalize_frozen_query(
+        "What are the maximum voltage and current ratings for the IV Series open collector NPN output?"
+    ) == (
+        "In the AS_145624 IV Series specification table, what output type, NPN/PNP and "
+        "N.O./N.C. switchable configurations, maximum NPN rating, and remaining voltage "
+        "are specified?"
+    )
+
+
 def test_qualifies_lj_s8000_color_range_by_manual_and_source_control():
     assert _MODULE.normalize_frozen_query(
         "How do I adjust the color range for height data on the LJ-S8000?"

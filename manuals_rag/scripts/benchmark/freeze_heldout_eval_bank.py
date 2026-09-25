@@ -129,6 +129,10 @@ def normalize_frozen_query(query: str) -> str:
             "pattern-projection lights?",
         "Which numeric value should I use for devId if my XG controller connects via Ethernet?":
             "Which numeric devId value should I use when an XG-7000 or XG-8000 controller connects via Ethernet?",
+        "What are the maximum voltage and current ratings for the IV Series open collector NPN output?":
+            "In the AS_145624 IV Series specification table, what output type, NPN/PNP and "
+            "N.O./N.C. switchable configurations, maximum NPN rating, and remaining voltage "
+            "are specified?",
         "What functions can OUT3 control when its default is set to Error?":
             "Which edge timings can be set for the IV Series IN1 input when it is assigned as an external trigger?",
         "What conditions allow the ShapeTrax TM 3A Search tool to maintain stable target search?":
