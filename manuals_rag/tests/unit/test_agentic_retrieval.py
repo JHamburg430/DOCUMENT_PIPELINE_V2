@@ -359,6 +359,26 @@ def test_planner_routes_direct_labelled_lookup_to_structural_without_model(monke
         assert plan.hops[0].strategy == "structural"
 
 
+def test_planners_keep_shared_indicator_colour_lookup_single_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("direct labelled colour lookup must not invoke the model")
+        ),
+    )
+    query = (
+        "What display colors are assigned to the display, output, DATUM, and spot "
+        "indicators on LR-Z laser sensors?"
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=True)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "structural"
+
+
 def test_model_planners_cannot_mark_primary_claims_optional(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",

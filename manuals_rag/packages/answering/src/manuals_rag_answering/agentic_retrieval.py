@@ -378,7 +378,7 @@ def _labelled_lookup_plan(query: str) -> RetrievalPlan | None:
     """Route direct named-field questions to row/cell-preserving retrieval."""
     if not re.search(
         r"\b(?:what|which)\s+[^?]{0,100}\b(?:mode|settings?|option|status|code|"
-        r"address|parameter|rating|range|value|frame\s+rate|chart|screen|chapter|section|page)\b",
+        r"address|parameter|rating|range|value|colou?rs?|frame\s+rate|chart|screen|chapter|section|page)\b",
         query,
         flags=re.IGNORECASE,
     ):
