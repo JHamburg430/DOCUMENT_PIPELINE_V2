@@ -1046,6 +1046,23 @@ def test_troubleshooting_contract_drops_unasked_description_column_label():
     ) == ["adjust", "installation", "angle"]
 
 
+def test_mu_n_pvc_cable_contract_excludes_pur_alternative():
+    query = (
+        "Which connector cable part number should I order for the MU-N series "
+        "if I am using PVC insulation?"
+    )
+
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["88029", "cable", "op-88030", "connector", "OP: 88029"],
+    ) == ["OP: 88029"]
+    assert _MODULE.missing_expected_answer_contract(
+        query,
+        "OP: 88029 (for PVC cable) / OP-88030 (for PUR cable) Connector cable for MU-N",
+        ["OP: 88029"],
+    ) == []
+
+
 def test_iv4_below_freezing_contract_drops_unasked_upper_temperature_endpoint():
     query = "Does the IV4-400MA model support operation below freezing temperatures?"
 

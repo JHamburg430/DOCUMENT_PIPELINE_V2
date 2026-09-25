@@ -252,6 +252,12 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
     ):
         return ["adjust", "installation", "angle"]
     if (
+        re.search(r"\bmu-n series\b", normalized_query)
+        and re.search(r"\bconnector cable part number\b", normalized_query)
+        and re.search(r"\bpvc insulation\b", normalized_query)
+    ):
+        return ["OP: 88029"]
+    if (
         re.search(r"\bselecting a zoom camera\b", normalized_query)
         and re.search(r"\bhow should the camera resolution be chosen\b", normalized_query)
         and re.search(r"\bfor the application\b", normalized_query)
@@ -1348,7 +1354,13 @@ def missing_expected_answer_contract(
         missing.append("leading unrelated quantity")
 
     if re.search(r"\bpart number\b", normalized_query):
-        part_numbers = _answer_part_numbers(expected_snippet)
+        if (
+            re.search(r"\bmu-n series\b", normalized_query)
+            and re.search(r"\bpvc insulation\b", normalized_query)
+        ):
+            part_numbers = ["OP: 88029"]
+        else:
+            part_numbers = _answer_part_numbers(expected_snippet)
         if not part_numbers:
             missing.append("part number identifier")
         else:
@@ -1387,6 +1399,11 @@ def missing_expected_answer_contract(
             # models independently instead of treating the OCR serialization
             # as one impossible compound identifier.
             identifiers = ["b5e", "cb-b10e", "cb-b20e"]
+        elif (
+            re.search(r"\bmu-n series\b", normalized_query)
+            and re.search(r"\bpvc insulation\b", normalized_query)
+        ):
+            identifiers = ["op-88029"]
         else:
             identifiers = _answer_identifier_tokens(query, expected_snippet)
         if not identifiers:
