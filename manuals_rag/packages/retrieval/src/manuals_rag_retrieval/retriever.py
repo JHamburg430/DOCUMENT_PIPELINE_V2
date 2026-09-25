@@ -4710,6 +4710,18 @@ def _retrieve_once(
         analysis=analysis,
         limit=12,
     )
+    # The generic promotion passes above can prepend several structured
+    # siblings after the cross-encoder has already ranked an exact-model
+    # atomic sentence first. Re-apply the bounded identifier promotion at the
+    # final boundary so that answer-bearing dense evidence survives the
+    # ten-chunk context limit.
+    reranked = _promote_identifier_contextual_candidates(
+        reranked,
+        dense_results,
+        analysis,
+        limit=12,
+        promoted_limit=2,
+    )
     deduped = _measure_substage(
         "deduplication",
         query,
