@@ -1,0 +1,2 @@
+{"case_id": "41a12712-665b-5712-a5b7-50b62eaed698::1", "query": "What is the movable range for the LJ-S8000 Series sensor?", "reason": "41a12712-665b-5712-a5b7-50b62eaed698::1: query drops source qualifier(s): movable-range subject"}
+{"case_id": "5c310946-335c-5dfe-8afd-c660a79a9e1a::1", "query": "Which analog output type should I select for the MU-N11 model?", "reason": "5c310946-335c-5dfe-8afd-c660a79a9e1a::1: query drops source qualifier(s): selection criterion"}

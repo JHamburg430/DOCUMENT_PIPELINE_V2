@@ -223,6 +223,30 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   document-disjoint across 9 held-out documents, and still explicitly
   non-human-reviewed. The production minimum remains 200 cases.
 
+### Full 200-case matrix repair and bank revalidation — 2026-09-25
+
+- Immutable v102 matrix artifact `agent_matrix_v102-full-200-1d4b87a` reconciled
+  cleanly at revision `1d4b87a` and exact dataset SHA-256
+  `841825c4f2a48f9dbd6e822ec0788e7c8bbca857b878614c98b5b7d28ea6f978`.
+  LangGraph passed 193/200 and LlamaIndex passed 190/200. The independent
+  audit accepted the artifact for diagnostic adjudication only.
+- Source-backed routing, deterministic verification, and guarded equivalent-
+  evidence scoring repairs were committed as `7890691`, `d5be261`, and
+  `337d87f`. The affected answering/evaluation suite passed 454/454. Focused
+  immutable replays recovered every repairable failed case on both backends;
+  the final IV4 dual-unit temperature replay passed 1/1 on both backends and
+  was independently accepted for diagnostic adjudication.
+- Re-freezing v102 through the supported bank validator produced additive v103
+  with 198 retained cases and two explicit rejections. The known unqualified
+  LJ-S8000 movable-range question is ambiguous between stage and non-stage
+  ranges. Revalidation also rejected an MU-N11 analog-output question that
+  omits the selection criterion. Frozen v102 was not modified.
+- v103 is document-disjoint and source-verified but remains
+  `human_reviewed=false` and below the 200-case minimum. A new full acceptance
+  matrix is intentionally deferred until two source-reviewed replacement cases
+  are added. Production remains disabled, with the separate frozen-bank and
+  human visual-PDF gates still open.
+
 ### Latest checkpoint
 
 - Pipeline v3 adds explicit claim-ID verification decisions and rejects source text

@@ -476,6 +476,23 @@ def missing_query_qualifiers(
         for prefix in model_prefixes
     ):
         missing.append("model variant")
+    movable_range_labels = re.findall(
+        r"(?im)^\s*([^\n:]{0,48}movable range)\s*:\s*([^\n]+)",
+        source_context,
+    )
+    if (
+        re.search(r"\bmovable range\b", normalized_query)
+        and len({
+            (_normalized(label), _normalized(value))
+            for label, value in movable_range_labels
+        }) > 1
+        and not any(
+            _normalized(label).replace("movable range", "").strip()
+            and _normalized(label).replace("movable range", "").strip() in normalized_query
+            for label, _value in movable_range_labels
+        )
+    ):
+        missing.append("movable-range subject")
     if (
         re.search(r"\bmonitor model\b", normalized_query)
         and re.search(r"\b[A-Z]{2,5}\d?(?:-[A-Z0-9]+)+\b", expected_snippet)
@@ -1724,7 +1741,10 @@ def verify_and_freeze_cases(
                 str(case.get("query") or ""),
                 str(chunk.get("content") or ""),
                 str(case.get("expected_snippet") or ""),
-                str((case.get("source_metadata") or {}).get("context_window") or ""),
+                "\n".join(
+                    str((case.get("source_metadata") or {}).get(key) or "")
+                    for key in ("context_window", "local_rerank_context")
+                ),
             )
             if missing_qualifiers:
                 raise ValueError(

@@ -2017,6 +2017,44 @@ def test_partition_verified_cases_keeps_valid_cases_and_records_rejections():
     ]
 
 
+def test_partition_rejects_unqualified_movable_range_with_multiple_subjects():
+    case = {
+        **_case(),
+        "source_chunk_id": "chunk-2",
+        "query": "What is the movable range for the LJ-S8000 Series sensor?",
+        "expected_snippet": 'Movable range: 10 mm 0.39" (±5 mm ±0.20")',
+        "expected_terms": ["movable", "range", "10", "5"],
+        "source_metadata": {
+            "context_window": 'Current chunk: Movable range: 10 mm 0.39" (±5 mm ±0.20")',
+            "local_rerank_context": (
+                'Stage movable range: 52 mm 2.05" (±26 mm ±1.02")\n\n'
+                'Movable range: 10 mm 0.39" (±5 mm ±0.20")'
+            ),
+        },
+    }
+    chunk = {
+        **_chunk(),
+        "content": 'Movable range: 10 mm 0.39" (±5 mm ±0.20")',
+    }
+
+    valid = {
+        **_case(),
+        "case_id": "valid-case",
+        "query": "How far away should I install the sensor?",
+    }
+    frozen, rejected = _MODULE.partition_verified_cases(
+        [valid, case],
+        {"chunk-1": _chunk(), "chunk-2": {**chunk, "id": "chunk-2"}},
+        tuning_document_ids=set(),
+        verified_at="2026-09-25T00:00:00+00:00",
+    )
+
+    assert [item["case_id"] for item in frozen] == ["valid-case"]
+    assert rejected[0]["reason"].endswith(
+        "query drops source qualifier(s): movable-range subject"
+    )
+
+
 def test_partition_verified_cases_rejects_duplicate_case_ids_without_hiding_valid_case():
     duplicate = {**_case(), "query": "Which voltage is required?"}
 
