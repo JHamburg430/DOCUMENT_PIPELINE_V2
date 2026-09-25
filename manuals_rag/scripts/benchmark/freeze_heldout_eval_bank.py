@@ -197,7 +197,11 @@ def normalize_frozen_query(query: str) -> str:
             "On the LR-ZH500C3P, after releasing the button when SET flashes, how quickly "
             "must you press it again to complete calibration?",
         "Should I use a zoom camera when selecting the resolution for my application?":
-            "When selecting a zoom camera, how should the camera resolution be chosen for the application?",
+            "In the AS_160462 VS camera guide, when selecting a zoom camera, how should "
+            "the camera resolution be chosen for the application?",
+        "When selecting a zoom camera, how should the camera resolution be chosen for the application?":
+            "In the AS_160462 VS camera guide, when selecting a zoom camera, how should "
+            "the camera resolution be chosen for the application?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(

@@ -377,12 +377,17 @@ def test_aligns_zoom_camera_question_with_source_selection_instruction():
     )
 
     assert query == (
-        "When selecting a zoom camera, how should the camera resolution be chosen for "
-        "the application?"
+        "In the AS_160462 VS camera guide, when selecting a zoom camera, how should the "
+        "camera resolution be chosen for the application?"
     )
     assert _MODULE.answer_relevant_expected_terms(
         query, ["select", "camera", "resolution", "selecting", "application"]
     ) == ["select", "resolution", "application"]
+
+    assert _MODULE.normalize_frozen_query(
+        "When selecting a zoom camera, how should the camera resolution be chosen for "
+        "the application?"
+    ) == query
 
 
 def test_focuses_cah048_two_mode_contract_and_terms():
