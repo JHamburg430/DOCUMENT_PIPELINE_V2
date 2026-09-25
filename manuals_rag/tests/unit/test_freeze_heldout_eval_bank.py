@@ -882,6 +882,15 @@ def test_iv4_output_question_requests_the_full_scored_configuration():
     )
 
 
+def test_qualifies_lj_s8000_color_range_by_manual_and_source_control():
+    assert _MODULE.normalize_frozen_query(
+        "How do I adjust the color range for height data on the LJ-S8000?"
+    ) == (
+        "In the LJ-S8000 Easy Configuration Manual, which icon should I click to adjust "
+        "the color range depending on the specification method?"
+    )
+
+
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [
