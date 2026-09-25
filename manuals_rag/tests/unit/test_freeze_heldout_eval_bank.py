@@ -357,6 +357,20 @@ def test_qualifies_cv_x_shutter_range_to_exact_camera_models():
     )
 
 
+def test_aligns_lr_z_confirmation_question_with_press_again_step():
+    query = _MODULE.normalize_frozen_query(
+        "How long must I hold the button to confirm an OK status on the LR-ZH500C3P?"
+    )
+
+    assert query == (
+        "On the LR-ZH500C3P, after releasing the button when SET flashes, how quickly "
+        "must you press it again to complete calibration?"
+    )
+    assert _MODULE.answer_relevant_expected_terms(
+        query, ["flashes", "press", "again", "1s"]
+    ) == ["press", "again", "1s"]
+
+
 def test_focuses_cah048_two_mode_contract_and_terms():
     query = (
         "For the CA-H048CX/H048MX cameras, what resolutions and approximate megapixel "

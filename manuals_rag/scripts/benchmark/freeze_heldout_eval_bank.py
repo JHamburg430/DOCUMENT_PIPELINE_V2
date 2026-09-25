@@ -193,6 +193,9 @@ def normalize_frozen_query(query: str) -> str:
         "What electronic shutter times can be set numerically?":
             "In the AS_126535 CV-X camera specification, what electronic shutter range is "
             "listed for CA-HS200C or CA-HS200M?",
+        "How long must I hold the button to confirm an OK status on the LR-ZH500C3P?":
+            "On the LR-ZH500C3P, after releasing the button when SET flashes, how quickly "
+            "must you press it again to complete calibration?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
@@ -221,6 +224,12 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
         and re.search(r"\b0 31-megapixel\b", normalized_query)
     ):
         return ["0.47", "784", "596", "0.31", "640", "480"]
+    if (
+        re.search(r"\blr-zh500c3p\b", normalized_query)
+        and re.search(r"\bset flashes\b", normalized_query)
+        and re.search(r"\bpress it again\b", normalized_query)
+    ):
+        return ["press", "again", "1s"]
     if re.search(r"\blr-tb5000-series models\b", normalized_query) and re.search(
         r"\bm12 connector type models\b", normalized_query
     ):
