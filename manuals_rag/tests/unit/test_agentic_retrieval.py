@@ -14,6 +14,7 @@ from manuals_rag_answering.agentic_retrieval import (
     visual_evidence_unavailable_answer,
     _assess_hop_evidence,
     _direct_atomic_measurement_support,
+    _direct_ca_e100_camera_count_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _direct_feature_amplifier_type_support,
@@ -2369,6 +2370,55 @@ def test_atomic_measurement_gate_rejects_neighboring_torque_value():
         query,
         [result],
         {"claim_supported": True, "supporting_chunk_ids": ["dial-torque"]},
+    ) == []
+
+
+def test_ca_e100_count_gate_requires_one_unit_camera_binding():
+    query = (
+        "In the AS_160148 XG-X manual, how many color/monochrome cameras connect "
+        "to one CA-E100 area camera input unit?"
+    )
+    exact = _result(
+        "ca-e100-count",
+        "xgx-doc",
+        "With area camera input unit CA-E100 connected: 2 color/monochrome cameras "
+        "per CA-E100, up to 4 cameras via a maximum of 2 units can be connected.",
+    ).model_copy(
+        update={
+            "title": "AS_160148_XG-X_C_689246_KA_US_2085_1",
+            "metadata": {
+                "chunk_type": "spec_record",
+                "source_filename": "AS_160148_XG-X_C_689246_KA_US_2085_1.pdf",
+            },
+        }
+    )
+    capture_only = _result(
+        "capture-count",
+        "xgx-doc",
+        "Up to 2 cameras/heads for simultaneous capture when one camera input unit "
+        "is connected.",
+    ).model_copy(
+        update={
+            "title": "AS_160148_XG-X_C_689246_KA_US_2085_1",
+            "metadata": {
+                "chunk_type": "spec_record",
+                "source_filename": "AS_160148_XG-X_C_689246_KA_US_2085_1.pdf",
+            },
+        }
+    )
+
+    assert _direct_ca_e100_camera_count_support(
+        query,
+        [capture_only, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": ["capture-count", "ca-e100-count"],
+        },
+    ) == ["ca-e100-count"]
+    assert _direct_ca_e100_camera_count_support(
+        query,
+        [capture_only],
+        {"claim_supported": True, "supporting_chunk_ids": ["capture-count"]},
     ) == []
 
 

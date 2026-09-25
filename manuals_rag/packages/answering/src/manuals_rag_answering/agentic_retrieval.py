@@ -3579,6 +3579,43 @@ def _direct_atomic_measurement_support(
     return [chunk_id for chunk_id, _values in matches]
 
 
+def _direct_ca_e100_camera_count_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the one-unit CA-E100 camera count from one scoped source row."""
+
+    if not (
+        re.search(r"\bhow\s+many\b.*\bcolor/monochrome\s+cameras?\b", query, flags=re.I)
+        and re.search(r"\bone\s+CA-E100\b", query, flags=re.I)
+        and preliminary_assessment.get("claim_supported")
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+            or str((result.metadata or {}).get("chunk_type") or "")
+            not in {"table_record", "spec_record"}
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if re.search(
+            r"\bWith\s+area\s+camera\s+input\s+unit\s+CA-E100\s+connected\s*:\s*"
+            r"2\s+color/monochrome\s+cameras\s+per\s+CA-E100\b",
+            content,
+            flags=re.I,
+        ):
+            matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_atomic_default_value_support(
     query: str,
     results: list[SearchResult],
@@ -4831,6 +4868,27 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic illumination verification matched one compact scoped "
                     "specification row binding the exact model, requested color, and light type."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_ca_e100_count_support = _direct_ca_e100_camera_count_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_ca_e100_count_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_ca_e100_count_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic count verification matched one scoped CA-E100 row binding "
+                    "one input unit to two color/monochrome cameras."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
