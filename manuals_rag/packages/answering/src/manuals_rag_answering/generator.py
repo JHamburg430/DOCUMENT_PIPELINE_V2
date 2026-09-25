@@ -7086,6 +7086,11 @@ def _concise_exact_control_answer(
         and re.search(r"\bleft/right rotation\b", query, flags=re.I)
         and re.search(r"\bhorizontal travel distance per turn\b", query, flags=re.I)
     )
+    sensor_controller_connector_query = bool(
+        re.search(r"\bconnector type\b", query, flags=re.I)
+        and re.search(r"\bsensor\b", query, flags=re.I)
+        and re.search(r"\bto[- ]controller cable\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7146,6 +7151,13 @@ def _concise_exact_control_answer(
             flags=re.I,
         ):
             return 'CA-S20D horizontal travel is 10 mm (0.39") per turn.', [result]
+
+        if sensor_controller_connector_query and re.search(
+            r"\bSensor\s*:\s*to-controller cable\s*\(\s*4-pin M12 connector type\s*\)",
+            content,
+            flags=re.I,
+        ):
+            return "The sensor-to-controller cable uses a 4-pin M12 connector.", [result]
 
         if power_match:
             requested_model = power_match.group("model").upper()

@@ -10067,6 +10067,11 @@ def test_structured_table_answer_binds_model_name_pivot_row():
             " | Horizontal travel | 10 mm 0.39\" /turn",
             'CA-S20D horizontal travel is 10 mm (0.39") per turn.',
         ),
+        (
+            "What connector type is used for the sensor to-controller cable?",
+            "Sensor: to-controller cable (4-pin M12 connector type)",
+            "The sensor-to-controller cable uses a 4-pin M12 connector.",
+        ),
     ],
 )
 def test_generate_answer_uses_exact_control_evidence_without_model(
