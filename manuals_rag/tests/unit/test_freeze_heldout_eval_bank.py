@@ -619,6 +619,20 @@ def test_repairs_lj_s8000_ocr_model_separator_in_frozen_query():
     ) == "What is the movable range for the LJ-S8000 Series sensor?"
 
 
+def test_qualifies_laser_on_activation_by_source_manual():
+    expected = (
+        "In the AS_124150 LJ-X8000 communication manual, how do I activate "
+        "the Laser ON input?"
+    )
+
+    assert _MODULE.normalize_frozen_query(
+        "How do I activate the Laser ON input on this device?"
+    ) == expected
+    assert _MODULE.normalize_frozen_query(
+        "How do I activate the Laser ON input on the LJ-X8000 controller?"
+    ) == expected
+
+
 def test_repairs_saved_settings_query_with_exact_activation_context():
     assert _MODULE.normalize_frozen_query(
         "In the VS Series KUKA robot connection manual, what action must be taken "
@@ -685,6 +699,30 @@ def test_focuses_w500_password_contract_on_range_and_zero_meaning():
     assert terms == ["1", "999", "0", "password", "required"]
 
 
+def test_focuses_laser_on_activation_on_voltage_type_and_shorting_action():
+    query = (
+        "In the AS_124150 LJ-X8000 communication manual, how do I activate "
+        "the Laser ON input?"
+    )
+    source = (
+        "The Laser ON input is a non: voltage input; "
+        "(Turns ON by simply short circuiting it) Other terminal details follow."
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, source, source)
+    terms = _MODULE.enrich_expected_answer_terms(
+        query,
+        focused,
+        ["laser", "voltage", "turns", "short"],
+    )
+
+    assert focused == (
+        "The Laser ON input is a non: voltage input; "
+        "(Turns ON by simply short circuiting it)"
+    )
+    assert terms == ["laser", "voltage", "turns", "short"]
+
+
 def test_focuses_wm_p6200_scanning_accuracy_on_requested_row():
     query = "What is the scanning system accuracy specification for the WM-P6200 model?"
     source = (
@@ -746,7 +784,7 @@ def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
         ("What shutter speed range can I set on this camera?", "AS_160148"),
         ("What ambient temperature range is allowed for operation without freezing?", "IV4 Series"),
         ("What does the one shot input do to the output status of current results?", "LJ-X8000"),
-        ("How do I activate the Laser ON input on this device?", "LJ-X8000 controller"),
+        ("How do I activate the Laser ON input on this device?", "AS_124150"),
         (
             "Which controllers support the high-resolution camera CA-HFxM/C in System configuration diagram XG?",
             "XG-X controllers",

@@ -78,7 +78,9 @@ def normalize_frozen_query(query: str) -> str:
         "What does the one shot input do to the output status of current results?":
             "What does the LJ-X8000 one shot input do to the output status of current results?",
         "How do I activate the Laser ON input on this device?":
-            "How do I activate the Laser ON input on the LJ-X8000 controller?",
+            "In the AS_124150 LJ-X8000 communication manual, how do I activate the Laser ON input?",
+        "How do I activate the Laser ON input on the LJ-X8000 controller?":
+            "In the AS_124150 LJ-X8000 communication manual, how do I activate the Laser ON input?",
         "Which controllers support the high-resolution camera CA-HFxM/C in System configuration diagram XG?":
             "Which XG-X controllers support the high-resolution CA-HFxM/C camera?",
         "What shock resistance rating applies to the laser sensor in X, Y, and Z axes?":
@@ -800,6 +802,19 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if (
+        re.search(r"\blaser\s+on\s+input\b", str(query or ""), flags=re.I)
+        and re.search(r"\bactivate\b", str(query or ""), flags=re.I)
+    ):
+        activation = re.search(
+            r"(?P<answer>The\s+Laser\s+ON\s+input\s+is\s+a\s+"
+            r"non\s*[: -]?\s*voltage\s+input\s*[.;]?\s*"
+            r"\(\s*Turns\s+ON\s+by\s+simply\s+short\s+circuiting\s+it\s*\))",
+            source,
+            flags=re.I,
+        )
+        if activation:
+            return re.sub(r"\s+", " ", activation.group("answer")).strip()
     if (
         re.search(r"\bscanning\s+system\s+accuracy\b", str(query or ""), flags=re.I)
         and re.search(r"\bwm-p6200\b", str(query or ""), flags=re.I)
