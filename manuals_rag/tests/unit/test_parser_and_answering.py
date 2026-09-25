@@ -10126,6 +10126,12 @@ def test_structured_table_answer_binds_model_name_pivot_row():
             "Sensor: to-controller cable (4-pin M12 connector type)",
             "The sensor-to-controller cable uses a 4-pin M12 connector.",
         ),
+        (
+            "What is the field of view size for the VJ-3302 inspection system?",
+            'Acquire High: Precision, Actual Size 3D Images. 60 mm 2.36" field of view, '
+            '1 µm 0.000039" precision repeatability, 0.6-second inspection intervals.',
+            'The VJ-3302 field of view is 60 mm (2.36").',
+        ),
     ],
 )
 def test_generate_answer_uses_exact_control_evidence_without_model(

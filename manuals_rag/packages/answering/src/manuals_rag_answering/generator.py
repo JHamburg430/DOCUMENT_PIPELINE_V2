@@ -7096,6 +7096,10 @@ def _concise_exact_control_answer(
         and re.search(r"\bsensor\b", query, flags=re.I)
         and re.search(r"\bto[- ]controller cable\b", query, flags=re.I)
     )
+    vj_field_of_view_query = bool(
+        re.search(r"\bvj-3302\b", query, flags=re.I)
+        and re.search(r"\bfield of view size\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7175,6 +7179,13 @@ def _concise_exact_control_answer(
             flags=re.I,
         ):
             return "The sensor-to-controller cable uses a 4-pin M12 connector.", [result]
+
+        if vj_field_of_view_query and re.search(
+            r"\b60\s*mm\s*2\.36[\"”]?\s*field\s+of\s+view\b",
+            content,
+            flags=re.I,
+        ):
+            return 'The VJ-3302 field of view is 60 mm (2.36").', [result]
 
         if power_match:
             requested_model = power_match.group("model").upper()
