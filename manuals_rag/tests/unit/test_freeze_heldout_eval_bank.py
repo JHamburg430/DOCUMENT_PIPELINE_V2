@@ -1063,6 +1063,34 @@ def test_mu_n_pvc_cable_contract_excludes_pur_alternative():
     ) == []
 
 
+def test_iv_500c_field_of_view_contract_excludes_sibling_model_values():
+    old_query = (
+        "What physical dimensions are required for the IV-500C sensor head "
+        "at a 50 mm installed distance?"
+    )
+    query = "What field-of-view dimensions does the IV-500C have at a 50 mm installed distance?"
+    source = (
+        "Installed distance | Standard distance (50 to 500 mm) | Short range (50 to150mm) | "
+        "Long range (300 to2000mm) Installed distance 50 mm: 25 (H) x 18 (V)mm to | "
+        "Installed distance 50 mm: 12 (H) x 9 (V) mm | "
+        "Installed distance 300 mm : 45 (H) x 33 (V) mm to"
+    )
+
+    assert _MODULE.normalize_frozen_query(old_query) == query
+    assert _MODULE.focus_expected_snippet(query, source, source) == (
+        "Installed distance 50 mm: 25 (H) x 18 (V)mm"
+    )
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["installed", "distance", "300", "25", "18", "12", "9"],
+    ) == ["25", "18"]
+    assert _MODULE.missing_expected_answer_contract(
+        query,
+        "Installed distance 50 mm: 25 (H) x 18 (V)mm",
+        ["25", "18"],
+    ) == []
+
+
 def test_iv4_below_freezing_contract_drops_unasked_upper_temperature_endpoint():
     query = "Does the IV4-400MA model support operation below freezing temperatures?"
 

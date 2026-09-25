@@ -91,6 +91,8 @@ def normalize_frozen_query(query: str) -> str:
             "to one CA-E100 area camera input unit?",
         "Which screw size is specified for the IV-500C sensor mounting?":
             "Which screw size is specified for wall-mounting the IV-500C sensor?",
+        "What physical dimensions are required for the IV-500C sensor head at a 50 mm installed distance?":
+            "What field-of-view dimensions does the IV-500C have at a 50 mm installed distance?",
         "Which controllers support the high-resolution camera CA-HFxM/C in System configuration diagram XG?":
             "Which XG-X controllers support the high-resolution CA-HFxM/C camera?",
         "What shock resistance rating applies to the laser sensor in X, Y, and Z axes?":
@@ -233,6 +235,12 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
     """
 
     normalized_query = _normalized(query)
+    if (
+        re.search(r"\bfield[- ]of[- ]view dimensions\b", normalized_query)
+        and re.search(r"\biv-500c\b", normalized_query)
+        and re.search(r"\b50 mm installed distance\b", normalized_query)
+    ):
+        return ["25", "18"]
     if (
         re.search(r"\bca-h048cx/h048mx\b", normalized_query)
         and re.search(r"\b0 47-megapixel\b", normalized_query)
@@ -1039,6 +1047,18 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
 
     source = source_content or snippet
     if (
+        re.search(r"\bfield[- ]of[- ]view dimensions\b", str(query or ""), flags=re.I)
+        and re.search(r"\bIV-500C\b", str(query or ""), flags=re.I)
+        and re.search(r"\b50\s*mm installed distance\b", str(query or ""), flags=re.I)
+    ):
+        field_of_view = re.search(
+            r"Installed distance\s*50\s*mm\s*:\s*25\s*\(H\)\s*[x×]\s*18\s*\(V\)\s*mm",
+            source,
+            flags=re.I,
+        )
+        if field_of_view:
+            return re.sub(r"\s+", " ", field_of_view.group(0)).strip()
+    if (
         re.search(r"\bca-h048cx/h048mx\b", str(query or ""), flags=re.I)
         and re.search(r"\b0[ .]47[- ]megapixel\b", str(query or ""), flags=re.I)
         and re.search(r"\b0[ .]31[- ]megapixel\b", str(query or ""), flags=re.I)
@@ -1342,6 +1362,12 @@ def missing_expected_answer_contract(
         and re.search(r"\bk\s*=\s*2000\s*mm/s\b", normalized_query)
     ):
         quantities = [value for value in quantities if value in {"319.4", "12.57"}]
+    if (
+        re.search(r"\bfield[- ]of[- ]view dimensions\b", normalized_query)
+        and re.search(r"\biv-500c\b", normalized_query)
+        and re.search(r"\b50 mm installed distance\b", normalized_query)
+    ):
+        quantities = ["25", "18"]
     if asks_value:
         if not quantities:
             missing.append("quantified answer value")
@@ -1572,6 +1598,23 @@ def verify_and_freeze_cases(
             re.search(r"\bca-h048cx/h048mx\b", case["query"], flags=re.I)
             and re.search(r"\b0[ .]47[- ]megapixel\b", case["query"], flags=re.I)
             and re.search(r"\b0[ .]31[- ]megapixel\b", case["query"], flags=re.I)
+        ):
+            snippet_text = focus_expected_snippet(
+                case["query"],
+                str(case.get("expected_snippet") or ""),
+                str(chunk.get("content") or ""),
+            )
+            terms = answer_relevant_expected_terms(
+                case["query"],
+                extract_anchor_terms(snippet_text)[:4],
+            )
+            case["expected_snippet"] = snippet_text
+            case["expected_terms"] = terms
+            case["anchor_terms"] = terms
+        if (
+            re.search(r"\bfield[- ]of[- ]view dimensions\b", case["query"], flags=re.I)
+            and re.search(r"\biv-500c\b", case["query"], flags=re.I)
+            and re.search(r"\b50\s*mm installed distance\b", case["query"], flags=re.I)
         ):
             snippet_text = focus_expected_snippet(
                 case["query"],
