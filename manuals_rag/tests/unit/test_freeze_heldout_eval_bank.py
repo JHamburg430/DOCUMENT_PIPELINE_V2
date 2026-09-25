@@ -890,6 +890,21 @@ def test_narrows_gl_r60h_stop_distance_contract_to_calculated_result():
     ) == []
 
 
+def test_repairs_mu_n_section_distance_query_and_scores_only_range_values():
+    expected_query = (
+        "In the MU-N SERIES section, what maximum detecting distance is listed for "
+        "the connected LR-T laser sensor?"
+    )
+
+    assert _MODULE.normalize_frozen_query(
+        "What is the maximum detecting distance for the MU-N SERIES laser sensor?"
+    ) == expected_query
+    assert _MODULE.answer_relevant_expected_terms(
+        expected_query,
+        ["16.40", "detecting", "distance", "5"],
+    ) == ["5", "16.40"]
+
+
 def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     expected = (
         "In the AS_160148 XG-X camera specification table, what electronic shutter range "

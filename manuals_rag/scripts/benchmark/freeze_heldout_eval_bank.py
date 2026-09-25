@@ -171,6 +171,9 @@ def normalize_frozen_query(query: str) -> str:
         "What is the power consumption of the camera when only the sensor is active at 19.2 V?":
             "In the AS_151195 VS camera specification table, what current and power consumption "
             "are listed for camera-only operation at 19.2 V and 24 V?",
+        "What is the maximum detecting distance for the MU-N SERIES laser sensor?":
+            "In the MU-N SERIES section, what maximum detecting distance is listed for the "
+            "connected LR-T laser sensor?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
@@ -203,6 +206,12 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
         # calculated result, so incidental inputs and the unused branch must
         # not become answer requirements.
         return ["319.4", "12.57"]
+    if (
+        re.search(r"\bmu-n series section\b", normalized_query)
+        and re.search(r"\bconnected lr-t laser sensor\b", normalized_query)
+        and re.search(r"\bmaximum detecting distance\b", normalized_query)
+    ):
+        return ["5", "16.40"]
     if (
         re.search(r"\bdent[- ]depth conditions\b", normalized_query)
         and re.search(r"\breference plane\b", normalized_query)
