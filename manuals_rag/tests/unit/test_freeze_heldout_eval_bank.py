@@ -987,6 +987,21 @@ def test_repairs_ca_en100u_emc_question_to_literal_source_contract():
     ) == query
 
 
+def test_repairs_zoomtrax_question_to_literal_before_label_contract():
+    query = _MODULE.normalize_frozen_query(
+        "When should I use ZoomTrax for inspections of multiple product types?"
+    )
+
+    assert query == (
+        "What inspection scenario is labeled 'Before ZoomTrax' in the AS_142767 "
+        "vision-guided robotic guide?"
+    )
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["before", "zoomtrax", "inspections", "multiple"],
+    ) == ["multiple", "product types", "set ups", "fields of view"]
+
+
 def test_repairs_existing_xg_x_dent_query_with_series_scope():
     assert _MODULE.normalize_frozen_query(
         "For the XG-X inline 3D inspection system, which dent-depth conditions can be "

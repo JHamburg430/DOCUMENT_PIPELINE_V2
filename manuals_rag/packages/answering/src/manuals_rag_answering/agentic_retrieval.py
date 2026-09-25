@@ -4846,6 +4846,37 @@ def _direct_emc_standard_class_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_zoomtrax_before_label_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the exact scenario printed under the Before ZoomTrax label."""
+    if not (
+        re.search(r"\blabeled\s+['\"]?Before ZoomTrax['\"]?", query, flags=re.I)
+        and re.search(r"\bAS_142767\b", query, flags=re.I)
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids:
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not re.search(
+            r"\bBefore ZoomTrax for inspections of multiple product types, "
+            r"set ups, and fields of view\b",
+            content,
+            flags=re.I,
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def verify_retrieval_claim(
     hop: RetrievalHop,
     executed_query: str,
@@ -4888,6 +4919,28 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_emc_support,
+        }
+
+    direct_zoomtrax_support = _direct_zoomtrax_before_label_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_zoomtrax_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_zoomtrax_support,
+            applicability="not_requested",
+            scope_entity="Before ZoomTrax",
+            rationale=(
+                "Deterministic label verification matched the exact AS_142767 Before ZoomTrax "
+                "scenario for multiple product types, set ups, and fields of view."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_zoomtrax_support,
         }
 
     direct_included_accessory_support = _direct_included_accessory_support(

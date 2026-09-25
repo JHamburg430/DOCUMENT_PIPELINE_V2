@@ -19,6 +19,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_devid_protocol_mapping_support,
     _direct_detection_capability_support,
     _direct_emc_standard_class_support,
+    _direct_zoomtrax_before_label_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _direct_feature_amplifier_type_support,
@@ -123,6 +124,34 @@ def test_ca_en100u_standard_class_designation_remains_one_atomic_hop(monkeypatch
         assert plan.mode == "single"
         assert len(plan.hops) == 1
         assert plan.hops[0].objective == query
+
+
+def test_direct_zoomtrax_before_label_support_requires_exact_scenario():
+    query = (
+        "What inspection scenario is labeled 'Before ZoomTrax' in the AS_142767 "
+        "vision-guided robotic guide?"
+    )
+    exact = _result(
+        "zoomtrax-before",
+        "as-142767",
+        "Before ZoomTrax for inspections of multiple product types, set ups, and fields of view",
+    )
+    benefits_only = _result(
+        "zoomtrax-benefits",
+        "as-142767",
+        "ZoomTrax automatically changes the field of view and can automatically focus.",
+    )
+
+    assert _direct_zoomtrax_before_label_support(
+        query,
+        [benefits_only, exact],
+        {"supporting_chunk_ids": ["zoomtrax-benefits", "zoomtrax-before"]},
+    ) == ["zoomtrax-before"]
+    assert _direct_zoomtrax_before_label_support(
+        query,
+        [benefits_only],
+        {"supporting_chunk_ids": ["zoomtrax-benefits"]},
+    ) == []
 
 
 def test_heuristic_planner_decomposes_named_scopes_and_pairs_requested_details():

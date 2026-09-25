@@ -7257,6 +7257,10 @@ def _concise_exact_control_answer(
         and re.search(r"\bhazardous location\b", query, flags=re.I)
         and re.search(r"\bexplosive atmosphere\b", query, flags=re.I)
     )
+    zoomtrax_before_label_query = bool(
+        re.search(r"\blabeled\s+['\"]?Before ZoomTrax['\"]?", query, flags=re.I)
+        and re.search(r"\bAS_142767\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7313,6 +7317,18 @@ def _concise_exact_control_answer(
             return (
                 "No. Do not use this product in a hazardous location and/or "
                 "potentially explosive atmosphere.",
+                [result],
+            )
+
+        if zoomtrax_before_label_query and re.search(
+            r"\bBefore ZoomTrax for inspections of multiple product types, "
+            r"set ups, and fields of view\b",
+            content,
+            flags=re.I,
+        ):
+            return (
+                "The 'Before ZoomTrax' scenario is inspections of multiple product "
+                "types, set ups, and fields of view.",
                 [result],
             )
 

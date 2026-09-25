@@ -265,6 +265,35 @@ def test_exact_control_extracts_only_ca_en100u_hazardous_location_rule():
     assert [item.chunk_id for item in evidence] == ["ca-en100u-hazard"]
 
 
+def test_exact_control_extracts_zoomtrax_before_label_scenario():
+    result = SearchResult(
+        chunk_id="zoomtrax-before",
+        score=0.9,
+        title="AS_142767 Vision-Guided Robotic Guide",
+        document_version_id="v1",
+        source_document_id="as-142767",
+        pages=[2],
+        section_path=["NEW"],
+        content=(
+            "Before ZoomTrax for inspections of multiple product types, set ups, "
+            "and fields of view"
+        ),
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "What inspection scenario is labeled 'Before ZoomTrax' in the AS_142767 "
+        "vision-guided robotic guide?",
+        [result],
+    )
+
+    assert answer == (
+        "The 'Before ZoomTrax' scenario is inspections of multiple product types, "
+        "set ups, and fields of view."
+    )
+    assert [item.chunk_id for item in evidence] == ["zoomtrax-before"]
+
+
 def test_exact_control_extracts_sensor_controller_connector_from_models_label():
     result = SearchResult(
         chunk_id="lr-t-m12",
