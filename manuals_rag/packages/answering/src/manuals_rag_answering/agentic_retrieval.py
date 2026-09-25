@@ -493,6 +493,26 @@ def _coordinate_question_plan(query: str) -> RetrievalPlan | None:
         flags=re.I,
     ):
         second = f"{second.rstrip(' ?')} for the {referent_match.group('referent')}"
+    # Preserve the setting scope when a coordinated follow-up asks what a
+    # selected value does.  Without this coreference repair, a question such
+    # as "what password values can be set for the W500 Key Lock, and what does
+    # selecting 0 do?" degenerates into the corpus-wide query "what does
+    # selecting 0 do?" and retrieves unrelated numeric settings.
+    setting_scope_match = re.match(
+        r"^what\s+.+?\s+can\s+be\s+(?:set|configured|selected)\s+for\s+"
+        r"(?P<setting>.+?)\s*[?.]*$",
+        first,
+        flags=re.I,
+    )
+    value_followup = re.match(
+        r"^what\s+does\s+(?:selecting|setting|choosing)\s+.+?\s+do\b",
+        second,
+        flags=re.I,
+    )
+    if setting_scope_match and value_followup:
+        setting = setting_scope_match.group("setting").strip(" ,.;?")
+        if setting and setting.lower() not in second.lower():
+            second = f"{second.rstrip(' ?')} for {setting} setting"
     branches = [first, second]
     queries = [
         f"{scope} {branch}".strip(" ,.;?") + "?"

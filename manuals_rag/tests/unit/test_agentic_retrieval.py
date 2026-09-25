@@ -4086,6 +4086,24 @@ def test_password_setting_support_requires_range_and_zero_behavior_in_one_scoped
     assert _direct_password_setting_support(query, [incomplete, supported]) == ["w500-password"]
 
 
+def test_planners_preserve_setting_scope_for_selected_value_followup(monkeypatch):
+    query = "What password values can be set for the W500 Key Lock, and what does selecting 0 do?"
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("coordinate scope repair must run before model planning")
+        ),
+    )
+
+    expected = [
+        "What password values can be set for the W500 Key Lock?",
+        "what does selecting 0 do for the W500 Key Lock setting?",
+    ]
+    assert [hop.query for hop in plan_retrieval(query, use_llm=True).hops] == expected
+    assert [hop.query for hop in plan_llamaindex_retrieval(query, use_llm=True).hops] == expected
+
+
 def test_manual_focus_installation_support_rejects_automatic_focus_sibling():
     query = (
         "What installation precaution applies when adjusting an IV-500C manual-focus "
