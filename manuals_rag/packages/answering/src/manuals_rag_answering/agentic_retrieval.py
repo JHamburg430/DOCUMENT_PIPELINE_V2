@@ -267,6 +267,29 @@ def _direct_explanatory_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _direct_mechanism_plan(query: str) -> RetrievalPlan | None:
+    """Keep one explicitly stated cause/effect mechanism in one retrieval hop.
+
+    Questions of the form ``How does X reduce Y?`` ask for one relation that is
+    normally stated in one authoritative sentence.  Decomposing the subject,
+    mechanism, and effect into separately required branches creates false
+    evidence gaps even when that sentence has already been retrieved.
+    """
+    if not re.match(
+        r"^\s*how\s+does\b.+\b(?:reduce|prevent|eliminate|minimi[sz]e|improve|enable)\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        return None
+    if re.search(r"\b(?:compare|versus|(?-i:vs)\.?|then\s+(?:what|which|how|why))\b", query, flags=re.I):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request asks for one source-backed cause/effect mechanism.",
+        hops=[RetrievalHop(hop_id="mechanism", objective=query, query=query, strategy="hybrid")],
+    )
+
+
 def _parallel_scope_plan(query: str) -> RetrievalPlan | None:
     """Recognize a common, document-general comparison shape without an LLM."""
     match = re.match(
@@ -834,6 +857,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     explanatory_plan = _direct_explanatory_plan(query)
     if explanatory_plan is not None:
         return explanatory_plan
+    mechanism_plan = _direct_mechanism_plan(query)
+    if mechanism_plan is not None:
+        return mechanism_plan
     analysis = analyze_query(query)
     identifiers = list(dict.fromkeys(analysis.product_identifiers))
     if "comparison" in analysis.query_types and len(identifiers) >= 2:
@@ -875,6 +901,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _parallel_scope_plan(query)
         or _labelled_lookup_plan(query)
         or _direct_explanatory_plan(query)
+        or _direct_mechanism_plan(query)
         or _direct_yes_no_plan(query)
     )
     if forced_plan is not None:
@@ -944,6 +971,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _parallel_scope_plan(query) is not None
         or _labelled_lookup_plan(query) is not None
         or _direct_explanatory_plan(query) is not None
+        or _direct_mechanism_plan(query) is not None
         or _direct_yes_no_plan(query) is not None
     ):
         return _llamaindex_heuristic_plan(query)

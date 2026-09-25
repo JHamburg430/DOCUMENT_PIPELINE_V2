@@ -472,6 +472,22 @@ def test_model_planners_keep_simple_why_question_as_one_authoritative_lookup(mon
         assert plan.hops[0].strategy == "hybrid"
 
 
+def test_model_planners_keep_direct_cause_effect_mechanism_in_one_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model planner must not run")),
+    )
+    query = "How does the 90-degree projection pattern analysis reduce reflections from glossy surfaces?"
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=True)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].objective == query
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy in {"hybrid", "structural"}
+
+
 def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
     original = (
         "On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?"
