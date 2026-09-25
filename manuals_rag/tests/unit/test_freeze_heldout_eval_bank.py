@@ -891,6 +891,15 @@ def test_qualifies_lj_s8000_color_range_by_manual_and_source_control():
     )
 
 
+def test_qualifies_vs_camera_only_power_contract_by_source_and_both_voltages():
+    assert _MODULE.normalize_frozen_query(
+        "What is the power consumption of the camera when only the sensor is active at 19.2 V?"
+    ) == (
+        "In the AS_151195 VS camera specification table, what current and power consumption "
+        "are listed for camera-only operation at 19.2 V and 24 V?"
+    )
+
+
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [

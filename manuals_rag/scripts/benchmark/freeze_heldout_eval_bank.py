@@ -150,6 +150,9 @@ def normalize_frozen_query(query: str) -> str:
         "How do I adjust the color range for height data on the LJ-S8000?":
             "In the LJ-S8000 Easy Configuration Manual, which icon should I click to adjust "
             "the color range depending on the specification method?",
+        "What is the power consumption of the camera when only the sensor is active at 19.2 V?":
+            "In the AS_151195 VS camera specification table, what current and power consumption "
+            "are listed for camera-only operation at 19.2 V and 24 V?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
