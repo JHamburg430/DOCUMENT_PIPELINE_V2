@@ -3529,6 +3529,44 @@ def _direct_variable_type_support(query: str, results: list[SearchResult]) -> li
     return [min(matches)[2]] if matches else []
 
 
+def _direct_devid_protocol_mapping_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Bind the OutputFilter devId protocol mapping to its adjacent signature."""
+
+    if not (
+        re.search(r"\bnumeric\s+value\b", query, flags=re.I)
+        and re.search(r"\bOutputFilter\b", query, flags=re.I)
+        and re.search(r"\bdevId\b", query, flags=re.I)
+        and re.search(r"\bRS[- ]?232C\b", query, flags=re.I)
+    ):
+        return []
+
+    exact_mapping = re.compile(
+        r"\bdevId\s*:\s*the\s+device\s+ID\s*\.\s*"
+        r"2\s+for\s+RS[- ]?232C\s*,?\s*and\s+3\s+for\s+Ethernet\b",
+        flags=re.I,
+    )
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        if str(metadata.get("chunk_type") or "") not in {"atomic_text", "spec_record"}:
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        context = " ".join(
+            str(metadata.get(field) or "")
+            for field in ("local_rerank_context", "context_window", "parent_context")
+        )
+        if exact_mapping.search(content) and re.search(
+            r"\bOutputFilter\s*\(\s*devId\s*,\s*str\s*\)",
+            context,
+            flags=re.I,
+        ):
+            matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_feature_amplifier_type_support(
     query: str,
     results: list[SearchResult],
@@ -4750,6 +4788,26 @@ def verify_retrieval_claim(
                 applicability="not_requested",
                 scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
                 rationale="Deterministic enumeration verification matched explicit variable types.",
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_devid_support = _direct_devid_protocol_mapping_support(
+            hop.objective,
+            results,
+        )
+        if direct_devid_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_devid_support,
+                applicability="not_requested",
+                scope_entity="OutputFilter devId",
+                rationale=(
+                    "Deterministic devId verification matched the OutputFilter signature and "
+                    "the complete RS-232C/Ethernet numeric mapping."
+                ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
                 "out_of_scope_chunk_ids": [],

@@ -16,6 +16,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_atomic_measurement_support,
     _direct_ca_e100_camera_count_support,
     _direct_controller_image_capacity_support,
+    _direct_devid_protocol_mapping_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _direct_feature_amplifier_type_support,
@@ -4409,6 +4410,68 @@ def test_variable_type_support_requires_explicit_enumeration():
     )
 
     assert _direct_variable_type_support(query, [result]) == ["variable-types"]
+
+
+def test_devid_protocol_mapping_requires_outputfilter_signature_and_complete_row(monkeypatch):
+    query = (
+        "What numeric value represents RS-232C communication for the OutputFilter "
+        "devId parameter?"
+    )
+    exact = _result(
+        "devid-mapping",
+        "lua-doc",
+        "devId: the device ID. 2 for RS-232C, and 3 for Ethernet str: character string",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "spec_record",
+                "context_window": (
+                    "Previous chunk: OutputFilter (devId, str) Current chunk: "
+                    "devId: the device ID. 2 for RS-232C, and 3 for Ethernet"
+                ),
+            }
+        }
+    )
+    missing_signature = exact.model_copy(
+        update={
+            "chunk_id": "devid-no-signature",
+            "metadata": {"chunk_type": "spec_record"},
+        }
+    )
+    wrong_mapping = _result(
+        "devid-wrong-mapping",
+        "lua-doc",
+        "devId: the device ID. 3 for RS-232C, and 2 for Ethernet",
+    ).model_copy(update={"metadata": exact.metadata})
+
+    assert _direct_devid_protocol_mapping_support(
+        query,
+        [missing_signature, wrong_mapping, exact],
+    ) == ["devid-mapping"]
+    assert _direct_devid_protocol_mapping_support(
+        query,
+        [missing_signature, wrong_mapping],
+    ) == []
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("LLM verifier must not run")
+        ),
+    )
+    verdict = verify_retrieval_claim(
+        RetrievalHop(hop_id="mapping", objective=query, query=query),
+        query,
+        [wrong_mapping, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": ["devid-wrong-mapping", "devid-mapping"],
+        },
+    )
+
+    assert verdict["trust_state"] == "confirmed"
+    assert verdict["claim_supported"] is True
+    assert verdict["supporting_chunk_ids"] == ["devid-mapping"]
 
 
 def test_feature_amplifier_type_support_confirms_scoped_spec_heading():
