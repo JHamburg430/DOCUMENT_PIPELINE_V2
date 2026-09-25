@@ -21,6 +21,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_illumination_type_support,
     _direct_manual_focus_installation_support,
     _direct_pc_to_plc_menu_path_support,
+    _direct_password_setting_support,
     _direct_procedure_support,
     _direct_saved_settings_activation_support,
     _direct_structured_power_source_support,
@@ -4062,6 +4063,27 @@ def test_saved_settings_activation_support_requires_save_yes_context():
     assert _direct_saved_settings_activation_support(query, [missing_context, supported]) == [
         "restart-action"
     ]
+
+
+def test_password_setting_support_requires_range_and_zero_behavior_in_one_scoped_chunk():
+    query = "What password values can be set for the W500 Key Lock, and what does selecting 0 do?"
+    supported = _result(
+        "w500-password",
+        "w500-doc",
+        "An optional password can be set for the 6-1 Key Lock. Select a value from 1 to 999 "
+        "for this setting. If '0' is selected, the password will not be required.",
+    ).model_copy(
+        update={"metadata": {"chunk_type": "atomic_text", "product_model": "W500"}}
+    )
+    incomplete = _result(
+        "w500-range-only",
+        "w500-doc",
+        "Select a value from 1 to 999 for this setting.",
+    ).model_copy(
+        update={"metadata": {"chunk_type": "atomic_text", "product_model": "W500"}}
+    )
+
+    assert _direct_password_setting_support(query, [incomplete, supported]) == ["w500-password"]
 
 
 def test_manual_focus_installation_support_rejects_automatic_focus_sibling():

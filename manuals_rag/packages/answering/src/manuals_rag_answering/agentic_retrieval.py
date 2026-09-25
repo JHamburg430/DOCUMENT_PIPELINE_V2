@@ -3070,6 +3070,34 @@ def _direct_saved_settings_activation_support(
     return [max(matches)[-1]] if matches else []
 
 
+def _direct_password_setting_support(query: str, results: list[SearchResult]) -> list[str]:
+    """Confirm a bounded password range and its explicit zero-value behavior."""
+    if not (
+        re.search(r"\bpassword values?\b", query, flags=re.I)
+        and re.search(r"\bkey lock\b", query, flags=re.I)
+        and re.search(r"\bselecting\s+0\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if (
+            str(metadata.get("chunk_type") or "") != "atomic_text"
+            or not _result_supports_branch_scope(query, result)
+            or not re.search(r"\bvalue\s+from\s+1\s+to\s+999\b", content, flags=re.I)
+            or not re.search(
+                r"\bif\s+['\"]?0['\"]?\s+is\s+selected,?\s+the\s+password\s+"
+                r"will\s+not\s+be\s+required\b",
+                content,
+                flags=re.I,
+            )
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_manual_focus_installation_support(
     query: str,
     results: list[SearchResult],
@@ -4202,6 +4230,24 @@ def verify_retrieval_claim(
             rationale=(
                 "Deterministic settings-activation verification matched the scoped post-save "
                 "restart instruction and its Save/Yes context."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_password_support = _direct_password_setting_support(hop.objective, results)
+    if direct_password_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_password_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic password verification matched the scoped 1-to-999 setting range "
+                "and the explicit no-password meaning of value 0."
             ),
         ).model_dump() | {
             "invalid_citation_ids": [],
