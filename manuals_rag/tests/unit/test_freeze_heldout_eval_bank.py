@@ -633,6 +633,15 @@ def test_qualifies_laser_on_activation_by_source_manual():
     ) == expected
 
 
+def test_qualifies_ca_e100_camera_count_by_source_manual():
+    assert _MODULE.normalize_frozen_query(
+        "How many cameras connect to one CA-E100 area camera input unit?"
+    ) == (
+        "In the AS_160148 XG-X manual, how many color/monochrome cameras connect "
+        "to one CA-E100 area camera input unit?"
+    )
+
+
 def test_repairs_saved_settings_query_with_exact_activation_context():
     assert _MODULE.normalize_frozen_query(
         "In the VS Series KUKA robot connection manual, what action must be taken "
@@ -721,6 +730,32 @@ def test_focuses_laser_on_activation_on_voltage_type_and_shorting_action():
         "(Turns ON by simply short circuiting it)"
     )
     assert terms == ["laser", "short"]
+
+
+def test_focuses_ca_e100_camera_count_on_one_unit_not_capture_capacity():
+    query = (
+        "In the AS_160148 XG-X manual, how many color/monochrome cameras connect "
+        "to one CA-E100 area camera input unit?"
+    )
+    source = (
+        "Model: With area camera input unit CA-E100 connected: "
+        "2 color/monochrome cameras per CA-E100, up to 4 cameras via a maximum "
+        "of 2 units can be connected. Simultaneous/individual capture with up "
+        "to 4 cameras/heads can be selected."
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, source, source)
+    terms = _MODULE.enrich_expected_answer_terms(
+        query,
+        focused,
+        ["simultaneous/individual", "capture", "cameras/heads"],
+    )
+
+    assert focused == (
+        "With area camera input unit CA-E100 connected: "
+        "2 color/monochrome cameras per CA-E100"
+    )
+    assert terms == ["CA-E100", "2", "color/monochrome cameras"]
 
 
 def test_focuses_wm_p6200_scanning_accuracy_on_requested_row():

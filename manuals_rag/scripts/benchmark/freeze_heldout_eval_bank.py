@@ -81,6 +81,9 @@ def normalize_frozen_query(query: str) -> str:
             "In the AS_124150 LJ-X8000 communication manual, how do I activate the Laser ON input?",
         "How do I activate the Laser ON input on the LJ-X8000 controller?":
             "In the AS_124150 LJ-X8000 communication manual, how do I activate the Laser ON input?",
+        "How many cameras connect to one CA-E100 area camera input unit?":
+            "In the AS_160148 XG-X manual, how many color/monochrome cameras connect "
+            "to one CA-E100 area camera input unit?",
         "Which controllers support the high-resolution camera CA-HFxM/C in System configuration diagram XG?":
             "Which XG-X controllers support the high-resolution CA-HFxM/C camera?",
         "What shock resistance rating applies to the laser sensor in X, Y, and Z axes?":
@@ -709,6 +712,13 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
     query_tokens = set(_contract_tokens(normalized_query))
 
     if (
+        re.search(r"\bhow\s+many\b.*\bcameras?\b", normalized_query)
+        and re.search(r"\bca-e100\b", normalized_query)
+        and re.search(r"\b2\s+color/monochrome\s+cameras\b", snippet, flags=re.I)
+    ):
+        return ["CA-E100", "2", "color/monochrome cameras"]
+
+    if (
         re.search(r"\bpassword values?\b", normalized_query)
         and re.search(r"\bselecting 0\b", normalized_query)
     ):
@@ -813,6 +823,18 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if (
+        re.search(r"\bhow\s+many\b.*\bcameras?\b", str(query or ""), flags=re.I)
+        and re.search(r"\bca-e100\b", str(query or ""), flags=re.I)
+    ):
+        camera_count = re.search(
+            r"(?P<answer>With\s+area\s+camera\s+input\s+unit\s+CA-E100\s+connected\s*:\s*"
+            r"2\s+color/monochrome\s+cameras\s+per\s+CA-E100)",
+            source,
+            flags=re.I,
+        )
+        if camera_count:
+            return re.sub(r"\s+", " ", camera_count.group("answer")).strip()
     if (
         re.search(r"\blaser\s+on\s+input\b", str(query or ""), flags=re.I)
         and re.search(r"\bactivate\b", str(query or ""), flags=re.I)
