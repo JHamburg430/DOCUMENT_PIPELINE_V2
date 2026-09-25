@@ -638,6 +638,15 @@ def test_repairs_pc_to_plc_query_with_exact_protocol_scope():
     )
 
 
+def test_qualifies_conflicting_vs_c160m_frame_rate_by_source_manual():
+    assert _MODULE.normalize_frozen_query(
+        "What frame rate does the VS-C160M/CX model support?"
+    ) == (
+        "In the AS_145861 VS-C specification manual, what frame rate is listed "
+        "for the VS-C160M/CX model?"
+    )
+
+
 def test_repairs_w500_password_query_to_match_the_source_contract():
     assert _MODULE.normalize_frozen_query(
         "What password range disables the Key Lock on the W500?"
