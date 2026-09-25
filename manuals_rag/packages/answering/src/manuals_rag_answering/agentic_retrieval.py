@@ -860,6 +860,30 @@ def _direct_range_value_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _direct_feature_amplifier_type_plan(query: str) -> RetrievalPlan | None:
+    """Keep one feature-to-amplifier-type lookup in one hybrid hop."""
+    if not re.match(r"^\s*which\b", query, flags=re.I):
+        return None
+    if not (
+        re.search(r"\bamplifier\s+types?\b", query, flags=re.I)
+        and re.search(r"\bsupport\w*\b", query, flags=re.I)
+        and re.search(r"\bfeature\b", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request is one feature-to-amplifier-type lookup.",
+        hops=[
+            RetrievalHop(
+                hop_id="feature_amplifier_type",
+                objective=query,
+                query=query,
+                strategy="hybrid",
+            )
+        ],
+    )
+
+
 def _heuristic_plan(query: str) -> RetrievalPlan:
     function_plan = _xg_lua_output_function_plan(query)
     if function_plan is not None:
@@ -885,6 +909,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     range_value_plan = _direct_range_value_plan(query)
     if range_value_plan is not None:
         return range_value_plan
+    feature_amplifier_type_plan = _direct_feature_amplifier_type_plan(query)
+    if feature_amplifier_type_plan is not None:
+        return feature_amplifier_type_plan
     coordinate_plan = _coordinate_question_plan(query)
     if coordinate_plan is not None:
         return coordinate_plan
@@ -943,6 +970,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _comparison_facet_plan(query)
         or _shared_setting_value_plan(query)
         or _direct_range_value_plan(query)
+        or _direct_feature_amplifier_type_plan(query)
         or _coordinate_question_plan(query)
         or _explicit_dependency_sequence_plan(query)
         or _reported_clause_plan(query)
@@ -989,6 +1017,8 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
             strategy = "sparse"
         elif _direct_range_value_plan(hop.query) is not None:
             strategy = "hybrid"
+        elif _direct_feature_amplifier_type_plan(hop.query) is not None:
+            strategy = "hybrid"
         elif set(analysis.query_types).intersection({"configuration", "specification", "troubleshooting", "how_to"}):
             strategy = "structural"
         hops.append(
@@ -1017,6 +1047,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _comparison_facet_plan(query) is not None
         or _shared_setting_value_plan(query) is not None
         or _direct_range_value_plan(query) is not None
+        or _direct_feature_amplifier_type_plan(query) is not None
         or _coordinate_question_plan(query) is not None
         or _explicit_dependency_sequence_plan(query) is not None
         or _reported_clause_plan(query) is not None

@@ -5775,6 +5775,23 @@ def test_planners_keep_shared_setting_value_facets_single_hop(monkeypatch):
         assert [hop.query for hop in plan.hops] == [query]
 
 
+def test_planners_keep_feature_amplifier_type_lookup_single_hop(monkeypatch):
+    query = "Which IV Series amplifier types support the Intelligent Monitor feature?"
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("feature-to-amplifier lookup must bypass model planning")
+        ),
+    )
+
+    for plan in (plan_retrieval(query, use_llm=True), plan_llamaindex_retrieval(query, use_llm=True)):
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "hybrid"
+
+
 def test_manual_focus_installation_support_rejects_automatic_focus_sibling():
     query = (
         "What installation precaution applies when adjusting an IV-500C manual-focus "
