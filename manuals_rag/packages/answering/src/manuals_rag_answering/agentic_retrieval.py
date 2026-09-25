@@ -3702,7 +3702,7 @@ def _direct_model_matrix_measurement_support(
                 continue
             for cell in re.finditer(
                 r"(?P<model>[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\s*:\s*"
-                r"(?P<value>.*?)(?=\s*;\s*[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\s*:|$)",
+                r"(?P<value>.*?)(?=\s*;\s*[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b|$)",
                 row.group("body"),
                 flags=re.I,
             ):

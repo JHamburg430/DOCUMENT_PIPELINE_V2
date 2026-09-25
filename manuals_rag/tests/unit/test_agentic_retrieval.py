@@ -2323,10 +2323,25 @@ def test_verifier_confirms_model_matrix_axis_measurement_without_llm(monkeypatch
 def test_verifier_confirms_model_matrix_with_short_model_header_without_llm(monkeypatch):
     objective = "What is the Z range tolerance for model XT-024?"
     hop = RetrievalHop(hop_id="measurement", objective=objective, query=objective)
+    misleading = _result(
+        "misleading-z-range",
+        "other-xt-doc",
+        'Model: 24 × 24mm 0.94" × 0.94"; Field of view XY (Reference distance): '
+        '±2mm ±0.08"; Z range (from reference distance): ±0.5 µm ±0.02 Mil; '
+        'Repeatability ( ): XT-024',
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "identifier_tokens": ["XT-024"],
+            }
+        }
+    )
     result = _result(
         "z-range-tolerance",
         "xt-doc",
-        'Model: Z range (from distance); XT-024: ±2 mm ±0.08"',
+        'Model: Z range (from distance); XT-024: ±2 mm ±0.08"; '
+        'XT-060 60 mm 2.36" type: ±6 mm ±0.24"',
     ).model_copy(
         update={
             "metadata": {
@@ -2344,7 +2359,7 @@ def test_verifier_confirms_model_matrix_with_short_model_header_without_llm(monk
     output = verify_retrieval_claim(
         hop,
         objective,
-        [result],
+        [misleading, result],
         {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
     )
 
