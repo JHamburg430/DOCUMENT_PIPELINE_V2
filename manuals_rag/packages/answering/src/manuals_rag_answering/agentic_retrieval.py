@@ -3668,8 +3668,6 @@ def _direct_gl_r60h_stop_distance_support(
 
     matches: list[tuple[int, int, str]] = []
     for index, result in enumerate(results):
-        if not _result_supports_branch_scope(query, result):
-            continue
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
         if not (
             re.search(r"\bCondition\s*:\s*Industrial application\b", content, flags=re.I)
