@@ -923,6 +923,27 @@ def test_iv4_below_freezing_contract_drops_unasked_upper_temperature_endpoint():
     ) == ["iv4-400ma", "no", "freezing"]
 
 
+def test_repairs_sensor_controller_set_question_to_connector_contract():
+    query = (
+        "What components are included in the set for connecting a 4-pin M12 "
+        "sensor-to-controller cable?"
+    )
+    source = (
+        "Main circuit Load Overcurrent protection circuit ❚ Sensor-to-controller cable "
+        "(4-pin M12 connector type models) ❚ Connector set for sensor-to-controller connection"
+    )
+
+    repaired = _MODULE.normalize_frozen_query(query)
+    snippet = _MODULE.focus_expected_snippet(repaired, source, source)
+
+    assert repaired == "What connector type is used for the LR-T sensor-to-controller cable?"
+    assert snippet == "Sensor-to-controller cable (4-pin M12 connector type models)"
+    assert _MODULE.answer_relevant_expected_terms(
+        repaired,
+        ["sensor-to-controller", "cable", "4-pin", "m12"],
+    ) == ["4-pin", "m12"]
+
+
 def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     expected = (
         "In the AS_160148 XG-X camera specification table, what electronic shutter range "

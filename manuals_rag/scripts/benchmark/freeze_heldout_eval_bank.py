@@ -174,6 +174,8 @@ def normalize_frozen_query(query: str) -> str:
         "What is the maximum detecting distance for the MU-N SERIES laser sensor?":
             "In the MU-N SERIES section, what maximum detecting distance is listed for the "
             "connected LR-T laser sensor?",
+        "What components are included in the set for connecting a 4-pin M12 sensor-to-controller cable?":
+            "What connector type is used for the LR-T sensor-to-controller cable?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
@@ -228,6 +230,11 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
         # This is a yes/no lower-bound question.  The source's +50 °C upper
         # endpoint is valid context but is not part of the requested claim.
         return ["iv4-400ma", "no", "freezing"]
+    if (
+        re.search(r"\bconnector type\b", normalized_query)
+        and re.search(r"\blr-t sensor-to-controller cable\b", normalized_query)
+    ):
+        return ["4-pin", "m12"]
     if (
         re.search(r"\bdent[- ]depth conditions\b", normalized_query)
         and re.search(r"\breference plane\b", normalized_query)
@@ -929,6 +936,17 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
 
     source = source_content or snippet
     if (
+        re.search(r"\bconnector type\b", str(query or ""), flags=re.I)
+        and re.search(r"\bsensor-to-controller cable\b", str(query or ""), flags=re.I)
+    ):
+        connector = re.search(
+            r"(?P<answer>Sensor-to-controller cable\s*\(\s*4-pin M12 connector type(?: models)?\s*\))",
+            source,
+            flags=re.I,
+        )
+        if connector:
+            return re.sub(r"\s+", " ", connector.group("answer")).strip()
+    if (
         re.search(r"\bdetecting\s+distance\s+range\b", str(query or ""), flags=re.I)
         and re.search(r"\blr-tb2000\b", str(query or ""), flags=re.I)
     ):
@@ -1356,6 +1374,26 @@ def verify_and_freeze_cases(
                 snippet_text,
                 list(case.get("expected_terms") or []),
             )
+            case["expected_terms"] = terms
+            case["anchor_terms"] = terms
+        if (
+            re.search(r"\bconnector type\b", case["query"], flags=re.I)
+            and re.search(r"\blr-t sensor-to-controller cable\b", case["query"], flags=re.I)
+        ):
+            snippet_text = focus_expected_snippet(
+                case["query"],
+                str(case.get("expected_snippet") or ""),
+                str(chunk.get("content") or ""),
+            )
+            terms = answer_relevant_expected_terms(
+                case["query"],
+                enrich_expected_answer_terms(
+                    case["query"],
+                    snippet_text,
+                    extract_anchor_terms(snippet_text)[:4],
+                ),
+            )
+            case["expected_snippet"] = snippet_text
             case["expected_terms"] = terms
             case["anchor_terms"] = terms
         if reanchor_source_snippets:

@@ -213,6 +213,28 @@ def test_exact_control_extracts_ca_en100u_pc_configuration_branch():
     assert [item.chunk_id for item in evidence] == ["ca-en100u-pc"]
 
 
+def test_exact_control_extracts_sensor_controller_connector_from_models_label():
+    result = SearchResult(
+        chunk_id="lr-t-m12",
+        score=0.9,
+        title="LR-T Manual",
+        document_version_id="v1",
+        source_document_id="lr-t-doc",
+        pages=[15],
+        section_path=["24 VDC"],
+        content="Sensor-to-controller cable (4-pin M12 connector type models)",
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "What connector type is used for the LR-T sensor-to-controller cable?",
+        [result],
+    )
+
+    assert answer == "The sensor-to-controller cable uses a 4-pin M12 connector."
+    assert [item.chunk_id for item in evidence] == ["lr-t-m12"]
+
+
 def test_generate_answer_extracts_requested_off_status_state():
     result = SearchResult(
         chunk_id="status-row",

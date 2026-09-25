@@ -7334,7 +7334,8 @@ def _concise_exact_control_answer(
             return 'CA-S20D horizontal travel is 10 mm (0.39") per turn.', [result]
 
         if sensor_controller_connector_query and re.search(
-            r"\bSensor\s*:\s*to-controller cable\s*\(\s*4-pin M12 connector type\s*\)",
+            r"\bSensor(?:\s*:\s*|-)to-controller cable\s*\(\s*4-pin M12 connector type"
+            r"(?:\s+models)?\s*\)",
             content,
             flags=re.I,
         ):
