@@ -141,7 +141,11 @@ def normalize_frozen_query(query: str) -> str:
         "What conditions allow the ShapeTrax TM 3A Search tool to maintain stable target search?":
             "What performance claim does the CV-X catalog make for the ShapeTrax 3A Search tool under poor conditions?",
         "What is the maximum image count for an XR 15 mm lens with binning enabled?":
-            "For the XR 15 mm lens in the LJ-X8000 line-scan system, what is the maximum image count with binning enabled?",
+            "In the AS_103012 LineScan system specification table, for the XR 15 mm "
+            "(0.59-inch) 3D Camera type, what is the maximum number of images when binning is ON?",
+        "For the XR 15 mm lens in the LJ-X8000 line-scan system, what is the maximum image count with binning enabled?":
+            "In the AS_103012 LineScan system specification table, for the XR 15 mm "
+            "(0.59-inch) 3D Camera type, what is the maximum number of images when binning is ON?",
         "How do I add a new EtherNet/IP module to the controller configuration?":
             "In the LJ-X8000 EtherNet/IP setup for CompactLogix or ControlLogix, how do I add a new module to the controller configuration?",
         "Which parameters can be adjusted to set the optimal evaluation tolerance for a given application?":

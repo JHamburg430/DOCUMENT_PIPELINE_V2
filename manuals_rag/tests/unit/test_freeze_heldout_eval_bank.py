@@ -1022,7 +1022,11 @@ def test_qualifies_lr_z_shock_rating_by_source_manual():
         ),
         (
             "What is the maximum image count for an XR 15 mm lens with binning enabled?",
-            "LJ-X8000 line-scan system",
+            "AS_103012 LineScan system specification table",
+        ),
+        (
+            "For the XR 15 mm lens in the LJ-X8000 line-scan system, what is the maximum image count with binning enabled?",
+            "AS_103012 LineScan system specification table",
         ),
         (
             "How do I add a new EtherNet/IP module to the controller configuration?",
