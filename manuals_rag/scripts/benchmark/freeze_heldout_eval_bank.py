@@ -880,6 +880,17 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
 
     source = source_content or snippet
     if (
+        re.search(r"\bfield of view size\b", str(query or ""), flags=re.I)
+        and re.search(r"\bvj-3302\b", str(query or ""), flags=re.I)
+    ):
+        field_of_view = re.search(
+            r"(?P<answer>60\s*mm\s*2\.36[\"”]?\s*field\s+of\s+view)",
+            source,
+            flags=re.I,
+        )
+        if field_of_view:
+            return re.sub(r"\s+", " ", field_of_view.group("answer")).strip()
+    if (
         re.search(r"\bscrew\s+size\b", str(query or ""), flags=re.I)
         and re.search(r"\bwall[- ]mounting\b", str(query or ""), flags=re.I)
         and re.search(r"\biv-500c\b", str(query or ""), flags=re.I)

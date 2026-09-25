@@ -1058,6 +1058,21 @@ def test_focuses_powered_question_on_power_source_instead_of_rated_voltage():
     assert focused == "WM-C6010: Supplied from dedicated AC"
 
 
+def test_focuses_vj_3302_field_of_view_without_unasked_performance_values():
+    source = (
+        '60 mm 2.36" field of view, 1 µm 0.000039" precision repeatability, '
+        "0.6-second inspection intervals."
+    )
+
+    focused = _MODULE.focus_expected_snippet(
+        "What is the field of view size for the VJ-3302 inspection system?",
+        source,
+        source,
+    )
+
+    assert focused == '60 mm 2.36" field of view'
+
+
 def test_rejects_powered_question_contract_that_only_names_rated_voltage():
     assert "power-source answer" in _MODULE.missing_expected_answer_contract(
         "How is the WM-C6010 laser-scanning probe relay unit powered?",
