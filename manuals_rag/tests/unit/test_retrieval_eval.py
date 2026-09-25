@@ -7110,6 +7110,68 @@ def test_score_search_results_accepts_applicable_equivalent_table_evidence():
     assert evaluation["match_reason"] == "applicable_equivalent_answer_evidence"
 
 
+def test_score_search_results_accepts_exact_lr_tb5000_m12_equivalent_row():
+    case = RetrievalEvalCase(
+        case_id="c-lr-tb5000-m12",
+        query="Which LR-TB5000-series models are listed as M12 connector type models?",
+        source_document_id="doc-brochure",
+        document_version_id="ver-brochure",
+        source_chunk_id="chunk-brochure",
+        source_title="LR-T brochure",
+        source_filename="lr-t-brochure.pdf",
+        chunk_type="spec_record",
+        section_path="Models",
+        page_from=19,
+        page_to=19,
+        expected_terms=["m12", "lr-tb5000c", "tb5000cl"],
+        expected_snippet="M12 connector type models: LR-TB5000C/TB5000CL",
+        generation_method="reviewed_llm",
+        source_metadata={"product_family": "Laser Sensor"},
+    )
+    result = {
+        "chunk_id": "chunk-table",
+        "source_document_id": "doc-catalog",
+        "content": (
+            "Column headers: Model; Row headers: Cable (2 m6.56') M12 connector "
+            "(Cable sold separately); Cell value: LR-TB5000 LR-TB5000C/LR-TB5000CL"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    evaluation = score_search_results(case, [result])
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "cross_document_semantic_evidence"
+
+
+def test_score_search_results_rejects_incomplete_lr_tb5000_m12_equivalent_row():
+    case = RetrievalEvalCase(
+        case_id="c-lr-tb5000-m12",
+        query="Which LR-TB5000-series models are listed as M12 connector type models?",
+        source_document_id="doc-brochure",
+        document_version_id="ver-brochure",
+        source_chunk_id="chunk-brochure",
+        source_title="LR-T brochure",
+        source_filename="lr-t-brochure.pdf",
+        chunk_type="spec_record",
+        section_path="Models",
+        page_from=19,
+        page_to=19,
+        expected_terms=["m12", "lr-tb5000c", "tb5000cl"],
+        expected_snippet="M12 connector type models: LR-TB5000C/TB5000CL",
+        generation_method="reviewed_llm",
+        source_metadata={"product_family": "Laser Sensor"},
+    )
+    result = {
+        "chunk_id": "chunk-wrong-table",
+        "source_document_id": "doc-catalog",
+        "content": "Row headers: M12 connector; Cell value: LR-TB5000C",
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert score_search_results(case, [result])["passed"] is False
+
+
 def test_score_search_results_requires_multi_step_expected_evidence():
     case = RetrievalEvalCase(
         case_id="c-multi",
