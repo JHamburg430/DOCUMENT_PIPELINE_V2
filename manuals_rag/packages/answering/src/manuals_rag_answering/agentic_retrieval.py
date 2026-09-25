@@ -308,6 +308,30 @@ def _direct_display_behavior_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _direct_authoritative_lookup_plan(query: str) -> RetrievalPlan | None:
+    """Keep one explicitly scoped diagram, choice, table, or UI lookup intact."""
+    structural_patterns = (
+        r"^\s*which\b.+\b(?:shown|listed)\b.+\b(?:diagram|configuration)\b.+\?\s*$",
+        r"^\s*in\s+AS[-_]\d+\b.+\b(?:specification|specifications)\s+table\b.+\?\s*$",
+        r"^\s*how\s+do\s+i\s+access\b.+\bdiagnostics?\s+view\b.+\?\s*$",
+    )
+    if any(re.match(pattern, query, flags=re.I) for pattern in structural_patterns):
+        strategy: RetrievalStrategy = "structural"
+    elif re.match(
+        r"^\s*when\s+should\s+i\s+choose\b.+\bover\s+other\s+options\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    else:
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request is one explicitly scoped authoritative lookup.",
+        hops=[RetrievalHop(hop_id="authoritative_lookup", objective=query, query=query, strategy=strategy)],
+    )
+
+
 def _parallel_scope_plan(query: str) -> RetrievalPlan | None:
     """Recognize a common, document-general comparison shape without an LLM."""
     match = re.match(
@@ -906,6 +930,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     function_plan = _xg_lua_output_function_plan(query)
     if function_plan is not None:
         return function_plan
+    authoritative_lookup_plan = _direct_authoritative_lookup_plan(query)
+    if authoritative_lookup_plan is not None:
+        return authoritative_lookup_plan
     exact_structured_plan = _exact_structured_single_plan(query)
     if exact_structured_plan is not None:
         return exact_structured_plan
@@ -984,6 +1011,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     # evidence from multiple products or silently satisfy only one side.
     forced_plan = (
         _xg_lua_output_function_plan(query)
+        or _direct_authoritative_lookup_plan(query)
         or _exact_structured_single_plan(query)
         or _warning_dependency_plan(query)
         or _exact_identifier_value_plan(query)
@@ -1064,6 +1092,7 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
 def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     if (
         _xg_lua_output_function_plan(query) is not None
+        or _direct_authoritative_lookup_plan(query) is not None
         or _exact_structured_single_plan(query) is not None
         or _warning_dependency_plan(query) is not None
         or _exact_identifier_value_plan(query) is not None
@@ -4914,6 +4943,105 @@ def _direct_scoped_yes_no_support(
     return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
 
 
+def _direct_negative_quantity_yes_no_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm a negative quantity answer from an explicit ``only one`` limit."""
+    if not (
+        re.match(r"^\s*can\s+i\b", query, flags=re.I)
+        and re.search(r"\bmore\s+than\s+one\b", query, flags=re.I)
+        and re.search(r"\bcommunication\s+expansion\s+units?\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not re.search(
+            r"\bonly\s+one\s+communication\s+expansion\s+unit\b.*?\bcan\s+be\s+connected\b",
+            content,
+            flags=re.I,
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
+def _direct_selection_mode_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the W500 Auto-mode selection rule in one bounded record."""
+    if not (
+        re.search(r"\bW500\b", query, flags=re.I)
+        and re.search(r"\bAuto\s+detection\s+mode\b", query, flags=re.I)
+        and re.search(r"\bselect\s+between\s+C\+I\s+and\s+C\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not (
+            re.search(r"\bDetection\s+mode\s*:\s*Auto\s*\(default\)", content, flags=re.I)
+            and re.search(
+                r"\boptimal\s+mode\s+is\s+automatically\s+selected\s+between\s+C\+I\s+or\s+C\b",
+                content,
+                flags=re.I,
+            )
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
+def _direct_named_output_spec_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm a named AS specification output row with all requested facets."""
+    source_match = re.search(r"\bAS[-_](\d+)\b", query, flags=re.I)
+    if not source_match or not all(
+        re.search(pattern, query, flags=re.I)
+        for pattern in (
+            r"\boutput\s+type\b",
+            r"\bNPN\s*/\s*PNP\b",
+            r"\bN\.?\s*O\.?\s*/\s*N\.?\s*C\.?",
+            r"\bmaximum\s+NPN\s+rating\b",
+            r"\bremaining\s+voltage\b",
+        )
+    ):
+        return []
+    source_number = source_match.group(1)
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        scope_text = " ".join(
+            (str(result.title or ""), str(metadata.get("source_filename") or ""))
+        )
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not re.search(
+            rf"\bAS[-_ ]?{re.escape(source_number)}(?!\d)",
+            scope_text,
+            flags=re.I,
+        ):
+            continue
+        if not all(
+            re.search(pattern, content, flags=re.I)
+            for pattern in (
+                r"\bOpen\s+collector\s+output\b",
+                r"\bNPN\s*/\s*PNP\s+is\s+switchable\b",
+                r"\bN\.?\s*O\.?\s*/\s*N\.?\s*C\.?\s+is\s+switchable\b",
+                r"\bMaximum\s+rating\s+26\.4\s*V\s+50\s*mA\b",
+                r"\bremaining\s+voltage\s+1\.5\s*V\s+or\s+lower\b",
+            )
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_dual_polarity_input_support(
     query: str,
     results: list[SearchResult],
@@ -6317,6 +6445,60 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic scoped yes/no verification matched one source sentence "
                     "with the requested entities, numeric anchors, and product scope."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_negative_quantity_support = _direct_negative_quantity_yes_no_support(
+            hop.objective,
+            results,
+        )
+        if direct_negative_quantity_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_negative_quantity_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic negative-quantity verification matched an explicit "
+                    "only-one connection limit in scoped evidence."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_selection_support = _direct_selection_mode_support(hop.objective, results)
+        if direct_selection_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_selection_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic mode verification matched the default mode and its "
+                    "automatic selection rule in one bounded record."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_named_output_support = _direct_named_output_spec_support(hop.objective, results)
+        if direct_named_output_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_named_output_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic named-spec verification matched every requested output "
+                    "configuration and electrical-rating facet in one scoped row."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

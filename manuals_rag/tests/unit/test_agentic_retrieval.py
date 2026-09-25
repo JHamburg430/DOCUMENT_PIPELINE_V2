@@ -5205,7 +5205,7 @@ def test_verifier_prompt_judges_negative_answers_as_supported_and_omits_prelimin
                 "supporting_chunk_ids": ["limit"],
                 "conflicting_chunk_ids": [],
                 "applicability": "unknown",
-                "scope_entity": "LJ-S8000",
+                "scope_entity": None,
                 "rationale": "The manual directly states the limit.",
             },
             "{}",
@@ -5217,15 +5217,14 @@ def test_verifier_prompt_judges_negative_answers_as_supported_and_omits_prelimin
     )
     hop = RetrievalHop(
         hop_id="lookup",
-        objective="Can I connect more than one communication expansion unit to the LJ-S8000?",
-        query="Can I connect more than one communication expansion unit to the LJ-S8000?",
+        objective="Should the secondary module run without the primary module?",
+        query="Should the secondary module run without the primary module?",
     )
     result = _result(
         "limit",
-        "lj-s8000-doc",
-        "Only one communication expansion unit can be connected to the controller.",
+        "module-doc",
+        "The secondary module cannot run without the primary module.",
     )
-    result.metadata["product_model"] = "LJ-S8000"
 
     output = verify_retrieval_claim(
         hop,
@@ -5810,6 +5809,105 @@ def test_planners_keep_feature_amplifier_type_lookup_single_hop(monkeypatch):
         assert len(plan.hops) == 1
         assert plan.hops[0].query == query
         assert plan.hops[0].strategy == "hybrid"
+
+
+def test_planners_keep_authoritative_lookup_shapes_single_hop(monkeypatch):
+    queries = {
+        "Which XG-X controllers are shown in the system configuration diagram when connected to an XT controller?": "structural",
+        "When should I choose a C-mount smart camera over other options?": "hybrid",
+        "In the AS_145624 IV Series specification table, what output type, NPN/PNP and N.O./N.C. switchable configurations, maximum NPN rating, and remaining voltage are specified?": "structural",
+        "How do I access the diagnostics view for a detected PLC in the project tree?": "structural",
+    }
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("authoritative lookup must bypass model planning")
+        ),
+    )
+
+    for query, strategy in queries.items():
+        for plan in (
+            plan_retrieval(query, use_llm=True),
+            plan_llamaindex_retrieval(query, use_llm=True),
+        ):
+            assert plan.mode == "single"
+            assert len(plan.hops) == 1
+            assert plan.hops[0].query == query
+            assert plan.hops[0].strategy == strategy
+
+
+def test_verifier_confirms_explicit_negative_quantity_limit_without_llm(monkeypatch):
+    query = "Can I connect more than one communication expansion unit to the LJ-S8000 Series?"
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query)
+    result = _result(
+        "limit",
+        "lj-s8000-doc",
+        "Only one communication expansion unit (CB: NEC20E/NEP20E/NPN20EA) can be connected.",
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text", "product_family": "LJ-S8000 Series"}})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [result],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["limit"]
+
+
+def test_verifier_confirms_w500_auto_selection_rule_without_llm(monkeypatch):
+    query = "How does the W500 Auto detection mode select between C+I and C?"
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query)
+    result = _result(
+        "auto-mode",
+        "w500-doc",
+        "Detection mode: Auto (default); Explanation: When adjusting the sensitivity, "
+        "the optimal mode is automatically selected between C+I or C.",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record", "product_model": "W500"}})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(hop, query, [result], {"claim_supported": False})
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["auto-mode"]
+
+
+def test_verifier_confirms_named_output_specification_without_llm(monkeypatch):
+    query = (
+        "In the AS_145624 IV Series specification table, what output type, NPN/PNP and "
+        "N.O./N.C. switchable configurations, maximum NPN rating, and remaining voltage "
+        "are specified?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query)
+    result = _result(
+        "output-row",
+        "iv-doc",
+        "Open collector output NPN/PNP is switchable, N.O./N.C. is switchable. "
+        "For open collector NPN output: Maximum rating 26.4 V 50 mA, remaining voltage "
+        "1.5 V or lower.",
+    ).model_copy(
+        update={
+            "title": "AS_145624_IV_C_611Y54_KA_US_2084_2",
+            "metadata": {"chunk_type": "spec_record"},
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(hop, query, [result], {"claim_supported": False})
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["output-row"]
 
 
 def test_manual_focus_installation_support_rejects_automatic_focus_sibling():
