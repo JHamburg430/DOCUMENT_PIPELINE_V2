@@ -2652,6 +2652,34 @@ def test_verifier_confirms_exact_display_code_cause_without_llm(monkeypatch):
     assert output["supporting_chunk_ids"] == ["erc-cause"]
 
 
+def test_verifier_confirms_symbol_font_error_code_cause_without_llm(monkeypatch):
+    objective = "What causes the ErH error on the LR-W70(C) Edition sensor?"
+    hop = RetrievalHop(hop_id="structured_lookup", objective=objective, query=objective)
+    result = _result(
+        "erh-cause",
+        "lrw70-doc",
+        "Column headers: Cause; Row headers: \uf045\uf072\uf048; Cell value: "
+        "The sensor cable is broken, or the sensor is disconnected.; Row: 1; Column: 1",
+    )
+    result.metadata["product_model"] = "LR-W70(C) Edition"
+    result.metadata["product_models"] = ["LR-W70(C) Edition"]
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [result],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["erh-cause"]
+
+
 def test_verifier_confirms_exact_display_range_spec_without_llm(monkeypatch):
     objective = "What is the display range for received light intensity on the W500?"
     hop = RetrievalHop(hop_id="structured_lookup", objective=objective, query=objective)

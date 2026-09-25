@@ -1019,6 +1019,42 @@ def test_repairs_lj_x8000_head_extension_question_to_literal_model_list():
     ) == []
 
 
+def test_focuses_erh_error_contract_on_requested_cause_only():
+    query = "What causes the ErH error on the LR-W70(C) Edition sensor?"
+    source = (
+        "Display: \uf045\uf072\uf048; Cause: The sensor cable is broken, or the sensor is disconnected.; "
+        "Solution: Check if the sensor is connected."
+    )
+
+    assert _MODULE.focus_expected_snippet(query, source, source) == (
+        "Cause: The sensor cable is broken, or the sensor is disconnected."
+    )
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["cause", "sensor", "cable", "broken"],
+    ) == ["sensor", "cable", "broken", "disconnected"]
+
+    case = {
+        **_case(),
+        "query": query,
+        "expected_snippet": "Cause: The sensor cable is broken, or the sensor is disconnected.; Solution: Check",
+        "expected_terms": ["cause", "sensor", "cable", "broken"],
+        "anchor_terms": ["cause", "sensor", "cable", "broken"],
+    }
+    chunk = {**_chunk(), "content": source}
+    frozen = _MODULE.verify_and_freeze_cases(
+        [case],
+        {"chunk-1": chunk},
+        tuning_document_ids=set(),
+        verified_at="2026-09-25T00:00:00+00:00",
+    )
+
+    assert frozen[0]["expected_snippet"] == (
+        "Cause: The sensor cable is broken, or the sensor is disconnected."
+    )
+    assert frozen[0]["expected_terms"] == ["sensor", "cable", "broken", "disconnected"]
+
+
 def test_repairs_existing_xg_x_dent_query_with_series_scope():
     assert _MODULE.normalize_frozen_query(
         "For the XG-X inline 3D inspection system, which dent-depth conditions can be "

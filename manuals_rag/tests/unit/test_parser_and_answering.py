@@ -2262,6 +2262,36 @@ def test_display_code_indicate_uses_exact_cause_cell_not_neighbor_context():
     assert "ErE" not in answer.answer
 
 
+def test_symbol_font_display_code_answers_exact_cause_cell():
+    result = SearchResult(
+        chunk_id="erh-cause",
+        score=1.0,
+        title="LR-W70(C) Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[12],
+        section_path=["Troubleshooting"],
+        content=(
+            "Column headers: Cause; Row headers: \uf045\uf072\uf048; Cell value: "
+            "The sensor cable is broken, or the sensor is disconnected.; Row: 1; Column: 1"
+        ),
+        metadata={
+            "chunk_type": "table_record",
+            "table_row": 1,
+            "table_row_headers": ["\uf045\uf072\uf048"],
+            "table_column_headers": ["Cause"],
+        },
+    )
+
+    answer = generate_answer(
+        "What causes the ErH error on the LR-W70(C) Edition sensor?",
+        [result],
+    )
+
+    assert answer.answer == "Cause: The sensor cable is broken, or the sensor is disconnected."
+    assert [citation["chunk_id"] for citation in answer.citations] == ["erh-cause"]
+
+
 def test_troubleshooting_recommended_adjustment_selects_matching_status_row_only():
     result = SearchResult(
         chunk_id="grouped-status-rows",

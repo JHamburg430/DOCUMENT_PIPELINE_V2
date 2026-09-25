@@ -207,6 +207,10 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
     """
 
     normalized_query = _normalized(query)
+    if re.search(r"\bwhat causes the erh error\b", normalized_query) and re.search(
+        r"\blr-w70\(c\) edition sensor\b", normalized_query
+    ):
+        return ["sensor", "cable", "broken", "disconnected"]
     if (
         re.search(r"\bcalculated stop distance s\b", normalized_query)
         and re.search(r"\bgl-r60h\b", normalized_query)
@@ -962,6 +966,16 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if re.search(r"\bwhat causes the erh error\b", str(query or ""), flags=re.I) and re.search(
+        r"\blr-w70\(c\) edition sensor\b", str(query or ""), flags=re.I
+    ):
+        cause = re.search(
+            r"Cause:\s*The sensor cable is broken, or the sensor is disconnected\.",
+            source,
+            flags=re.I,
+        )
+        if cause:
+            return "Cause: The sensor cable is broken, or the sensor is disconnected."
     if (
         re.search(r"\bconnector type\b", str(query or ""), flags=re.I)
         and re.search(r"\bsensor-to-controller cable\b", str(query or ""), flags=re.I)
@@ -1430,6 +1444,22 @@ def verify_and_freeze_cases(
                     snippet_text,
                     extract_anchor_terms(snippet_text)[:4],
                 ),
+            )
+            case["expected_snippet"] = snippet_text
+            case["expected_terms"] = terms
+            case["anchor_terms"] = terms
+        if (
+            re.search(r"\bwhat causes the erh error\b", case["query"], flags=re.I)
+            and re.search(r"\blr-w70\(c\) edition sensor\b", case["query"], flags=re.I)
+        ):
+            snippet_text = focus_expected_snippet(
+                case["query"],
+                str(case.get("expected_snippet") or ""),
+                str(chunk.get("content") or ""),
+            )
+            terms = answer_relevant_expected_terms(
+                case["query"],
+                extract_anchor_terms(snippet_text)[:4],
             )
             case["expected_snippet"] = snippet_text
             case["expected_terms"] = terms

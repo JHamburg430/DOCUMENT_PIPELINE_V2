@@ -3316,6 +3316,14 @@ def _direct_display_code_support(
         query,
         flags=re.I,
     )
+    asks_cause = False
+    if not code_match:
+        code_match = re.search(
+            r"\bwhat\s+causes\s+(?:the\s+)?(?P<code>[a-z][a-z0-9_-]{1,10})\s+error\b",
+            query,
+            flags=re.I,
+        )
+        asks_cause = bool(code_match)
     if not code_match:
         return []
     requested_code = re.sub(r"[^a-z0-9]+", "", code_match.group("code").lower())
@@ -3323,12 +3331,15 @@ def _direct_display_code_support(
         str(chunk_id)
         for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
     }
-    if not preliminary_ids:
+    if not preliminary_ids and not asks_cause:
         return []
 
     matches: list[tuple[str, str]] = []
     for result in results:
-        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+        if (
+            (not asks_cause and result.chunk_id not in preliminary_ids)
+            or not _result_supports_branch_scope(query, result)
+        ):
             continue
         cell = re.search(
             r"Column\s+headers:\s*(?P<column>.*?);\s*"
@@ -3339,7 +3350,13 @@ def _direct_display_code_support(
         )
         if not cell:
             continue
-        row = re.sub(r"[^a-z0-9]+", "", cell.group("row").lower())
+        decoded_row = "".join(
+            chr(ord(character) - 0xF000)
+            if 0xF020 <= ord(character) <= 0xF07E
+            else character
+            for character in cell.group("row")
+        )
+        row = re.sub(r"[^a-z0-9]+", "", decoded_row.lower())
         column = re.sub(r"[^a-z0-9]+", " ", cell.group("column").lower()).strip()
         value = re.sub(r"\s+", " ", cell.group("value")).strip()
         column_leaf = column.split()[-1] if column else ""
@@ -5264,6 +5281,28 @@ def verify_retrieval_claim(
             "scope_candidate_chunk_ids": sorted(scoped_ids),
         }
 
+    direct_display_code_support = _direct_display_code_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_display_code_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_display_code_support,
+            applicability="confirmed" if applicability_required else "not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic display-code verification matched the exact code row and "
+                "cause/meaning column in one scoped table cell."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
     if not applicability_required:
         direct_mu_n11_analog_output_support = _direct_mu_n11_analog_output_support(
             hop.objective,
@@ -5511,27 +5550,6 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic structured-troubleshooting verification matched the exact "
                     "fault row, requested evidence column, numeric anchors, and product scope."
-                ),
-            ).model_dump() | {
-                "invalid_citation_ids": [],
-                "out_of_scope_chunk_ids": [],
-                "scope_candidate_chunk_ids": sorted(scoped_ids),
-            }
-        direct_display_code_support = _direct_display_code_support(
-            hop.objective,
-            results,
-            preliminary_assessment,
-        )
-        if direct_display_code_support:
-            return EvidenceVerification(
-                trust_state="confirmed",
-                claim_supported=True,
-                supporting_chunk_ids=direct_display_code_support,
-                applicability="not_requested",
-                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
-                rationale=(
-                    "Deterministic display-code verification matched the exact code row and "
-                    "cause/meaning column in one scoped table cell."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

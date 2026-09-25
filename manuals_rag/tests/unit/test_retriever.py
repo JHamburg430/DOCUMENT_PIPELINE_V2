@@ -4709,6 +4709,36 @@ def test_short_troubleshooting_code_promotes_requested_model_solution():
     assert [result.chunk_id for result in promoted] == ["correct"]
 
 
+def test_symbol_font_display_code_promotes_exact_cause_cell():
+    query = "What causes the ErH error on the LR-W70(C) Edition sensor?"
+    analysis = analyze_query(query)
+    assert retriever._troubleshooting_query_anchor(query) == "ErH"
+    cause = SearchResult(
+        chunk_id="erh-cause",
+        score=0.6,
+        title="LR-W70(C) Manual",
+        document_version_id="ver-correct",
+        source_document_id="doc-correct",
+        pages=[12],
+        section_path=["Troubleshooting"],
+        content=(
+            "Column headers: Cause; Row headers: \uf045\uf072\uf048; Cell value: "
+            "The sensor cable is broken, or the sensor is disconnected."
+        ),
+        metadata={
+            "chunk_type": "table_record",
+            "product_model": "LR-W70(C) Edition",
+            "product_models": ["LR-W70(C) Edition"],
+            "table_column_headers": ["Cause"],
+            "table_row_headers": ["\uf045\uf072\uf048"],
+        },
+    )
+
+    promoted = retriever._promote_troubleshooting_table_candidates([], [cause], analysis)
+
+    assert [result.chunk_id for result in promoted] == ["erh-cause"]
+
+
 def test_comparison_table_content_terms_include_failure_and_plural_variants():
     analysis = analyze_query("Compare IV-HG500CA memory read errors with XG-X unsupported SD card access failure.")
     terms = retriever._lexical_table_terms(analysis.raw_query, analysis)

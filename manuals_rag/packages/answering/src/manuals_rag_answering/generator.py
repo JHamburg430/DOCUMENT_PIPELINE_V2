@@ -1495,7 +1495,13 @@ def _query_troubleshooting_anchor(query: str) -> str:
 
 
 def _normalized_phrase(text: str) -> str:
-    return " ".join(re.findall(r"[a-z0-9]+", text.lower()))
+    decoded = "".join(
+        chr(ord(character) - 0xF000)
+        if 0xF020 <= ord(character) <= 0xF07E
+        else character
+        for character in text
+    )
+    return " ".join(re.findall(r"[a-z0-9]+", decoded.lower()))
 
 
 def _troubleshooting_evidence_score(query: str, result: SearchResult) -> float:

@@ -681,11 +681,22 @@ def _term_variants(terms: Iterable[str]) -> set[str]:
 
 
 def _text_terms(text: str) -> set[str]:
-    return _term_variants(tokenize(text))
+    return _term_variants(tokenize(_decode_symbol_font_ascii(text)))
+
+
+def _decode_symbol_font_ascii(text: str) -> str:
+    """Decode PDFs that stored ASCII display text in the U+F000 symbol plane."""
+
+    return "".join(
+        chr(ord(character) - 0xF000)
+        if 0xF020 <= ord(character) <= 0xF07E
+        else character
+        for character in text
+    )
 
 
 def _compact_identifier(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "", text.lower())
+    return re.sub(r"[^a-z0-9]+", "", _decode_symbol_font_ascii(text).lower())
 
 
 def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
@@ -3701,6 +3712,7 @@ def _troubleshooting_query_anchor(query: str) -> str:
     # "Axes Configuration"), not the alarm text itself.
     patterns = (
         r"\bhow do i\s+(?:fix|resolve|correct)\s+(?:the\s+)?(.+?)\s+error\s+(?:on|for|with)\b",
+        r"\bwhat causes\s+(?:the\s+)?(.+?)\s+error\s+(?:on|for|with)\b",
         r"\bwhat causes\s+(.+?)(?:\s+for\s+[^,?]+)?(?:,\s+and|\s+and how|\?|$)",
         r"\bhow should\s+(.+?)(?:\s+for\s+.+?)?\s+be corrected(?:\?|$)",
     )
