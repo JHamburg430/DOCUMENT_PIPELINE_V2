@@ -900,6 +900,19 @@ def test_qualifies_vs_camera_only_power_contract_by_source_and_both_voltages():
     )
 
 
+def test_qualifies_lr_z_shock_rating_by_source_manual():
+    expected = (
+        "In the AS_86111 LR-Z specification table, what shock resistance rating applies "
+        "in the X, Y, and Z axes?"
+    )
+    assert _MODULE.normalize_frozen_query(
+        "What shock resistance rating applies to the laser sensor in X, Y, and Z axes?"
+    ) == expected
+    assert _MODULE.normalize_frozen_query(
+        "What shock resistance rating applies to the LR-Z laser sensor in the X, Y, and Z axes?"
+    ) == expected
+
+
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [

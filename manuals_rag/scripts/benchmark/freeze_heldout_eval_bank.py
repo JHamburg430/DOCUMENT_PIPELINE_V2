@@ -89,7 +89,11 @@ def normalize_frozen_query(query: str) -> str:
         "Which controllers support the high-resolution camera CA-HFxM/C in System configuration diagram XG?":
             "Which XG-X controllers support the high-resolution CA-HFxM/C camera?",
         "What shock resistance rating applies to the laser sensor in X, Y, and Z axes?":
-            "What shock resistance rating applies to the LR-Z laser sensor in the X, Y, and Z axes?",
+            "In the AS_86111 LR-Z specification table, what shock resistance rating applies "
+            "in the X, Y, and Z axes?",
+        "What shock resistance rating applies to the LR-Z laser sensor in the X, Y, and Z axes?":
+            "In the AS_86111 LR-Z specification table, what shock resistance rating applies "
+            "in the X, Y, and Z axes?",
         "What is the recommended installation distance range for this megapixel resolution smart camera?":
             "What is the recommended installation distance range for the IV4 megapixel smart camera?",
         "What resolution and color depth does the Monitor model support?":
