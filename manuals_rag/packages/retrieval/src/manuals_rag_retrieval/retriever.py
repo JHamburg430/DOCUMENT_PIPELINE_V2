@@ -2493,6 +2493,8 @@ def _result_matches_primary_identifier(result: SearchResult, identifier: str) ->
                 " ".join(str(item) for item in result.metadata.get("product_models") or []),
                 " ".join(str(item) for item in result.metadata.get("product_families") or []),
                 " ".join(str(item) for item in result.metadata.get("part_numbers") or []),
+                " ".join(str(item) for item in result.metadata.get("devices") or []),
+                result.metadata.get("manufacturer"),
                 result.title,
             ]
             if part

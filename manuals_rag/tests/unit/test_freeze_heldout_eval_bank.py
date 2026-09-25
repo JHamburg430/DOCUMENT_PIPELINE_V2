@@ -838,6 +838,16 @@ def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     ) == expected
 
 
+def test_repairs_existing_xg_x_dent_query_with_series_scope():
+    assert _MODULE.normalize_frozen_query(
+        "For the XG-X inline 3D inspection system, which dent-depth conditions can be "
+        "inspected by freely setting the reference plane?"
+    ) == (
+        "For the XG-X Series inline 3D inspection system, which dent-depth conditions "
+        "can be inspected by freely setting the reference plane?"
+    )
+
+
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [
@@ -894,7 +904,7 @@ def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
         ("Which amplifier models support the Intelligent Monitor feature?", "IV Series amplifier types"),
         (
             "Which dent-depth conditions can be inspected by freely setting the reference plane?",
-            "XG-X inline 3D inspection system",
+            "XG-X Series inline 3D inspection system",
         ),
         (
             "Which numeric value should I use for devId if my XG controller connects via Ethernet?",

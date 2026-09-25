@@ -117,7 +117,9 @@ def normalize_frozen_query(query: str) -> str:
         "What password range disables the Key Lock on the W500?":
             "What password values can be set for the W500 Key Lock, and what does selecting 0 do?",
         "Which dent-depth conditions can be inspected by freely setting the reference plane?":
-            "For the XG-X inline 3D inspection system, which dent-depth conditions can be inspected by freely setting the reference plane?",
+            "For the XG-X Series inline 3D inspection system, which dent-depth conditions can be inspected by freely setting the reference plane?",
+        "For the XG-X inline 3D inspection system, which dent-depth conditions can be inspected by freely setting the reference plane?":
+            "For the XG-X Series inline 3D inspection system, which dent-depth conditions can be inspected by freely setting the reference plane?",
         "Which illumination methods are supported by the CA-F100 series?":
             "Which illumination methods are listed for the CA-DQP12X and CA-DQP25X "
             "pattern-projection lights?",

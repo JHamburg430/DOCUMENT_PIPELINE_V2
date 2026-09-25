@@ -2614,6 +2614,52 @@ def test_identifier_dense_retention_keeps_exact_model_evidence_in_fused_window()
     assert retained[-1].metadata["retrieval_stage"] == "identifier_dense_retained"
 
 
+def test_identifier_dense_retention_accepts_exact_device_metadata():
+    analysis = analyze_query(
+        "For the XG-X Series inline 3D inspection system, which dent-depth conditions "
+        "can be inspected by freely setting the reference plane?"
+    )
+    exact = SearchResult(
+        chunk_id="exact-dent-range",
+        score=0.79,
+        title="AS_158438_3DVision_C",
+        document_version_id="version-1",
+        source_document_id="document-1",
+        pages=[17],
+        section_path=["0.701"],
+        content=(
+            "Users can freely set the reference plane for everything from sharp to "
+            "shallow dents."
+        ),
+        metadata={"chunk_type": "atomic_text", "devices": ["XG: X Series"]},
+    )
+    fused = [
+        SearchResult(
+            chunk_id=f"fused-{index}",
+            score=1.0 - index / 100,
+            title="Other manual",
+            document_version_id=f"version-{index + 2}",
+            source_document_id=f"document-{index + 2}",
+            pages=[1],
+            section_path=["Document"],
+            content="Generic reference-plane configuration.",
+            metadata={"chunk_type": "section_window"},
+        )
+        for index in range(3)
+    ]
+
+    retained = retriever._preserve_identifier_dense_candidates(
+        fused,
+        [exact],
+        analysis,
+        limit=4,
+    )
+
+    assert analysis.product_identifiers == ["XG-X"]
+    assert retained[-1].chunk_id == "exact-dent-range"
+    assert retained[-1].metadata["retrieval_stage"] == "identifier_dense_retained"
+
+
 def test_how_to_family_selection_keeps_aligned_exact_model_table_evidence():
     analysis = analyze_query("Where should I avoid installing the IV-500C sensor?")
     sibling_context = SearchResult(
