@@ -638,10 +638,10 @@ def test_repairs_pc_to_plc_query_with_exact_protocol_scope():
     )
 
 
-def test_repairs_generic_xg_x_shutter_query_with_document_table_scope():
+def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     expected = (
         "In the AS_160148 XG-X camera specification table, what electronic shutter range "
-        "is listed immediately before the C-mount lens-mount row?"
+        "is listed for the CA-H048CX or CA-H048MX?"
     )
 
     assert _MODULE.normalize_frozen_query(
@@ -654,12 +654,20 @@ def test_repairs_generic_xg_x_shutter_query_with_document_table_scope():
         "What electronic shutter speed range can I set on a CA-200C or CA-200M camera "
         "in the XG-X Series?"
     ) == expected
+    assert _MODULE.normalize_frozen_query(
+        "In the AS_160148 XG-X camera specification table, what electronic shutter range "
+        "is listed immediately before the C-mount lens-mount row?"
+    ) == expected
+    assert _MODULE.normalize_frozen_query(
+        "In the AS_160148 XG-X camera specification table, what electronic shutter range "
+        "is listed for the CA-200C or CA-200M?"
+    ) == expected
 
 
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [
-        ("What shutter speed range can I set on this camera?", "XG-X Series"),
+        ("What shutter speed range can I set on this camera?", "AS_160148"),
         ("What ambient temperature range is allowed for operation without freezing?", "IV4 Series"),
         ("What does the one shot input do to the output status of current results?", "LJ-X8000"),
         ("How do I activate the Laser ON input on this device?", "LJ-X8000 controller"),

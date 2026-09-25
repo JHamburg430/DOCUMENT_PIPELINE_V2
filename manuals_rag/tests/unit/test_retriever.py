@@ -3096,6 +3096,38 @@ def test_protocol_alignment_prefers_requested_rs232c_variant_over_ethernet_sibli
     assert retriever._query_alignment_score(rs232c, analysis) > retriever._query_alignment_score(ethernet, analysis)
 
 
+def test_query_alignment_uses_authoritative_identifier_tokens_for_answer_bearing_table_row():
+    analysis = analyze_query(
+        "In the AS_160148 XG-X camera specification table, what electronic shutter range "
+        "is listed for the CA-H048CX or CA-H048MX?"
+    )
+    scoped_row = SearchResult(
+        chunk_id="scoped-row",
+        score=0.5,
+        title="AS 160148 XG-X",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[51],
+        section_path=["Camera specifications"],
+        content="Electronic shutter | Can be set to 0.022 to 1000 msec.",
+        metadata={
+            "chunk_type": "table_record",
+            "identifier_tokens": ["CA-H048CX", "CA-H048MX"],
+            "table_row_group": True,
+        },
+    )
+    unscoped_row = scoped_row.model_copy(
+        update={
+            "chunk_id": "unscoped-row",
+            "metadata": {"chunk_type": "table_record", "table_row_group": True},
+        }
+    )
+
+    assert retriever._query_alignment_score(scoped_row, analysis) > retriever._query_alignment_score(
+        unscoped_row, analysis
+    )
+
+
 def test_run_dense_search_queries_each_corpus_and_returns_dense_hits():
     calls: list[tuple[str, str, dict[str, object], int]] = []
 

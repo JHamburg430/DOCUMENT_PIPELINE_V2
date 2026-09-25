@@ -2135,6 +2135,7 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
                 " ".join(str(item) for item in result.metadata.get("product_models") or []),
                 " ".join(str(item) for item in result.metadata.get("product_families") or []),
                 " ".join(str(item) for item in result.metadata.get("devices") or []),
+                " ".join(str(item) for item in result.metadata.get("identifier_tokens") or []),
             ]
             if part
         )
