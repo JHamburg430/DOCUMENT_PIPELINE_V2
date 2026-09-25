@@ -3608,14 +3608,21 @@ def _direct_devid_protocol_mapping_support(
     query: str,
     results: list[SearchResult],
 ) -> list[str]:
-    """Bind the OutputFilter devId protocol mapping to its adjacent signature."""
+    """Bind the XG Lua devId protocol mapping to an explicit manual scope."""
 
     if not (
-        re.search(r"\bnumeric\s+value\b", query, flags=re.I)
-        and re.search(r"\bOutputFilter\b", query, flags=re.I)
+        re.search(r"\b(?:numeric|integer)\b", query, flags=re.I)
         and re.search(r"\bdevId\b", query, flags=re.I)
-        and re.search(r"\bRS[- ]?232C\b", query, flags=re.I)
+        and re.search(r"\b(?:RS[- ]?232C|Ethernet)\b", query, flags=re.I)
     ):
+        return []
+
+    outputfilter_lookup = bool(re.search(r"\bOutputFilter\b", query, flags=re.I))
+    xg_controller_lookup = bool(
+        re.search(r"\bXG[- ]?7000\b", query, flags=re.I)
+        and re.search(r"\bXG[- ]?8000\b", query, flags=re.I)
+    )
+    if not (outputfilter_lookup or xg_controller_lookup):
         return []
 
     exact_mapping = re.compile(
@@ -3631,13 +3638,23 @@ def _direct_devid_protocol_mapping_support(
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
         context = " ".join(
             str(metadata.get(field) or "")
-            for field in ("local_rerank_context", "context_window", "parent_context")
+            for field in (
+                "title",
+                "document_title",
+                "local_rerank_context",
+                "context_window",
+                "parent_context",
+            )
         )
-        if exact_mapping.search(content) and re.search(
-            r"\bOutputFilter\s*\(\s*devId\s*,\s*str\s*\)",
-            context,
-            flags=re.I,
-        ):
+        outputfilter_scope = outputfilter_lookup and re.search(
+            r"\bOutputFilter\s*\(\s*devId\s*,\s*str\s*\)", context, flags=re.I
+        )
+        xg_manual_scope = xg_controller_lookup and (
+            re.search(r"\bXG\s+Series\s+Lua\s+Script\s+Manual\b", context, flags=re.I)
+            and re.search(r"\bXG[- ]?7000\b", context, flags=re.I)
+            and re.search(r"\bXG[- ]?8000\b", context, flags=re.I)
+        )
+        if exact_mapping.search(content) and (outputfilter_scope or xg_manual_scope):
             matches.append((len(content), index, result.chunk_id))
     return [min(matches)[2]] if matches else []
 
@@ -4899,10 +4916,10 @@ def verify_retrieval_claim(
                 claim_supported=True,
                 supporting_chunk_ids=direct_devid_support,
                 applicability="not_requested",
-                scope_entity="OutputFilter devId",
+                scope_entity="XG Lua devId",
                 rationale=(
-                    "Deterministic devId verification matched the OutputFilter signature and "
-                    "the complete RS-232C/Ethernet numeric mapping."
+                    "Deterministic devId verification matched an explicit XG Lua callback/manual "
+                    "scope and the complete RS-232C/Ethernet numeric mapping."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

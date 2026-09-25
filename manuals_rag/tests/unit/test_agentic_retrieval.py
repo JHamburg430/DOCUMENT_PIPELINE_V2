@@ -4599,6 +4599,74 @@ def test_devid_protocol_mapping_requires_outputfilter_signature_and_complete_row
     assert verdict["supporting_chunk_ids"] == ["devid-mapping"]
 
 
+def test_devid_protocol_mapping_accepts_xg_ethernet_lookup_only_in_lua_manual_scope(
+    monkeypatch,
+):
+    query = (
+        "Which numeric devId value should I use when an XG-7000 or XG-8000 "
+        "controller connects via Ethernet?"
+    )
+    exact = _result(
+        "devid-ethernet-mapping",
+        "lua-doc",
+        "devId: the device ID. 2 for RS-232C, and 3 for Ethernet str: character string",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "spec_record",
+                "product_model": "XG-7000",
+                "product_models": ["XG-7000", "XG-8000"],
+                "parent_context": (
+                    "XG Series Lua Script Manual. The Lua Script function customizes "
+                    "RS-232C and Ethernet communication of XG-7000 and XG-8000 controllers."
+                ),
+            }
+        }
+    )
+    unscoped_duplicate = exact.model_copy(
+        update={
+            "chunk_id": "devid-unscoped-duplicate",
+            "source_document_id": "other-doc",
+            "metadata": {"chunk_type": "spec_record"},
+        }
+    )
+    wrong_mapping = exact.model_copy(
+        update={
+            "chunk_id": "devid-wrong-ethernet-mapping",
+            "content": "devId: the device ID. 3 for RS-232C, and 2 for Ethernet",
+        }
+    )
+
+    assert _direct_devid_protocol_mapping_support(
+        query,
+        [unscoped_duplicate, wrong_mapping, exact],
+    ) == ["devid-ethernet-mapping"]
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("LLM verifier must not run")
+        ),
+    )
+    verdict = verify_retrieval_claim(
+        RetrievalHop(hop_id="mapping", objective=query, query=query),
+        query,
+        [unscoped_duplicate, wrong_mapping, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": [
+                "devid-unscoped-duplicate",
+                "devid-wrong-ethernet-mapping",
+                "devid-ethernet-mapping",
+            ],
+        },
+    )
+
+    assert verdict["trust_state"] == "confirmed"
+    assert verdict["claim_supported"] is True
+    assert verdict["supporting_chunk_ids"] == ["devid-ethernet-mapping"]
+
+
 def test_feature_amplifier_type_support_confirms_scoped_spec_heading():
     query = "Which IV Series amplifier types support the Intelligent Monitor feature?"
     result = _result(
