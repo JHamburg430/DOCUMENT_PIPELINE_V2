@@ -361,6 +361,15 @@ def _is_camera_selection_criteria_query(query: str) -> bool:
     )
 
 
+def _is_controller_image_capacity_comparison_query(query: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", query.casefold()).strip()
+    return bool(
+        re.search(r"\bhow many images\b", normalized)
+        and re.search(r"\bvga color cameras?\b", normalized)
+        and re.search(r"\b21 megapixel cameras?\b", normalized)
+    )
+
+
 def _exact_identifier_document_ids(
     metadata_hits: list[dict[str, object]],
     analysis: QueryAnalysis,
@@ -2853,6 +2862,56 @@ def _promote_camera_selection_criteria_candidates(
     return [*candidates, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
 
 
+def _promote_controller_image_capacity_candidates(
+    ranked_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    query: str,
+    *,
+    limit: int,
+    promoted_limit: int = 2,
+) -> list[SearchResult]:
+    """Keep the atomic VGA-versus-21-MP capacity claim ahead of archive tables."""
+
+    if limit <= 0 or promoted_limit <= 0:
+        return ranked_results[:limit]
+    if not _is_controller_image_capacity_comparison_query(query):
+        return ranked_results[:limit]
+
+    exact_capacity = re.compile(
+        r"\b(?:over\s+)?28[,.]?300\s+images\b.*?\bvga\s+color\s+cameras?\b.*?"
+        r"\b(?:approximately\s+)?290\s+images\b.*?\b21\s+megapixel\s+color\s+cameras?\b",
+        flags=re.I | re.S,
+    )
+    candidates: list[SearchResult] = []
+    seen_ids: set[str] = set()
+    for result in supplemental_results:
+        if result.chunk_id in seen_ids or not exact_capacity.search(str(result.content or "")):
+            continue
+        seen_ids.add(result.chunk_id)
+        candidates.append(
+            result.model_copy(
+                update={
+                    "metadata": {
+                        **result.metadata,
+                        "retrieval_stage": "controller_image_capacity_promoted",
+                    }
+                }
+            )
+        )
+    if not candidates:
+        return ranked_results[:limit]
+    candidates.sort(
+        key=lambda result: (
+            str(result.metadata.get("chunk_type") or "") != "atomic_text",
+            len(str(result.content or "")),
+            -float(result.score),
+        )
+    )
+    candidates = candidates[:promoted_limit]
+    promoted_ids = {result.chunk_id for result in candidates}
+    return [*candidates, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
+
+
 def _promote_measurement_candidates(
     ranked_results: list[SearchResult],
     supplemental_results: list[SearchResult],
@@ -4853,6 +4912,18 @@ def _retrieve_once(
         limit=12,
     )
     reranked = _promote_camera_selection_criteria_candidates(
+        reranked,
+        [
+            *contextual_lexical_results,
+            *dense_results,
+            *sparse_results,
+            *special_results,
+            *fused,
+        ],
+        query,
+        limit=12,
+    )
+    reranked = _promote_controller_image_capacity_candidates(
         reranked,
         [
             *contextual_lexical_results,

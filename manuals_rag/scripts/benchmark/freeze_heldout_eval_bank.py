@@ -183,6 +183,15 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
         # requiring the expanded source word ``Display`` rejects that exact,
         # cited label.
         return ["disp"]
+    if (
+        re.search(r"\bhow many images\b", normalized_query)
+        and re.search(r"\bvga color cameras?\b", normalized_query)
+        and re.search(r"\b21 megapixel cameras?\b", normalized_query)
+    ):
+        # The question asks for the two capacities. Source prose such as
+        # "Furthermore" and "largest-in-class" is marketing context, not an
+        # answer requirement.
+        return ["28,300", "290"]
     query_mentions_model = re.search(r"(?:^|\b)model(?:\b|$)", normalized_query) is not None
     asks_display_code_meaning = bool(
         re.search(r"\bdisplay\s+code\b", normalized_query)

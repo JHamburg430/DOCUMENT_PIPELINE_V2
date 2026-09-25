@@ -2778,6 +2778,63 @@ def test_camera_selection_criteria_rejects_catalog_only_mentions():
     assert promoted == [generic]
 
 
+def test_controller_image_capacity_promotes_complete_atomic_comparison():
+    generic = SearchResult(
+        chunk_id="generic-archive-table",
+        score=2.0,
+        title="Archive table",
+        document_version_id="version-generic",
+        source_document_id="document-generic",
+        pages=[1],
+        section_path=["Archive"],
+        content="Maximum 110 images with a 21 megapixel color camera.",
+        metadata={"chunk_type": "table_row_group"},
+    )
+    exact = generic.model_copy(
+        update={
+            "chunk_id": "exact-capacity-claim",
+            "content": (
+                "The image memory can store over 28,300 images captured with VGA color "
+                "cameras, or approximately 290 images captured with 21 megapixel color cameras."
+            ),
+            "metadata": {"chunk_type": "atomic_text"},
+        }
+    )
+
+    promoted = retriever._promote_controller_image_capacity_candidates(
+        [generic],
+        [generic, exact],
+        "How many images can the controller store with VGA color cameras versus 21 megapixel cameras?",
+        limit=5,
+    )
+
+    assert [result.chunk_id for result in promoted] == ["exact-capacity-claim", "generic-archive-table"]
+    assert promoted[0].metadata["retrieval_stage"] == "controller_image_capacity_promoted"
+
+
+def test_controller_image_capacity_rejects_partial_or_different_archive_counts():
+    partial = SearchResult(
+        chunk_id="partial-capacity",
+        score=1.0,
+        title="Archive table",
+        document_version_id="version-partial",
+        source_document_id="document-partial",
+        pages=[1],
+        section_path=["Archive"],
+        content="Maximum 28,297 VGA color images and 292 21 megapixel color images.",
+        metadata={"chunk_type": "table_row_group"},
+    )
+
+    promoted = retriever._promote_controller_image_capacity_candidates(
+        [partial],
+        [partial],
+        "How many images can the controller store with VGA color cameras versus 21 megapixel cameras?",
+        limit=5,
+    )
+
+    assert promoted == [partial]
+
+
 def test_how_to_family_selection_keeps_aligned_exact_model_table_evidence():
     analysis = analyze_query("Where should I avoid installing the IV-500C sensor?")
     sibling_context = SearchResult(

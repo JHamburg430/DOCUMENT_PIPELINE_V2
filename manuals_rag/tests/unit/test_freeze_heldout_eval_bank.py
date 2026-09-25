@@ -867,6 +867,13 @@ def test_analog_display_contract_accepts_the_manuals_abbreviated_option_label():
     ) == ["disp"]
 
 
+def test_image_capacity_comparison_scores_both_answer_values_not_marketing_copy():
+    assert _MODULE.answer_relevant_expected_terms(
+        "How many images can the controller store with VGA color cameras versus 21 megapixel cameras?",
+        ["furthermore", "largest-in-class", "image", "memory", "28"],
+    ) == ["28,300", "290"]
+
+
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [
