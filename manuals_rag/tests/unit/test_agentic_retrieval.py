@@ -830,6 +830,77 @@ def test_scope_matching_accepts_exact_model_in_compact_spec_row():
     ) is True
 
 
+def test_scope_matching_accepts_model_bound_to_table_row_by_identifier_tokens():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "shutter-range",
+        "xgx-doc",
+        "Electronic shutter | Can be set to 0.022 to 1000 msec",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_family": "A",
+                "identifier_tokens": ["CA-H048CX", "CA-H048MX"],
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "What electronic shutter range is listed for the CA-H048CX or CA-H048MX?",
+        result,
+    ) is True
+
+
+def test_scope_matching_does_not_let_identifier_tokens_override_conflicting_routing_scope():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "conflicting-shutter-range",
+        "other-doc",
+        "Electronic shutter | Can be set to 0.022 to 1000 msec",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "routing_product_models": ["OTHER-1"],
+                "identifier_tokens": ["CA-H048CX", "CA-H048MX"],
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "What electronic shutter range is listed for the CA-H048CX or CA-H048MX?",
+        result,
+    ) is False
+
+
+def test_direct_scoped_numeric_range_support_prefers_answer_bearing_pipe_row():
+    from manuals_rag_answering.agentic_retrieval import _direct_scoped_numeric_range_support
+
+    query = "What electronic shutter range is listed for the CA-H048CX or CA-H048MX?"
+    header = _result(
+        "header",
+        "xgx-doc",
+        "Column headers: Camera (CA-H048CX/H048MX); Cell value: Electronic shutter",
+    ).model_copy(update={"metadata": {"chunk_type": "table_record"}})
+    value = _result(
+        "value",
+        "xgx-doc",
+        "Electronic shutter | Can be set to 0.022 to 1000 msec",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "table_record",
+                "identifier_tokens": ["CA-H048CX", "CA-H048MX"],
+            }
+        }
+    )
+
+    assert _direct_scoped_numeric_range_support(query, [header, value]) == ["value"]
+
+
 def test_scope_matching_rejects_exact_model_only_in_long_incidental_spec_prose():
     from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
 

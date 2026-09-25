@@ -1433,8 +1433,20 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
     explicit_structured_scope_matches = bool(
         structured_scope_values and matches_requested(structured_scope_values)
     )
+    identifier_scope_values = [
+        str(value)
+        for value in metadata.get("identifier_tokens") or []
+        if value
+    ]
+    identifier_scope_matches = bool(
+        str(metadata.get("chunk_type") or "") in {"table_record", "spec_record"}
+        and identifier_scope_values
+        and matches_requested(identifier_scope_values)
+    )
     structured_scope_matches = bool(
-        explicit_structured_scope_matches or compact_exact_row_match
+        explicit_structured_scope_matches
+        or compact_exact_row_match
+        or identifier_scope_matches
     )
 
     routing_values = [
@@ -1502,6 +1514,7 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
             matches_requested(legacy_scope_values)
             or explicit_structured_scope_matches
             or (compact_exact_row_match and not primary_model_is_concrete)
+            or (identifier_scope_matches and not primary_model_is_concrete)
         )
     if primary_model_is_concrete:
         # Do not let incidental prose mentions override a concrete conflicting
@@ -2164,6 +2177,54 @@ def _direct_structured_property_support(query: str, results: list[SearchResult])
         if requested in content_properties:
             matches.append((-index, result.chunk_id))
     return [max(matches)[-1]] if matches else []
+
+
+def _direct_scoped_numeric_range_support(query: str, results: list[SearchResult]) -> list[str]:
+    """Confirm one model-scoped numeric range from a bounded pipe-table row."""
+    property_match = re.search(
+        r"\bwhat\s+(?P<property>.+?)\s+range\s+(?:is|was|can\s+be)\b",
+        query,
+        flags=re.I,
+    )
+    if not property_match or not analyze_query(query).product_identifiers:
+        return []
+    stopwords = {"a", "an", "for", "in", "is", "listed", "of", "the", "this", "what"}
+    property_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", property_match.group("property").lower())
+        if len(term) > 1 and term not in stopwords
+    }
+    if not property_terms:
+        return []
+
+    matches: list[tuple[frozenset[str], int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        if (
+            str(metadata.get("chunk_type") or "") not in {"table_record", "spec_record"}
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if "|" not in content or len(content) > 900:
+            continue
+        label, value = (part.strip() for part in content.split("|", 1))
+        label_terms = set(re.findall(r"[a-z0-9]+", label.lower()))
+        if not property_terms.issubset(label_terms):
+            continue
+        range_match = re.search(
+            r"(?<![\w.])(?P<lower>\d+(?:\.\d+)?)\s*(?:to|through|[-–—])\s*"
+            r"(?P<upper>\d+(?:\.\d+)?)(?![\w.])",
+            value,
+            flags=re.I,
+        )
+        if not range_match:
+            continue
+        values = frozenset({range_match.group("lower"), range_match.group("upper")})
+        matches.append((values, -len(content), -index, result.chunk_id))
+    if not matches or len({values for values, _length, _index, _chunk in matches}) != 1:
+        return []
+    return [max(matches, key=lambda item: item[1:3])[-1]]
 
 
 def _ambiguous_structured_count_support(
@@ -4666,6 +4727,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic structured-property verification matched the exact Input/Output "
                     "property path in one scoped table record."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_range_support = _direct_scoped_numeric_range_support(
+            hop.objective,
+            results,
+        )
+        if direct_range_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_range_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic range verification matched one model-scoped, answer-bearing "
+                    "pipe-table row."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
