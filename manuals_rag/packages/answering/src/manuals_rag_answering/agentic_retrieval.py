@@ -1472,11 +1472,11 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         # the canonical family identifier (``S8000``).  Exact canonical
         # comparison preserves the ALPHA-1 versus ALPHA-10 safety boundary.
         for value in values:
+            normalized_value = re.sub(r"[_./]+", " ", str(value))
+            normalized_value = re.sub(r"\s*([:-])\s*", r"\1", normalized_value)
             candidates.update(
                 compact(identifier)
-                for identifier in analyze_query(
-                    re.sub(r"[_./]+", " ", str(value))
-                ).product_identifiers
+                for identifier in analyze_query(normalized_value).product_identifiers
                 if compact(identifier)
             )
         return any(

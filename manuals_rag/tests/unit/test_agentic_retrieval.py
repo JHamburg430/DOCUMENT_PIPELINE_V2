@@ -855,6 +855,40 @@ def test_scope_matching_combines_separate_product_family_and_model_metadata():
     ) is True
 
 
+def test_scope_matching_normalizes_spaced_colon_in_authoritative_manufacturer():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    query = (
+        "How does the WM-6000 automatically compensate for standard temperature "
+        "dimensions when ambient conditions change?"
+    )
+    content = (
+        "Simply select the current temperature and the material, and the WM-6000 "
+        "will automatically compensate for the standard temperature dimensions."
+    )
+    exact = _result("temperature", "wm-doc", content).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "3D/GD&T and shape measurement",
+                "product_family": "Outer diameter: 704.842 mm 27.75",
+                "manufacturer": "Wide Area CMM NEW WM: 6000",
+            }
+        }
+    )
+    near_match = exact.model_copy(
+        update={
+            "metadata": {
+                **exact.metadata,
+                "manufacturer": "Wide Area CMM NEW WM: 60000",
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(query, exact) is True
+    assert _result_supports_branch_scope(query, near_match) is False
+
+
 def test_scope_matching_accepts_exact_structured_model_label_with_family_metadata():
     from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
 
