@@ -828,6 +828,34 @@ def test_agent_evaluation_ignores_incidental_imperative_for_factual_value_lookup
     assert relation["passed"] is True
 
 
+def test_agent_evaluation_treats_should_i_configure_values_as_factual_lookup():
+    case = _quantity_case()
+    case["query"] = (
+        "What lower and upper limit values should I configure for the analog output "
+        "on the LR-W70(C) Edition?"
+    )
+    case["expected_snippet"] = "Current output (4 to 20 mA)"
+    case["expected_terms"] = ["current", "4", "20"]
+    case["expected_evidence"][0]["snippet"] = case["expected_snippet"]
+    case["expected_evidence"][0]["expected_terms"] = case["expected_terms"]
+
+    evaluation = score_agent_run(
+        case,
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": (
+                "Configure scaling settings if necessary. Current output is 4 to 20 mA."
+            ),
+            "citations": [{"chunk_id": "setup-values"}],
+        },
+    )
+
+    relation = evaluation["cells"]["grounded_answer"]["metrics"]["relation_grounding"]
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+    assert relation["passed"] is True
+
+
 def test_agent_evaluation_ignores_incidental_fix_action_for_torque_range_lookup():
     case = _quantity_case()
     case["query"] = (

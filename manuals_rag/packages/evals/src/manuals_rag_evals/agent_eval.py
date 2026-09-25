@@ -128,13 +128,22 @@ def _relation_grounding(case: dict[str, Any], answer_text: str) -> dict[str, Any
     expected_profile = relation_profile(_expected_relation_text(case))
     actual_profile = relation_profile(answer_text)
     query = str(case.get("query") or "")
+    asks_for_value_or_range = re.search(
+        r"\b(?:value|values|range|limit|limits)\b",
+        query,
+        flags=re.I,
+    ) is not None
+    asks_for_procedural_action = re.search(
+        r"\b(?:action|do|procedure|step|warning|precaution)\b",
+        query,
+        flags=re.I,
+    ) is not None or bool(
+        re.search(r"\bshould\s+(?:i|we|you)\b", query, flags=re.I)
+        and not asks_for_value_or_range
+    )
     factual_value_lookup = bool(
         re.match(r"^\s*what\b", query, flags=re.I)
-        and not re.search(
-            r"\b(?:action|do|procedure|step|warning|precaution)\b|\bshould\s+(?:i|we|you)\b",
-            query,
-            flags=re.I,
-        )
+        and not asks_for_procedural_action
         and (
             expected_profile.role_values
             or re.search(
