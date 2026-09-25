@@ -499,7 +499,7 @@ def _coordinate_question_plan(query: str) -> RetrievalPlan | None:
     # selecting 0 do?" degenerates into the corpus-wide query "what does
     # selecting 0 do?" and retrieves unrelated numeric settings.
     setting_scope_match = re.match(
-        r"^what\s+.+?\s+can\s+be\s+(?:set|configured|selected)\s+for\s+"
+        r"^what\s+(?P<referent>.+?)\s+can\s+be\s+(?:set|configured|selected)\s+for\s+"
         r"(?P<setting>.+?)\s*[?.]*$",
         first,
         flags=re.I,
@@ -511,8 +511,16 @@ def _coordinate_question_plan(query: str) -> RetrievalPlan | None:
     )
     if setting_scope_match and value_followup:
         setting = setting_scope_match.group("setting").strip(" ,.;?")
+        referent = setting_scope_match.group("referent").strip(" ,.;?")
+        referent = re.sub(
+            r"\b(?:values?|options?|settings?)\s*$",
+            "",
+            referent,
+            flags=re.I,
+        ).strip()
         if setting and setting.lower() not in second.lower():
-            second = f"{second.rstrip(' ?')} for {setting} setting"
+            setting_label = f"{setting} {referent} setting" if referent else f"{setting} setting"
+            second = f"{second.rstrip(' ?')} for {setting_label}"
     branches = [first, second]
     queries = [
         f"{scope} {branch}".strip(" ,.;?") + "?"
@@ -3093,7 +3101,7 @@ def _direct_saved_settings_activation_support(
 def _direct_password_setting_support(query: str, results: list[SearchResult]) -> list[str]:
     """Confirm a bounded password range and its explicit zero-value behavior."""
     if not (
-        re.search(r"\bpassword values?\b", query, flags=re.I)
+        re.search(r"\bpassword(?:\s+values?|\s+setting)?\b", query, flags=re.I)
         and re.search(r"\bkey lock\b", query, flags=re.I)
         and re.search(r"\bselecting\s+0\b", query, flags=re.I)
     ):

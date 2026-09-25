@@ -4084,6 +4084,10 @@ def test_password_setting_support_requires_range_and_zero_behavior_in_one_scoped
     )
 
     assert _direct_password_setting_support(query, [incomplete, supported]) == ["w500-password"]
+    assert _direct_password_setting_support(
+        "What does selecting 0 do for the W500 Key Lock password setting?",
+        [incomplete, supported],
+    ) == ["w500-password"]
 
 
 def test_planners_preserve_setting_scope_for_selected_value_followup(monkeypatch):
@@ -4098,7 +4102,7 @@ def test_planners_preserve_setting_scope_for_selected_value_followup(monkeypatch
 
     expected = [
         "What password values can be set for the W500 Key Lock?",
-        "what does selecting 0 do for the W500 Key Lock setting?",
+        "what does selecting 0 do for the W500 Key Lock password setting?",
     ]
     assert [hop.query for hop in plan_retrieval(query, use_llm=True).hops] == expected
     assert [hop.query for hop in plan_llamaindex_retrieval(query, use_llm=True).hops] == expected
