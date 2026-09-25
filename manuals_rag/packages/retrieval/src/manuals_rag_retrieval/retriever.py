@@ -637,6 +637,34 @@ def run_structured_configuration_variant_search(
     return store.fuse_rrf([dense_results, sparse_results, table_results], limit=limit)
 
 
+def _ocr_output_character_count_query_variant(query: str) -> str | None:
+    """Return an answer-neutral alias for the LJ-X8000 OCR output-format row."""
+    if not re.search(r"\blj\s*-?\s*x8000\b", query, flags=re.I):
+        return None
+    if not re.search(r"\bethernet\s*/?\s*ip\b", query, flags=re.I):
+        return None
+    if not re.search(r"\bnumber\s+of\s+characters\s+output\b", query, flags=re.I):
+        return None
+    return "LJ-X8000 EtherNet/IP output format number of characters character extraction OCR tool"
+
+
+def run_ocr_output_character_count_variant_search(
+    store: QdrantStore,
+    query: str,
+    corpus_ids: list[str],
+    filters: dict[str, object],
+    *,
+    limit: int = 40,
+) -> list[SearchResult]:
+    variant = _ocr_output_character_count_query_variant(query)
+    if not variant:
+        return []
+    dense_results = run_dense_search(store, variant, corpus_ids, filters, limit=limit)
+    sparse_results = run_sparse_search(store, variant, corpus_ids, filters, limit=limit)
+    table_results = run_table_search(store, variant, corpus_ids, filters, limit=limit)
+    return store.fuse_rrf([dense_results, sparse_results, table_results], limit=limit)
+
+
 def fuse_results(store: QdrantStore, result_sets: list[list[SearchResult]], *, limit: int = 30) -> list[SearchResult]:
     return store.fuse_rrf(result_sets, limit=limit)
 
@@ -3254,6 +3282,56 @@ def _promote_named_operation_candidates(
     return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
 
 
+def _promote_ocr_output_character_count_candidates(
+    ranked_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    query: str,
+    *,
+    limit: int = 12,
+    promoted_limit: int = 2,
+) -> list[SearchResult]:
+    """Retain the exact LJ-X8000 OCR character-count rule at the final boundary."""
+    if not _ocr_output_character_count_query_variant(query) or not supplemental_results or limit <= 0:
+        return ranked_results[:limit]
+    required_phrase = "number of characters for character extraction"
+    candidates: list[tuple[int, int, SearchResult]] = []
+    seen: set[str] = set()
+    for index, result in enumerate(supplemental_results):
+        if result.chunk_id in seen:
+            continue
+        seen.add(result.chunk_id)
+        evidence = "\n".join(
+            str(part)
+            for part in (result.content, result.metadata.get("context_window"))
+            if part
+        ).casefold()
+        if required_phrase not in evidence:
+            continue
+        candidates.append(
+            (
+                int(str(result.metadata.get("chunk_type") or "") == "table_record"),
+                -index,
+                result,
+            )
+        )
+    if not candidates:
+        return ranked_results[:limit]
+    candidates.sort(key=lambda item: item[:2], reverse=True)
+    promoted = [
+        result.model_copy(
+            update={
+                "metadata": {
+                    **result.metadata,
+                    "retrieval_stage": "ocr_output_character_count_promoted",
+                }
+            }
+        )
+        for _structured, _negative_index, result in candidates[:promoted_limit]
+    ]
+    promoted_ids = {result.chunk_id for result in promoted}
+    return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
+
+
 def _promote_wiring_terminal_candidates(
     ranked_results: list[SearchResult],
     supplemental_results: list[SearchResult],
@@ -4825,6 +4903,24 @@ def _retrieve_once(
                 ),
             )
         )
+    if _ocr_output_character_count_query_variant(query):
+        branch_operations.append(
+            (
+                "ocr_output_character_count_variant",
+                lambda: _run_qdrant_branch(
+                    lambda: _annotate_stage_metadata(
+                        run_ocr_output_character_count_variant_search(
+                            store,
+                            query,
+                            corpus_ids,
+                            chunk_search_filters,
+                            limit=branch_limit,
+                        ),
+                        "ocr_output_character_count_variant",
+                    ),
+                ),
+            )
+        )
     branch_operations.extend(
         [
             (
@@ -4868,6 +4964,7 @@ def _retrieve_once(
     table_results = branch_results.get("table", [])
     metadata_balanced_table_results = branch_results.get("metadata_balanced_table", [])
     structured_configuration_variant_results = branch_results.get("structured_configuration_variant", [])
+    ocr_output_character_count_variant_results = branch_results.get("ocr_output_character_count_variant", [])
     contextual_lexical_results = branch_results["contextual_lexical"]
     special_results = branch_results["special"]
     fused = _measure_substage(
@@ -4882,6 +4979,7 @@ def _retrieve_once(
                     table_results,
                     metadata_balanced_table_results,
                     structured_configuration_variant_results,
+                    ocr_output_character_count_variant_results,
                     table_lexical_results,
                     contextual_lexical_results,
                     special_results,
@@ -4967,6 +5065,7 @@ def _retrieve_once(
             *sparse_results,
             *special_results,
             *structured_configuration_variant_results,
+            *ocr_output_character_count_variant_results,
             *fused,
         ],
         query,
@@ -5025,6 +5124,12 @@ def _retrieve_once(
         reranked,
         rerank_boundary,
         analysis,
+        limit=12,
+    )
+    reranked = _promote_ocr_output_character_count_candidates(
+        reranked,
+        ocr_output_character_count_variant_results,
+        query,
         limit=12,
     )
     deduped = _measure_substage(

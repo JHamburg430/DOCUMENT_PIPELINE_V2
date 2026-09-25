@@ -233,6 +233,73 @@ def test_structured_configuration_query_variant_rejects_partial_intents():
     ) is None
 
 
+def test_ljx8000_ocr_output_character_count_adds_answer_neutral_query_variant():
+    query = "How does the LJ-X8000 determine the number of characters output for EtherNet/IP?"
+
+    assert retriever._ocr_output_character_count_query_variant(query) == (
+        "LJ-X8000 EtherNet/IP output format number of characters character extraction OCR tool"
+    )
+
+
+def test_ocr_output_character_count_query_variant_rejects_partial_intents():
+    assert retriever._ocr_output_character_count_query_variant(
+        "How many characters can the LJ-X8000 output?"
+    ) is None
+    assert retriever._ocr_output_character_count_query_variant(
+        "How is the EtherNet/IP output buffer formatted?"
+    ) is None
+
+
+def test_ocr_output_character_count_promotion_requires_exact_rule():
+    exact = SearchResult(
+        chunk_id="exact-ocr-rule",
+        score=0.4,
+        title="LJ-X8000 EtherNet/IP manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[28],
+        section_path=["Output format"],
+        content=(
+            'The number of characters output is determined by the value set for the '
+            '"number of characters for character extraction" for the OCR tool.'
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+    topical = exact.model_copy(
+        update={
+            "chunk_id": "topical-neighbor",
+            "content": "EtherNet/IP output failed because the output buffer is full.",
+        }
+    )
+
+    promoted = retriever._promote_ocr_output_character_count_candidates(
+        [topical],
+        [topical, exact],
+        "How does the LJ-X8000 determine the number of characters output for EtherNet/IP?",
+    )
+
+    assert promoted[0].chunk_id == "exact-ocr-rule"
+    assert promoted[0].metadata["retrieval_stage"] == "ocr_output_character_count_promoted"
+
+
+def test_ocr_output_character_count_promotion_rejects_unscoped_query():
+    result = SearchResult(
+        chunk_id="exact-ocr-rule",
+        score=1.0,
+        title="Manual",
+        document_version_id="v1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Output format"],
+        content='number of characters for character extraction',
+        metadata={"chunk_type": "table_record"},
+    )
+
+    assert retriever._promote_ocr_output_character_count_candidates(
+        [result], [result], "How many characters can the OCR tool output?"
+    ) == [result]
+
+
 def test_default_spec_lookup_promotes_exact_structured_table_rows():
     generic = SearchResult(
         chunk_id="generic-output",
