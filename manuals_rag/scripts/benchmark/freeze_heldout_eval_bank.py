@@ -236,6 +236,12 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
 
     normalized_query = _normalized(query)
     if (
+        re.search(r"\bmaximum relative humidity\b", normalized_query)
+        and re.search(r"\bwm-6025\b", normalized_query)
+        and re.search(r"\boperating ambient conditions\b", normalized_query)
+    ):
+        return ["80", "no condensation"]
+    if (
         re.search(r"\bfield[- ]of[- ]view dimensions\b", normalized_query)
         and re.search(r"\biv-500c\b", normalized_query)
         and re.search(r"\b50 mm installed distance\b", normalized_query)
@@ -1047,6 +1053,18 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
 
     source = source_content or snippet
     if (
+        re.search(r"\bmaximum relative humidity\b", str(query or ""), flags=re.I)
+        and re.search(r"\bWM-6025\b", str(query or ""), flags=re.I)
+        and re.search(r"\boperating ambient conditions\b", str(query or ""), flags=re.I)
+    ):
+        humidity = re.search(
+            r"Max\.\s*80%\s*RH\s*\(no condensation\)",
+            source,
+            flags=re.I,
+        )
+        if humidity:
+            return re.sub(r"\s+", " ", humidity.group(0)).strip()
+    if (
         re.search(r"\bfield[- ]of[- ]view dimensions\b", str(query or ""), flags=re.I)
         and re.search(r"\bIV-500C\b", str(query or ""), flags=re.I)
         and re.search(r"\b50\s*mm installed distance\b", str(query or ""), flags=re.I)
@@ -1598,6 +1616,23 @@ def verify_and_freeze_cases(
             re.search(r"\bca-h048cx/h048mx\b", case["query"], flags=re.I)
             and re.search(r"\b0[ .]47[- ]megapixel\b", case["query"], flags=re.I)
             and re.search(r"\b0[ .]31[- ]megapixel\b", case["query"], flags=re.I)
+        ):
+            snippet_text = focus_expected_snippet(
+                case["query"],
+                str(case.get("expected_snippet") or ""),
+                str(chunk.get("content") or ""),
+            )
+            terms = answer_relevant_expected_terms(
+                case["query"],
+                extract_anchor_terms(snippet_text)[:4],
+            )
+            case["expected_snippet"] = snippet_text
+            case["expected_terms"] = terms
+            case["anchor_terms"] = terms
+        if (
+            re.search(r"\bmaximum relative humidity\b", case["query"], flags=re.I)
+            and re.search(r"\bwm-6025\b", case["query"], flags=re.I)
+            and re.search(r"\boperating ambient conditions\b", case["query"], flags=re.I)
         ):
             snippet_text = focus_expected_snippet(
                 case["query"],

@@ -1091,6 +1091,24 @@ def test_iv_500c_field_of_view_contract_excludes_sibling_model_values():
     ) == []
 
 
+def test_wm_6025_humidity_contract_excludes_current_consumption_header():
+    query = "What is the maximum relative humidity for the WM-6025 operating ambient conditions?"
+    source = "Current consumption: Operating ambient humidity; 1.25 A: Max. 80% RH (no condensation)"
+
+    assert _MODULE.focus_expected_snippet(query, source, source) == (
+        "Max. 80% RH (no condensation)"
+    )
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["current", "consumption", "operating", "ambient"],
+    ) == ["80", "no condensation"]
+    assert _MODULE.missing_expected_answer_contract(
+        query,
+        "Max. 80% RH (no condensation)",
+        ["80", "no condensation"],
+    ) == []
+
+
 def test_iv4_below_freezing_contract_drops_unasked_upper_temperature_endpoint():
     query = "Does the IV4-400MA model support operation below freezing temperatures?"
 
