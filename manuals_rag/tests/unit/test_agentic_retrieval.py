@@ -15,6 +15,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _assess_hop_evidence,
     _direct_atomic_measurement_support,
     _direct_ca_e100_camera_count_support,
+    _direct_controller_image_capacity_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _direct_feature_amplifier_type_support,
@@ -25,6 +26,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_password_setting_support,
     _direct_procedure_support,
     _direct_saved_settings_activation_support,
+    _direct_structured_lookup_support,
     _direct_structured_power_source_support,
     _direct_variable_type_support,
     verify_retrieval_claim,
@@ -2477,6 +2479,36 @@ def test_ca_e100_count_gate_requires_one_unit_camera_binding():
         query,
         [capture_only],
         {"claim_supported": True, "supporting_chunk_ids": ["capture-count"]},
+    ) == []
+
+
+def test_controller_image_capacity_requires_complete_two_sided_relation():
+    query = (
+        "How many images can the controller store with VGA color cameras versus "
+        "21 megapixel cameras?"
+    )
+    exact = _result(
+        "exact-capacity",
+        "xgx-doc",
+        "Furthermore, the largest-in-class image memory can store over 28,300 images "
+        "captured with VGA color cameras, or approximately 290 images captured with "
+        "21 megapixel color cameras.",
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text"}})
+    wrong_table = _result(
+        "wrong-archive-table",
+        "cvx-doc",
+        "Column headers: CV-X422 color cameras; Row headers: Archived images for 21 "
+        "megapixel cameras; Cell value: 37 images; Row: 9; Column: 4",
+    ).model_copy(update={"metadata": {"chunk_type": "table_record"}})
+
+    assert _direct_controller_image_capacity_support(query, [wrong_table, exact]) == [
+        "exact-capacity"
+    ]
+    assert _direct_controller_image_capacity_support(query, [wrong_table]) == []
+    assert _direct_structured_lookup_support(
+        query,
+        [wrong_table],
+        {"claim_supported": True, "supporting_chunk_ids": ["wrong-archive-table"]},
     ) == []
 
 

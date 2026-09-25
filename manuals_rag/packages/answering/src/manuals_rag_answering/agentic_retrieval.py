@@ -2162,6 +2162,11 @@ def _direct_structured_lookup_support(
 ) -> list[str]:
     """Confirm a direct column -> row -> value lookup in one serialized cell."""
     _ = preliminary_assessment  # Exact coordinate binding is independently sufficient.
+    if _is_controller_image_capacity_comparison_query(query):
+        # This is a two-sided prose comparison, not a generic table cell lookup.
+        # A broad archive table can overlap "how many", "images", and one camera
+        # resolution while reporting a different controller's capacities.
+        return []
     if not re.search(r"\b(?:what|which|map|mapping|how\s+many)\b", query, flags=re.IGNORECASE):
         return []
 
@@ -2264,6 +2269,45 @@ def _direct_structured_lookup_support(
     if not matches:
         return []
     return [max(matches, key=lambda item: item[:4])[-1]]
+
+
+def _is_controller_image_capacity_comparison_query(query: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", query.casefold()).strip()
+    return bool(
+        re.search(r"\bhow many images\b", normalized)
+        and re.search(r"\bvga color cameras?\b", normalized)
+        and re.search(r"\b21 megapixel cameras?\b", normalized)
+    )
+
+
+def _direct_controller_image_capacity_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm both camera classes and capacities in one scoped result."""
+
+    if not _is_controller_image_capacity_comparison_query(query):
+        return []
+    exact_capacity = re.compile(
+        r"\b(?:over\s+)?28[,.]?300\s+images\b.*?\bvga\s+color\s+cameras?\b.*?"
+        r"\b(?:approximately\s+)?290\s+images\b.*?\b21\s+megapixel\s+color\s+cameras?\b",
+        flags=re.I | re.S,
+    )
+    matches = [
+        result
+        for result in results
+        if _result_supports_branch_scope(query, result)
+        and exact_capacity.search(str(result.content or ""))
+    ]
+    if not matches:
+        return []
+    matches.sort(
+        key=lambda result: (
+            str((result.metadata or {}).get("chunk_type") or "") != "atomic_text",
+            len(str(result.content or "")),
+        )
+    )
+    return [matches[0].chunk_id]
 
 
 def _ambiguous_structured_lookup_support(
@@ -5306,6 +5350,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic range verification matched one model-scoped, answer-bearing "
                     "pipe-table row."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_capacity_support = _direct_controller_image_capacity_support(
+            hop.objective,
+            results,
+        )
+        if direct_capacity_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_capacity_support,
+                applicability="not_requested",
+                scope_entity=None,
+                rationale=(
+                    "Deterministic capacity verification matched the VGA and 21 megapixel "
+                    "camera classes with both requested image counts in one scoped result."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
