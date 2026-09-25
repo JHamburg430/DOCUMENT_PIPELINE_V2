@@ -421,6 +421,66 @@ def test_agent_evaluation_accepts_retained_long_verbatim_duplicate_edition():
     ] == ["instruction-manual"]
 
 
+def test_agent_evaluation_accepts_baseline_proven_cross_document_semantic_evidence():
+    snippet = "Environmental resistance Operating ambient temperature 0 to +50°C (No freezing)"
+    case = {
+        "case_id": "iv4-temperature-duplicate-manual",
+        "query": "What operating ambient temperature range is allowed for the IV4 Series without freezing?",
+        "retrieval_task": "single_step_retrieval",
+        "source_document_id": "iv4-source-manual",
+        "source_chunk_id": "expected-temperature",
+        "document_version_id": "iv4-source-version",
+        "source_title": "IV4 Source Manual",
+        "source_filename": "iv4-source.pdf",
+        "chunk_type": "table_record",
+        "section_path": "Specifications",
+        "page_from": 2,
+        "page_to": 2,
+        "expected_terms": ["environmental", "resistance", "operating", "ambient", "0", "50"],
+        "expected_snippet": snippet,
+        "generation_method": "unit",
+        "source_metadata": {"product_family": "IV4 Series"},
+    }
+    trace = {
+        "sufficient": True,
+        "plan": {"mode": "single", "hops": [{"hop_id": "one", "depends_on": []}]},
+        "evidence_ledger": {
+            "one": {
+                "required": True,
+                "sufficient": True,
+                "strategy": "hybrid",
+                "chunk_ids": ["duplicate-temperature"],
+            }
+        },
+        "cost": {},
+    }
+    evaluation = score_agent_run(
+        case,
+        trace=trace,
+        results=[
+            {
+                "chunk_id": "duplicate-temperature",
+                "source_document_id": "iv4-duplicate-manual",
+                "section_path": ["Specifications"],
+                "content": snippet,
+                "metadata": {"chunk_type": "table_record", "product_family": "IV4 Series"},
+            }
+        ],
+        answer={
+            "answer": (
+                "For environmental resistance, the operating ambient temperature is 0 to "
+                "+50°C, with no freezing."
+            ),
+            "citations": [{"chunk_id": "duplicate-temperature"}],
+        },
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["cells"]["candidate_recall"]["status"] == "pass"
+    assert evaluation["cells"]["document_retention"]["status"] == "pass"
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+
+
 def _quantity_case():
     return {
         "case_id": "quantity-bindings",

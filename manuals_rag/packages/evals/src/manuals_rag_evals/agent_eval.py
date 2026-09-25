@@ -5,6 +5,7 @@ from typing import Any
 
 from manuals_rag_common.claim_relations import RelationProfile, profile_is_preserved, relation_profile
 from manuals_rag_evals.agent_eval_schema import build_expected_evidence_graph
+from manuals_rag_evals.retrieval_eval import RetrievalEvalCase, score_search_results
 
 
 AGENT_EVALUATION_LAYERS = (
@@ -577,6 +578,47 @@ def _equivalent_chunk_ids(
                 chunk_id = str(result.get("chunk_id") or "")
                 if chunk_id:
                     matched.add(chunk_id)
+        # The baseline retrieval gate permits a different manual only under
+        # its strict cross-document semantic-evidence contract. Reuse that
+        # exact scorer here so agent candidate/citation scoring cannot reject
+        # evidence the baseline already proved equivalent, or admit a looser
+        # bag-of-words match of its own.
+        section_path_value = evidence.get("section_path") or case.get("section_path") or ""
+        section_path = (
+            " / ".join(str(value) for value in section_path_value)
+            if isinstance(section_path_value, list)
+            else str(section_path_value)
+        )
+        semantic_case = RetrievalEvalCase(
+            case_id=str(case.get("case_id") or "agent-semantic-equivalence"),
+            query=str(case.get("query") or ""),
+            source_document_id=source_document_id,
+            document_version_id=str(
+                evidence.get("document_version_id") or case.get("document_version_id") or ""
+            ),
+            source_chunk_id=expected_chunk,
+            source_title=str(evidence.get("source_title") or case.get("source_title") or ""),
+            source_filename=str(
+                evidence.get("source_filename") or case.get("source_filename") or ""
+            ),
+            chunk_type=str(evidence.get("chunk_type") or case.get("chunk_type") or ""),
+            section_path=section_path,
+            page_from=int(evidence.get("page_from") or case.get("page_from") or 0),
+            page_to=int(evidence.get("page_to") or case.get("page_to") or 0),
+            expected_terms=[str(value) for value in (evidence.get("expected_terms") or case.get("expected_terms") or [])],
+            expected_snippet=snippet,
+            generation_method=str(case.get("generation_method") or "agent_eval"),
+            source_metadata=dict(evidence.get("source_metadata") or case.get("source_metadata") or {}),
+        )
+        for result in results:
+            if str(result.get("source_document_id") or "") == source_document_id:
+                continue
+            semantic_evaluation = score_search_results(semantic_case, [result], top_k=1)
+            if semantic_evaluation.get("match_reason") != "cross_document_semantic_evidence":
+                continue
+            chunk_id = str(result.get("chunk_id") or "")
+            if chunk_id:
+                matched.add(chunk_id)
         equivalents[expected_chunk] = matched
     return equivalents
 
