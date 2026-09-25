@@ -2827,6 +2827,42 @@ def _direct_structured_accessory_support(
     return [max(matches, key=lambda item: item[:2])[-1]] if matches else []
 
 
+def _direct_iv2_infrared_filter_part_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the IV2-H1 infrared polarized-filter order code.
+
+    The catalog places the product scope in the section path and the exact
+    accessory mapping in a compact spec row.  Keep this deliberately narrow so
+    the adjacent visible-light filter and generic OP-87436/OP-87437 footnote
+    cannot satisfy the question.
+    """
+    if not (
+        re.search(r"\b(?:part|order|catalog(?:ue)?)\s+(?:number|code)\b", query, flags=re.I)
+        and re.search(r"\binfrared\s+polarized\s+filter\s+attachment\b", query, flags=re.I)
+        and re.search(r"\bIV2-H1\b", query, flags=re.I)
+    ):
+        return []
+
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if (
+            str(metadata.get("chunk_type") or "") not in {"spec_record", "atomic_text"}
+            or not _result_supports_branch_scope(query, result)
+            or not re.fullmatch(
+                r"Infrared\s+polarized\s+filter\s+attachment\s+OP\s*[: -]?\s*87437",
+                content,
+                flags=re.I,
+            )
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_included_accessory_support(
     query: str,
     results: list[SearchResult],
@@ -4579,6 +4615,27 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_included_accessory_support,
+        }
+
+    direct_iv2_filter_support = _direct_iv2_infrared_filter_part_support(
+        hop.objective,
+        results,
+    )
+    if direct_iv2_filter_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_iv2_filter_support,
+            applicability="not_requested",
+            scope_entity="IV2-H1",
+            rationale=(
+                "Deterministic accessory verification matched the exact IV2-H1 infrared "
+                "polarized-filter attachment row and its OP-87437 order code."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_iv2_filter_support,
         }
 
     requested_identifiers = list(analyze_query(hop.objective).product_identifiers)

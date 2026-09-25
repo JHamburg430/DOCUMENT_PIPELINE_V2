@@ -23,6 +23,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_gl_fb_floor_column_range_support,
     _direct_indicator_meaning_support,
     _direct_illumination_type_support,
+    _direct_iv2_infrared_filter_part_support,
     _direct_iv4_output_configuration_support,
     _direct_manual_focus_installation_support,
     _direct_pc_to_plc_menu_path_support,
@@ -2572,6 +2573,73 @@ def test_iv4_output_configuration_requires_complete_model_scoped_electrical_row(
     assert verdict["trust_state"] == "confirmed"
     assert verdict["claim_supported"] is True
     assert verdict["supporting_chunk_ids"] == ["iv4-output"]
+
+
+def test_iv2_infrared_filter_part_requires_exact_scoped_accessory_row(monkeypatch):
+    query = "What part number applies to the infrared polarized filter attachment for the IV2-H1?"
+    exact = _result(
+        "iv2-infrared-filter",
+        "iv2-doc",
+        "Infrared polarized filter attachment OP: 87437",
+    ).model_copy(
+        update={
+            "section_path": ["IV2-H1"],
+            "metadata": {"chunk_type": "spec_record"},
+        }
+    )
+    visible_filter = _result(
+        "iv2-visible-filter",
+        "iv2-doc",
+        "Polarized visible light filter attachment OP: 87436",
+    ).model_copy(
+        update={
+            "section_path": ["IV2-H1"],
+            "metadata": {"chunk_type": "spec_record"},
+        }
+    )
+    ambiguous_footnote = _result(
+        "iv2-filter-footnote",
+        "iv2-doc",
+        "Except when polarized filter attachment (OP-87436/OP-87437) is mounted.",
+    ).model_copy(
+        update={
+            "section_path": ["IV2-H1"],
+            "metadata": {"chunk_type": "atomic_text"},
+        }
+    )
+
+    assert _direct_iv2_infrared_filter_part_support(
+        query,
+        [visible_filter, ambiguous_footnote, exact],
+    ) == ["iv2-infrared-filter"]
+    assert _direct_iv2_infrared_filter_part_support(
+        query,
+        [visible_filter, ambiguous_footnote],
+    ) == []
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("LLM verifier must not run")
+        ),
+    )
+    verdict = verify_retrieval_claim(
+        RetrievalHop(hop_id="filter", objective=query, query=query),
+        query,
+        [visible_filter, ambiguous_footnote, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": [
+                "iv2-visible-filter",
+                "iv2-filter-footnote",
+                "iv2-infrared-filter",
+            ],
+        },
+    )
+
+    assert verdict["trust_state"] == "confirmed"
+    assert verdict["claim_supported"] is True
+    assert verdict["supporting_chunk_ids"] == ["iv2-infrared-filter"]
 
 
 def test_gl_fb_floor_column_range_prefers_atomic_range_over_noisy_parent(monkeypatch):
