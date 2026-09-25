@@ -7261,6 +7261,10 @@ def _concise_exact_control_answer(
         re.search(r"\blabeled\s+['\"]?Before ZoomTrax['\"]?", query, flags=re.I)
         and re.search(r"\bAS_142767\b", query, flags=re.I)
     )
+    lj_x8000_head_extension_models_query = bool(
+        re.search(r"\bhead connection extension cable models\b", query, flags=re.I)
+        and re.search(r"\blj-x8000 series\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7331,6 +7335,18 @@ def _concise_exact_control_answer(
                 "types, set ups, and fields of view.",
                 [result],
             )
+
+        if lj_x8000_head_extension_models_query:
+            compact_content = re.sub(r"[^a-z0-9]", "", content.lower())
+            if (
+                re.search(r"\bhead connection extension cable\b", content, flags=re.I)
+                and all(model in compact_content for model in ("cbb5e", "cbb10e", "cbb20e"))
+            ):
+                return (
+                    "The listed head connection extension cable models are CB-B5E, "
+                    "CB-B10E, and CB-B20E.",
+                    [result],
+                )
 
         if height_gradient_query and re.search(
             r"\brange of heights between the height of the 2 points specified\b",

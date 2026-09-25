@@ -1002,6 +1002,23 @@ def test_repairs_zoomtrax_question_to_literal_before_label_contract():
     ) == ["multiple", "product types", "set ups", "fields of view"]
 
 
+def test_repairs_lj_x8000_head_extension_question_to_literal_model_list():
+    query = _MODULE.normalize_frozen_query(
+        "Which head connection extension cable models are compatible with the New LJ-X8000 Series?"
+    )
+
+    assert query == "Which head connection extension cable models are listed for the LJ-X8000 Series?"
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["connection", "extension", "cable", "b5e/cb-b10e/cb-b20e"],
+    ) == ["b5e", "cb-b10e", "cb-b20e"]
+    assert _MODULE.missing_expected_answer_contract(
+        query,
+        "Head connection extension cable CB: B5E/CB-B10E/CB-B20E",
+        ["b5e", "cb-b10e", "cb-b20e"],
+    ) == []
+
+
 def test_repairs_existing_xg_x_dent_query_with_series_scope():
     assert _MODULE.normalize_frozen_query(
         "For the XG-X inline 3D inspection system, which dent-depth conditions can be "

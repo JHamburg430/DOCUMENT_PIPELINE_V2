@@ -1135,3 +1135,49 @@ def test_agent_evaluation_accepts_section_window_with_exact_model_and_value_row(
 
     assert evaluation["cells"]["candidate_recall"]["status"] == "pass"
     assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+
+
+def test_agent_evaluation_accepts_complete_lj_x8000_cable_list_from_duplicate_manual():
+    case = {
+        "case_id": "lj-x8000-cables-equivalence",
+        "query": "Which head connection extension cable models are listed for the LJ-X8000 Series?",
+        "retrieval_task": "single_step_retrieval",
+        "source_document_id": "installation-guide",
+        "source_chunk_id": "expected-cable-list",
+        "document_version_id": "installation-version",
+        "source_title": "LJ-X8000 Installation Guide",
+        "source_filename": "installation.pdf",
+        "chunk_type": "spec_record",
+        "section_path": "Dimensions",
+        "page_from": 39,
+        "page_to": 39,
+        "expected_terms": ["cb-b5e", "cb-b10e", "cb-b20e"],
+        "expected_snippet": "Head connection extension cable models: CB-B5E, CB-B10E, CB-B20E",
+        "generation_method": "unit",
+        "source_metadata": {"product_family": "X8000 Series"},
+    }
+    trace = _parent_equivalence_trace()
+    trace["evidence_ledger"]["one"]["chunk_ids"] = ["duplicate-cable-list"]
+    evaluation = score_agent_run(
+        case,
+        trace=trace,
+        results=[{
+            "chunk_id": "duplicate-cable-list",
+            "source_document_id": "users-manual",
+            "pages": [664],
+            "content": (
+                "Head connection extension cable CB-B5E 5 m CB-B10E 10 m "
+                "CB-B20E 20 m"
+            ),
+            "metadata": {"chunk_type": "section_window", "product_models": ["LJ-X8000"]},
+        }],
+        answer={
+            "answer": "The listed models are CB-B5E, CB-B10E, and CB-B20E.",
+            "citations": [{"chunk_id": "duplicate-cable-list"}],
+        },
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["cells"]["candidate_recall"]["status"] == "pass"
+    assert evaluation["cells"]["document_retention"]["status"] == "pass"
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"

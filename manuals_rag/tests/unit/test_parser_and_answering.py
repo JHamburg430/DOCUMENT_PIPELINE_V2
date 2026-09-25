@@ -294,6 +294,34 @@ def test_exact_control_extracts_zoomtrax_before_label_scenario():
     assert [item.chunk_id for item in evidence] == ["zoomtrax-before"]
 
 
+def test_exact_control_extracts_complete_lj_x8000_head_extension_model_list():
+    result = SearchResult(
+        chunk_id="lj-x8000-cables",
+        score=0.9,
+        title="LJ-X8000 User's Manual",
+        document_version_id="v1",
+        source_document_id="lj-x8000-doc",
+        pages=[664],
+        section_path=["Accessories"],
+        content=(
+            "Head connection extension cable CB-B5E 5 m CB-B10E 10 m "
+            "CB-B20E 20 m"
+        ),
+        metadata={"chunk_type": "section_window", "product_models": ["LJ-X8000"]},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "Which head connection extension cable models are listed for the LJ-X8000 Series?",
+        [result],
+    )
+
+    assert answer == (
+        "The listed head connection extension cable models are CB-B5E, CB-B10E, "
+        "and CB-B20E."
+    )
+    assert [item.chunk_id for item in evidence] == ["lj-x8000-cables"]
+
+
 def test_exact_control_extracts_sensor_controller_connector_from_models_label():
     result = SearchResult(
         chunk_id="lr-t-m12",

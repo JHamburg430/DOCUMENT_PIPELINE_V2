@@ -19,6 +19,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_devid_protocol_mapping_support,
     _direct_detection_capability_support,
     _direct_emc_standard_class_support,
+    _direct_lj_x8000_head_extension_models_support,
     _direct_zoomtrax_before_label_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
@@ -151,6 +152,28 @@ def test_direct_zoomtrax_before_label_support_requires_exact_scenario():
         query,
         [benefits_only],
         {"supporting_chunk_ids": ["zoomtrax-benefits"]},
+    ) == []
+
+
+def test_direct_lj_x8000_head_extension_support_requires_complete_model_list():
+    query = "Which head connection extension cable models are listed for the LJ-X8000 Series?"
+    complete = _result(
+        "lj-x8000-cables",
+        "lj-x8000-manual",
+        "Head connection extension cable CB-B5E 5 m CB-B10E 10 m CB-B20E 20 m",
+    ).model_copy(update={"metadata": {"chunk_type": "section_window", "product_models": ["LJ-X8000"]}})
+    incomplete = _result(
+        "lj-x8000-cables-incomplete",
+        "lj-x8000-manual",
+        "Head connection extension cable CB-B5E 5 m CB-B10E 10 m",
+    ).model_copy(update={"metadata": complete.metadata})
+    preliminary = {"supporting_chunk_ids": [incomplete.chunk_id, complete.chunk_id]}
+
+    assert _direct_lj_x8000_head_extension_models_support(
+        query, [incomplete, complete], preliminary
+    ) == [complete.chunk_id]
+    assert _direct_lj_x8000_head_extension_models_support(
+        query, [incomplete], preliminary
     ) == []
 
 

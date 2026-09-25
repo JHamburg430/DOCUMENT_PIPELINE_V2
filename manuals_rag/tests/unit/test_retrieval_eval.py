@@ -6627,6 +6627,70 @@ def test_score_search_results_accepts_short_duplicate_fact_with_explicit_model()
     assert evaluation["match_reason"] == "cross_document_semantic_evidence"
 
 
+def test_score_search_results_accepts_complete_lj_x8000_cable_list_from_duplicate_manual():
+    case = RetrievalEvalCase(
+        case_id="lj-x8000-head-extension-cables",
+        query="Which head connection extension cable models are listed for the LJ-X8000 Series?",
+        source_document_id="installation-guide",
+        document_version_id="installation-version",
+        source_chunk_id="expected-cable-list",
+        source_title="LJ-X8000 Installation Guide",
+        source_filename="installation.pdf",
+        chunk_type="spec_record",
+        section_path="Dimensions",
+        page_from=39,
+        page_to=39,
+        expected_terms=["cb-b5e", "cb-b10e", "cb-b20e"],
+        expected_snippet="Head connection extension cable models: CB-B5E, CB-B10E, CB-B20E",
+        generation_method="unit",
+        source_metadata={"product_family": "X8000 Series"},
+    )
+    result = {
+        "chunk_id": "duplicate-cable-list",
+        "source_document_id": "users-manual",
+        "section_path": ["Accessories"],
+        "content": (
+            "Head connection extension cable CB-B5E 5 m CB-B10E 10 m "
+            "CB-B20E 20 m"
+        ),
+        "metadata": {"chunk_type": "section_window", "product_models": ["LJ-X8000"]},
+    }
+
+    evaluation = score_search_results(case, [result])
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "applicable_equivalent_answer_evidence"
+
+
+def test_score_search_results_rejects_incomplete_lj_x8000_cable_list():
+    case = RetrievalEvalCase(
+        case_id="lj-x8000-head-extension-cables-incomplete",
+        query="Which head connection extension cable models are listed for the LJ-X8000 Series?",
+        source_document_id="installation-guide",
+        document_version_id="installation-version",
+        source_chunk_id="expected-cable-list",
+        source_title="LJ-X8000 Installation Guide",
+        source_filename="installation.pdf",
+        chunk_type="spec_record",
+        section_path="Dimensions",
+        page_from=39,
+        page_to=39,
+        expected_terms=["cb-b5e", "cb-b10e", "cb-b20e"],
+        expected_snippet="Head connection extension cable models: CB-B5E, CB-B10E, CB-B20E",
+        generation_method="unit",
+        source_metadata={"product_family": "X8000 Series"},
+    )
+    result = {
+        "chunk_id": "incomplete-cable-list",
+        "source_document_id": "users-manual",
+        "section_path": ["Accessories"],
+        "content": "Head connection extension cable CB-B5E 5 m CB-B10E 10 m",
+        "metadata": {"chunk_type": "section_window", "product_models": ["LJ-X8000"]},
+    }
+
+    assert score_search_results(case, [result])["passed"] is False
+
+
 def test_score_search_results_rejects_cross_document_context_without_answer_identifiers():
     case = RetrievalEvalCase(
         case_id="diagram-controller-models",
