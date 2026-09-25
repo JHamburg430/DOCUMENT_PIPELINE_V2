@@ -851,6 +851,45 @@ def test_canonicalizes_lr_tb2000_detecting_distance_range_contract():
     assert terms == ["detecting", "distance", "60", "2000", "2.36", "78.74"]
 
 
+def test_narrows_gl_r60h_stop_distance_contract_to_calculated_result():
+    query = (
+        "What is the calculated stop distance S for an industrial application "
+        "using a GL-R60H sensor with K=2000 mm/s?"
+    )
+    broad_source_terms = [
+        "condition",
+        "industrial",
+        "application",
+        "2000",
+        "78.74",
+        "0.0157",
+        "88",
+        "0.98",
+        "0.55",
+        "3.46",
+        "319.4",
+        "12.57",
+        "500",
+        "19.69",
+        "1600",
+        "62.99",
+    ]
+
+    assert _MODULE.answer_relevant_expected_terms(query, broad_source_terms) == [
+        "319.4",
+        "12.57",
+    ]
+    assert _MODULE.missing_expected_answer_contract(
+        query,
+        (
+            "Condition: Industrial application K = 2000 mm 78.74\"/s "
+            "t1 = 0.0157 s C = 88 mm S = 319.4 mm S = 12.57\" "
+            "If S is greater than 500 mm, calculate again with K = 1600 mm/s"
+        ),
+        ["319.4", "12.57"],
+    ) == []
+
+
 def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     expected = (
         "In the AS_160148 XG-X camera specification table, what electronic shutter range "
