@@ -848,6 +848,18 @@ def test_repairs_existing_xg_x_dent_query_with_series_scope():
     )
 
 
+def test_dent_range_contract_scores_answer_bearing_terms_not_grammatical_subject():
+    query = (
+        "For the XG-X Series inline 3D inspection system, which dent-depth conditions "
+        "can be inspected by freely setting the reference plane?"
+    )
+
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["users", "freely", "set", "reference"],
+    ) == ["sharp", "shallow", "dents", "reference"]
+
+
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [
