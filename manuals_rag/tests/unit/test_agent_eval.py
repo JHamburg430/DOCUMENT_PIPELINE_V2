@@ -355,6 +355,55 @@ def test_structured_equivalence_rejects_neighboring_matrix_model():
     assert _equivalent_chunk_ids(case, results)["matrix-row"] == set()
 
 
+def test_structured_equivalence_accepts_exact_query_scoped_value_only_cell():
+    case = {
+        "query": "What is the maximum relative humidity for the WM-6025 operating ambient conditions?",
+        "source_document_id": "wm-doc",
+        "source_chunk_id": "row-group",
+        "page_from": 2,
+        "page_to": 2,
+        "expected_snippet": "Max. 80% RH (no condensation)",
+    }
+    results = [
+        {
+            "chunk_id": "humidity-cell",
+            "source_document_id": "wm-doc",
+            "pages": [1],
+            "content": (
+                "Column headers: WM-6025; Row headers: Camera unit > Environmental resistance > "
+                "Operating ambient humidity; Cell value: Max. 80% RH (no condensation); "
+                "Row: 15; Column: 4"
+            ),
+            "metadata": {"chunk_type": "table_record"},
+        }
+    ]
+
+    assert _equivalent_chunk_ids(case, results)["row-group"] == {"humidity-cell"}
+
+
+def test_structured_equivalence_rejects_value_only_cell_without_exact_query_scope():
+    base_case = {
+        "query": "What is the maximum relative humidity for the WM-6025 operating ambient conditions?",
+        "source_document_id": "wm-doc",
+        "source_chunk_id": "row-group",
+        "page_from": 2,
+        "page_to": 2,
+        "expected_snippet": "Max. 80% RH (no condensation)",
+    }
+    result = {
+        "chunk_id": "wrong-cell",
+        "source_document_id": "wm-doc",
+        "pages": [1],
+        "content": (
+            "Column headers: WM-9999; Row headers: Storage ambient humidity; "
+            "Cell value: Max. 80% RH (no condensation); Row: 16; Column: 4"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _equivalent_chunk_ids(base_case, [result])["row-group"] == set()
+
+
 def test_cross_document_equivalence_does_not_inherit_first_document_pages():
     case = {
         "source_document_id": "first-doc",

@@ -401,6 +401,56 @@ def _structured_evidence_equivalent(expected: str, actual: str, *, query: str = 
         if expected_properties and expected_properties == actual_properties:
             return True
 
+    # A source-verified fixture may freeze only the answer-bearing cell value
+    # while retrieval returns the normalized atomic table cell.  Credit that
+    # representation change only when the value is exact and the question
+    # independently binds both the model/column identifier and the leaf row.
+    # This keeps a matching value from a neighboring model or row from being
+    # accepted merely because it occurs in the same document.
+    if actual_cell and not expected_cell:
+        actual_column, actual_row, actual_value, _actual_properties = actual_cell
+        normalized_expected = _normalized(expected)
+        compact_query = re.sub(r"[^a-z0-9]", "", query.lower())
+        raw_column_match = re.search(
+            r"Column\s+headers:\s*(?P<column>.*?);\s*Row\s+headers:",
+            actual,
+            flags=re.I | re.S,
+        )
+        raw_column = raw_column_match.group("column") if raw_column_match else actual_column
+        column_identifiers = {
+            re.sub(r"[^a-z0-9]", "", value.lower())
+            for value in re.findall(
+                r"\b(?=[A-Za-z0-9_-]*[A-Za-z])(?=[A-Za-z0-9_-]*\d)"
+                r"[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*\b",
+                raw_column,
+            )
+        }
+        raw_row_match = re.search(
+            r"Row\s+headers:\s*(?P<row>.*?);\s*Cell\s+value:",
+            actual,
+            flags=re.I | re.S,
+        )
+        raw_leaf_row = (
+            raw_row_match.group("row").split(">")[-1]
+            if raw_row_match
+            else actual_row
+        )
+        leaf_row = _normalized(raw_leaf_row)
+        leaf_tokens = {
+            token
+            for token in leaf_row.split()
+            if len(token) >= 3 and token not in {"the", "and", "for"}
+        }
+        query_tokens = set(_normalized(query).split())
+        if (
+            normalized_expected == actual_value
+            and column_identifiers
+            and any(identifier in compact_query for identifier in column_identifiers)
+            and leaf_tokens
+            and leaf_tokens.issubset(query_tokens)
+        ):
+            return True
+
     # Source-verified table row groups can contain several pipe-delimited rows,
     # while retrieval intentionally returns the one normalized atomic cell that
     # answers the question.  Accept that representation only when one complete
