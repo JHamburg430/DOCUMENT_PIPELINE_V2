@@ -10030,6 +10030,13 @@ def test_structured_table_answer_binds_model_name_pivot_row():
             "The manual-focus sensor needs its focusing position adjusted after installation; "
             "reserve enough space to make that adjustment.",
         ),
+        (
+            "What is the horizontal travel distance per turn for the CA-S20D left/right "
+            "rotation adjustment screw?",
+            "Model | | CA-S20D *1\nAdjustment screw pitch | Left/right rotation |\n"
+            " | Horizontal travel | 10 mm 0.39\" /turn",
+            'CA-S20D horizontal travel is 10 mm (0.39") per turn.',
+        ),
     ],
 )
 def test_generate_answer_uses_exact_control_evidence_without_model(

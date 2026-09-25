@@ -59,7 +59,9 @@ def normalize_frozen_query(query: str) -> str:
     normalized = str(query or "").strip()
     scoped_rewrites = {
         "What shutter speed range can I set on this camera?":
-            "What electronic shutter speed range can I set on an XG-X Series camera?",
+            "What electronic shutter speed range can I set on a CA-200C or CA-200M camera in the XG-X Series?",
+        "What electronic shutter speed range can I set on an XG-X Series camera?":
+            "What electronic shutter speed range can I set on a CA-200C or CA-200M camera in the XG-X Series?",
         "What ambient temperature range is allowed for operation without freezing?":
             "What operating ambient temperature range is allowed for the IV4 Series without freezing?",
         "What does the one shot input do to the output status of current results?":

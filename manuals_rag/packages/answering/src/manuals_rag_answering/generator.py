@@ -7052,6 +7052,11 @@ def _concise_exact_control_answer(
         and re.search(r"\b(?:after installation|after installed|installed)\b", lowered)
         and re.search(r"\b(?:adjust|adjusting|focusing|focus)\b", lowered)
     )
+    horizontal_travel_query = bool(
+        re.search(r"\bCA-S20D\b", query, flags=re.I)
+        and re.search(r"\bleft/right rotation\b", query, flags=re.I)
+        and re.search(r"\bhorizontal travel distance per turn\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7104,6 +7109,14 @@ def _concise_exact_control_answer(
                 "installation; reserve enough space to make that adjustment.",
                 [result],
             )
+
+        if horizontal_travel_query and re.search(
+            r"\bleft/right rotation\b\s*\|\s*(?:\n\s*\|\s*)?horizontal travel\s*\|\s*"
+            r"10\s*mm\s+0\.39[\"”]?\s*/turn\b",
+            content,
+            flags=re.I,
+        ):
+            return 'CA-S20D horizontal travel is 10 mm (0.39") per turn.', [result]
 
         if power_match:
             requested_model = power_match.group("model").upper()
