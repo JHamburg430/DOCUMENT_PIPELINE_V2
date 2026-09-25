@@ -970,6 +970,20 @@ def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     ) == expected
 
 
+def test_repairs_ca_en100u_emc_question_to_literal_source_contract():
+    query = _MODULE.normalize_frozen_query(
+        "Which EMC emission class applies to the CA-EN100U encoder unit?"
+    )
+
+    assert query == (
+        "What applicable standard and class are listed for the CA-EN100U encoder unit?"
+    )
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["applicable", "standard", "en61326", "class"],
+    ) == ["en61326", "class a"]
+
+
 def test_repairs_existing_xg_x_dent_query_with_series_scope():
     assert _MODULE.normalize_frozen_query(
         "For the XG-X inline 3D inspection system, which dent-depth conditions can be "

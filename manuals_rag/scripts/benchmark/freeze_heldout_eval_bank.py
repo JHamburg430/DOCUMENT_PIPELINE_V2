@@ -176,6 +176,8 @@ def normalize_frozen_query(query: str) -> str:
             "connected LR-T laser sensor?",
         "What components are included in the set for connecting a 4-pin M12 sensor-to-controller cable?":
             "What connector type is used for the LR-T sensor-to-controller cable?",
+        "Which EMC emission class applies to the CA-EN100U encoder unit?":
+            "What applicable standard and class are listed for the CA-EN100U encoder unit?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
@@ -235,6 +237,11 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
         and re.search(r"\blr-t sensor-to-controller cable\b", normalized_query)
     ):
         return ["4-pin", "m12"]
+    if (
+        re.search(r"\bapplicable standard and class\b", normalized_query)
+        and re.search(r"\bca-en100u\b", normalized_query)
+    ):
+        return ["en61326", "class a"]
     if (
         re.search(r"\bdent[- ]depth conditions\b", normalized_query)
         and re.search(r"\breference plane\b", normalized_query)

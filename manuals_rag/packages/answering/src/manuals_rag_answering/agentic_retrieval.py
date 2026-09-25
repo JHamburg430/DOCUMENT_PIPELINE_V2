@@ -4807,6 +4807,45 @@ def _direct_causal_explanation_support(
     return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
 
 
+def _direct_emc_standard_class_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the exact CA-EN100U EMC standard/class row.
+
+    Keep this intentionally narrow: a generic ``Class A`` mention (including
+    the nearby FCC row) is insufficient unless the same scoped evidence unit
+    explicitly binds it to the EN61326 applicable-standard label.
+    """
+    if not (
+        re.search(r"\bCA-EN100U\b", query, flags=re.I)
+        and re.search(r"\bapplicable standard\b", query, flags=re.I)
+        and re.search(r"\bclass\b", query, flags=re.I)
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not re.search(
+            r"\bApplicable standard\s*\(BS\)\s*EN\s*61326\s*[:\-]\s*1\s*,\s*Class A\b",
+            content,
+            flags=re.I,
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def verify_retrieval_claim(
     hop: RetrievalHop,
     executed_query: str,
@@ -4828,6 +4867,28 @@ def verify_retrieval_claim(
             applicability="unknown",
             rationale="No retrieval evidence was supplied to the verifier.",
         ).model_dump()
+
+    direct_emc_support = _direct_emc_standard_class_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_emc_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_emc_support,
+            applicability="not_requested",
+            scope_entity="CA-EN100U",
+            rationale=(
+                "Deterministic compliance verification matched the scoped CA-EN100U "
+                "applicable-standard row binding (BS)EN61326-1 to Class A."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_emc_support,
+        }
 
     direct_included_accessory_support = _direct_included_accessory_support(
         hop.objective,

@@ -213,6 +213,28 @@ def test_exact_control_extracts_ca_en100u_pc_configuration_branch():
     assert [item.chunk_id for item in evidence] == ["ca-en100u-pc"]
 
 
+def test_exact_control_extracts_ca_en100u_emc_standard_and_class():
+    result = SearchResult(
+        chunk_id="ca-en100u-emc",
+        score=0.9,
+        title="CA-EN100U Instruction Manual",
+        document_version_id="v1",
+        source_document_id="ca-en100u-doc",
+        pages=[1],
+        section_path=["NOTICE"],
+        content="Applicable standard (BS)EN61326: 1, Class A",
+        metadata={"chunk_type": "spec_record", "product_model": "CA-EN100U"},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "What applicable standard and class are listed for the CA-EN100U encoder unit?",
+        [result],
+    )
+
+    assert answer == "The applicable standard is (BS)EN61326-1, Class A."
+    assert [item.chunk_id for item in evidence] == ["ca-en100u-emc"]
+
+
 def test_exact_control_extracts_sensor_controller_connector_from_models_label():
     result = SearchResult(
         chunk_id="lr-t-m12",

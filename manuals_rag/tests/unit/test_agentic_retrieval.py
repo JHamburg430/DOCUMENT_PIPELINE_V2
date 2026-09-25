@@ -18,6 +18,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_controller_image_capacity_support,
     _direct_devid_protocol_mapping_support,
     _direct_detection_capability_support,
+    _direct_emc_standard_class_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _direct_feature_amplifier_type_support,
@@ -81,6 +82,31 @@ def test_visual_dependency_abstention_emits_no_citations():
     assert answer.confidence == "low"
     assert answer.citations == []
     assert "visual" in answer.answer.lower()
+
+
+def test_direct_emc_standard_class_support_requires_scoped_atomic_binding():
+    query = "What applicable standard and class are listed for the CA-EN100U encoder unit?"
+    supported = _result(
+        "ca-en100u-emc",
+        "ca-en100u-doc",
+        "Applicable standard (BS)EN61326: 1, Class A",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record", "product_model": "CA-EN100U"}})
+    nearby_fcc = _result(
+        "fcc-only",
+        "ca-en100u-doc",
+        "Applicable regulation FCC Part 15 Subpart B Class A",
+    ).model_copy(update={"metadata": supported.metadata})
+
+    assert _direct_emc_standard_class_support(
+        query,
+        [nearby_fcc, supported],
+        {"supporting_chunk_ids": ["fcc-only", "ca-en100u-emc"]},
+    ) == ["ca-en100u-emc"]
+    assert _direct_emc_standard_class_support(
+        query,
+        [nearby_fcc],
+        {"supporting_chunk_ids": ["fcc-only"]},
+    ) == []
 
 
 def test_heuristic_planner_decomposes_named_scopes_and_pairs_requested_details():

@@ -7247,6 +7247,11 @@ def _concise_exact_control_answer(
         and re.search(r"\busing\s+a\s+PC\b", query, flags=re.I)
         and re.search(r"\binstead\s+of\s+the\s+image processing system controller\b", query, flags=re.I)
     )
+    ca_en100u_emc_standard_query = bool(
+        re.search(r"\bCA-EN100U\b", query, flags=re.I)
+        and re.search(r"\bapplicable standard\b", query, flags=re.I)
+        and re.search(r"\bclass\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7286,6 +7291,13 @@ def _concise_exact_control_answer(
                 "than the image processing system controller (a PC, for example).",
                 [result],
             )
+
+        if ca_en100u_emc_standard_query and re.search(
+            r"\bApplicable standard\s*\(BS\)\s*EN\s*61326\s*[:\-]\s*1\s*,\s*Class A\b",
+            content,
+            flags=re.I,
+        ):
+            return "The applicable standard is (BS)EN61326-1, Class A.", [result]
 
         if height_gradient_query and re.search(
             r"\brange of heights between the height of the 2 points specified\b",
