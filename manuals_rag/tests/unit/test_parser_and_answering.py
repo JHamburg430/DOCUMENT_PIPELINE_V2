@@ -10586,6 +10586,15 @@ def test_structured_table_answer_binds_model_name_pivot_row():
             "It is also possible to take individual differences in non-defective workpieces "
             "into account and adjust how much differences should be recognized as defective.",
         ),
+        (
+            "How should I adjust the sensor position if the view and optical axis differ "
+            "during installation?",
+            "This chapter explains how to mount the sensor, how to set up the PC, and how "
+            "to connect the cables. View and optical axis have individual differences. "
+            "Adjust the position by checking the actual image at the time of installation.",
+            "View and optical axis have individual differences. Adjust the position by "
+            "checking the actual image at the time of installation.",
+        ),
     ],
 )
 def test_generate_answer_uses_exact_control_evidence_without_model(

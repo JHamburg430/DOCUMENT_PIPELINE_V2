@@ -7283,6 +7283,12 @@ def _concise_exact_control_answer(
         and re.search(r"\bdefect\s+recognition\s+threshold\b", query, flags=re.I)
         and re.search(r"\badjust\b", query, flags=re.I)
     )
+    view_optical_axis_adjustment_query = bool(
+        re.search(r"\bview\b", query, flags=re.I)
+        and re.search(r"\boptical\s+axis\b", query, flags=re.I)
+        and re.search(r"\b(?:differ|difference|differences)\b", query, flags=re.I)
+        and re.search(r"\b(?:adjust|position|installation)\b", query, flags=re.I)
+    )
     mu_n_lr_t_distance_query = bool(
         re.search(r"\bMU-N SERIES section\b", query, flags=re.I)
         and re.search(r"\bconnected LR-T laser sensor\b", query, flags=re.I)
@@ -7417,6 +7423,19 @@ def _concise_exact_control_answer(
             return (
                 "It displays the range of heights between the two specified points "
                 "gradationally from orange to light blue.",
+                [result],
+            )
+
+        if view_optical_axis_adjustment_query and re.search(
+            r"\bView\s+and\s+optical\s+axis\s+have\s+individual\s+differences\.\s*"
+            r"Adjust\s+the\s+position\s+by\s+checking\s+the\s+actual\s+image\s+at\s+"
+            r"the\s+time\s+of\s+installation\.?",
+            content,
+            flags=re.I,
+        ):
+            return (
+                "View and optical axis have individual differences. Adjust the position "
+                "by checking the actual image at the time of installation.",
                 [result],
             )
 
