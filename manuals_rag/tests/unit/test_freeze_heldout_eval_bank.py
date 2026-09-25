@@ -869,6 +869,15 @@ def test_repairs_existing_xg_x_dent_query_with_series_scope():
     )
 
 
+def test_makes_mu_n_mounting_bracket_query_conditional():
+    assert _MODULE.normalize_frozen_query(
+        "What mounting bracket part number is required for the MU-N Series sensor installation?"
+    ) == (
+        "When using the separately sold mounting bracket for MU-N Series sensor installation, "
+        "what is its part number?"
+    )
+
+
 def test_dent_range_contract_scores_answer_bearing_terms_not_grammatical_subject():
     query = (
         "For the XG-X Series inline 3D inspection system, which dent-depth conditions "

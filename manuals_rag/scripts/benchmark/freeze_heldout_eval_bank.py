@@ -81,6 +81,9 @@ def normalize_frozen_query(query: str) -> str:
             "In the AS_124150 LJ-X8000 communication manual, how do I activate the Laser ON input?",
         "How do I activate the Laser ON input on the LJ-X8000 controller?":
             "In the AS_124150 LJ-X8000 communication manual, how do I activate the Laser ON input?",
+        "What mounting bracket part number is required for the MU-N Series sensor installation?":
+            "When using the separately sold mounting bracket for MU-N Series sensor installation, "
+            "what is its part number?",
         "How many cameras connect to one CA-E100 area camera input unit?":
             "In the AS_160148 XG-X manual, how many color/monochrome cameras connect "
             "to one CA-E100 area camera input unit?",
