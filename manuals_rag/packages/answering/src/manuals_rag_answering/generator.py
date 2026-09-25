@@ -4299,6 +4299,45 @@ def _concise_structured_fact_answer(
     query: str,
     results: list[SearchResult],
 ) -> tuple[str, list[SearchResult]]:
+    ultra_narrow_fov_query = bool(
+        re.search(r"\bultra[- ]narrow\b", query, flags=re.IGNORECASE)
+        and re.search(r"\bfield\s+of\s+view\b", query, flags=re.IGNORECASE)
+        and re.search(r"\binstallation\s+distance\b", query, flags=re.IGNORECASE)
+    )
+    distance_range = re.search(
+        r"\b(?P<near>\d+(?:\.\d+)?)\s*mm\s+to\s+(?P<far>\d+(?:\.\d+)?)\s*mm\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if ultra_narrow_fov_query and distance_range:
+        near = distance_range.group("near")
+        far = distance_range.group("far")
+        endpoint_pattern = re.compile(
+            rf"Installation\s+distance\s+of\s+{re.escape(near)}\s*mm"
+            r"(?P<near_in>\d+(?:\.\d+)?)[\"″]\s*:\s*"
+            r"(?P<near_h>\d+(?:\.\d+)?)\s*\(H\)\s*[×x]\s*"
+            r"(?P<near_v>\d+(?:\.\d+)?)\s*\(V\)\s*mm\s*to\s*"
+            rf"Installation\s+distance\s+of\s+{re.escape(far)}\s*mm"
+            r"(?P<far_in>\d+(?:\.\d+)?)[\"″]\s*:\s*"
+            r"(?P<far_h>\d+(?:\.\d+)?)\s*\(H\)\s*[×x]\s*"
+            r"(?P<far_v>\d+(?:\.\d+)?)\s*\(V\)\s*mm",
+            flags=re.IGNORECASE,
+        )
+        for result in results[:12]:
+            evidence = re.sub(r"\s+", " ", _fallback_answer_text(result)).strip()
+            if not re.search(r"\bUltra[- ]narrow\s+field\s+of\s+view\s+model\b", evidence, flags=re.I):
+                continue
+            match = endpoint_pattern.search(evidence)
+            if not match:
+                continue
+            return (
+                f"For the ultra-narrow model, the field of view is "
+                f"{match.group('near_h')} (H) × {match.group('near_v')} (V) mm at an "
+                f"installation distance of {near} mm{match.group('near_in')}\", and "
+                f"{match.group('far_h')} (H) × {match.group('far_v')} (V) mm at an "
+                f"installation distance of {far} mm{match.group('far_in')}\".",
+                [result],
+            )
     if re.search(r"\b(?:configure|set|login|log in|user name|username)\b", query, flags=re.IGNORECASE):
         for result in results[:12]:
             evidence = _fallback_answer_text(result)

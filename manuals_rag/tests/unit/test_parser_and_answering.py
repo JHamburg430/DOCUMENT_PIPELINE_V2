@@ -641,6 +641,39 @@ def test_structured_fact_answer_binds_connector_type_to_requested_model():
     assert [item.chunk_id for item in support] == ["lr-tb2000-cable"]
 
 
+def test_structured_fact_answer_returns_ultra_narrow_field_of_view_endpoints():
+    result = SearchResult(
+        chunk_id="iv4-fov",
+        score=1.0,
+        title="IV4 specifications",
+        document_version_id="version-1",
+        source_document_id="doc-1",
+        pages=[29],
+        section_path=["Specifications"],
+        content=(
+            "Type | Ultra-narrow field of view model | Long range, narrow field of view model\n"
+            'Field of view (reference value) | Installation distance of 23 mm0.91": '
+            '9.8 (H) × 7.3 (V)mmto Installation distance of 40 mm1.57": '
+            "15 (H) × 11.2 (V)mm | Installation distance of 400 mm15.75\": "
+            "58 (H) × 44 (V)mm"
+        ),
+        metadata={"chunk_type": "parent_section"},
+    )
+
+    answer, support = _concise_structured_fact_answer(
+        "What is the field of view for the ultra-narrow model at an installation distance "
+        "of 23 mm to 40 mm?",
+        [result],
+    )
+
+    assert answer == (
+        'For the ultra-narrow model, the field of view is 9.8 (H) × 7.3 (V) mm at an '
+        'installation distance of 23 mm0.91", and 15 (H) × 11.2 (V) mm at an '
+        'installation distance of 40 mm1.57".'
+    )
+    assert support == [result]
+
+
 def test_structured_fact_answer_preserves_pin_count_before_connector_type():
     result = SearchResult(
         chunk_id="sensor-controller-cable",
