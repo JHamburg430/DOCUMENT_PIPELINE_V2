@@ -1,3 +1,4 @@
+import logging
 from threading import Barrier, BoundedSemaphore, Lock
 from time import sleep
 from types import SimpleNamespace
@@ -83,6 +84,37 @@ def test_parallel_branches_execute_concurrently_and_publish_in_declared_order():
     assert list(results) == ["dense", "sparse"]
     assert [results[name][0].chunk_id for name in results] == ["dense-1", "sparse-1"]
     assert [snapshot["substage"] for snapshot in snapshots] == ["dense", "sparse"]
+
+
+def test_parallel_branches_isolate_one_branch_failure_and_capture_telemetry(caplog):
+    expected = SearchResult(
+        chunk_id="lexical-1",
+        score=1.0,
+        title="Manual",
+        document_version_id="version-1",
+        source_document_id="document-1",
+        pages=[1],
+        section_path=["Setup"],
+        content="answer-bearing evidence",
+        metadata={},
+    )
+
+    def timed_out():
+        raise TimeoutError("timed out")
+
+    with retriever.capture_retrieval_stages() as snapshots, caplog.at_level(logging.WARNING):
+        results = retriever._run_parallel_branches(
+            "setup query",
+            [("special", timed_out), ("contextual_lexical", lambda: [expected])],
+            max_workers=2,
+        )
+
+    assert results == {"special": [], "contextual_lexical": [expected]}
+    assert [snapshot["substage"] for snapshot in snapshots] == ["special", "contextual_lexical"]
+    assert snapshots[0]["failed"] is True
+    assert snapshots[0]["error_type"] == "TimeoutError"
+    assert snapshots[0]["result_count"] == 0
+    assert "Retrieval branch special failed" in caplog.text
 
 
 def test_qdrant_branch_concurrency_is_globally_bounded(monkeypatch):

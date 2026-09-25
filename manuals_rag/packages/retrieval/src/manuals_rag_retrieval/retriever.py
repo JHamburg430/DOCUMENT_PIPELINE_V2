@@ -147,6 +147,7 @@ def _record_substage_timing(
     duration_ms: float,
     *,
     result_count: int | None = None,
+    error: Exception | None = None,
 ) -> None:
     """Persist deterministic per-substage wall time beside retrieval snapshots."""
     capture = _active_stage_capture.get()
@@ -161,6 +162,10 @@ def _record_substage_timing(
     }
     if result_count is not None:
         payload["result_count"] = result_count
+    if error is not None:
+        payload["failed"] = True
+        payload["error_type"] = type(error).__name__
+        payload["error"] = str(error)[:500]
     capture.append(payload)
 
 
@@ -176,8 +181,11 @@ def _measure_substage(substage: str, query: str, operation):
 def _measure_value(operation):
     """Measure a worker-thread operation without mutating request-local capture."""
     started = perf_counter()
-    result = operation()
-    return result, (perf_counter() - started) * 1000
+    try:
+        result = operation()
+    except Exception as exc:
+        return [], (perf_counter() - started) * 1000, exc
+    return result, (perf_counter() - started) * 1000, None
 
 
 def _run_qdrant_branch(operation: Callable[[], list[SearchResult]]) -> list[SearchResult]:
@@ -201,9 +209,21 @@ def _run_parallel_branches(
             for name, operation in branch_operations
         }
         for name, _operation in branch_operations:
-            results, duration_ms = futures[name].result()
+            results, duration_ms, error = futures[name].result()
             branch_results[name] = results
-            _record_substage_timing(name, query, duration_ms, result_count=len(results))
+            _record_substage_timing(
+                name,
+                query,
+                duration_ms,
+                result_count=len(results),
+                error=error,
+            )
+            if error is not None:
+                logger.warning(
+                    "Retrieval branch %s failed; continuing with remaining branches: %s",
+                    name,
+                    error,
+                )
     return branch_results
 
 
