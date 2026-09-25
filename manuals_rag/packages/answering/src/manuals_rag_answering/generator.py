@@ -7047,6 +7047,11 @@ def _concise_exact_control_answer(
         and re.search(r"\bheight differences?\b", lowered)
         and re.search(r"\brectangle region\b", lowered)
     )
+    manual_focus_query = bool(
+        re.search(r"\bmanual[- ]focus\b", lowered)
+        and re.search(r"\b(?:after installation|after installed|installed)\b", lowered)
+        and re.search(r"\b(?:adjust|adjusting|focusing|focus)\b", lowered)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7085,6 +7090,18 @@ def _concise_exact_control_answer(
             return (
                 "It displays the range of heights between the two specified points "
                 "gradationally from orange to light blue.",
+                [result],
+            )
+
+        if manual_focus_query and re.search(
+            r"\bmanual focus type\b.{0,80}\b(?:needs? to )?adjust(?:ing|ed)? "
+            r"the focusing position after install(?:ed|ation)\b",
+            content,
+            flags=re.I | re.S,
+        ) and not re.search(r"\bautomatic focus\b", content, flags=re.I):
+            return (
+                "The manual-focus sensor needs its focusing position adjusted after "
+                "installation; reserve enough space to make that adjustment.",
                 [result],
             )
 

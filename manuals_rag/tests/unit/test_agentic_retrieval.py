@@ -18,6 +18,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_compound_laser_measurement_support,
     _direct_indicator_meaning_support,
     _direct_illumination_type_support,
+    _direct_manual_focus_installation_support,
     _direct_pc_to_plc_menu_path_support,
     _direct_procedure_support,
     _direct_saved_settings_activation_support,
@@ -3948,6 +3949,29 @@ def test_saved_settings_activation_support_requires_save_yes_context():
 
     assert _direct_saved_settings_activation_support(query, [missing_context, supported]) == [
         "restart-action"
+    ]
+
+
+def test_manual_focus_installation_support_rejects_automatic_focus_sibling():
+    query = (
+        "What installation precaution applies when adjusting an IV-500C manual-focus "
+        "sensor after installation?"
+    )
+    automatic = _result(
+        "automatic-focus",
+        "iv-doc",
+        "Automatic focus function is used for adjusting the focusing position at the "
+        "time of installation.",
+    ).model_copy(update={"metadata": {"product_models": ["IV-500C"]}})
+    manual = _result(
+        "manual-focus",
+        "iv-doc",
+        "Manual focus type needs to adjust the focusing position after installed. "
+        "Reserve enough space to adjust and install it.",
+    ).model_copy(update={"metadata": {"product_models": ["IV-500C"]}})
+
+    assert _direct_manual_focus_installation_support(query, [automatic, manual]) == [
+        "manual-focus"
     ]
 
 

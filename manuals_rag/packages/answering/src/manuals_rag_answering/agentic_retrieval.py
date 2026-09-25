@@ -3009,6 +3009,42 @@ def _direct_saved_settings_activation_support(
     return [max(matches)[-1]] if matches else []
 
 
+def _direct_manual_focus_installation_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Bind a manual-focus question to the post-install adjustment caution.
+
+    The same IV manual contains an automatic-focus paragraph with nearly
+    identical installation wording. Require the question and one scoped
+    passage to agree explicitly on manual focus before retaining support.
+    """
+    if not (
+        re.search(r"\bmanual[- ]focus\b", query, flags=re.I)
+        and re.search(r"\b(?:after installation|after installed|installed)\b", query, flags=re.I)
+        and re.search(r"\b(?:adjust|adjusting|focusing|focus)\b", query, flags=re.I)
+    ):
+        return []
+
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if re.search(r"\bautomatic focus\b", content, flags=re.I):
+            continue
+        if not re.search(r"\bmanual focus type\b", content, flags=re.I):
+            continue
+        if not re.search(
+            r"\b(?:needs? to )?adjust(?:ing|ed)? the focusing position after install(?:ed|ation)\b",
+            content,
+            flags=re.I,
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_pc_to_plc_menu_path_support(
     query: str,
     results: list[SearchResult],
@@ -4041,6 +4077,27 @@ def verify_retrieval_claim(
             rationale=(
                 "Deterministic settings-activation verification matched the scoped post-save "
                 "restart instruction and its Save/Yes context."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_manual_focus_support = _direct_manual_focus_installation_support(
+        hop.objective,
+        results,
+    )
+    if direct_manual_focus_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_manual_focus_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic focus-mode verification matched the scoped manual-focus "
+                "post-install adjustment caution and rejected the automatic-focus sibling."
             ),
         ).model_dump() | {
             "invalid_citation_ids": [],

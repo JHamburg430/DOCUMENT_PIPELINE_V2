@@ -10022,6 +10022,14 @@ def test_structured_table_answer_binds_model_name_pivot_row():
             "It displays the range of heights between the two specified points gradationally "
             "from orange to light blue.",
         ),
+        (
+            "What installation precaution applies when adjusting an IV-500C manual-focus "
+            "sensor after installation?",
+            "Manual focus type needs to adjust the focusing position after installed. "
+            "Reserve enough space to adjust and install it.",
+            "The manual-focus sensor needs its focusing position adjusted after installation; "
+            "reserve enough space to make that adjustment.",
+        ),
     ],
 )
 def test_generate_answer_uses_exact_control_evidence_without_model(
