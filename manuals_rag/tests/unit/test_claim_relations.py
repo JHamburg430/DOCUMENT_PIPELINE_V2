@@ -31,6 +31,16 @@ def test_relation_profile_preserves_decimal_inch_distance_range():
     }
 
 
+def test_relation_profile_normalizes_apostrophe_foot_distance():
+    profile = relation_profile(
+        "Installation distance: 50 mm (1.97\") to > 3 m (9.8')."
+    )
+
+    assert profile.role_values == {
+        "distance": frozenset({"50 mm", "1.97 in", "3 m", "9.8 ft"})
+    }
+
+
 def test_role_bound_polarity_cannot_be_borrowed_from_another_citation():
     supported, details = answer_relations_supported(
         "Do not set voltage to 5 V.",
