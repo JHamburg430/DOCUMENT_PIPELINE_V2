@@ -833,6 +833,24 @@ def test_focuses_iv_h500ca_installed_distance_on_range_not_view_dimensions():
     assert focused == 'Installed distance | 50 to 500 mm 1.97" to 19.69"'
 
 
+def test_canonicalizes_lr_tb2000_detecting_distance_range_contract():
+    query = "What detecting distance range do LR-TB2000 laser sensors cover?"
+    source = (
+        'Type: (2 m6.6\') M12 connector; Detecting distance: '
+        '60 to 2000 mm2.36" to 78.74"; Model: LR-TB2000'
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, source, source)
+    terms = _MODULE.enrich_expected_answer_terms(
+        query,
+        focused,
+        ["detecting", "distance", "2000", "mm2.36", "60", "78.74"],
+    )
+
+    assert focused == 'Detecting distance: 60 to 2000 mm (2.36" to 78.74")'
+    assert terms == ["detecting", "distance", "60", "2000", "2.36", "78.74"]
+
+
 def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     expected = (
         "In the AS_160148 XG-X camera specification table, what electronic shutter range "

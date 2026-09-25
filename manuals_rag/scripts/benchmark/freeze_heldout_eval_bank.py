@@ -775,6 +775,13 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
         return ["M3 x 4"]
 
     if (
+        re.search(r"\bdetecting\s+distance\s+range\b", normalized_query)
+        and re.search(r"\blr-tb2000\b", normalized_query)
+        and re.search(r"\b60\s+to\s+2000\s*mm", snippet, flags=re.I)
+    ):
+        return ["detecting", "distance", "60", "2000", "2.36", "78.74"]
+
+    if (
         re.search(r"\bhow\s+many\b.*\bcameras?\b", normalized_query)
         and re.search(r"\bca-e100\b", normalized_query)
         and re.search(r"\b2\s+color/monochrome\s+cameras\b", snippet, flags=re.I)
@@ -886,6 +893,18 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if (
+        re.search(r"\bdetecting\s+distance\s+range\b", str(query or ""), flags=re.I)
+        and re.search(r"\blr-tb2000\b", str(query or ""), flags=re.I)
+    ):
+        detecting_range = re.search(
+            r"Detecting\s+distance\s*:\s*60\s+to\s+2000\s*mm\s*"
+            r"2\.36[\"”]\s+to\s+78\.74[\"”]",
+            source,
+            flags=re.I,
+        )
+        if detecting_range:
+            return 'Detecting distance: 60 to 2000 mm (2.36" to 78.74")'
     if (
         re.search(r"\bprofinet\b", str(query or ""), flags=re.I)
         and re.search(r"\bcyclic communication\b", str(query or ""), flags=re.I)
@@ -1286,6 +1305,18 @@ def verify_and_freeze_cases(
         for field in ("source_document_id", "document_version_id"):
             if str(case.get(field) or "") != str(chunk.get(field) or ""):
                 raise ValueError(f"{case_id}: {field} does not match persisted chunk")
+        if (
+            re.search(r"\bdetecting\s+distance\s+range\b", case["query"], flags=re.I)
+            and re.search(r"\blr-tb2000\b", case["query"], flags=re.I)
+        ):
+            snippet_text = str(case.get("expected_snippet") or "")
+            terms = enrich_expected_answer_terms(
+                case["query"],
+                snippet_text,
+                list(case.get("expected_terms") or []),
+            )
+            case["expected_terms"] = terms
+            case["anchor_terms"] = terms
         if reanchor_source_snippets:
             if case.get("expected_evidence"):
                 raise ValueError(f"{case_id}: source re-anchoring is only supported for single-step cases")

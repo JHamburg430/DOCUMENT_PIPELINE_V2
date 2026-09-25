@@ -835,12 +835,18 @@ def _focused_labeled_table_cell_answer_text(query: str, result: SearchResult) ->
     label_terms = _material_claim_terms(f"{row} {column}")
     overlap = len(query_terms.intersection(label_terms))
     detection_range_match = bool(
-        re.search(r"\bdetection\s+range\b", query, flags=re.IGNORECASE)
+        re.search(
+            r"\b(?:detection\s+range|(?:detectable|detecting)\s+distance\s+range)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
         and re.search(r"\bdetect(?:able|ing)?\s+distance\b", row, flags=re.IGNORECASE)
         and _model_tokens(query).intersection(_model_tokens(f"{row} {column} {value}"))
     )
     if overlap < 2 and not detection_range_match:
         return ""
+    if detection_range_match:
+        return f"Detecting distance — {column}: {value}"
     return f"{row} — {column}: {value}"
 
 

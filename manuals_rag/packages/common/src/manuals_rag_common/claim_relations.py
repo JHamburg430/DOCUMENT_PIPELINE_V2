@@ -186,6 +186,12 @@ def _action_polarity(clause: str, match: re.Match[str]) -> str:
 
 
 def relation_profile(text: str) -> RelationProfile:
+    text = re.sub(
+        r"(?P<metric>\d)\s*(?P<unit>mm|cm)(?P<imperial>\d+(?:\.\d+)?[\"″])",
+        r"\g<metric> \g<unit> \g<imperial>",
+        text,
+        flags=re.IGNORECASE,
+    )
     role_values: dict[str, set[str]] = {}
     actions: set[str] = set()
     action_polarities: set[str] = set()
