@@ -4820,7 +4820,7 @@ def _direct_emc_standard_class_support(
     """
     if not (
         re.search(r"\bCA-EN100U\b", query, flags=re.I)
-        and re.search(r"\bapplicable standard\b", query, flags=re.I)
+        and re.search(r"\bapplicable standard(?:/class designation)?\b", query, flags=re.I)
         and re.search(r"\bclass\b", query, flags=re.I)
     ):
         return []

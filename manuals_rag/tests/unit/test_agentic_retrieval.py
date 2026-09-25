@@ -85,7 +85,7 @@ def test_visual_dependency_abstention_emits_no_citations():
 
 
 def test_direct_emc_standard_class_support_requires_scoped_atomic_binding():
-    query = "What applicable standard and class are listed for the CA-EN100U encoder unit?"
+    query = "What applicable standard/class designation is listed for the CA-EN100U encoder unit?"
     supported = _result(
         "ca-en100u-emc",
         "ca-en100u-doc",
@@ -107,6 +107,22 @@ def test_direct_emc_standard_class_support_requires_scoped_atomic_binding():
         [nearby_fcc],
         {"supporting_chunk_ids": ["fcc-only"]},
     ) == []
+
+
+def test_ca_en100u_standard_class_designation_remains_one_atomic_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    query = "What applicable standard/class designation is listed for the CA-EN100U encoder unit?"
+
+    for plan in (
+        plan_retrieval(query, use_llm=False),
+        plan_llamaindex_retrieval(query),
+    ):
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].objective == query
 
 
 def test_heuristic_planner_decomposes_named_scopes_and_pairs_requested_details():

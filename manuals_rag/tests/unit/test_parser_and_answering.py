@@ -227,7 +227,7 @@ def test_exact_control_extracts_ca_en100u_emc_standard_and_class():
     )
 
     answer, evidence = _concise_exact_control_answer(
-        "What applicable standard and class are listed for the CA-EN100U encoder unit?",
+        "What applicable standard/class designation is listed for the CA-EN100U encoder unit?",
         [result],
     )
 

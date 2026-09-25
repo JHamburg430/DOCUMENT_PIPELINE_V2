@@ -976,12 +976,15 @@ def test_repairs_ca_en100u_emc_question_to_literal_source_contract():
     )
 
     assert query == (
-        "What applicable standard and class are listed for the CA-EN100U encoder unit?"
+        "What applicable standard/class designation is listed for the CA-EN100U encoder unit?"
     )
     assert _MODULE.answer_relevant_expected_terms(
         query,
         ["applicable", "standard", "en61326", "class"],
     ) == ["en61326", "class a"]
+    assert _MODULE.normalize_frozen_query(
+        "What applicable standard and class are listed for the CA-EN100U encoder unit?"
+    ) == query
 
 
 def test_repairs_existing_xg_x_dent_query_with_series_scope():

@@ -7249,7 +7249,7 @@ def _concise_exact_control_answer(
     )
     ca_en100u_emc_standard_query = bool(
         re.search(r"\bCA-EN100U\b", query, flags=re.I)
-        and re.search(r"\bapplicable standard\b", query, flags=re.I)
+        and re.search(r"\bapplicable standard(?:/class designation)?\b", query, flags=re.I)
         and re.search(r"\bclass\b", query, flags=re.I)
     )
     power_match = re.search(
