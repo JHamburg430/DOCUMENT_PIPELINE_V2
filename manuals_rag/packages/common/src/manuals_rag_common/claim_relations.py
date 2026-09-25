@@ -186,6 +186,16 @@ def _action_polarity(clause: str, match: re.Match[str]) -> str:
 
 
 def relation_profile(text: str) -> RelationProfile:
+    # Manuals sometimes split a model identifier at a visual label separator
+    # (for example, ``CA: EN100U``), while queries and final answers use the
+    # canonical hyphenated spelling (``CA-EN100U``).  Normalize only compact
+    # uppercase identifier shapes whose suffix contains a digit so ordinary
+    # prose labels such as ``Voltage: high`` remain untouched.
+    text = re.sub(
+        r"\b(?P<prefix>[A-Z]{2,4})\s*:\s*(?P<suffix>[A-Z]{1,4}\d[A-Z0-9]*)\b",
+        r"\g<prefix>-\g<suffix>",
+        text,
+    )
     text = re.sub(
         r"(?P<metric>\d)\s*(?P<unit>mm|cm)(?P<imperial>\d+(?:\.\d+)?[\"″])",
         r"\g<metric> \g<unit> \g<imperial>",

@@ -154,6 +154,16 @@ def test_action_aliases_preserve_safe_semantics():
     assert supported is True
 
 
+def test_action_targets_normalize_colon_separated_model_identifier():
+    supported, details = answer_relations_supported(
+        "Configure the CA-EN100U settings from a PC.",
+        ["Configure the CA: EN100U settings from a PC."],
+    )
+
+    assert supported is True
+    assert details["action_supported"] is True
+
+
 def test_structured_table_binds_row_count_and_output_quantity_separately():
     profile = relation_profile(
         "Column headers: Quantity counted at one time; "
