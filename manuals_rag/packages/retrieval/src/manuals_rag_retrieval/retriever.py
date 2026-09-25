@@ -3949,6 +3949,69 @@ def _exact_troubleshooting_table_results(
     return selected[:limit]
 
 
+def _symbol_font_troubleshooting_table_results(
+    metadata_document_hits: list[dict[str, object]],
+    analysis: QueryAnalysis,
+    *,
+    limit: int = 24,
+) -> list[SearchResult]:
+    """Load an exact display-code row when a PDF encoded ASCII as symbol glyphs."""
+
+    if "troubleshooting" not in analysis.query_types or not metadata_document_hits:
+        return []
+    anchor = _troubleshooting_query_anchor(analysis.raw_query)
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{1,10}", anchor):
+        return []
+    if not all(0x20 <= ord(character) <= 0x7E for character in anchor):
+        return []
+    encoded_anchor = "".join(chr(ord(character) + 0xF000) for character in anchor)
+    document_ids = [
+        str(hit.get("source_document_id") or "")
+        for hit in metadata_document_hits[:8]
+        if hit.get("source_document_id")
+    ]
+    if not document_ids:
+        return []
+    rows = fetch_all(
+        f"""
+        select id, document_version_id, source_document_id, title, section_path_text,
+               page_from, page_to, content, metadata_json, priority_score
+        from retrieval_chunks
+        where chunk_type = 'table_record' and is_active = true
+          and source_document_id = any(%s) and content like %s
+        order by priority_score desc, id
+        limit {int(limit)}
+        """,
+        (document_ids, f"%{encoded_anchor}%"),
+    )
+    results: list[SearchResult] = []
+    for row in rows:
+        metadata = {
+            **dict(row.get("metadata_json") or {}),
+            "chunk_type": "table_record",
+            "chunk_level": 1,
+            "content_for_rerank": str(row["content"]),
+            "retrieval_stage": "symbol_font_troubleshooting_exact",
+        }
+        section_path = metadata.get("section_path")
+        if not isinstance(section_path, list) or not section_path:
+            section_path = [str(row["section_path_text"])]
+        results.append(
+            SearchResult(
+                chunk_id=str(row["id"]),
+                score=float(row.get("priority_score") or 0.0),
+                title=str(row["title"]),
+                document_version_id=str(row["document_version_id"]),
+                source_document_id=str(row["source_document_id"]),
+                pages=list(range(int(row["page_from"]), int(row["page_to"]) + 1)),
+                section_path=section_path,
+                content=str(row["content"]),
+                metadata=metadata,
+            )
+        )
+    return results
+
+
 def _select_family_candidates(
     results: list[SearchResult],
     analysis: QueryAnalysis,
@@ -4644,6 +4707,13 @@ def _retrieve_once(
         if _should_run_table_lexical_search(analysis)
         else []
     )
+    symbol_font_troubleshooting = _measure_substage(
+        "symbol_font_troubleshooting",
+        query,
+        lambda: _symbol_font_troubleshooting_table_results(metadata_document_hits, analysis),
+    )
+    if symbol_font_troubleshooting:
+        table_lexical_results = [*symbol_font_troubleshooting, *table_lexical_results]
     exact_troubleshooting = _exact_troubleshooting_table_results(table_lexical_results, analysis, limit=12)
     if exact_troubleshooting and not force_broad:
         siblings = _measure_substage(

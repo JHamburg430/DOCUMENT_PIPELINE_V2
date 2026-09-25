@@ -4739,6 +4739,46 @@ def test_symbol_font_display_code_promotes_exact_cause_cell():
     assert [result.chunk_id for result in promoted] == ["erh-cause"]
 
 
+def test_symbol_font_troubleshooting_lookup_loads_exact_routed_row(monkeypatch):
+    query = "What causes the ErH error on the LR-W70(C) Edition sensor?"
+    analysis = analyze_query(query)
+    captured: dict[str, object] = {}
+
+    def fake_fetch_all(_query, params):
+        captured["params"] = params
+        return [
+            {
+                "id": "erh-cause",
+                "document_version_id": "ver-correct",
+                "source_document_id": "doc-correct",
+                "title": "LR-W70(C) Manual",
+                "section_path_text": "Troubleshooting",
+                "page_from": 12,
+                "page_to": 12,
+                "content": (
+                    "Column headers: Cause; Row headers: \uf045\uf072\uf048; Cell value: "
+                    "The sensor cable is broken, or the sensor is disconnected."
+                ),
+                "metadata_json": {
+                    "table_column_headers": ["Cause"],
+                    "table_row_headers": ["\uf045\uf072\uf048"],
+                    "product_model": "LR-W70(C) Edition",
+                },
+                "priority_score": 20.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+    results = retriever._symbol_font_troubleshooting_table_results(
+        [{"source_document_id": "doc-correct"}],
+        analysis,
+    )
+
+    assert captured["params"] == (["doc-correct"], "%\uf045\uf072\uf048%")
+    assert [result.chunk_id for result in results] == ["erh-cause"]
+    assert results[0].metadata["retrieval_stage"] == "symbol_font_troubleshooting_exact"
+
+
 def test_comparison_table_content_terms_include_failure_and_plural_variants():
     analysis = analyze_query("Compare IV-HG500CA memory read errors with XG-X unsupported SD card access failure.")
     terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
