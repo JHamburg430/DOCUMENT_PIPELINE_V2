@@ -9242,6 +9242,49 @@ def test_conditioned_measurement_limit_uses_condition_and_rated_value():
     assert trace["final_answer"]["answer_source"] == "deterministic_conditioned_measurement"
 
 
+def test_conditioned_measurement_prefers_matching_bound_over_inverse_equivalent():
+    inverse = SearchResult(
+        chunk_id="inverse-height-condition",
+        score=0.99,
+        title="Sibling safety manual",
+        document_version_id="v2",
+        source_document_id="d2",
+        pages=[31],
+        section_path=["Area protection"],
+        content=(
+            "If you select the minimum detectable object size of 150 mm 5.91 inches, "
+            "the height of the detection plane exceeds 1000 mm 39.37 inches. "
+            "Select 70 mm 2.76 inches or less for area protection."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "SZ-V"},
+    )
+    exact = SearchResult(
+        chunk_id="exact-height-condition",
+        score=0.9,
+        title="SZ-V safety manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[28],
+        section_path=["Area protection"],
+        content=(
+            "You cannot select the object size of 150 mm 5.91 inches when the height of "
+            "the detection plane is 1000 mm 39.37 inches or less. You must select the "
+            "object size of 70 mm 2.76 inches or smaller for area protection."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "SZ-V"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What object size limit applies when the SZ-V detection plane height is 1000 mm or less?",
+        [inverse, exact],
+    )
+
+    assert answer.citations[0]["chunk_id"] == "exact-height-condition"
+    assert "cannot select" in answer.answer.lower()
+    assert "70 mm" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "deterministic_conditioned_measurement"
+
+
 def test_physical_measurement_location_uses_location_sentence():
     result = SearchResult(
         chunk_id="temperature-location",

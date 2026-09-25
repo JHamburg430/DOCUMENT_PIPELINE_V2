@@ -363,6 +363,41 @@ def _quantity_terms(text: str) -> set[str]:
     return terms
 
 
+def _conditioned_quantity_polarities(text: str) -> dict[str, str]:
+    """Bind upper/lower condition language to the quantity it modifies."""
+    polarities: dict[str, str] = {}
+    operator_polarity = {
+        "or less": "at_most",
+        "at most": "at_most",
+        "no more than": "at_most",
+        "does not exceed": "at_most",
+        "below": "at_most",
+        "exceed": "above",
+        "exceeds": "above",
+        "above": "above",
+        "greater than": "above",
+        "more than": "above",
+    }
+    operator_pattern = "|".join(
+        re.escape(operator) for operator in sorted(operator_polarity, key=len, reverse=True)
+    )
+    for match in re.finditer(
+        rf"\b(?P<operator>{operator_pattern})\b[^\d]{{0,24}}"
+        r"(?P<value>\d+(?:\.\d+)?)",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        polarities[match.group("value")] = operator_polarity[match.group("operator").lower()]
+    for match in re.finditer(
+        r"(?<![\w.])(?P<value>\d+(?:\.\d+)?)"
+        rf"(?:\s*[A-Za-z°%/.\"”']+){{0,4}}\s*\b(?P<operator>{operator_pattern})\b",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        polarities[match.group("value")] = operator_polarity[match.group("operator").lower()]
+    return polarities
+
+
 def _contextual_quantity_terms(text: str) -> set[str]:
     terms: set[str] = set()
     quantity_pattern = r"(?:count|counts|number(?:\s+of)?|quantity|total|overlap(?:ping)?|lines?)"
@@ -2475,6 +2510,7 @@ def _concise_conditioned_measurement_answer(
 
     query_terms = _material_claim_terms(query)
     query_quantities = _quantity_terms(query)
+    query_condition_polarities = _conditioned_quantity_polarities(query)
     candidates: list[tuple[float, int, str, SearchResult]] = []
     for result_index, result in enumerate(results[:10]):
         evidence = _fallback_answer_text(result)
@@ -2513,6 +2549,30 @@ def _concise_conditioned_measurement_answer(
                 flags=re.IGNORECASE,
             ):
                 score += 8.0
+            if (
+                is_conditioned_measurement
+                and re.search(r"\b(?:cannot|must\s+not|may\s+not)\b", segment, flags=re.IGNORECASE)
+                and re.search(
+                    r"\b(?:must|should|required\s+to)\s+(?:select|use|choose|set)\b",
+                    segment,
+                    flags=re.IGNORECASE,
+                )
+            ):
+                score += 8.0
+            segment_condition_polarities = _conditioned_quantity_polarities(segment)
+            shared_condition_quantities = set(query_condition_polarities).intersection(
+                segment_condition_polarities
+            )
+            if shared_condition_quantities:
+                score += (
+                    12.0
+                    if all(
+                        query_condition_polarities[value]
+                        == segment_condition_polarities[value]
+                        for value in shared_condition_quantities
+                    )
+                    else -12.0
+                )
             if wants_measurement_location and re.search(
                 r"\bmeasure(?:d|ment)?\b.{0,100}\b(?:at|on)\b",
                 segment,
