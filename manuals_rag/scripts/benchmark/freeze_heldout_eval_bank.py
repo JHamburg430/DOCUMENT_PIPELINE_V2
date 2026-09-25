@@ -809,6 +809,19 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
         if accuracy:
             return f"WM-P6200: {accuracy.group('answer').strip()}"
     if (
+        re.search(r"\binstalled\s+distance\s+range\b", str(query or ""), flags=re.I)
+        and re.search(r"\biv-h500ca\b", str(query or ""), flags=re.I)
+    ):
+        installed_distance = re.search(
+            r"(?P<answer>\bInstalled\s+distance\s*\|\s*"
+            r"50\s+to\s+500\s+mm\s*"
+            r"1\.97\"\s+to\s+19\.69\")",
+            source,
+            flags=re.I,
+        )
+        if installed_distance:
+            return re.sub(r"\s+", " ", installed_distance.group("answer")).strip()
+    if (
         re.search(r"\bpassword values?\b", str(query or ""), flags=re.I)
         and re.search(r"\bselecting 0\b", str(query or ""), flags=re.I)
     ):

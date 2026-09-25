@@ -63,6 +63,7 @@ _UNIT_ALIASES = {
     "gram": "g", "milligram": "mg", "milligrams": "mg", "kilogram": "kg",
     "foot": "ft", "feet": "ft", "byte": "bytes", "kilobyte": "kb", "kilobytes": "kb",
     "megabyte": "mb", "megabytes": "mb", "gigabyte": "gb", "gigabytes": "gb",
+    '"': "in",
 }
 _NUMBER = r"(?:" + "|".join(sorted(NUMBER_WORDS, key=len, reverse=True)) + r"|[-+]?\d+(?:\.\d+)?)"
 _UNIT = (
@@ -70,7 +71,7 @@ _UNIT = (
     r"microamps?|milliamps?|amperes?|amps?|[µu]a|ma|a|lines?|micrometers?|nanometers?|"
     r"[µu]m|nm|mm|cm|meters?|m|milliseconds?|seconds?|minutes?|ms|secs?|min|s|%|"
     r"megahertz|kilohertz|mhz|khz|hz|rpm|newton[- ]?meters?|n\s*m|n|mpa|kpa|bar|psi|"
-    r"kilograms?|grams?|milligrams?|kg|mg|g|inches?|inch|in|feet|ft|degrees?|deg|°c|c|"
+    r"kilograms?|grams?|milligrams?|kg|mg|g|inches?|inch|in|\"|feet|ft|degrees?|deg|°c|c|"
     r"gigabytes?|megabytes?|kilobytes?|bytes?|gb|mb|kb|bps|baud)?"
 )
 _VALUE_RE = re.compile(rf"(?<![\w.])(?P<number>{_NUMBER})\s*(?P<unit>{_UNIT})(?!\w)", re.I)
@@ -156,7 +157,11 @@ def _clauses(text: str) -> list[str]:
     normalized = re.sub(r"[^\S\n]+", " ", text)
     return [
         clause.strip()
-        for clause in re.split(r"[\n.;|]+|\b(?:while|whereas|but)\b", normalized, flags=re.I)
+        for clause in re.split(
+            r"[\n;|]+|(?<!\d)\.|\.(?!\d)|\b(?:while|whereas|but)\b",
+            normalized,
+            flags=re.I,
+        )
         if clause.strip()
     ]
 

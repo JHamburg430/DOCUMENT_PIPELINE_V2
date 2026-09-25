@@ -684,6 +684,20 @@ def test_focuses_wm_p6200_scanning_accuracy_on_requested_row():
     assert terms == ["wm-p6200", "l/1000", "50", "5"]
 
 
+def test_focuses_iv_h500ca_installed_distance_on_range_not_view_dimensions():
+    query = "What installed distance range applies to the IV-H500CA model?"
+    source = (
+        'Type | Standard distance | Short range | Long range Installed distance | '
+        '50 to 500 mm 1.97" to 19.69" | 50 to 150 mm 1.97" to 5.91" | '
+        'Model: View; IV-H500CA: Installed distance 50 mm 1.97": 25 (H) × 18 (V) '
+        'to installed distance 500 mm 19.69"'
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, source, source)
+
+    assert focused == 'Installed distance | 50 to 500 mm 1.97" to 19.69"'
+
+
 def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     expected = (
         "In the AS_160148 XG-X camera specification table, what electronic shutter range "

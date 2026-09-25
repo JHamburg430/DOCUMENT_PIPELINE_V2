@@ -21,6 +21,16 @@ def test_relation_profile_normalizes_common_manual_units():
     }
 
 
+def test_relation_profile_preserves_decimal_inch_distance_range():
+    profile = relation_profile(
+        'Installed distance 50 mm 1.97" to installed distance 500 mm 19.69".'
+    )
+
+    assert profile.role_values == {
+        "distance": frozenset({"50 mm", "1.97 in", "500 mm", "19.69 in"})
+    }
+
+
 def test_role_bound_polarity_cannot_be_borrowed_from_another_citation():
     supported, details = answer_relations_supported(
         "Do not set voltage to 5 V.",
