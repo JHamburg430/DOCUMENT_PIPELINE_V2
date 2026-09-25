@@ -1037,6 +1037,15 @@ def test_projection_mechanism_contract_drops_incidental_different_adjective():
     ) == ["projects", "analyzes", "projection"]
 
 
+def test_troubleshooting_contract_drops_unasked_description_column_label():
+    query = "How should I adjust the LR-ZH500C3P sensor if it shows excessive reflected light?"
+
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["description", "excessive", "reflected", "light"],
+    ) == ["adjust", "installation", "angle"]
+
+
 def test_iv4_below_freezing_contract_drops_unasked_upper_temperature_endpoint():
     query = "Does the IV4-400MA model support operation below freezing temperatures?"
 
