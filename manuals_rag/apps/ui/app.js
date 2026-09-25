@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260924-evaluation-workspace";
+const ASSET_VERSION = "20260924-mobile-evaluation";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -876,6 +876,66 @@ function renderMatrixSummary(totals = {}, totalRows = 0) {
   }).join("");
 }
 
+function renderMatrixRunOverview(job = state.matrixJob, currentRun = state.questionMatrix?.current_run) {
+  const node = $("matrix-run-overview");
+  if (!node) return;
+  const status = String(job?.status || currentRun?.status || "idle");
+  const active = ["queued", "running", "stopping"].includes(status);
+  if (!job && !active) {
+    node.className = "matrix-run-overview idle";
+    node.innerHTML = `
+      <div class="run-overview-primary">
+        <span class="run-overview-eyebrow">Current activity</span>
+        <strong>No evaluation is running</strong>
+        <small>The matrix below shows the latest reconciled results.</small>
+      </div>
+    `;
+    return;
+  }
+  const completed = Number(job?.completed_datasets ?? currentRun?.completed ?? 0);
+  const total = Number(job?.dataset_count ?? currentRun?.total ?? 0);
+  const percent = total ? Math.min(100, Math.max(0, (completed / total) * 100)) : 0;
+  const stageKey = job?.mode === "column" && job?.column && job.column !== "all"
+    ? job.column
+    : job?.current_stage_key || (job?.response_mode === "answer_with_citations" ? "answer" : "retrieval");
+  const stageIndex = MATRIX_STAGES.findIndex((stage) => stage.key === stageKey);
+  const stage = MATRIX_STAGES[stageIndex];
+  const modeLabel = job?.mode === "generate_questions"
+    ? "Question generation"
+    : job?.mode === "column"
+      ? `${stage?.label || job?.column || "Column"} evaluation`
+      : "Full evaluation matrix";
+  const currentQuestion = Number(job?.current_question_number || 0);
+  const positionLabel = total
+    ? `${completed} of ${total} complete`
+    : currentQuestion
+      ? `Question ${currentQuestion}`
+      : "Preparing run";
+  const nextLabel = currentQuestion
+    ? `Question ${currentQuestion}${total ? ` of ${total}` : ""}`
+    : (completed < total ? `Next question ${completed + 1}` : "Finalizing artifacts");
+  const dataset = String(job?.current_dataset || currentRun?.artifact_run_id || "");
+  node.className = `matrix-run-overview ${active ? "running" : status === "failed" ? "failed" : "complete"}`;
+  node.innerHTML = `
+    <div class="run-overview-primary">
+      <span class="run-overview-eyebrow">${active ? "Currently running" : "Latest run"}</span>
+      <strong>${escapeHtml(modeLabel)}</strong>
+      <small>${escapeHtml(dataset ? shortText(dataset, 110) : "Synchronizing run metadata")}</small>
+    </div>
+    <div class="run-overview-metric">
+      <span>Overall matrix</span>
+      <strong>${escapeHtml(positionLabel)}</strong>
+      <div class="run-overview-bar" role="progressbar" aria-label="Overall matrix progress" aria-valuemin="0" aria-valuemax="${total || 0}" aria-valuenow="${completed}"><i style="width:${percent.toFixed(2)}%"></i></div>
+    </div>
+    <div class="run-overview-metric">
+      <span>Now processing</span>
+      <strong>${escapeHtml(nextLabel)}</strong>
+      <small>${escapeHtml(stage ? `Stage ${stageIndex + 1} of ${MATRIX_STAGES.length}: ${stage.label}` : status)}</small>
+    </div>
+    <span class="status-pill ${active ? "running" : status === "failed" ? "fail" : "pass"}">${escapeHtml(status)}</span>
+  `;
+}
+
 function renderQuestionMatrix(payload) {
   const baseItems = payload?.rows || [];
   const liveItems = liveGeneratedQuestionRows();
@@ -883,6 +943,7 @@ function renderQuestionMatrix(payload) {
   const loaded = Number(payload?.loaded_questions || baseItems.length || 0) + liveItems.length;
   const official = Number(payload?.official_total_questions || 0);
   const currentRun = payload?.current_run;
+  renderMatrixRunOverview(state.matrixJob, currentRun);
   const countText = currentRun?.status === "running"
     ? `${Number(currentRun.completed || 0)} / ${Number(currentRun.total || loaded || 0)} current-run questions`
     : official && official !== loaded
@@ -902,6 +963,7 @@ function renderQuestionMatrix(payload) {
   const selectedRow = syncSelectedMatrixRow(rows);
   renderMatrixSummary(totals, rows.length);
   const columns = matrixColumnDefinitions();
+  const activeStage = currentMatrixStageKey();
   const hiddenCount = MATRIX_BASE_COLUMNS.length + MATRIX_STAGES.length - columns.length;
   const filterBits = [
     state.matrixFilters.text ? `text: ${state.matrixFilters.text}` : "",
@@ -916,7 +978,7 @@ function renderQuestionMatrix(payload) {
     <table class="matrix-grid">
       <thead>
         <tr>
-          ${columns.map((column) => `<th>${matrixSortButton(column)}</th>`).join("")}
+          ${columns.map((column) => `<th class="${column.key === activeStage ? "current-stage-column" : ""}">${matrixSortButton(column)}</th>`).join("")}
         </tr>
       </thead>
       <tbody>
@@ -924,12 +986,11 @@ function renderQuestionMatrix(payload) {
           const selected = item.key === selectedRow?.item.key ? " selected" : "";
           const caseData = item.case || {};
           const typeInfo = questionTypeInfo(item);
-          const activeStage = currentMatrixStageKey();
           const activeRow = isCurrentMatrixJobRow(item);
           return `
             <tr class="clickable${selected}${activeRow ? " current-run-row" : ""}" data-matrix-index="${index}" data-matrix-key="${escapeHtml(item.key || "")}">
               ${columns.map((column) => {
-                if (column.key === "number") return `<td data-label="#">${index + 1}</td>`;
+                if (column.key === "number") return `<td data-label="#"><span>${index + 1}</span>${activeRow ? '<small class="matrix-current-badge">Running</small>' : ""}</td>`;
                 if (column.key === "question") {
                   const questionContext = [
                     caseData.product_model,
@@ -1204,6 +1265,7 @@ function setMatrixControlsBusy(busy) {
 function renderMatrixJobStatus(job) {
   const node = $("matrix-action-status");
   if (!node) return;
+  renderMatrixRunOverview(job);
   if (!job) {
     node.className = "empty-state";
     node.textContent = "No matrix job running.";
@@ -3085,6 +3147,9 @@ function resetAgentChat() {
 function hydrateAgentLiveJob(job) {
   if (!job) return;
   state.agentLab.job = job;
+  if (["queued", "running"].includes(job.status) && $("agent-results-disclosure")) {
+    $("agent-results-disclosure").open = true;
+  }
   const nowEpoch = Date.now() / 1000;
   const startedEpoch = Number(job.started_at_epoch || nowEpoch);
   const startedAt = performance.now() - Math.max(0, nowEpoch - startedEpoch) * 1000;
@@ -3390,6 +3455,7 @@ async function loadAgentMatrix() {
     const payload = await localJson("/local/agent-matrix");
     renderAgentMatrix(payload);
     if (payload.active_job && ["queued", "running"].includes(payload.active_job.status)) {
+      $("agent-matrix-workspace").open = true;
       state.agentMatrix.job = payload.active_job;
       mergeAgentMatrixJobSnapshot(payload.active_job);
       if (!state.realtimeStreams["agent-matrix"]) watchAgentMatrixJob(payload.active_job.id).catch(console.error);
@@ -3474,6 +3540,7 @@ function watchAgentMatrixJob(jobId) {
 
 async function runAgentMatrix() {
   state.agentMatrix.replayVersion += 1;
+  $("agent-matrix-workspace").open = true;
   $("run-agent-matrix").disabled = true;
   const job = await localPostJson("/local/agent-matrix/run", {
     dataset: $("agent-matrix-dataset").value.trim(),

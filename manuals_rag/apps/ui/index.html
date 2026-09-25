@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260924-evaluation-workspace" />
+    <link rel="stylesheet" href="/styles.css?v=20260924-mobile-evaluation" />
   </head>
   <body>
     <main class="app-shell">
@@ -39,27 +39,37 @@
             <h2>Eval Matrix</h2>
             <span id="matrix-run-id" class="muted">Loading question-bank matrix...</span>
           </div>
-          <div class="matrix-actions">
-            <button id="matrix-run-all-bank" type="button">Run All Bank</button>
-            <label>
-              Column
-              <select id="matrix-column"></select>
-            </label>
-            <button id="matrix-run-column" type="button">Evaluate Column</button>
-            <label class="inline-check">
-              <input id="matrix-use-model-judge" type="checkbox" />
-              <span>Use diagnostic model judge for answer information</span>
-            </label>
-            <label class="inline-check">
-              <input id="matrix-stop-on-answer-failure" type="checkbox" checked />
-              <span>Stop on first answer failure</span>
-            </label>
-            <button id="matrix-refresh" type="button">Refresh</button>
-            <button id="matrix-clear-results" type="button">Clear Results</button>
-            <button id="matrix-stop" type="button" disabled>Stop</button>
-          </div>
-          <details class="matrix-generation-controls" open>
-            <summary>Question generation</summary>
+          <section id="matrix-run-overview" class="matrix-run-overview idle" aria-live="polite">
+            <div>
+              <span class="run-overview-eyebrow">Current activity</span>
+              <strong>No evaluation is running</strong>
+              <small>Start a matrix run or refresh to synchronize.</small>
+            </div>
+          </section>
+          <details class="evaluation-disclosure matrix-run-controls">
+            <summary><span>Run controls</span><small>Start, refresh, or stop an evaluation</small></summary>
+            <div class="matrix-actions">
+              <button id="matrix-run-all-bank" type="button">Run All Bank</button>
+              <label>
+                Column
+                <select id="matrix-column"></select>
+              </label>
+              <button id="matrix-run-column" type="button">Evaluate Column</button>
+              <label class="inline-check">
+                <input id="matrix-use-model-judge" type="checkbox" />
+                <span>Use diagnostic model judge for answer information</span>
+              </label>
+              <label class="inline-check">
+                <input id="matrix-stop-on-answer-failure" type="checkbox" checked />
+                <span>Stop on first answer failure</span>
+              </label>
+              <button id="matrix-refresh" type="button">Refresh</button>
+              <button id="matrix-clear-results" type="button">Clear Results</button>
+              <button id="matrix-stop" type="button" disabled>Stop</button>
+            </div>
+          </details>
+          <details class="matrix-generation-controls evaluation-disclosure">
+            <summary><span>Question generation</span><small>Create or reset source-backed questions</small></summary>
             <div class="matrix-generation-grid">
               <label data-generation-field="always">
                 Type
@@ -117,43 +127,62 @@
               </div>
             </div>
           </details>
-          <div id="matrix-action-status" class="empty-state">No matrix job running.</div>
-          <div class="matrix-view-controls">
-            <label>
-              Find
-              <input id="matrix-filter-text" placeholder="Question, dataset, source, answer..." />
-            </label>
-            <label>
-              Run or Analysis
-              <input id="matrix-filter-run" placeholder="Run id, live job id, dataset..." />
-            </label>
-            <label>
-              Type
-              <select id="matrix-filter-type">
-                <option value="">All types</option>
-                <option value="single">Single</option>
-                <option value="multi_step">Multi-step</option>
-                <option value="multi_doc">Multi-doc</option>
-              </select>
-            </label>
-            <label>
-              Any Stage
-              <select id="matrix-filter-status">
-                <option value="">Any status</option>
-                <option value="pass">Pass</option>
-                <option value="fail">Fail</option>
-                <option value="blank">Blank</option>
-              </select>
-            </label>
-            <button id="matrix-clear-filters" type="button">Clear Filters</button>
-          </div>
-          <details class="matrix-column-picker">
-            <summary>Columns and stage filters</summary>
-            <div id="matrix-column-picker"></div>
+          <details class="evaluation-disclosure matrix-activity-disclosure">
+            <summary><span>Live activity</span><small>Recent events and generated questions</small></summary>
+            <div id="matrix-action-status" class="empty-state">No matrix job running.</div>
           </details>
+          <details class="evaluation-disclosure matrix-view-disclosure">
+            <summary><span>Find and filter</span><small>Narrow rows or choose visible stages</small></summary>
+            <div class="matrix-view-controls">
+              <label>
+                Find
+                <input id="matrix-filter-text" placeholder="Question, dataset, source, answer..." />
+              </label>
+              <label>
+                Run or Analysis
+                <input id="matrix-filter-run" placeholder="Run id, live job id, dataset..." />
+              </label>
+              <label>
+                Type
+                <select id="matrix-filter-type">
+                  <option value="">All types</option>
+                  <option value="single">Single</option>
+                  <option value="multi_step">Multi-step</option>
+                  <option value="multi_doc">Multi-doc</option>
+                </select>
+              </label>
+              <label>
+                Any Stage
+                <select id="matrix-filter-status">
+                  <option value="">Any status</option>
+                  <option value="pass">Pass</option>
+                  <option value="fail">Fail</option>
+                  <option value="blank">Blank</option>
+                </select>
+              </label>
+              <button id="matrix-clear-filters" type="button">Clear Filters</button>
+            </div>
+            <details class="matrix-column-picker">
+              <summary>Columns and stage filters</summary>
+              <div id="matrix-column-picker"></div>
+            </details>
+          </details>
+          <div class="matrix-progress-heading">
+            <div>
+              <h3>Overall matrix progress</h3>
+              <p>Pass, fail, and pending counts for every evaluation stage.</p>
+            </div>
+            <small>Swipe to see all 17 stages</small>
+          </div>
           <div id="matrix-summary" class="matrix-summary empty-state">No evaluation loaded.</div>
-          <div id="matrix-table"></div>
-          <div id="matrix-detail"></div>
+          <details class="evaluation-disclosure matrix-results-disclosure" open>
+            <summary><span>Matrix rows</span><small>Tap a row for its evidence and answer trace</small></summary>
+            <div id="matrix-table" class="matrix-table-shell"></div>
+          </details>
+          <details class="evaluation-disclosure matrix-detail-disclosure">
+            <summary><span>Selected question details</span><small>Evidence, stage outcomes, and live events</small></summary>
+            <div id="matrix-detail"></div>
+          </details>
         </section>
       </section>
 
@@ -219,14 +248,9 @@
       </section>
 
       <section id="agent-lab" class="tab-panel">
-        <section class="panel agent-lab-controls evaluation-section">
-          <div class="section-heading">
-            <div>
-              <h2>Live Agent Retrieval Lab</h2>
-              <p class="muted">Watch planning, strategy selection, dependent-query refinement, evidence sufficiency, recovery, and answer generation as they happen.</p>
-            </div>
-            <span id="agent-lab-status" class="status-pill">Ready</span>
-          </div>
+        <details class="panel agent-lab-controls evaluation-section evaluation-disclosure">
+          <summary><span>Live Agent Retrieval Lab</span><span id="agent-lab-status" class="status-pill">Ready</span></summary>
+          <p class="muted">Watch planning, strategy selection, dependent-query refinement, evidence sufficiency, recovery, and answer generation as they happen.</p>
           <div class="agent-control-grid">
             <label class="agent-query-field">
               Multi-hop question
@@ -250,18 +274,16 @@
             </label>
             <button id="run-agent-test" type="button">Run Live Test</button>
           </div>
-        </section>
-        <section id="agent-results" class="agent-results" aria-live="polite">
-          <div class="empty-state">Run a question to compare the agent backends and inspect every retrieval hop.</div>
-        </section>
-        <section id="agent-matrix-workspace" class="panel agent-matrix-panel evaluation-section">
-          <div class="section-heading">
-            <div>
-              <h2>Agent Evaluation Matrix</h2>
-              <p class="muted">Each row is a test question. Columns isolate tool routing, retrieval coverage, reasoning dependencies, evidence sufficiency, grounded synthesis, and operating cost.</p>
-            </div>
-            <span id="agent-matrix-status" class="status-pill">Not run</span>
-          </div>
+        </details>
+        <details id="agent-results-disclosure" class="panel evaluation-disclosure agent-results-disclosure">
+          <summary><span>Live agent trace</span><small>Planning, retrieval hops, verification, and answer</small></summary>
+          <section id="agent-results" class="agent-results" aria-live="polite">
+            <div class="empty-state">Run a question to compare the agent backends and inspect every retrieval hop.</div>
+          </section>
+        </details>
+        <details id="agent-matrix-workspace" class="panel agent-matrix-panel evaluation-section evaluation-disclosure">
+          <summary><span>Agent Evaluation Matrix</span><span id="agent-matrix-status" class="status-pill">Not run</span></summary>
+          <p class="muted">Each row is a test question. Columns isolate tool routing, retrieval coverage, reasoning dependencies, evidence sufficiency, grounded synthesis, and operating cost.</p>
           <div class="matrix-actions">
             <label>Dataset <input id="agent-matrix-dataset" value="tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl" /></label>
             <label>Questions <input id="agent-matrix-limit" type="number" min="1" max="1000" value="48" /></label>
@@ -273,9 +295,9 @@
             <button id="replay-agent-matrix-fixture" class="secondary-button" type="button">Replay Live Fixture</button>
           </div>
           <div id="agent-matrix-summary" class="matrix-summary empty-state">No agent evaluation loaded.</div>
-          <div id="agent-matrix-table"></div>
+          <div id="agent-matrix-table" class="matrix-table-shell"></div>
           <div id="agent-matrix-detail"></div>
-        </section>
+        </details>
       </section>
 
       <section id="search" class="tab-panel">
@@ -377,6 +399,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260924-evaluation-workspace"></script>
+    <script src="/app.js?v=20260924-mobile-evaluation"></script>
   </body>
 </html>

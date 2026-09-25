@@ -246,6 +246,107 @@ summary {
   scroll-margin-top: 16px;
 }
 
+.evaluation-disclosure {
+  margin: 0 0 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+}
+
+.evaluation-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 9px 11px;
+  color: var(--ink);
+  list-style-position: inside;
+}
+
+.evaluation-disclosure > summary span {
+  font-weight: 800;
+}
+
+.evaluation-disclosure > summary small {
+  color: var(--muted);
+  font-weight: 500;
+  text-align: right;
+}
+
+.evaluation-disclosure[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.evaluation-disclosure > :not(summary) {
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.matrix-run-overview {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.2fr) minmax(190px, 0.8fr) minmax(190px, 0.8fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0;
+  border: 1px solid #b8d8df;
+  border-left: 5px solid var(--accent);
+  background: #eef7f9;
+  padding: 12px;
+}
+
+.matrix-run-overview.idle {
+  grid-template-columns: 1fr;
+  border-color: var(--line);
+  border-left-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.matrix-run-overview.failed {
+  border-color: #efc2bd;
+  border-left-color: var(--fail);
+  background: #fff7f6;
+}
+
+.run-overview-primary,
+.run-overview-metric {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.run-overview-primary strong,
+.run-overview-metric strong {
+  overflow-wrap: anywhere;
+}
+
+.run-overview-primary small,
+.run-overview-metric small,
+.run-overview-metric span,
+.run-overview-eyebrow {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.run-overview-eyebrow {
+  color: var(--accent-dark);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.run-overview-bar {
+  height: 7px;
+  overflow: hidden;
+  background: #dce7ea;
+}
+
+.run-overview-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 180ms ease-out;
+}
+
 .evaluation-agent-lab {
   display: block;
   margin-top: 16px;
@@ -978,6 +1079,74 @@ summary {
   margin-bottom: 12px;
 }
 
+.matrix-progress-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 8px;
+}
+
+.matrix-progress-heading h3,
+.matrix-progress-heading p {
+  margin: 0;
+}
+
+.matrix-progress-heading p,
+.matrix-progress-heading small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.matrix-table-shell {
+  overflow: auto;
+  max-width: 100%;
+  max-height: 68vh;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+}
+
+.matrix-table-shell thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.matrix-table-shell table {
+  min-width: max-content;
+}
+
+.matrix-table-shell th:first-child,
+.matrix-table-shell td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #fff;
+}
+
+.matrix-table-shell th:first-child {
+  z-index: 4;
+  background: #eef3f6;
+}
+
+.matrix-table-shell tr.current-run-row td:first-child {
+  background: #fff8e1;
+}
+
+.current-stage-column {
+  box-shadow: inset 0 -3px 0 var(--warn);
+}
+
+.matrix-current-badge {
+  display: block;
+  margin-top: 3px;
+  color: var(--warn);
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .matrix-actions {
   display: grid;
   grid-template-columns: auto minmax(180px, 240px) auto minmax(220px, 1fr) auto auto;
@@ -995,6 +1164,14 @@ summary {
   border: 1px solid var(--line);
   background: #fbfcfd;
   padding: 8px 10px 10px;
+}
+
+.matrix-generation-controls.evaluation-disclosure {
+  padding: 0 0 10px;
+}
+
+.matrix-generation-controls.evaluation-disclosure > summary {
+  color: var(--ink);
 }
 
 .matrix-generation-controls summary {
@@ -1081,6 +1258,11 @@ summary {
   margin-bottom: 12px;
 }
 
+.matrix-activity-disclosure #matrix-action-status,
+.matrix-view-disclosure .matrix-view-controls {
+  margin-top: 10px;
+}
+
 #matrix-action-status span,
 #matrix-action-status small {
   color: var(--muted);
@@ -1123,6 +1305,10 @@ summary {
   .matrix-actions,
   .matrix-view-controls {
     grid-template-columns: 1fr;
+  }
+
+  .matrix-run-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1671,6 +1857,99 @@ dd {
     padding: 10px;
   }
 
+  .evaluation-workspace-header {
+    display: grid;
+    gap: 10px;
+  }
+
+  .evaluation-jump-links {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .evaluation-jump-links a {
+    flex: 0 0 auto;
+    padding: 6px 8px;
+  }
+
+  .evaluation-disclosure > summary {
+    min-height: 38px;
+    padding: 8px;
+  }
+
+  .evaluation-disclosure > summary small {
+    max-width: 48%;
+  }
+
+  .matrix-run-overview {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin: 10px -4px 12px;
+    padding: 9px;
+    box-shadow: 0 3px 12px rgba(23, 32, 42, 0.12);
+  }
+
+  .matrix-run-overview .run-overview-primary {
+    grid-column: 1 / -1;
+  }
+
+  .matrix-run-overview .status-pill {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+
+  .run-overview-primary strong,
+  .run-overview-metric strong {
+    font-size: 0.82rem;
+  }
+
+  .run-overview-primary small,
+  .run-overview-metric small,
+  .run-overview-metric span,
+  .run-overview-eyebrow {
+    font-size: 0.68rem;
+  }
+
+  .matrix-progress-heading {
+    align-items: start;
+  }
+
+  .matrix-progress-heading h3 {
+    font-size: 1rem;
+  }
+
+  .matrix-progress-heading p {
+    display: none;
+  }
+
+  .matrix-summary {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline proximity;
+    padding-bottom: 5px;
+  }
+
+  .matrix-summary .matrix-stat {
+    flex: 0 0 124px;
+    min-width: 124px;
+    padding: 7px;
+    scroll-snap-align: start;
+  }
+
+  .matrix-stat strong {
+    font-size: 0.85rem;
+  }
+
+  .matrix-stat small {
+    font-size: 0.66rem;
+  }
+
   .section-heading {
     align-items: flex-start;
     flex-direction: column;
@@ -1700,7 +1979,7 @@ dd {
     grid-template-columns: 1fr;
   }
 
-  table,
+  table:not(.matrix-grid):not(.agent-matrix-grid),
   thead,
   tbody,
   tr,
@@ -1744,6 +2023,70 @@ dd {
 
   td:not([data-label])::before {
     content: "";
+  }
+
+  .matrix-table-shell {
+    max-height: 66vh;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .matrix-grid,
+  .matrix-grid thead,
+  .matrix-grid tbody,
+  .matrix-grid tr,
+  .matrix-grid th,
+  .matrix-grid td,
+  .agent-matrix-grid,
+  .agent-matrix-grid thead,
+  .agent-matrix-grid tbody,
+  .agent-matrix-grid tr,
+  .agent-matrix-grid th,
+  .agent-matrix-grid td {
+    display: revert;
+  }
+
+  .matrix-grid tr,
+  .agent-matrix-grid tr {
+    margin: 0;
+    border: 0;
+  }
+
+  .matrix-grid th,
+  .matrix-grid td,
+  .agent-matrix-grid th,
+  .agent-matrix-grid td {
+    padding: 4px;
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+
+  .matrix-grid td::before,
+  .agent-matrix-grid td::before {
+    content: none;
+  }
+
+  .matrix-grid .matrix-text-cell {
+    min-width: 118px;
+    max-width: 150px;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .matrix-grid .matrix-text-cell small {
+    display: none;
+  }
+
+  .matrix-sort {
+    min-height: 26px;
+    font-size: 0.66rem;
+  }
+
+  .matrix-cell {
+    min-width: 42px;
+    min-height: 22px;
+    padding: 2px 4px;
+    font-size: 0.64rem;
   }
 
   dl {

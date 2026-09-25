@@ -38,6 +38,23 @@ class EvaluationWorkspaceContractTest(unittest.TestCase):
         self.assertIn('class="matrix-bar"', self.js)
         self.assertIn("renderMatrixSummary(totals, rows.length)", self.js)
 
+    def test_mobile_matrix_has_collapsible_sections_and_live_position(self):
+        for element_id in (
+            "matrix-run-overview",
+            "matrix-action-status",
+            "matrix-summary",
+            "matrix-table",
+            "matrix-detail",
+        ):
+            self.assertIn(f'id="{element_id}"', self.html)
+        self.assertIn("function renderMatrixRunOverview", self.js)
+        self.assertIn("Stage ${stageIndex + 1} of ${MATRIX_STAGES.length}", self.js)
+        self.assertIn('role="progressbar"', self.js)
+        self.assertIn(".evaluation-disclosure", self.css)
+        self.assertIn(".matrix-table-shell", self.css)
+        self.assertIn(".matrix-summary .matrix-stat", self.css)
+        self.assertIn("scroll-snap-type: inline proximity", self.css)
+
     def test_fixture_drives_every_backend_layer_from_provisional_to_final(self):
         layers = {
             "tool_selection",
