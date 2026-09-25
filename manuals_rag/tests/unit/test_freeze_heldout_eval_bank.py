@@ -390,6 +390,15 @@ def test_aligns_zoom_camera_question_with_source_selection_instruction():
     ) == query
 
 
+def test_qualifies_output_to_rs232c_question_to_xg_lua_manual():
+    assert _MODULE.normalize_frozen_query(
+        "What string does OutputToRs232C send to the non-procedural RS-232C port?"
+    ) == (
+        "In the XG-7000/XG-8000 Lua Script Manual, what string does OutputToRs232C "
+        "send to the non-procedural RS-232C port?"
+    )
+
+
 def test_focuses_cah048_two_mode_contract_and_terms():
     query = (
         "For the CA-H048CX/H048MX cameras, what resolutions and approximate megapixel "

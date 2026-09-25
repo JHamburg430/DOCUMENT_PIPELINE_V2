@@ -21,6 +21,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_emc_standard_class_support,
     _direct_lj_x8000_head_extension_models_support,
     _direct_lr_z_press_again_support,
+    _direct_output_to_rs232c_support,
     _direct_vs_s_ca_dex10x_power_support,
     _direct_zoomtrax_before_label_support,
     _direct_compound_electrical_rating_support,
@@ -225,6 +226,44 @@ def test_direct_vs_s_ca_dex10x_power_support_requires_complete_scoped_row():
     assert _direct_vs_s_ca_dex10x_power_support(
         query, [missing_current, wrong_family], preliminary
     ) == []
+
+
+def test_direct_output_to_rs232c_support_requires_scoped_function_definition():
+    query = (
+        "In the XG-7000/XG-8000 Lua Script Manual, what string does OutputToRs232C "
+        "send to the non-procedural RS-232C port?"
+    )
+    exact = _result(
+        "output-to-rs232c",
+        "xg-lua-manual",
+        "OutputToRs232C (str) Outputs the character string specified in the argument "
+        "to the non-procedural RS-232C. The return value is an error code.",
+    ).model_copy(
+        update={
+            "title": "LuaScriptManual_en.pdf",
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "document_title": "Lua Script Manual",
+                "source_filename": "LuaScriptManual_en.pdf",
+                "product_models": ["XG-7000", "XG-8000"],
+                "routing_product_models": ["XG-7000", "XG-8000"],
+            },
+        }
+    )
+    neighboring_function = exact.model_copy(
+        update={
+            "chunk_id": "output-to-monitor",
+            "content": (
+                "OutputToMonitor (str) Outputs the character string specified in the argument "
+                "to the Lua Script monitor."
+            ),
+        }
+    )
+
+    assert _direct_output_to_rs232c_support(
+        query, [neighboring_function, exact]
+    ) == [exact.chunk_id]
+    assert _direct_output_to_rs232c_support(query, [neighboring_function]) == []
 
 
 def test_direct_lj_x8000_head_extension_support_requires_complete_model_list():

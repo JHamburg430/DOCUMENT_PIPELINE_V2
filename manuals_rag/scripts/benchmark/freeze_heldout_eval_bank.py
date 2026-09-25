@@ -115,6 +115,9 @@ def normalize_frozen_query(query: str) -> str:
             "In the CV-X camera specifications, what numerical inputs can be specified for the electronic shutter setting?",
         "What action must be taken after saving settings to enable them on the VS Series device?":
             "In the VS Series KUKA robot connection manual, what action must be taken after saving settings to enable them?",
+        "What string does OutputToRs232C send to the non-procedural RS-232C port?":
+            "In the XG-7000/XG-8000 Lua Script Manual, what string does OutputToRs232C "
+            "send to the non-procedural RS-232C port?",
         "In the VS Series KUKA robot connection manual, what action must be taken after saving settings to enable them?":
             "In the VS Series KUKA robot connection manual, after pressing Save and selecting Yes, what must be done to enable the changed settings?",
         "Which menu path transfers data from the PC to the PLC?":

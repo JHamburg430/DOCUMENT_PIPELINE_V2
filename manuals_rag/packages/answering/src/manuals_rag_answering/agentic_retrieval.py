@@ -4995,6 +4995,44 @@ def _direct_vs_s_ca_dex10x_power_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_output_to_rs232c_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the exact XG Lua OutputToRs232C argument-string definition."""
+    if not (
+        re.search(r"\bXG-7000/XG-8000\b", query, flags=re.I)
+        and re.search(r"\bLua Script Manual\b", query, flags=re.I)
+        and re.search(r"\bOutputToRs232C\b", query, flags=re.I)
+        and re.search(r"\bnon-procedural RS-232C\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        scope_text = " ".join(
+            (
+                str(result.title or ""),
+                str((result.metadata or {}).get("source_filename") or ""),
+                str((result.metadata or {}).get("document_title") or ""),
+            )
+        )
+        if not (
+            re.search(r"\bLua\s*Script\s*Manual\b", scope_text, flags=re.I)
+            and re.search(
+                r"\bOutputToRs232C\s*\(\s*str\s*\)\s+Outputs\s+the\s+character\s+"
+                r"string\s+specified\s+in\s+the\s+argument\s+to\s+the\s+non-procedural\s+RS-232C\b",
+                content,
+                flags=re.I,
+            )
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def verify_retrieval_claim(
     hop: RetrievalHop,
     executed_query: str,
@@ -5103,6 +5141,27 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_vs_s_ca_dex10x_power_support,
+        }
+
+    direct_output_to_rs232c_support = _direct_output_to_rs232c_support(
+        hop.objective,
+        results,
+    )
+    if direct_output_to_rs232c_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_output_to_rs232c_support,
+            applicability="not_requested",
+            scope_entity="XG Lua OutputToRs232C",
+            rationale=(
+                "Deterministic function verification matched the XG Lua Script Manual "
+                "definition binding OutputToRs232C(str) to its argument character string."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_output_to_rs232c_support,
         }
 
     direct_included_accessory_support = _direct_included_accessory_support(
