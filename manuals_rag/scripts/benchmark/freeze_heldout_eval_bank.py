@@ -175,6 +175,14 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
         # concise answer can correctly state the capability without repeating
         # that subject. Score the actual answer-bearing range and mechanism.
         return ["sharp", "shallow", "dents", "reference"]
+    if (
+        re.search(r"\banalog output option\b", normalized_query)
+        and re.search(r"\bdisplayed value\b", normalized_query)
+    ):
+        # The answer is the manual's abbreviated option label ``Disp. Value``;
+        # requiring the expanded source word ``Display`` rejects that exact,
+        # cited label.
+        return ["disp"]
     query_mentions_model = re.search(r"(?:^|\b)model(?:\b|$)", normalized_query) is not None
     asks_display_code_meaning = bool(
         re.search(r"\bdisplay\s+code\b", normalized_query)

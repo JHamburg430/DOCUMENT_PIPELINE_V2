@@ -860,6 +860,13 @@ def test_dent_range_contract_scores_answer_bearing_terms_not_grammatical_subject
     ) == ["sharp", "shallow", "dents", "reference"]
 
 
+def test_analog_display_contract_accepts_the_manuals_abbreviated_option_label():
+    assert _MODULE.answer_relevant_expected_terms(
+        "Which analog output option sends the unit's displayed value?",
+        ["display"],
+    ) == ["disp"]
+
+
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [
