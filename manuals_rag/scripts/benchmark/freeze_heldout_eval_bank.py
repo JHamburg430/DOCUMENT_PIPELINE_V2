@@ -880,6 +880,20 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
 
     source = source_content or snippet
     if (
+        re.search(r"\bprofinet\b", str(query or ""), flags=re.I)
+        and re.search(r"\bcyclic communication\b", str(query or ""), flags=re.I)
+        and re.search(r"\bxg-x2902lj\b", str(query or ""), flags=re.I)
+    ):
+        profinet_row = re.search(
+            r"(?P<answer>Model\s*:\s*PROFINET\s*;\s*XG-X2902LJ\s*:.*?"
+            r"Supports\s+cyclic\s+communication\s*\(.*?\))\s*"
+            r"•\s*Supports\s+acyclic\s+communication",
+            source,
+            flags=re.I | re.S,
+        )
+        if profinet_row:
+            return re.sub(r"\s+", " ", profinet_row.group("answer")).strip()
+    if (
         re.search(r"\bfield of view size\b", str(query or ""), flags=re.I)
         and re.search(r"\bvj-3302\b", str(query or ""), flags=re.I)
     ):

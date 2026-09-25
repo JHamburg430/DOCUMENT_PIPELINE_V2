@@ -607,6 +607,27 @@ def test_reanchors_profinet_cyclic_optional_unit_to_ca_npn_identifier():
     assert terms == ["CA-NPN20E", "PROFINET", "cyclic communication"]
 
 
+def test_focuses_profinet_cyclic_optional_unit_on_profinet_row():
+    source = (
+        "Model: PROFINET; XG-X2902LJ: • Can output numerical values and perform control I/O "
+        "using the Ethernet port or the optional PROFINET unit CA-NPN20E. "
+        "• Supports cyclic communication (max. 1408 bytes (Ethernet port) / 1248 bytes "
+        "(CA-NPN20E)) • Supports acyclic communication (recorded data) "
+        "Model: EtherCAT; XG-X2902LJ: • Uses CA-NEC20E."
+    )
+
+    focused = _MODULE.focus_expected_snippet(
+        "Which optional unit is required for PROFINET cyclic communication on the XG-X2902LJ?",
+        "XG-X2902LJ: CA-NPN20E supports cyclic communication.",
+        source,
+    )
+
+    assert focused.startswith("Model: PROFINET; XG-X2902LJ:")
+    assert "optional PROFINET unit CA-NPN20E" in focused
+    assert "Supports cyclic communication" in focused
+    assert "CA-NEC20E" not in focused
+
+
 def test_removes_ca_dex10x_ocr_footnote_from_frozen_query():
     assert _MODULE.normalize_frozen_query(
         "How much power does the VS Series consume if CA-DEx10X 4 is connected?"
