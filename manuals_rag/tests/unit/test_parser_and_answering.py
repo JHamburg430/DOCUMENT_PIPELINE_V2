@@ -154,6 +154,36 @@ def test_exact_control_rejects_incomplete_focus_and_brightness_evidence():
     assert evidence == []
 
 
+def test_exact_control_extracts_mu_n_section_lr_t_maximum_distance():
+    result = SearchResult(
+        chunk_id="mu-n-lr-t-distance",
+        score=0.9,
+        title="Sensors for Laser Sensor",
+        document_version_id="v1",
+        source_document_id="laser-doc",
+        pages=[11],
+        section_path=["MU-N SERIES"],
+        content=(
+            "MU-N SERIES Multi-Sensor Controller. Compatible Series LR-T/LR-W/FD-Q. "
+            "TOF LASER SENSORS LR: T Series. Detecting Distance [ 0.06 to 5 m "
+            "0.20' to 16.40' ] Max. 5 m 16.40' detecting distance."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "In the MU-N SERIES section, what maximum detecting distance is listed for "
+        "the connected LR-T laser sensor?",
+        [result],
+    )
+
+    assert answer == (
+        "The connected LR-T laser sensor has a maximum detecting distance "
+        "of 5 m (16.40 ft)."
+    )
+    assert [item.chunk_id for item in evidence] == ["mu-n-lr-t-distance"]
+
+
 def test_generate_answer_extracts_requested_off_status_state():
     result = SearchResult(
         chunk_id="status-row",

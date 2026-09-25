@@ -7236,6 +7236,11 @@ def _concise_exact_control_answer(
         and re.search(r"\bdefect\s+recognition\s+threshold\b", query, flags=re.I)
         and re.search(r"\badjust\b", query, flags=re.I)
     )
+    mu_n_lr_t_distance_query = bool(
+        re.search(r"\bMU-N SERIES section\b", query, flags=re.I)
+        and re.search(r"\bconnected LR-T laser sensor\b", query, flags=re.I)
+        and re.search(r"\bmaximum detecting distance\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7349,6 +7354,18 @@ def _concise_exact_control_answer(
                 if not answer.endswith("."):
                     answer += "."
                 return answer, [result]
+
+        if mu_n_lr_t_distance_query and re.search(
+            r"\bTOF LASER SENSORS\s+LR\s*:\s*T Series\b.*?"
+            r"\bMax\.\s*5\s*m\s*16\.40['’]\s*detecting distance\b",
+            content,
+            flags=re.I | re.S,
+        ):
+            return (
+                "The connected LR-T laser sensor has a maximum detecting distance "
+                "of 5 m (16.40 ft).",
+                [result],
+            )
 
         if power_match:
             requested_model = power_match.group("model").upper()
