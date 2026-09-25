@@ -20,6 +20,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_detection_capability_support,
     _direct_emc_standard_class_support,
     _direct_lj_x8000_head_extension_models_support,
+    _direct_lr_z_press_again_support,
     _direct_zoomtrax_before_label_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
@@ -152,6 +153,38 @@ def test_direct_zoomtrax_before_label_support_requires_exact_scenario():
         query,
         [benefits_only],
         {"supporting_chunk_ids": ["zoomtrax-benefits"]},
+    ) == []
+
+
+def test_direct_lr_z_press_again_support_requires_scoped_atomic_sequence():
+    query = (
+        "On the LR-ZH500C3P, after releasing the button when SET flashes, how quickly "
+        "must you press it again to complete calibration?"
+    )
+    exact = _result(
+        "lr-z-confirm",
+        "lr-z-manual",
+        "LR-ZH500C3P: Release the button when [ SET ] flashes Press again < 1s OK Completed",
+    )
+    initial_hold_only = _result(
+        "lr-z-hold",
+        "lr-z-manual",
+        "LR-ZH500C3P: Press and hold > 3s until [ SET ] flashes.",
+    )
+    wrong_model = _result(
+        "other-model-confirm",
+        "other-manual",
+        "LR-W500: Release the button when [ SET ] flashes Press again < 1s OK Completed",
+    )
+    preliminary = {
+        "supporting_chunk_ids": [exact.chunk_id, initial_hold_only.chunk_id, wrong_model.chunk_id]
+    }
+
+    assert _direct_lr_z_press_again_support(
+        query, [initial_hold_only, wrong_model, exact], preliminary
+    ) == [exact.chunk_id]
+    assert _direct_lr_z_press_again_support(
+        query, [initial_hold_only, wrong_model], preliminary
     ) == []
 
 

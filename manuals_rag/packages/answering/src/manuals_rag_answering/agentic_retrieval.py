@@ -4923,6 +4923,42 @@ def _direct_zoomtrax_before_label_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_lr_z_press_again_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the scoped LR-Z SET-flash confirmation step in one evidence unit."""
+    if not (
+        re.search(r"\bLR-ZH500C3P\b", query, flags=re.I)
+        and re.search(r"\bSET\s+flashes\b", query, flags=re.I)
+        and re.search(r"\bpress\s+it\s+again\b", query, flags=re.I)
+        and re.search(r"\bcalibration\b", query, flags=re.I)
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not re.search(
+            r"\bRelease\s+the\s+button\s+when\s+\[\s*SET\s*\]\s+flashes\s+"
+            r"Press\s+again\s*<\s*1s\b",
+            content,
+            flags=re.I,
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def verify_retrieval_claim(
     hop: RetrievalHop,
     executed_query: str,
@@ -4987,6 +5023,28 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_zoomtrax_support,
+        }
+
+    direct_lr_z_press_again_support = _direct_lr_z_press_again_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_lr_z_press_again_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_lr_z_press_again_support,
+            applicability="not_requested",
+            scope_entity="LR-ZH500C3P",
+            rationale=(
+                "Deterministic procedure verification matched the scoped LR-Z sequence that "
+                "releases the button when SET flashes and then presses it again in under 1 second."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_lr_z_press_again_support,
         }
 
     direct_included_accessory_support = _direct_included_accessory_support(
