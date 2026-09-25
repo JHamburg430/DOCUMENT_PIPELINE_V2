@@ -111,6 +111,9 @@ def normalize_frozen_query(query: str) -> str:
             "What password values can be set for the W500 Key Lock, and what does selecting 0 do?",
         "Which dent-depth conditions can be inspected by freely setting the reference plane?":
             "For the XG-X inline 3D inspection system, which dent-depth conditions can be inspected by freely setting the reference plane?",
+        "Which illumination methods are supported by the CA-F100 series?":
+            "Which illumination methods are listed for the CA-DQP12X and CA-DQP25X "
+            "pattern-projection lights?",
         "Which numeric value should I use for devId if my XG controller connects via Ethernet?":
             "Which numeric devId value should I use when an XG-7000 or XG-8000 controller connects via Ethernet?",
         "What functions can OUT3 control when its default is set to Error?":

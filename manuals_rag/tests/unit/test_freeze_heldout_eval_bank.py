@@ -644,6 +644,15 @@ def test_repairs_w500_password_query_to_match_the_source_contract():
     ) == "What password values can be set for the W500 Key Lock, and what does selecting 0 do?"
 
 
+def test_repairs_ca_f100_section_label_to_pattern_light_model_scope():
+    assert _MODULE.normalize_frozen_query(
+        "Which illumination methods are supported by the CA-F100 series?"
+    ) == (
+        "Which illumination methods are listed for the CA-DQP12X and CA-DQP25X "
+        "pattern-projection lights?"
+    )
+
+
 def test_focuses_w500_password_contract_on_range_and_zero_meaning():
     query = "What password values can be set for the W500 Key Lock, and what does selecting 0 do?"
     source = (
