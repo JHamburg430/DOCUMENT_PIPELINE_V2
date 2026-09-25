@@ -202,6 +202,15 @@ def relation_profile(text: str) -> RelationProfile:
         text,
         flags=re.IGNORECASE,
     )
+    # Laser labels commonly serialize power as ``Output: 10 mW`` immediately
+    # after a wavelength field.  Treat only watt-valued Output labels as power
+    # so the preceding wavelength role cannot absorb both measurements.
+    text = re.sub(
+        r"\boutput\s*:\s*(?=[-+]?\d+(?:\.\d+)?\s*(?:milliwatts?|kilowatts?|watts?|mw|kw|w)\b)",
+        "Output power: ",
+        text,
+        flags=re.IGNORECASE,
+    )
     role_values: dict[str, set[str]] = {}
     actions: set[str] = set()
     action_polarities: set[str] = set()

@@ -1534,6 +1534,15 @@ def test_enriches_multivalue_measurement_contract_with_milliwatts():
     assert "10" in terms
 
 
+def test_scores_only_requested_laser_wavelength_and_output_power():
+    terms = _MODULE.answer_relevant_expected_terms(
+        "What wavelength and output power are specified for the LJ-X8000 Series laser radiation?",
+        ["laser", "radiation", "class", "2m", "405", "10"],
+    )
+
+    assert terms == ["405", "10"]
+
+
 def test_rejects_display_range_question_that_drops_displayed_quantity():
     assert _MODULE.missing_query_qualifiers(
         "What is the display range for the W500 sensor?",

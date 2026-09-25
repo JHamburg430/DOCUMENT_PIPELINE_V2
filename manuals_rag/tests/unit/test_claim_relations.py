@@ -41,6 +41,17 @@ def test_relation_profile_repairs_concatenated_metric_and_inch_distance():
     }
 
 
+def test_relation_profile_binds_laser_output_milliwatts_as_power():
+    profile = relation_profile(
+        "LASER RADIATION CLASS 2M Wavelength: 405 nm Output: 10 mW"
+    )
+
+    assert profile.role_values == {
+        "wavelength": frozenset({"405 nm"}),
+        "power": frozenset({"10 mw"}),
+    }
+
+
 def test_relation_profile_normalizes_apostrophe_foot_distance():
     profile = relation_profile(
         "Installation distance: 50 mm (1.97\") to > 3 m (9.8')."
