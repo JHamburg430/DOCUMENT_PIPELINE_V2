@@ -7081,6 +7081,11 @@ def _concise_exact_control_answer(
         and re.search(r"\b(?:after installation|after installed|installed)\b", lowered)
         and re.search(r"\b(?:adjust|adjusting|focusing|focus)\b", lowered)
     )
+    numerical_focus_brightness_query = bool(
+        re.search(r"\bfocus\b", lowered)
+        and re.search(r"\bbrightness\b", lowered)
+        and re.search(r"\b(?:numerical(?:ly)?|value[- ]based|using numerical values?)\b", lowered)
+    )
     horizontal_travel_query = bool(
         re.search(r"\bCA-S20D\b", query, flags=re.I)
         and re.search(r"\bleft/right rotation\b", query, flags=re.I)
@@ -7141,6 +7146,18 @@ def _concise_exact_control_answer(
             return (
                 "The manual-focus sensor needs its focusing position adjusted after "
                 "installation; reserve enough space to make that adjustment.",
+                [result],
+            )
+
+        if numerical_focus_brightness_query and re.search(
+            r"\bthe\s+focus\s+and\s+brightness\s+are\s+(?:also\s+)?represented\s+"
+            r"numerically\s*,?\s*allowing\s+for\s+value[- ]based\s+adjustment\b",
+            content,
+            flags=re.I,
+        ):
+            return (
+                "The focus and brightness are represented numerically, allowing for "
+                "value-based adjustment.",
                 [result],
             )
 

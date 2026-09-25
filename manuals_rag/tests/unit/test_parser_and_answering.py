@@ -8,6 +8,7 @@ import pytest
 from manuals_rag_answering.generator import (
     _comparison_answer_covers_retrieved_model_sides,
     _concise_configuration_location_answer,
+    _concise_exact_control_answer,
     _concise_general_fallback_answer,
     _concise_structured_table_answer,
     _concise_structured_fact_answer,
@@ -98,6 +99,59 @@ def test_generate_answer_preserves_compound_laser_wavelength_and_output():
     assert answer.answer == "The laser wavelength is 405 nm and the output power is 10 mW."
     assert [citation["chunk_id"] for citation in answer.citations] == ["laser-label"]
     assert trace["final_answer"]["answer_source"] == "deterministic_compound_laser_measurement"
+
+
+def test_generate_answer_uses_exact_numerical_focus_and_brightness_relationship():
+    result = SearchResult(
+        chunk_id="line-scan-numerical-adjustment",
+        score=0.9,
+        title="XG-X VisionEditor Reference Manual.pdf",
+        document_version_id="v1",
+        source_document_id="line-scan-doc",
+        pages=[4],
+        section_path=["Line scan camera adjustment"],
+        content=(
+            "The focus and brightness are also represented numerically, allowing for "
+            "value-based adjustment. Set the X/Y ratio."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "How can I adjust the focus and brightness of the line scan camera using numerical values?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "The focus and brightness are represented numerically, allowing for value-based "
+        "adjustment."
+    )
+    assert [citation["chunk_id"] for citation in answer.citations] == [
+        "line-scan-numerical-adjustment"
+    ]
+    assert trace["final_answer"]["answer_source"] == "deterministic_exact_control_answer"
+
+
+def test_exact_control_rejects_incomplete_focus_and_brightness_evidence():
+    result = SearchResult(
+        chunk_id="line-scan-generic-adjustment",
+        score=0.9,
+        title="XG-X VisionEditor Reference Manual.pdf",
+        document_version_id="v1",
+        source_document_id="line-scan-doc",
+        pages=[4],
+        section_path=["Line scan camera adjustment"],
+        content="Set the focus and brightness of the line scan camera using the dedicated jig.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "How can I adjust the focus and brightness of the line scan camera using numerical values?",
+        [result],
+    )
+
+    assert answer == ""
+    assert evidence == []
 
 
 def test_generate_answer_extracts_requested_off_status_state():
