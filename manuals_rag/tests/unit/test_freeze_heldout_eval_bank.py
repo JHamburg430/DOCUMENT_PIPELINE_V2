@@ -874,6 +874,14 @@ def test_image_capacity_comparison_scores_both_answer_values_not_marketing_copy(
     ) == ["28,300", "290"]
 
 
+def test_iv4_output_question_requests_the_full_scored_configuration():
+    assert _MODULE.normalize_frozen_query(
+        "Can the N.O./N.C. configuration be switched on the IV4-400MA output?"
+    ) == (
+        "What output type and switchable configurations are specified for the IV4-400MA?"
+    )
+
+
 @pytest.mark.parametrize(
     ("query", "required_scope"),
     [

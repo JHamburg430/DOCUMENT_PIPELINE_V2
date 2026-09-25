@@ -145,6 +145,8 @@ def normalize_frozen_query(query: str) -> str:
             "In the AS_145861 VS-C specification manual, what frame rate is listed for VS-C160M/CX?",
         "In the AS_145861 VS-C specification manual, what frame rate is listed for the VS-C160M/CX model?":
             "In the AS_145861 VS-C specification manual, what frame rate is listed for VS-C160M/CX?",
+        "Can the N.O./N.C. configuration be switched on the IV4-400MA output?":
+            "What output type and switchable configurations are specified for the IV4-400MA?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
