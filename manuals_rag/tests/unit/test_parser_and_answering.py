@@ -7654,6 +7654,37 @@ def test_capture_time_segment_outranks_quantity_in_same_broad_section():
     assert not answer.startswith("Utility")
 
 
+def test_horizontal_sensing_additional_distance_ignores_adjacent_approach_speed():
+    result = SearchResult(
+        chunk_id="sz-v-horizontal-distance",
+        score=1.0,
+        title="AS_124659 SZ-V Manual",
+        document_version_id="v1",
+        source_document_id="doc-sz-v",
+        pages=[27, 28],
+        section_path=["Safety distance"],
+        content=(
+            'Dpf: Additional distance for horizontal sensing field applications without '
+            'vertical sensing: 1200 mm / 48". A: Additional safety distance (mm inch) '
+            'Example of safety distance calculation K = 1600 mm/s 62.99 inch/s.'
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    answer = _concise_general_fallback_answer(
+        "For the SZ-V safety scanner, what additional distance applies to horizontal "
+        "sensing without vertical sensing?",
+        result,
+    )
+
+    assert answer == (
+        'Dpf: Additional distance for horizontal sensing field applications without '
+        'vertical sensing: 1200 mm / 48".'
+    )
+    assert "1600" not in answer
+    assert "62.99" not in answer
+
+
 def test_temperature_measurement_handles_concatenated_table_header():
     result = SearchResult(
         chunk_id="xt060-environment",

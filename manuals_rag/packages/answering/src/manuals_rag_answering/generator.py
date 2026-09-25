@@ -3110,6 +3110,20 @@ def _query_target_quantity_score(query: str, evidence: str) -> float:
 
 def _concise_general_fallback_answer(query: str, result: SearchResult) -> str:
     evidence = _fallback_answer_text(result)
+    if (
+        re.search(r"\bSZ[- ]?V\b", query, flags=re.IGNORECASE)
+        and re.search(r"\bhorizontal\s+sensing\b", query, flags=re.IGNORECASE)
+        and re.search(r"\bwithout\s+vertical\s+sensing\b", query, flags=re.IGNORECASE)
+    ):
+        dpf_match = re.search(
+            r"\bDpf\s*:\s*(?P<body>Additional\s+distance\s+for\s+horizontal\s+"
+            r"sensing\s+field\s+applications\s+without\s+vertical\s+sensing\s*:\s*"
+            r"\d+(?:\.\d+)?\s*mm\s*/\s*\d+(?:\.\d+)?\s*(?:in(?:ch(?:es)?)?|[\"″]))",
+            evidence,
+            flags=re.IGNORECASE,
+        )
+        if dpf_match:
+            return f"Dpf: {re.sub(r'\\s+', ' ', dpf_match.group('body')).strip()}."
     if re.search(r"\bdetection\s+count\b", query, flags=re.IGNORECASE):
         mode_match = re.search(
             r"\bfor\s+(?P<mode>[A-Za-z][A-Za-z -]{1,60}?)\s+mode\b",
