@@ -709,7 +709,43 @@ def test_focuses_profinet_cyclic_optional_unit_on_profinet_row():
 def test_removes_ca_dex10x_ocr_footnote_from_frozen_query():
     assert _MODULE.normalize_frozen_query(
         "How much power does the VS Series consume if CA-DEx10X 4 is connected?"
-    ) == "How much power does the VS Series consume if CA-DEx10X is connected?"
+    ) == (
+        "In the AS_160462 VS camera guide, what current and power consumption are "
+        "listed for the VS-S Series with CA-DEx10X connected at 19.2 V and 24 V?"
+    )
+
+
+def test_canonicalizes_ca_dex10x_current_and_power_contract():
+    case = {
+        **_case(),
+        "query": "How much power does the VS Series consume if CA-DEx10X is connected?",
+        "expected_snippet": (
+            "Current consumption (With CA-DEx10X 4 | 11.3 A, 216.7 W(for 19.2 V)/"
+            "9.1 A, 216.7 W(for 24 V)"
+        ),
+        "expected_terms": [
+            "current", "consumption", "ca-dex10x", "11.3", "216.7", "19.2", "9.1", "24"
+        ],
+    }
+    chunk = {**_chunk(), "content": case["expected_snippet"]}
+
+    frozen = _MODULE.verify_and_freeze_cases(
+        [case],
+        {"chunk-1": chunk},
+        tuning_document_ids=set(),
+        verified_at="2026-09-25T00:00:00+00:00",
+    )
+
+    assert frozen[0]["query"] == (
+        "In the AS_160462 VS camera guide, what current and power consumption are "
+        "listed for the VS-S Series with CA-DEx10X connected at 19.2 V and 24 V?"
+    )
+    assert frozen[0]["expected_snippet"] == (
+        "11.3 A, 216.7 W(for 19.2 V)/9.1 A, 216.7 W(for 24 V)"
+    )
+    assert frozen[0]["expected_terms"] == [
+        "11.3", "216.7", "19.2", "9.1", "24"
+    ]
 
 
 def test_repairs_lj_s8000_ocr_model_separator_in_frozen_query():

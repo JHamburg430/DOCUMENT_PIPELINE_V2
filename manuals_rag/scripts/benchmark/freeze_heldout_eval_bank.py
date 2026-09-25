@@ -202,6 +202,12 @@ def normalize_frozen_query(query: str) -> str:
         "When selecting a zoom camera, how should the camera resolution be chosen for the application?":
             "In the AS_160462 VS camera guide, when selecting a zoom camera, how should "
             "the camera resolution be chosen for the application?",
+        "How much power does the VS Series consume if CA-DEx10X is connected?":
+            "In the AS_160462 VS camera guide, what current and power consumption are "
+            "listed for the VS-S Series with CA-DEx10X connected at 19.2 V and 24 V?",
+        "How much power does the VS Series consume if CA-DEx10X 4 is connected?":
+            "In the AS_160462 VS camera guide, what current and power consumption are "
+            "listed for the VS-S Series with CA-DEx10X connected at 19.2 V and 24 V?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
@@ -242,6 +248,13 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
         and re.search(r"\bfor the application\b", normalized_query)
     ):
         return ["select", "resolution", "application"]
+    if (
+        re.search(r"\bas_160462\b", normalized_query)
+        and re.search(r"\bvs-s series\b", normalized_query)
+        and re.search(r"\bca-dex10x connected\b", normalized_query)
+        and re.search(r"\bcurrent and power consumption\b", normalized_query)
+    ):
+        return ["11.3", "216.7", "19.2", "9.1", "24"]
     if re.search(r"\blr-tb5000-series models\b", normalized_query) and re.search(
         r"\bm12 connector type models\b", normalized_query
     ):
@@ -1539,6 +1552,20 @@ def verify_and_freeze_cases(
                 extract_anchor_terms(snippet_text)[:4],
             )
             case["expected_snippet"] = snippet_text
+            case["expected_terms"] = terms
+            case["anchor_terms"] = terms
+        if (
+            re.search(r"\bas_160462\b", case["query"], flags=re.I)
+            and re.search(r"\bvs-s series\b", case["query"], flags=re.I)
+            and re.search(r"\bca-dex10x connected\b", case["query"], flags=re.I)
+            and re.search(r"\bcurrent and power consumption\b", case["query"], flags=re.I)
+        ):
+            case["expected_snippet"] = (
+                "11.3 A, 216.7 W(for 19.2 V)/9.1 A, 216.7 W(for 24 V)"
+            )
+            terms = answer_relevant_expected_terms(
+                case["query"], list(case.get("expected_terms") or [])
+            )
             case["expected_terms"] = terms
             case["anchor_terms"] = terms
         if reanchor_source_snippets:
