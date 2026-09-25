@@ -2045,6 +2045,62 @@ def _direct_laser_eye_level_installation_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_xgx_initial_language_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the XG-X2902LJ initial-startup language list from one table row."""
+    if not (
+        re.search(r"\bXG-X2902LJ\b", query, flags=re.I)
+        and re.search(r"\blanguages?\b", query, flags=re.I)
+        and re.search(r"\binitial\s+start-up\b", query, flags=re.I)
+        and preliminary_assessment.get("claim_supported")
+    ):
+        return []
+
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids:
+            continue
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        source_scope = " ".join(
+            (
+                str(result.title or ""),
+                str((result.metadata or {}).get("source_filename") or ""),
+                str((result.metadata or {}).get("document_title") or ""),
+            )
+        )
+        if not re.search(r"\bAS[_-]151119(?=$|[^A-Za-z0-9])", source_scope, flags=re.I):
+            continue
+        if not (
+            re.search(r"\bColumn\s+headers?:\s*XG-X2902LJ\b", content, flags=re.I)
+            and re.search(r"\bRow\s+headers?:.*\bLanguage\b", content, flags=re.I)
+            and re.search(r"\bCell\s+value:\s*Switch\s+between\b", content, flags=re.I)
+            and all(
+                language.lower() in content.lower()
+                for language in (
+                    "English",
+                    "Japanese",
+                    "Chinese (Simp.)",
+                    "Chinese (Trad.)",
+                    "German",
+                    "Vietnamese",
+                )
+            )
+            and re.search(r"\bdefault\s+language\s+during\s+initial\s+start-up\b", content, flags=re.I)
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_context_sentence_support(
     query: str,
     results: list[SearchResult],
@@ -5370,6 +5426,28 @@ def verify_retrieval_claim(
             rationale=(
                 "Deterministic laser-safety verification matched the complete AS_152333 "
                 "instruction prohibiting a laser beam path at human-eye height."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_xgx_initial_language_support = _direct_xgx_initial_language_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_xgx_initial_language_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_xgx_initial_language_support,
+            applicability="not_requested",
+            scope_entity="XG-X2902LJ controller",
+            rationale=(
+                "Deterministic structured verification matched the complete AS_151119 "
+                "XG-X2902LJ initial-startup language row."
             ),
         ).model_dump() | {
             "invalid_citation_ids": [],

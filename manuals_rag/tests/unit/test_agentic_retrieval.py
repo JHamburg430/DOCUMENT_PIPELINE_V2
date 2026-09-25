@@ -25,6 +25,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_output_to_rs232c_support,
     _direct_vs_s_ca_dex10x_power_support,
     _direct_zoomtrax_before_label_support,
+    _direct_xgx_initial_language_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _direct_feature_amplifier_type_support,
@@ -134,6 +135,44 @@ def test_direct_laser_eye_level_installation_support_requires_complete_scoped_in
         query, [incomplete, wrong_source, exact], preliminary
     ) == [exact.chunk_id]
     assert _direct_laser_eye_level_installation_support(
+        query, [incomplete, wrong_source], preliminary
+    ) == []
+
+
+def test_direct_xgx_initial_language_support_requires_complete_scoped_row():
+    query = "Which languages can be selected for the XG-X2902LJ controller during initial start-up?"
+    complete_content = (
+        "Column headers: XG-X2902LJ; Row headers: SNTP USB Mouse > Touch USB > Language; "
+        "Cell value: Switch between English/Japanese/Chinese (Simp.)/Chinese (Trad.)/"
+        "German/Vietnamese (set the default language during initial start-up)"
+    )
+    complete = _result("xgx-languages", "lj-s8000-catalog", complete_content).model_copy(
+        update={
+            "title": "AS_151119_LJ-S8000_C_689103_KA_US_2025_1.pdf",
+            "metadata": {"chunk_type": "table_record"},
+        }
+    )
+    incomplete = complete.model_copy(
+        update={
+            "chunk_id": "xgx-languages-incomplete",
+            "content": complete_content.replace("/German/Vietnamese", ""),
+        }
+    )
+    wrong_source = complete.model_copy(
+        update={
+            "chunk_id": "xgx-languages-wrong-source",
+            "title": "AS_999999_LJ-S8000_OTHER.pdf",
+        }
+    )
+    preliminary = {
+        "claim_supported": True,
+        "supporting_chunk_ids": [incomplete.chunk_id, wrong_source.chunk_id, complete.chunk_id],
+    }
+
+    assert _direct_xgx_initial_language_support(
+        query, [incomplete, wrong_source, complete], preliminary
+    ) == [complete.chunk_id]
+    assert _direct_xgx_initial_language_support(
         query, [incomplete, wrong_source], preliminary
     ) == []
 
@@ -2112,6 +2151,38 @@ def test_verifier_deterministically_confirms_laser_eye_level_prohibition(monkeyp
                 "product_models": ["LJ: S8000 series head"],
                 "source_filename": "AS_152333_LJ-S8000_IM_96M18473_WW_GB_2045_1.pdf",
             },
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
+def test_verifier_deterministically_confirms_xgx_initial_language_row(monkeypatch):
+    query = "Which languages can be selected for the XG-X2902LJ controller during initial start-up?"
+    hop = RetrievalHop(hop_id="languages", objective=query, query=query, strategy="structural")
+    result = _result(
+        "xgx-languages",
+        "lj-s8000-catalog",
+        "Column headers: XG-X2902LJ; Row headers: SNTP USB Mouse > Touch USB > Language; "
+        "Cell value: Switch between English/Japanese/Chinese (Simp.)/Chinese (Trad.)/"
+        "German/Vietnamese (set the default language during initial start-up)",
+    ).model_copy(
+        update={
+            "title": "AS_151119_LJ-S8000_C_689103_KA_US_2025_1.pdf",
+            "metadata": {"chunk_type": "table_record"},
         }
     )
     monkeypatch.setattr(
