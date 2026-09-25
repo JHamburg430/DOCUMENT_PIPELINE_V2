@@ -614,7 +614,10 @@ def _equivalent_chunk_ids(
             if str(result.get("source_document_id") or "") == source_document_id:
                 continue
             semantic_evaluation = score_search_results(semantic_case, [result], top_k=1)
-            if semantic_evaluation.get("match_reason") != "cross_document_semantic_evidence":
+            if semantic_evaluation.get("match_reason") not in {
+                "cross_document_semantic_evidence",
+                "applicable_equivalent_answer_evidence",
+            }:
                 continue
             chunk_id = str(result.get("chunk_id") or "")
             if chunk_id:

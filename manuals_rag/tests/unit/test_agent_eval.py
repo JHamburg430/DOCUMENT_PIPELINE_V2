@@ -481,6 +481,79 @@ def test_agent_evaluation_accepts_baseline_proven_cross_document_semantic_eviden
     assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
 
 
+def test_agent_evaluation_accepts_baseline_proven_applicable_table_evidence():
+    snippet = (
+        "Protection circuit | Protection against reverse power connection, power "
+        "supply surge, output overcurrent, output surge, and reverse output connection"
+    )
+    case = {
+        "case_id": "lr-t-protection-duplicate",
+        "query": "Which protection circuits safeguard the LR-T laser sensor against reverse power connection and output surges?",
+        "retrieval_task": "single_step_retrieval",
+        "source_document_id": "lr-t-source",
+        "source_chunk_id": "expected-protection",
+        "document_version_id": "lr-t-version",
+        "source_title": "LR-T Laser Sensor",
+        "source_filename": "lr-t.pdf",
+        "chunk_type": "table_record",
+        "section_path": "Specifications",
+        "page_from": 17,
+        "page_to": 17,
+        "expected_terms": ["protection", "circuit", "against", "reverse"],
+        "expected_snippet": snippet,
+        "generation_method": "unit",
+        "source_metadata": {
+            "product_family": "Laser Sensor",
+            "identifier_tokens": ["LR-T", "LR-TB2000", "LR-TB5000"],
+        },
+    }
+    duplicate_chunk = "duplicate-protection"
+    trace = {
+        "sufficient": True,
+        "plan": {"mode": "single", "hops": [{"hop_id": "one", "depends_on": []}]},
+        "evidence_ledger": {
+            "one": {
+                "required": True,
+                "sufficient": True,
+                "strategy": "hybrid",
+                "chunk_ids": [duplicate_chunk],
+            }
+        },
+        "cost": {},
+    }
+    evaluation = score_agent_run(
+        case,
+        trace=trace,
+        results=[
+            {
+                "chunk_id": duplicate_chunk,
+                "source_document_id": "lr-t-duplicate",
+                "section_path": ["Specifications"],
+                "content": (
+                    "Column headers: Model > LR-TB5000 > LR-TB2000; Cell value: "
+                    "Protection circuit Protection against reverse power connection, "
+                    "power supply surges, output overcurrent, reverse output connection, "
+                    "and output surge; Row: 14; Column: 0"
+                ),
+                "metadata": {
+                    "chunk_type": "table_record",
+                    "product_family": "Laser Sensor",
+                    "identifier_tokens": ["LR-T", "LR-TB2000", "LR-TB5000"],
+                },
+            }
+        ],
+        answer={
+            "answer": "The protection circuit guards against reverse power connection and output surge.",
+            "citations": [{"chunk_id": duplicate_chunk}],
+        },
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["cells"]["candidate_recall"]["status"] == "pass"
+    assert evaluation["cells"]["document_retention"]["status"] == "pass"
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+
+
 def _quantity_case():
     return {
         "case_id": "quantity-bindings",
