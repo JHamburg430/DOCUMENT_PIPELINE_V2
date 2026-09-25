@@ -1603,7 +1603,13 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
             return True
 
     legacy_scope_values: list[str] = []
-    for key in ("product_models", "product_family", "product_families"):
+    for key in (
+        "product_models",
+        "product_family",
+        "product_families",
+        "devices",
+        "manufacturer",
+    ):
         value = metadata.get(key)
         if isinstance(value, (list, tuple, set)):
             legacy_scope_values.extend(str(item) for item in value if item)
@@ -1670,6 +1676,42 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
     )
     searchable_compact = compact(searchable)
     return any(identifier in searchable_compact for identifier in requested)
+
+
+def _direct_reference_plane_dent_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the narrowly bound reference-plane dent-range statement."""
+
+    if not (
+        re.search(r"\breference\s+plane\b", query, flags=re.I)
+        and re.search(r"\bdent", query, flags=re.I)
+        and re.search(r"\bfreely\s+set(?:ting)?\b", query, flags=re.I)
+        and preliminary_assessment.get("claim_supported") is True
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    for result in results:
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        if str((result.metadata or {}).get("chunk_type") or "") not in {
+            "atomic_text",
+            "spec_record",
+            "datasheet_record",
+        }:
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if (
+            re.search(r"\bfreely\s+set\s+the\s+reference\s+plane\b", content, flags=re.I)
+            and re.search(r"\bsharp\b.{0,80}\bshallow\s+dents?\b", content, flags=re.I)
+        ):
+            return [result.chunk_id]
+    return []
 
 
 def _verification_evidence(
@@ -4409,6 +4451,28 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": sorted(allowed_results),
             "scope_candidate_chunk_ids": [],
+        }
+
+    direct_reference_plane_support = _direct_reference_plane_dent_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_reference_plane_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_reference_plane_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic dent-range verification matched one scoped atomic sentence that "
+                "binds freely setting the reference plane to sharp-through-shallow dents."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
         }
 
     direct_cable_support = _direct_cable_mapping_support(

@@ -897,6 +897,64 @@ def test_scope_matching_accepts_exact_model_in_compact_spec_row():
     ) is True
 
 
+def test_scope_matching_accepts_device_family_when_primary_model_is_parser_noise():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "dent-range",
+        "xg-x-brochure",
+        "Users can freely set the reference plane for everything from sharp to shallow dents.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "60 mm 2.36",
+                "product_family": "High Accuracy 3D Inspection Over the Full Field of View",
+                "devices": ["XG: X Series", "Field of View", "60 mm 2.36"],
+                "manufacturer": "XG: X Series",
+            }
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "For the XG-X Series inline 3D inspection system, which dent-depth conditions can be inspected?",
+        result,
+    ) is True
+
+
+def test_reference_plane_dent_support_requires_one_scoped_atomic_sentence():
+    from manuals_rag_answering.agentic_retrieval import (
+        _direct_reference_plane_dent_support,
+        _result_supports_branch_scope,
+    )
+
+    query = (
+        "For the XG-X Series inline 3D inspection system, which dent-depth conditions "
+        "can be inspected by freely setting the reference plane?"
+    )
+    exact = _result(
+        "dent-range",
+        "xg-x-brochure",
+        "Users can freely set the reference plane, allowing inspections for everything "
+        "from sharp to shallow dents.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "60 mm 2.36",
+                "devices": ["XG: X Series"],
+            }
+        }
+    )
+    incomplete = exact.model_copy(
+        update={"chunk_id": "reference-only", "content": "Users can freely set the reference plane."}
+    )
+    preliminary = {"claim_supported": True, "supporting_chunk_ids": [exact.chunk_id, incomplete.chunk_id]}
+
+    assert _result_supports_branch_scope(query, exact) is True
+    assert _direct_reference_plane_dent_support(query, [incomplete, exact], preliminary) == [exact.chunk_id]
+
+
 def test_scope_matching_accepts_vs_identifier_from_authoritative_manual_title():
     from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
 
