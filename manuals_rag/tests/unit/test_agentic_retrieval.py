@@ -832,6 +832,52 @@ def test_scope_matching_accepts_exact_model_in_compact_spec_row():
     ) is True
 
 
+def test_scope_matching_accepts_vs_identifier_from_authoritative_manual_title():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "vs-physical-link",
+        "vs-kuka",
+        "Use Ethernet cables to connect the VS Series and the robot controller through a hub.",
+    ).model_copy(
+        update={
+            "title": "AS_143269_VS_CM_J23GB_WW_GB_2065_2",
+            "metadata": {
+                "chunk_type": "section_window",
+                "product_family": "VISION",
+            },
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "How do I physically link the VS Series to a robot controller?",
+        result,
+    ) is True
+
+
+def test_scope_matching_does_not_use_incidental_vs_prose_with_generic_family():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "other-manual",
+        "other-product",
+        "This accessory can also be used with the VS Series.",
+    ).model_copy(
+        update={
+            "title": "AS_999999_OTHER_UM_GB.pdf",
+            "metadata": {
+                "chunk_type": "section_window",
+                "product_family": "VISION",
+            },
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "How do I physically link the VS Series to a robot controller?",
+        result,
+    ) is False
+
+
 def test_scope_matching_accepts_model_bound_to_table_row_by_identifier_tokens():
     from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
 

@@ -1513,6 +1513,21 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
     primary_model_is_concrete = bool(
         product_model and analyze_query(product_model).product_identifiers
     )
+    source_identity_values = [
+        str(metadata.get("source_filename") or ""),
+        str(metadata.get("document_title") or ""),
+        str(result.title or ""),
+    ]
+    populated_source_identity = [value for value in source_identity_values if value]
+    source_identity_tokens = {
+        compact(token)
+        for value in populated_source_identity
+        for token in re.findall(r"[A-Za-z0-9]+", value)
+        if compact(token)
+    }
+    source_identity_matches = bool(requested.intersection(source_identity_tokens)) or matches_requested(
+        populated_source_identity
+    )
     if primary_model_is_concrete:
         # A concrete conflicting primary model remains authoritative.  Generic
         # legacy labels such as "User's Manual (3D mode)" fall through to the
@@ -1530,12 +1545,7 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         # exactly.  The filename is document identity, unlike incidental prose,
         # so it may safely establish an alias without weakening the conflict
         # guard below.
-        source_identity_values = [
-            str(metadata.get("source_filename") or ""),
-            str(metadata.get("document_title") or ""),
-            str(result.title or ""),
-        ]
-        if matches_requested([value for value in source_identity_values if value]):
+        if source_identity_matches:
             return True
 
     legacy_scope_values: list[str] = []
@@ -1561,6 +1571,11 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
     if legacy_scope_values:
         return (
             matches_requested(legacy_scope_values)
+            # Generic legacy families such as ``VISION`` do not encode the
+            # concrete VS product name.  The source filename/title is still
+            # authoritative document identity, so an exact parsed identifier
+            # there may safely establish scope without trusting prose mentions.
+            or source_identity_matches
             or explicit_structured_scope_matches
             or (compact_exact_row_match and not primary_model_is_concrete)
             or (identifier_scope_matches and not primary_model_is_concrete)
