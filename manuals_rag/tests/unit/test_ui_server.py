@@ -884,6 +884,32 @@ def test_external_agent_matrix_lock_requires_live_validated_writer(tmp_path):
     assert ui_server._agent_matrix_lock_is_live(lock_path, run_id) is False
 
 
+def test_external_agent_matrix_lock_resolves_container_pid_namespace(tmp_path):
+    run_id = "container-lock-run"
+    lock_path = tmp_path / f"{run_id}.lock"
+    script = (
+        "import fcntl,json,sys,time;"
+        "path=sys.argv[1];run_id=sys.argv[2];"
+        "handle=open(path,'w+',encoding='utf-8');"
+        "fcntl.flock(handle.fileno(),fcntl.LOCK_EX);"
+        "handle.write(json.dumps({'run_id':run_id,'pid':999999999}));"
+        "handle.flush();print('ready',flush=True);time.sleep(30)"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", script, str(lock_path), run_id, "compare_agentic_retrieval.py"],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert process.stdout is not None
+        assert process.stdout.readline().strip() == "ready"
+        assert ui_server._agent_matrix_lock_is_live(lock_path, run_id) is True
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+    assert ui_server._agent_matrix_lock_is_live(lock_path, run_id) is False
+
+
 def test_question_matrix_qualifies_duplicate_case_ids_by_dataset(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()
