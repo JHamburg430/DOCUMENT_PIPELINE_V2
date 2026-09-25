@@ -16,6 +16,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_atomic_measurement_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
+    _direct_feature_amplifier_type_support,
     _direct_indicator_meaning_support,
     _direct_illumination_type_support,
     _direct_manual_focus_installation_support,
@@ -3927,6 +3928,46 @@ def test_variable_type_support_requires_explicit_enumeration():
     )
 
     assert _direct_variable_type_support(query, [result]) == ["variable-types"]
+
+
+def test_feature_amplifier_type_support_confirms_scoped_spec_heading():
+    query = "Which IV Series amplifier types support the Intelligent Monitor feature?"
+    result = _result(
+        "intelligent-monitor-types",
+        "iv-doc",
+        "Intelligent Monitor For Amplifier: Integrated And Ultra-Compact Models",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "spec_record",
+                "product_family": "IV Series",
+            }
+        }
+    )
+
+    assert _direct_feature_amplifier_type_support(query, [result]) == [
+        "intelligent-monitor-types"
+    ]
+
+
+def test_feature_amplifier_type_support_rejects_unstructured_or_wrong_scope_text():
+    query = "Which IV Series amplifier types support the Intelligent Monitor feature?"
+    prose = _result(
+        "marketing-copy",
+        "iv-doc",
+        "Integrated amplifiers support the Intelligent Monitor feature.",
+    ).model_copy(
+        update={"metadata": {"chunk_type": "spec_record", "product_family": "IV Series"}}
+    )
+    wrong_scope = _result(
+        "wrong-scope",
+        "lr-doc",
+        "Intelligent Monitor For Amplifier: Integrated And Ultra-Compact Models",
+    ).model_copy(
+        update={"metadata": {"chunk_type": "spec_record", "product_family": "LR Series"}}
+    )
+
+    assert _direct_feature_amplifier_type_support(query, [prose, wrong_scope]) == []
 
 
 def test_indicator_meaning_support_requires_named_definition():

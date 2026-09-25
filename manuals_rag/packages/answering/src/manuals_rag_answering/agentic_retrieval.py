@@ -3223,6 +3223,70 @@ def _direct_variable_type_support(query: str, results: list[SearchResult]) -> li
     return [min(matches)[2]] if matches else []
 
 
+def _direct_feature_amplifier_type_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm a compact feature-to-amplifier-type specification heading.
+
+    Some catalog-derived specification records encode the complete answer as
+    ``<feature> For Amplifier: <types> Models``.  The independent LLM verifier
+    can misread that heading as merely mentioning the feature.  Keep this gate
+    deliberately narrow: it requires the matching question shape, a scoped
+    short spec record, the named feature before the delimiter, and a non-empty
+    model-type list after it.
+    """
+    match = re.search(
+        r"\bwhich\b.+?\bamplifier\s+types?\b.+?\bsupport\b.+?\bthe\s+"
+        r"(?P<feature>[a-z0-9][a-z0-9 -]+?)\s+feature\b",
+        query,
+        flags=re.I,
+    )
+    if not match:
+        return []
+    feature_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", match.group("feature").lower())
+        if len(term) > 2
+    }
+    if not feature_terms:
+        return []
+
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if (
+            str(metadata.get("chunk_type") or "") != "spec_record"
+            or not content
+            or len(content) > 180
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        heading = re.fullmatch(
+            r"(?P<feature>.+?)\s+For\s+Amplifier\s*:\s*"
+            r"(?P<types>[A-Za-z][A-Za-z0-9 &/,()-]+?\s+Models?)",
+            content,
+            flags=re.I,
+        )
+        if not heading:
+            continue
+        heading_feature_terms = set(
+            re.findall(r"[a-z0-9]+", heading.group("feature").lower())
+        )
+        if not feature_terms.issubset(heading_feature_terms):
+            continue
+        type_terms = {
+            term
+            for term in re.findall(r"[a-z0-9]+", heading.group("types").lower())
+            if term not in {"and", "model", "models"}
+        }
+        if not type_terms:
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_indicator_meaning_support(query: str, results: list[SearchResult]) -> list[str]:
     """Confirm a named indicator definition from one scoped source passage."""
     match = re.search(
@@ -4217,6 +4281,26 @@ def verify_retrieval_claim(
                 applicability="not_requested",
                 scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
                 rationale="Deterministic enumeration verification matched explicit variable types.",
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_feature_amplifier_support = _direct_feature_amplifier_type_support(
+            hop.objective,
+            results,
+        )
+        if direct_feature_amplifier_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_feature_amplifier_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic feature verification matched a scoped feature-to-amplifier-"
+                    "type specification heading."
+                ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
                 "out_of_scope_chunk_ids": [],
