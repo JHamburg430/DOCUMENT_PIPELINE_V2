@@ -7526,6 +7526,36 @@ def test_direct_torque_prefers_promoted_atomic_measurement_over_broad_mounting_c
     assert trace["final_answer"]["answer_source"] == "deterministic_structured_fact"
 
 
+def test_compound_mounting_hole_and_torque_answer_keeps_complete_specification():
+    result = SearchResult(
+        chunk_id="iv4-mounting-hole-spec",
+        score=0.9,
+        title="IV4-400CA Manual",
+        document_version_id="v1",
+        source_document_id="doc-iv4",
+        pages=[1],
+        section_path=["11 IP reset switch"],
+        content=(
+            "Mounting onto mounting holes. Mounting hole size: M3 depth 3.3 mm "
+            "Tightening torque: 0.5 to 0.7 N·m. In addition, the back M2.5 hole "
+            "uses 0.2 to 0.3 N·m and the front M4 hole uses 0.8 to 1.2 N·m."
+        ),
+        metadata={"chunk_type": "spec_record", "product_model": "IV4-400CA"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What mounting hole size and tightening torque apply to the IV4-400CA IP reset switch?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "Mounting hole size: M3, depth 3.3 mm; "
+        "tightening torque: 0.5 to 0.7 N·m."
+    )
+    assert answer.citations[0]["chunk_id"] == "iv4-mounting-hole-spec"
+    assert trace["final_answer"]["answer_source"] == "deterministic_structured_fact"
+
+
 def test_enumerated_options_answer_preserves_all_close_up_ring_thicknesses():
     unrelated = SearchResult(
         chunk_id="unrelated-fov",

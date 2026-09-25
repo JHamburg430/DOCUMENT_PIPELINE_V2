@@ -3111,6 +3111,28 @@ def _query_target_quantity_score(query: str, evidence: str) -> float:
 def _concise_general_fallback_answer(query: str, result: SearchResult) -> str:
     evidence = _fallback_answer_text(result)
     if (
+        re.search(r"\bmounting\s+hole\s+size\b", query, flags=re.IGNORECASE)
+        and re.search(r"\btightening\s+torque\b", query, flags=re.IGNORECASE)
+    ):
+        mounting_spec = re.search(
+            r"\bMounting\s+hole\s+size\s*:\s*"
+            r"(?P<size>M\s*\d+(?:\.\d+)?)\s+"
+            r"depth\s+(?P<depth>\d+(?:\.\d+)?\s*mm)"
+            r".{0,120}?\bTightening\s+torque\s*:\s*"
+            r"(?P<torque>\d+(?:\.\d+)?\s*(?:to|[-–—])\s*"
+            r"\d+(?:\.\d+)?\s*N\s*[·.]?\s*m)\b",
+            evidence,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if mounting_spec:
+            size = re.sub(r"\s+", "", mounting_spec.group("size")).upper()
+            depth = re.sub(r"\s+", " ", mounting_spec.group("depth")).strip()
+            torque = re.sub(r"\s+", " ", mounting_spec.group("torque")).strip()
+            return (
+                f"Mounting hole size: {size}, depth {depth}; "
+                f"tightening torque: {torque}."
+            )
+    if (
         re.search(r"\bSZ[- ]?V\b", query, flags=re.IGNORECASE)
         and re.search(r"\bhorizontal\s+sensing\b", query, flags=re.IGNORECASE)
         and re.search(r"\bwithout\s+vertical\s+sensing\b", query, flags=re.IGNORECASE)
