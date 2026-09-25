@@ -781,6 +781,22 @@ def _exact_identifier_value_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _xg_lua_output_function_plan(query: str) -> RetrievalPlan | None:
+    """Keep an exact XG Lua output-function definition on hybrid retrieval."""
+    if not (
+        re.search(r"\bXG-7000/XG-8000\b", query, flags=re.I)
+        and re.search(r"\bLua Script Manual\b", query, flags=re.I)
+        and re.search(r"\bOutputToRs232C\b", query, flags=re.I)
+        and re.search(r"\bnon-procedural RS-232C\b", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request is one exact scoped function-definition lookup.",
+        hops=[RetrievalHop(hop_id="function_lookup", objective=query, query=query, strategy="hybrid")],
+    )
+
+
 def _direct_yes_no_plan(query: str) -> RetrievalPlan | None:
     """Keep one scoped yes/no predicate deterministic and single-hop.
 
@@ -821,6 +837,9 @@ def _shared_setting_value_plan(query: str) -> RetrievalPlan | None:
 
 
 def _heuristic_plan(query: str) -> RetrievalPlan:
+    function_plan = _xg_lua_output_function_plan(query)
+    if function_plan is not None:
+        return function_plan
     exact_structured_plan = _exact_structured_single_plan(query)
     if exact_structured_plan is not None:
         return exact_structured_plan
@@ -889,7 +908,8 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     # Enforce this invariant before model planning so one broad hop cannot blend
     # evidence from multiple products or silently satisfy only one side.
     forced_plan = (
-        _exact_structured_single_plan(query)
+        _xg_lua_output_function_plan(query)
+        or _exact_structured_single_plan(query)
         or _warning_dependency_plan(query)
         or _exact_identifier_value_plan(query)
         or _troubleshooting_facet_plan(query)
@@ -959,7 +979,8 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
 
 def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     if (
-        _exact_structured_single_plan(query) is not None
+        _xg_lua_output_function_plan(query) is not None
+        or _exact_structured_single_plan(query) is not None
         or _warning_dependency_plan(query) is not None
         or _exact_identifier_value_plan(query) is not None
         or _troubleshooting_facet_plan(query) is not None

@@ -266,6 +266,24 @@ def test_direct_output_to_rs232c_support_requires_scoped_function_definition():
     assert _direct_output_to_rs232c_support(query, [neighboring_function]) == []
 
 
+def test_planners_keep_scoped_xg_lua_output_function_lookup_hybrid(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner model must not run")),
+    )
+    query = (
+        "In the XG-7000/XG-8000 Lua Script Manual, what string does OutputToRs232C "
+        "send to the non-procedural RS-232C port?"
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "hybrid"
+
+
 def test_direct_lj_x8000_head_extension_support_requires_complete_model_list():
     query = "Which head connection extension cable models are listed for the LJ-X8000 Series?"
     complete = _result(
