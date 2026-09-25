@@ -3427,6 +3427,49 @@ def test_explicit_manual_title_narrows_identifier_wide_routing():
     ) == ["simple-setup"]
 
 
+def test_explicit_document_reference_requires_document_context():
+    assert retriever._explicit_document_reference_tokens(
+        "In the AS_160148 XG-X camera specification table, what shutter range is listed?"
+    ) == ["as160148"]
+    assert retriever._explicit_document_reference_tokens(
+        "What settings apply to AS_160148?"
+    ) == []
+
+
+def test_metadata_document_selection_prefers_exact_document_reference():
+    class FakeStore:
+        def search_document_metadata_exact_references(self, corpus_id, references, filters, limit=5):
+            assert references == ["as160148"]
+            return [
+                {
+                    "source_document_id": "exact-doc",
+                    "score": 2.0,
+                    "retrieval_stage": "metadata_exact_reference",
+                    "payload": {"title": "AS_160148_XG-X_C"},
+                }
+            ]
+
+        def search_document_metadata(self, corpus_id, query, filters, limit=5):
+            return [
+                {
+                    "source_document_id": "family-doc",
+                    "score": 0.9,
+                    "retrieval_stage": "metadata_dense",
+                    "payload": {"title": "XG-X User Manual"},
+                }
+            ]
+
+    filters, hits = retriever.select_documents_from_metadata(
+        FakeStore(),
+        "In the AS_160148 XG-X camera specification table, what shutter range is listed?",
+        ["c1"],
+        {"is_active": True},
+    )
+
+    assert filters["source_document_id"] == ["exact-doc", "family-doc"]
+    assert retriever._exact_reference_document_ids(hits) == ["exact-doc"]
+
+
 def test_exact_identifier_prefers_scoped_aliases_over_unscoped_mentions():
     cvx_analysis = analyze_query("How do I configure CVX482?")
     external_plc_analysis = analyze_query("How do I configure KV-7500?")

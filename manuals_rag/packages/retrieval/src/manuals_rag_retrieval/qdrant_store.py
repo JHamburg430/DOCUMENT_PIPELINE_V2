@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from threading import Lock
 from typing import Any
 
@@ -441,6 +442,69 @@ class QdrantStore:
         ]
         sparse_results = self._search_document_metadata_sparse(corpus_id, query, filters, limit=max(limit * 4, 20))
         return self._fuse_document_metadata_hits([dense_results, sparse_results], limit=limit)
+
+    def search_document_metadata_exact_references(
+        self,
+        corpus_id: str,
+        references: list[str],
+        filters: dict[str, Any],
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Resolve explicit manual/document codes against title metadata.
+
+        Vector metadata routing can omit a short, exact document code when a
+        large family manual dominates the candidate pool.  This bounded scan
+        only accepts references that occur contiguously in the title or source
+        filename after punctuation normalization.
+        """
+        normalized_references = {
+            re.sub(r"[^a-z0-9]+", "", str(reference).lower())
+            for reference in references
+            if str(reference).strip()
+        }
+        normalized_references.discard("")
+        if not normalized_references:
+            return []
+        name = document_metadata_collection_name(corpus_id)
+        if not self.client.collection_exists(name):
+            return []
+        query_filter = self._build_filter(filters)
+        matches: list[dict[str, Any]] = []
+        offset = None
+        while True:
+            batch, offset = self.client.scroll(
+                collection_name=name,
+                scroll_filter=query_filter,
+                limit=256,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for point in batch:
+                payload = point.payload or {}
+                candidate_references = {
+                    re.sub(r"[^a-z0-9]+", "", match.group(0).lower())
+                    for match in re.finditer(
+                        r"\b[A-Z]{2,8}[_-]\d{4,10}(?!\d)",
+                        f"{payload.get('title') or ''} {payload.get('source_filename') or ''}",
+                        flags=re.IGNORECASE,
+                    )
+                }
+                if normalized_references.isdisjoint(candidate_references):
+                    continue
+                matches.append(
+                    {
+                        "source_document_id": str(payload.get("source_document_id") or point.id),
+                        "score": 2.0,
+                        "retrieval_stage": "metadata_exact_reference",
+                        "payload": payload,
+                    }
+                )
+                if len(matches) >= limit:
+                    return matches
+            if offset is None or not batch:
+                break
+        return matches
 
     def search_sparse(self, corpus_id: str, query: str, filters: dict[str, Any], limit: int = 40) -> list[SearchResult]:
         if settings.indexed_bm25_enabled:

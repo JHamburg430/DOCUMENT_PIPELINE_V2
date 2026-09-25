@@ -261,7 +261,11 @@ def select_documents_from_metadata(
     if _has_explicit_document_scope(filters):
         return filters, []
     hits: list[dict[str, object]] = []
+    explicit_references = _explicit_document_reference_tokens(query)
     for corpus_id in corpus_ids:
+        exact_search = getattr(store, "search_document_metadata_exact_references", None)
+        if explicit_references and callable(exact_search):
+            hits.extend(exact_search(corpus_id, explicit_references, filters, limit=limit))
         hits.extend(store.search_document_metadata(corpus_id=corpus_id, query=query, filters=filters, limit=limit))
     if not hits:
         return filters, []
@@ -279,6 +283,33 @@ def select_documents_from_metadata(
     if not document_ids:
         return filters, []
     return {**filters, "source_document_id": document_ids}, deduped_hits
+
+
+def _explicit_document_reference_tokens(query: str) -> list[str]:
+    """Extract document-like codes only when the query names a document kind."""
+    if not re.search(
+        r"\b(?:manual|document|guide|datasheet|catalog|specification\s+table)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        return []
+    references: list[str] = []
+    for match in re.finditer(r"\b[A-Z]{2,8}[_-]\d{4,10}\b", query, flags=re.IGNORECASE):
+        normalized = re.sub(r"[^a-z0-9]+", "", match.group(0).lower())
+        if normalized and normalized not in references:
+            references.append(normalized)
+    return references
+
+
+def _exact_reference_document_ids(metadata_hits: list[dict[str, object]]) -> list[str]:
+    matched: list[str] = []
+    for hit in metadata_hits:
+        if str(hit.get("retrieval_stage") or "") != "metadata_exact_reference":
+            continue
+        document_id = str(hit.get("source_document_id") or "")
+        if document_id and document_id not in matched:
+            matched.append(document_id)
+    return matched
 
 
 def _chunk_search_filters(filters: dict[str, object], metadata_filters: dict[str, object], analysis: QueryAnalysis) -> dict[str, object]:
@@ -4315,7 +4346,9 @@ def _retrieve_once(
     )
     exact_document_ids: list[str] = []
     if not force_broad and not _has_explicit_document_scope(filters):
-        exact_document_ids = _explicit_title_document_ids(metadata_document_hits, query)
+        exact_document_ids = _exact_reference_document_ids(metadata_document_hits)
+        if not exact_document_ids:
+            exact_document_ids = _explicit_title_document_ids(metadata_document_hits, query)
         if not exact_document_ids:
             exact_document_ids = _exact_identifier_document_ids(metadata_document_hits, analysis)
         if exact_document_ids:
