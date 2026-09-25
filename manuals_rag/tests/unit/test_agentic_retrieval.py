@@ -20,6 +20,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _direct_feature_amplifier_type_support,
+    _direct_gl_fb_floor_column_range_support,
     _direct_indicator_meaning_support,
     _direct_illumination_type_support,
     _direct_iv4_output_configuration_support,
@@ -2571,6 +2572,57 @@ def test_iv4_output_configuration_requires_complete_model_scoped_electrical_row(
     assert verdict["trust_state"] == "confirmed"
     assert verdict["claim_supported"] is True
     assert verdict["supporting_chunk_ids"] == ["iv4-output"]
+
+
+def test_gl_fb_floor_column_range_prefers_atomic_range_over_noisy_parent(monkeypatch):
+    query = "What length range do GL-FB models cover for robust floor mounting columns?"
+    exact = _result(
+        "gl-fb-range",
+        "gl-r-doc",
+        "GL: R Series robust floor mounting column : GL-FB models approximately "
+        "1000 to 2400 mm",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+    parent = _result(
+        "gl-fb-parent",
+        "gl-r-doc",
+        "Robust Bracket to Safeguard the scanner from impacts. Ultra: robust "
+        "structure. GL: R Series robust floor mounting column : GL-FB models "
+        "approximately 1000 to 2400 mm. Heavy-duty protective column.",
+    ).model_copy(update={"metadata": {"chunk_type": "parent_section"}})
+    incomplete = _result(
+        "gl-fb-incomplete",
+        "gl-r-doc",
+        "GL-FB1000 and GL-FB2400 are robust floor mounting columns.",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+
+    assert _direct_gl_fb_floor_column_range_support(
+        query,
+        [parent, incomplete, exact],
+    ) == ["gl-fb-range"]
+    assert _direct_gl_fb_floor_column_range_support(
+        query,
+        [parent, incomplete],
+    ) == []
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("LLM verifier must not run")
+        ),
+    )
+    verdict = verify_retrieval_claim(
+        RetrievalHop(hop_id="range", objective=query, query=query),
+        query,
+        [parent, incomplete, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": ["gl-fb-parent", "gl-fb-range"],
+        },
+    )
+
+    assert verdict["trust_state"] == "confirmed"
+    assert verdict["claim_supported"] is True
+    assert verdict["supporting_chunk_ids"] == ["gl-fb-range"]
 
 
 def test_verifier_confirms_model_matrix_axis_measurement_without_llm(monkeypatch):

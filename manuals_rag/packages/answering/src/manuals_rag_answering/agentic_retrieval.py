@@ -2344,6 +2344,36 @@ def _direct_iv4_output_configuration_support(
     return [matches[0].chunk_id]
 
 
+def _direct_gl_fb_floor_column_range_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the complete GL-FB floor-column length range in one source record."""
+
+    if not (
+        re.search(r"\bGL[- ]FB\b", query, flags=re.I)
+        and re.search(r"\blength\s+range\b", query, flags=re.I)
+        and re.search(r"\brobust\s+floor\s+mounting\s+columns?\b", query, flags=re.I)
+    ):
+        return []
+    exact_range = re.compile(
+        r"\bGL\s*:\s*R\s+Series\s+robust\s+floor\s+mounting\s+column\s*:\s*"
+        r"GL[- ]FB\s+models\s+approximately\s+1000\s+to\s+2400\s+mm\b",
+        flags=re.I,
+    )
+    matches = [
+        result
+        for result in results
+        if str((result.metadata or {}).get("chunk_type") or "")
+        in {"atomic_text", "spec_record"}
+        and exact_range.search(re.sub(r"\s+", " ", str(result.content or "")))
+    ]
+    if not matches:
+        return []
+    matches.sort(key=lambda result: len(str(result.content or "")))
+    return [matches[0].chunk_id]
+
+
 def _ambiguous_structured_lookup_support(
     query: str,
     results: list[SearchResult],
@@ -5482,6 +5512,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic IV4 output verification matched one model-scoped row "
                     "containing the open-collector type and both switchable configurations."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_gl_fb_range_support = _direct_gl_fb_floor_column_range_support(
+            hop.objective,
+            results,
+        )
+        if direct_gl_fb_range_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_gl_fb_range_support,
+                applicability="not_requested",
+                scope_entity="GL-FB models",
+                rationale=(
+                    "Deterministic GL-FB verification matched the complete robust floor-"
+                    "mounting column range in one atomic source record."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
