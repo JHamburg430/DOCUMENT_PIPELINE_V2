@@ -720,7 +720,7 @@ def test_focuses_laser_on_activation_on_voltage_type_and_shorting_action():
         "The Laser ON input is a non: voltage input; "
         "(Turns ON by simply short circuiting it)"
     )
-    assert terms == ["laser", "voltage", "turns", "short"]
+    assert terms == ["laser", "short"]
 
 
 def test_focuses_wm_p6200_scanning_accuracy_on_requested_row():

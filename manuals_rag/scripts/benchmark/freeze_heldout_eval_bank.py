@@ -718,6 +718,17 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
         ):
             return ["1", "999", "0", "password", "required"]
 
+    if (
+        re.search(r"\blaser\s+on\s+input\b", normalized_query)
+        and re.search(r"\bactivate\b", normalized_query)
+        and re.search(r"\bshort\s+circuit", snippet, flags=re.I)
+    ):
+        # The question asks for the activation action. Keep the complete source
+        # clause in expected_snippet, but do not require an answer to repeat the
+        # incidental electrical-type wording ("non-voltage") or the literal
+        # phrase "turns ON" when it correctly states the shorting action.
+        return ["laser", "short"]
+
     if re.search(r"\bpart number\b", normalized_query):
         for part_number in _answer_part_numbers(snippet):
             if not _term_covers_token(enriched, part_number):
