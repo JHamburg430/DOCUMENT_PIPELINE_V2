@@ -4090,7 +4090,7 @@ def test_password_setting_support_requires_range_and_zero_behavior_in_one_scoped
     ) == ["w500-password"]
 
 
-def test_planners_preserve_setting_scope_for_selected_value_followup(monkeypatch):
+def test_planners_keep_shared_setting_value_facets_single_hop(monkeypatch):
     query = "What password values can be set for the W500 Key Lock, and what does selecting 0 do?"
 
     monkeypatch.setattr(
@@ -4100,12 +4100,9 @@ def test_planners_preserve_setting_scope_for_selected_value_followup(monkeypatch
         ),
     )
 
-    expected = [
-        "What password values can be set for the W500 Key Lock?",
-        "what does selecting 0 do for the W500 Key Lock password setting?",
-    ]
-    assert [hop.query for hop in plan_retrieval(query, use_llm=True).hops] == expected
-    assert [hop.query for hop in plan_llamaindex_retrieval(query, use_llm=True).hops] == expected
+    for plan in (plan_retrieval(query, use_llm=True), plan_llamaindex_retrieval(query, use_llm=True)):
+        assert plan.mode == "single"
+        assert [hop.query for hop in plan.hops] == [query]
 
 
 def test_manual_focus_installation_support_rejects_automatic_focus_sibling():

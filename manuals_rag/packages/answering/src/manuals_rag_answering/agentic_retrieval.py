@@ -781,6 +781,22 @@ def _direct_yes_no_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _shared_setting_value_plan(query: str) -> RetrievalPlan | None:
+    """Keep two facets about one setting value in a single retrieval hop."""
+    if not re.match(
+        r"^\s*what\s+.+?\s+can\s+be\s+(?:set|configured|selected)\s+for\s+.+?"
+        r",?\s+and\s+what\s+does\s+(?:selecting|setting|choosing)\s+.+?\s+do\s*[?.]*$",
+        query,
+        flags=re.I,
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="Both interrogative facets describe one setting-value relation.",
+        hops=[RetrievalHop(hop_id="setting_value", objective=query, query=query, strategy="hybrid")],
+    )
+
+
 def _heuristic_plan(query: str) -> RetrievalPlan:
     exact_structured_plan = _exact_structured_single_plan(query)
     if exact_structured_plan is not None:
@@ -797,6 +813,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     comparison_plan = _comparison_facet_plan(query)
     if comparison_plan is not None:
         return comparison_plan
+    setting_value_plan = _shared_setting_value_plan(query)
+    if setting_value_plan is not None:
+        return setting_value_plan
     coordinate_plan = _coordinate_question_plan(query)
     if coordinate_plan is not None:
         return coordinate_plan
@@ -849,6 +868,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _exact_identifier_value_plan(query)
         or _troubleshooting_facet_plan(query)
         or _comparison_facet_plan(query)
+        or _shared_setting_value_plan(query)
         or _coordinate_question_plan(query)
         or _explicit_dependency_sequence_plan(query)
         or _reported_clause_plan(query)
@@ -917,6 +937,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _exact_identifier_value_plan(query) is not None
         or _troubleshooting_facet_plan(query) is not None
         or _comparison_facet_plan(query) is not None
+        or _shared_setting_value_plan(query) is not None
         or _coordinate_question_plan(query) is not None
         or _explicit_dependency_sequence_plan(query) is not None
         or _reported_clause_plan(query) is not None
