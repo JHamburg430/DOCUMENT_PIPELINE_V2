@@ -2660,7 +2660,7 @@ def test_identifier_dense_retention_accepts_exact_device_metadata():
     assert retained[-1].metadata["retrieval_stage"] == "identifier_dense_retained"
 
 
-def test_identifier_promotion_keeps_device_scoped_atomic_answer_at_final_boundary():
+def test_top_reranked_identifier_evidence_survives_later_promotions():
     analysis = analyze_query(
         "For the XG-X Series inline 3D inspection system, which dent-depth conditions "
         "can be inspected by freely setting the reference plane?"
@@ -2677,7 +2677,12 @@ def test_identifier_promotion_keeps_device_scoped_atomic_answer_at_final_boundar
             "Users can freely set the reference plane for everything from sharp to "
             "shallow dents."
         ),
-        metadata={"chunk_type": "atomic_text", "devices": ["XG: X Series"]},
+        metadata={
+            "chunk_type": "atomic_text",
+            "devices": ["XG: X Series"],
+            "post_rerank_rank": 1,
+            "rerank_score": 0.98,
+        },
     )
     ranked = [
         SearchResult(
@@ -2694,16 +2699,15 @@ def test_identifier_promotion_keeps_device_scoped_atomic_answer_at_final_boundar
         for index in range(12)
     ]
 
-    promoted = retriever._promote_identifier_contextual_candidates(
+    promoted = retriever._preserve_top_reranked_identifier_evidence(
         ranked,
         [exact],
         analysis,
         limit=12,
-        promoted_limit=2,
     )
 
     assert promoted[0].chunk_id == "exact-dent-range"
-    assert promoted[0].metadata["retrieval_stage"] == "identifier_contextual_promoted"
+    assert promoted[0].metadata["retrieval_stage"] == "top_reranked_identifier_preserved"
 
 
 def test_how_to_family_selection_keeps_aligned_exact_model_table_evidence():

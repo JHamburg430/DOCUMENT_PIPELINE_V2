@@ -2712,6 +2712,75 @@ def _promote_identifier_contextual_candidates(
     return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
 
 
+def _preserve_top_reranked_identifier_evidence(
+    ranked_results: list[SearchResult],
+    reranked_results: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    limit: int,
+    retained_limit: int = 1,
+) -> list[SearchResult]:
+    """Keep bounded exact-model evidence selected by the cross-encoder.
+
+    Later deterministic promotions may prepend several table or section
+    candidates after reranking. Preserve only compact answer-bearing records
+    that the cross-encoder placed in its top three, that match the requested
+    identifier, and that retain material query alignment. This avoids using
+    raw embedding score to choose among broad same-model siblings.
+    """
+
+    identifiers = [
+        str(identifier)
+        for identifier in (
+            getattr(analysis, "product_identifiers", None)
+            or [analysis.product_model, analysis.part_number]
+        )
+        if identifier
+    ]
+    if not identifiers or not reranked_results or limit <= 0 or retained_limit <= 0:
+        return ranked_results[:limit]
+
+    answer_chunk_types = {
+        "atomic_text",
+        "table_record",
+        "spec_record",
+        "datasheet_record",
+        "procedure_record",
+        "warning_record",
+    }
+    retained: list[SearchResult] = []
+    for result in sorted(
+        reranked_results,
+        key=lambda item: int(item.metadata.get("post_rerank_rank") or 10_000),
+    ):
+        post_rank = result.metadata.get("post_rerank_rank")
+        if not isinstance(post_rank, int) or post_rank > 3:
+            continue
+        if str(result.metadata.get("chunk_type") or "") not in answer_chunk_types:
+            continue
+        if not any(_result_matches_primary_identifier(result, identifier) for identifier in identifiers):
+            continue
+        if _query_alignment_score(result, analysis) < 0.1:
+            continue
+        retained.append(
+            result.model_copy(
+                update={
+                    "metadata": {
+                        **result.metadata,
+                        "retrieval_stage": "top_reranked_identifier_preserved",
+                    }
+                }
+            )
+        )
+        if len(retained) >= retained_limit:
+            break
+
+    if not retained:
+        return ranked_results[:limit]
+    retained_ids = {result.chunk_id for result in retained}
+    return [*retained, *(result for result in ranked_results if result.chunk_id not in retained_ids)][:limit]
+
+
 def _promote_measurement_candidates(
     ranked_results: list[SearchResult],
     supplemental_results: list[SearchResult],
@@ -4657,6 +4726,7 @@ def _retrieve_once(
         lambda: _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked"),
     )
     _record_stage_snapshot("rerank", query, reranked)
+    rerank_boundary = list(reranked)
     troubleshooting_siblings = _troubleshooting_table_siblings(reranked, analysis)
     table_supplemental = [*metadata_balanced_table_results, *table_lexical_results]
     troubleshooting_supplemental = [*table_supplemental, *troubleshooting_siblings]
@@ -4711,16 +4781,14 @@ def _retrieve_once(
         limit=12,
     )
     # The generic promotion passes above can prepend several structured
-    # siblings after the cross-encoder has already ranked an exact-model
-    # atomic sentence first. Re-apply the bounded identifier promotion at the
-    # final boundary so that answer-bearing dense evidence survives the
-    # ten-chunk context limit.
-    reranked = _promote_identifier_contextual_candidates(
+    # siblings after the cross-encoder has already ranked compact exact-model
+    # evidence first. Preserve that bounded cross-encoder decision at the
+    # final boundary instead of re-ranking dense candidates by embedding score.
+    reranked = _preserve_top_reranked_identifier_evidence(
         reranked,
-        dense_results,
+        rerank_boundary,
         analysis,
         limit=12,
-        promoted_limit=2,
     )
     deduped = _measure_substage(
         "deduplication",
