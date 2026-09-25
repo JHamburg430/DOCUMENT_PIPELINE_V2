@@ -1055,6 +1055,23 @@ def test_focuses_erh_error_contract_on_requested_cause_only():
     assert frozen[0]["expected_terms"] == ["sensor", "cable", "broken", "disconnected"]
 
 
+def test_scopes_m12_model_question_to_persisted_lr_tb5000_row():
+    query = _MODULE.normalize_frozen_query(
+        "Which laser sensor models use the M12 connector type?"
+    )
+
+    assert query == "Which LR-TB5000-series models are listed as M12 connector type models?"
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["m12", "connector", "models", "lr-tb5000c/tb5000cl"],
+    ) == ["m12", "lr-tb5000c", "tb5000cl"]
+    assert _MODULE.missing_expected_answer_contract(
+        query,
+        "M12 connector type models: LR-TB5000C/TB5000CL",
+        ["m12", "lr-tb5000c", "tb5000cl"],
+    ) == []
+
+
 def test_repairs_existing_xg_x_dent_query_with_series_scope():
     assert _MODULE.normalize_frozen_query(
         "For the XG-X inline 3D inspection system, which dent-depth conditions can be "
