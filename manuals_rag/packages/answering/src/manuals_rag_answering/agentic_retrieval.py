@@ -1546,10 +1546,28 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         and identifier_scope_values
         and matches_requested(identifier_scope_values)
     )
+    # Some brochures use the product model itself as the section heading while
+    # leaving product_model/product_models empty.  An exact section-path
+    # segment is authoritative local scope; do not use substring matching here
+    # because headings such as "Compatible with VJ-3302" are not product
+    # identity and must not override conflicting routing metadata.
+    section_scope_values = {
+        compact(value)
+        for value in result.section_path
+        if compact(value)
+    }
+    exact_section_scope_matches = any(
+        requested_value == section_value
+        or requested_value + "series" == section_value
+        or section_value + "series" == requested_value
+        for requested_value in requested
+        for section_value in section_scope_values
+    )
     structured_scope_matches = bool(
         explicit_structured_scope_matches
         or compact_exact_row_match
         or identifier_scope_matches
+        or exact_section_scope_matches
     )
 
     routing_values = [
@@ -1639,6 +1657,7 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
             or explicit_structured_scope_matches
             or (compact_exact_row_match and not primary_model_is_concrete)
             or (identifier_scope_matches and not primary_model_is_concrete)
+            or (exact_section_scope_matches and not primary_model_is_concrete)
         )
     if primary_model_is_concrete:
         # Do not let incidental prose mentions override a concrete conflicting

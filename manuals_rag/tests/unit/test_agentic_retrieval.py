@@ -1198,6 +1198,57 @@ def test_scope_matching_accepts_exact_model_enumerated_by_source_filename():
     ) is True
 
 
+def test_scope_matching_accepts_exact_model_section_heading_without_model_metadata():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "vj-3302-specification",
+        "vj-brochure",
+        '60 mm 2.36" field of view, 1 µm 0.000039" precision repeatability, '
+        "0.6-second inspection intervals",
+    ).model_copy(
+        update={
+            "section_path": ["VJ-3302"],
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": None,
+                "product_models": [],
+                "devices": ["AS_112204_VJ_C_611L77_KA_US_2124_5.pdf"],
+            },
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "What is the field of view size for the VJ-3302 inspection system?",
+        result,
+    ) is True
+
+
+def test_scope_matching_rejects_model_named_only_in_descriptive_section_heading():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "compatible-accessory",
+        "other-brochure",
+        "This accessory can be used with the VJ-3302 inspection system.",
+    ).model_copy(
+        update={
+            "section_path": ["Compatible with VJ-3302"],
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": None,
+                "product_models": [],
+                "devices": ["AS_999999_OTHER.pdf"],
+            },
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "What is the field of view size for the VJ-3302 inspection system?",
+        result,
+    ) is False
+
+
 def test_scope_matching_requires_explicit_manual_identifier():
     from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
 
