@@ -878,6 +878,54 @@ def test_scope_matching_does_not_use_incidental_vs_prose_with_generic_family():
     ) is False
 
 
+def test_verifier_confirms_complete_vs_physical_link_instruction(monkeypatch):
+    query = "How do I physically link the VS Series to a robot controller?"
+    hop = RetrievalHop(hop_id="physical-link", objective=query, query=query)
+    exact = _result(
+        "vs-physical-link",
+        "vs-kuka",
+        "Use Ethernet cables to connect the VS Series and the robot controller through a hub.",
+    ).model_copy(
+        update={
+            "title": "AS_143269_VS_CM_J23GB_WW_GB_2065_2",
+            "metadata": {
+                "chunk_type": "section_window",
+                "product_family": "VISION",
+            },
+        }
+    )
+    incomplete = _result(
+        "ethernet-item-only",
+        "vs-kuka",
+        "Items to prepare: Ethernet cable. Connects the VS Series or a hub and the robot controller.",
+    ).model_copy(
+        update={
+            "title": "AS_143269_VS_CM_J23GB_WW_GB_2065_2",
+            "metadata": {
+                "chunk_type": "parent_section",
+                "product_family": "VISION",
+            },
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [incomplete, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": [incomplete.chunk_id, exact.chunk_id],
+        },
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [exact.chunk_id]
+
+
 def test_scope_matching_accepts_model_bound_to_table_row_by_identifier_tokens():
     from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
 

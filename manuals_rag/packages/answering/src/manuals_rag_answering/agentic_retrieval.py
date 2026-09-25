@@ -4081,6 +4081,53 @@ def _direct_interface_connection_support(
     return [max(matches, key=lambda item: item[:2])[-1]] if matches else []
 
 
+def _direct_physical_robot_link_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm one explicit physical Ethernet-through-hub instruction.
+
+    A general equipment list that merely names an Ethernet cable is not
+    sufficient. The evidence unit must state the complete physical action,
+    both endpoints, and the hub topology in one sentence.
+    """
+    if not (
+        re.search(r"\b(?:physically\s+link|physical\s+(?:link|connection)|connect)\b", query, re.I)
+        and re.search(r"\brobot\s+controller\b", query, re.I)
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    instruction = re.compile(
+        r"\buse\s+ethernet\s+cables?\s+to\s+connect\s+"
+        r"(?P<endpoints>[^.!?]{1,180}?\brobot\s+controller)\s+through\s+a\s+hub\b",
+        flags=re.I,
+    )
+    matches: list[tuple[int, int, int, str]] = []
+    for index, result in enumerate(results):
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        match = instruction.search(content)
+        if not match:
+            continue
+        endpoints = match.group("endpoints")
+        if not re.search(r"\bVS\s+Series\b", endpoints, flags=re.I):
+            continue
+        bounded = int(
+            str(result.metadata.get("chunk_type") or "")
+            in {"atomic_text", "procedure_record", "section_window"}
+        )
+        matches.append((bounded, -len(content), -index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
 def _direct_causal_explanation_support(
     query: str,
     results: list[SearchResult],
@@ -4803,6 +4850,27 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic scoped yes/no verification matched one source sentence "
                     "with the requested entities, numeric anchors, and product scope."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_physical_link_support = _direct_physical_robot_link_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_physical_link_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_physical_link_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic physical-link verification matched one scoped sentence "
+                    "containing the Ethernet medium, both endpoints, and hub topology."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
