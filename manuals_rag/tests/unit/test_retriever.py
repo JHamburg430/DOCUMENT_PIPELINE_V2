@@ -2902,6 +2902,68 @@ def test_controller_image_capacity_rejects_partial_or_different_archive_counts()
     assert promoted == [partial]
 
 
+def test_communication_expansion_unit_limit_promotes_complete_scoped_spec_row():
+    query = "Can I connect more than one communication expansion unit to the LJ-S8000 Series?"
+    analysis = analyze_query(query)
+    generic = SearchResult(
+        chunk_id="generic-protocol-unit",
+        score=2.0,
+        title="LJ-S8000 User Manual",
+        document_version_id="version-generic",
+        source_document_id="document-generic",
+        pages=[25],
+        section_path=["Communication Expansion Unit"],
+        content="Only one EtherNet/IP unit can be connected to the controller.",
+        metadata={"chunk_type": "table_record", "product_model": "LJ: S8000 Series"},
+    )
+    exact = generic.model_copy(
+        update={
+            "chunk_id": "exact-expansion-unit-limit",
+            "content": (
+                "Only one communication expansion unit "
+                "(CB: NEC20E/NEP20E/ NPN20EA) can be connected."
+            ),
+            "metadata": {"chunk_type": "spec_record", "product_model": "NEW LJ: S8000 Series"},
+        }
+    )
+
+    promoted = retriever._promote_communication_expansion_unit_limit_candidates(
+        [generic],
+        [generic, exact],
+        query,
+        analysis,
+        limit=5,
+    )
+
+    assert [result.chunk_id for result in promoted] == ["exact-expansion-unit-limit", "generic-protocol-unit"]
+    assert promoted[0].metadata["retrieval_stage"] == "communication_expansion_unit_limit_promoted"
+
+
+def test_communication_expansion_unit_limit_rejects_generic_protocol_row():
+    query = "Can I connect more than one communication expansion unit to the LJ-S8000 Series?"
+    generic = SearchResult(
+        chunk_id="generic-protocol-unit",
+        score=2.0,
+        title="LJ-S8000 User Manual",
+        document_version_id="version-generic",
+        source_document_id="document-generic",
+        pages=[25],
+        section_path=["Communication Expansion Unit"],
+        content="Only one EtherNet/IP unit can be connected to the controller.",
+        metadata={"chunk_type": "table_record", "product_model": "LJ: S8000 Series"},
+    )
+
+    promoted = retriever._promote_communication_expansion_unit_limit_candidates(
+        [generic],
+        [generic],
+        query,
+        analyze_query(query),
+        limit=5,
+    )
+
+    assert promoted == [generic]
+
+
 def test_how_to_family_selection_keeps_aligned_exact_model_table_evidence():
     analysis = analyze_query("Where should I avoid installing the IV-500C sensor?")
     sibling_context = SearchResult(

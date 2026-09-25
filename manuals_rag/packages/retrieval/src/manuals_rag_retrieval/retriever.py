@@ -370,6 +370,15 @@ def _is_controller_image_capacity_comparison_query(query: str) -> bool:
     )
 
 
+def _is_communication_expansion_unit_limit_query(query: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", query.casefold()).strip()
+    return bool(
+        re.search(r"\bcommunication expansion units?\b", normalized)
+        and re.search(r"\b(?:more than one|how many|number of|only one)\b", normalized)
+        and re.search(r"\b(?:connect|connected|connection)\b", normalized)
+    )
+
+
 def _exact_identifier_document_ids(
     metadata_hits: list[dict[str, object]],
     analysis: QueryAnalysis,
@@ -2951,6 +2960,51 @@ def _promote_controller_image_capacity_candidates(
     return [*candidates, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
 
 
+def _promote_communication_expansion_unit_limit_candidates(
+    ranked_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    query: str,
+    analysis: QueryAnalysis,
+    *,
+    limit: int,
+) -> list[SearchResult]:
+    """Keep the exact scoped unit-count row ahead of protocol-specific neighbors."""
+
+    if limit <= 0 or not _is_communication_expansion_unit_limit_query(query):
+        return ranked_results[:limit]
+    identifiers = [str(identifier) for identifier in analysis.product_identifiers if str(identifier)]
+    if not identifiers:
+        return ranked_results[:limit]
+    exact_limit = re.compile(
+        r"\bonly one communication expansion unit\b.*?\bcan be connected\b",
+        flags=re.I | re.S,
+    )
+    candidates = [
+        result
+        for result in supplemental_results
+        if exact_limit.search(str(result.content or ""))
+        and any(_result_matches_primary_identifier(result, identifier) for identifier in identifiers)
+    ]
+    if not candidates:
+        return ranked_results[:limit]
+    candidates.sort(
+        key=lambda result: (
+            str(result.metadata.get("chunk_type") or "") != "spec_record",
+            len(str(result.content or "")),
+            -float(result.score),
+        )
+    )
+    promoted = candidates[0].model_copy(
+        update={
+            "metadata": {
+                **candidates[0].metadata,
+                "retrieval_stage": "communication_expansion_unit_limit_promoted",
+            }
+        }
+    )
+    return [promoted, *(result for result in ranked_results if result.chunk_id != promoted.chunk_id)][:limit]
+
+
 def _promote_measurement_candidates(
     ranked_results: list[SearchResult],
     supplemental_results: list[SearchResult],
@@ -5114,6 +5168,19 @@ def _retrieve_once(
             *fused,
         ],
         query,
+        limit=12,
+    )
+    reranked = _promote_communication_expansion_unit_limit_candidates(
+        reranked,
+        [
+            *contextual_lexical_results,
+            *dense_results,
+            *sparse_results,
+            *special_results,
+            *fused,
+        ],
+        query,
+        analysis,
         limit=12,
     )
     # The generic promotion passes above can prepend several structured
