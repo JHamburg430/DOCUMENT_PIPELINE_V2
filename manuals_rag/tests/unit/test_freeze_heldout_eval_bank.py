@@ -669,6 +669,21 @@ def test_focuses_w500_password_contract_on_range_and_zero_meaning():
     assert terms == ["1", "999", "0", "password", "required"]
 
 
+def test_focuses_wm_p6200_scanning_accuracy_on_requested_row():
+    query = "What is the scanning system accuracy specification for the WM-P6200 model?"
+    source = (
+        "model: Scanning system accuracy; WM-P6200: ±(50 + 5 L/1000) µm* 1\n"
+        "model: Repeatability; WM-P6200: 0.025 mm0.001\" * 2\n"
+        "model: Depth of field; WM-P6200: ±100 mm±3.94\""
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, source, source)
+    terms = _MODULE.enrich_expected_answer_terms(query, focused, ["wm-p6200", "l/1000"])
+
+    assert focused == "WM-P6200: ±(50 + 5 L/1000) µm* 1"
+    assert terms == ["wm-p6200", "l/1000", "50", "5"]
+
+
 def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     expected = (
         "In the AS_160148 XG-X camera specification table, what electronic shutter range "

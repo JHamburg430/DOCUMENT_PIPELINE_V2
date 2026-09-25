@@ -618,6 +618,16 @@ def _answer_quantity_values(query: str, snippet: str) -> list[str]:
     normalized_query = _normalized(query)
     values: list[str] = []
 
+    if re.search(r"\baccuracy\b", normalized_query):
+        accuracy_formula = re.search(
+            r"±?\s*\(\s*(\d+(?:\.\d+)?)\s*\+\s*(\d+(?:\.\d+)?)\s*"
+            r"L\s*/\s*(\d+(?:\.\d+)?)\s*\)\s*(?:µm|um)\b",
+            snippet,
+            flags=re.I,
+        )
+        if accuracy_formula:
+            return list(accuracy_formula.groups())
+
     numeric_mapping = re.search(
         r"\bnumeric\s+value\s+(?:represents?|for)\s+(?P<target>.+?)"
         r"(?:\s+(?:communication|interface|mode|parameter|setting)\b|[?.]|$)",
@@ -786,6 +796,18 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if (
+        re.search(r"\bscanning\s+system\s+accuracy\b", str(query or ""), flags=re.I)
+        and re.search(r"\bwm-p6200\b", str(query or ""), flags=re.I)
+    ):
+        accuracy = re.search(
+            r"\bmodel\s*:\s*Scanning\s+system\s+accuracy\s*;\s*"
+            r"WM-P6200\s*:\s*(?P<answer>[^\n]+?)(?=\s+model\s*:|$)",
+            source,
+            flags=re.I,
+        )
+        if accuracy:
+            return f"WM-P6200: {accuracy.group('answer').strip()}"
     if (
         re.search(r"\bpassword values?\b", str(query or ""), flags=re.I)
         and re.search(r"\bselecting 0\b", str(query or ""), flags=re.I)
