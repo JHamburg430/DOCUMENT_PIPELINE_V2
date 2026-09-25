@@ -656,6 +656,20 @@ def _fallback_answer_text(result: SearchResult) -> str:
     return f"{content}\n\nContext: {context}"
 
 
+def _format_compact_metric_imperial_value(value: str) -> str:
+    """Separate metric and inch values concatenated by PDF table extraction."""
+    return re.sub(
+        r"(?P<metric>\d+(?:\.\d+)?)\s*(?P<unit>mm|cm)"
+        r"(?P<imperial>\d+(?:\.\d+)?)\s*(?:\"|in(?:ch(?:es)?)?\b)",
+        lambda match: (
+            f"{match.group('metric')} {match.group('unit')} "
+            f"({match.group('imperial')} in)"
+        ),
+        value,
+        flags=re.IGNORECASE,
+    )
+
+
 def _focused_table_record_answer_text(query: str, result: SearchResult) -> str:
     if str(result.metadata.get("chunk_type") or "") != "table_record":
         return ""
@@ -767,7 +781,9 @@ def _focused_labeled_table_cell_answer_text(query: str, result: SearchResult) ->
         return ""
     column = re.sub(r"\s+", " ", match.group("column")).strip()
     row = re.sub(r"\s+", " ", match.group("row")).strip()
-    value = re.sub(r"\s+", " ", match.group("value")).strip()
+    value = _format_compact_metric_imperial_value(
+        re.sub(r"\s+", " ", match.group("value")).strip()
+    )
     query_models = _model_tokens(query)
     if ">" in row and query_models:
         # A spanning row header often lists every model before the final leaf,
@@ -947,7 +963,9 @@ def _focused_model_field_record_answer_text(query: str, result: SearchResult) ->
             )
             if not value_match:
                 continue
-            value = re.sub(r"\s+", " ", value_match.group("value")).strip(" ;|")
+            value = _format_compact_metric_imperial_value(
+                re.sub(r"\s+", " ", value_match.group("value")).strip(" ;|")
+            )
             overlap = len(query_terms.intersection(_material_claim_terms(f"{field} {model}")))
             requested_overlap = len(requested_field_terms.intersection(field_terms))
             # Some specification tables label a light's emitted color as its

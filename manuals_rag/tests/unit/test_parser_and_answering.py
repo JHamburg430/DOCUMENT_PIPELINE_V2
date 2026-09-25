@@ -805,6 +805,31 @@ def test_structured_table_answer_binds_value_to_terminal_model_row_header():
     assert [result.chunk_id for result in support] == ["dzw10-power"]
 
 
+def test_structured_table_answer_separates_concatenated_metric_and_inch_values():
+    result = SearchResult(
+        chunk_id="lj-s015-reference-distance",
+        score=1.0,
+        title="Laser snapshot sensor specifications",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[33],
+        section_path=["Specifications"],
+        content=(
+            'Column headers: LJ-S015; Row headers: X: Reference distance; '
+            'Cell value: 15 mm0.59"; Row: 1; Column: 2'
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+
+    answer, support = _concise_structured_table_answer(
+        "What is the X-axis reference distance for the LJ-S015 sensor?",
+        [result],
+    )
+
+    assert answer == "X: Reference distance — LJ-S015: 15 mm (0.59 in)"
+    assert [item.chunk_id for item in support] == ["lj-s015-reference-distance"]
+
+
 def test_structured_table_answer_directly_answers_sold_separately_question():
     result = SearchResult(
         chunk_id="lr-tb2000-cable",
