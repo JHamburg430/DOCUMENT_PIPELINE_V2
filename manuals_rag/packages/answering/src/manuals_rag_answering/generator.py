@@ -4331,11 +4331,11 @@ def _concise_structured_fact_answer(
             if not match:
                 continue
             return (
-                f"For the ultra-narrow model, the field of view is "
-                f"{match.group('near_h')} (H) × {match.group('near_v')} (V) mm at an "
-                f"installation distance of {near} mm{match.group('near_in')}\", and "
-                f"{match.group('far_h')} (H) × {match.group('far_v')} (V) mm at an "
-                f"installation distance of {far} mm{match.group('far_in')}\".",
+                f"For the ultra-narrow model, at an installation distance of "
+                f"{near} mm{match.group('near_in')}\", the field of view is "
+                f"{match.group('near_h')} (H) × {match.group('near_v')} (V) mm; at an "
+                f"installation distance of {far} mm{match.group('far_in')}\", the field of view is "
+                f"{match.group('far_h')} (H) × {match.group('far_v')} (V) mm.",
                 [result],
             )
     if re.search(r"\b(?:configure|set|login|log in|user name|username)\b", query, flags=re.IGNORECASE):

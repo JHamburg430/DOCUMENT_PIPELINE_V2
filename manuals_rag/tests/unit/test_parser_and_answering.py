@@ -667,9 +667,9 @@ def test_structured_fact_answer_returns_ultra_narrow_field_of_view_endpoints():
     )
 
     assert answer == (
-        'For the ultra-narrow model, the field of view is 9.8 (H) × 7.3 (V) mm at an '
-        'installation distance of 23 mm0.91", and 15 (H) × 11.2 (V) mm at an '
-        'installation distance of 40 mm1.57".'
+        'For the ultra-narrow model, at an installation distance of 23 mm0.91", the field '
+        'of view is 9.8 (H) × 7.3 (V) mm; at an installation distance of 40 mm1.57", '
+        'the field of view is 15 (H) × 11.2 (V) mm.'
     )
     assert support == [result]
 
