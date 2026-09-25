@@ -207,8 +207,8 @@ def test_exact_control_extracts_ca_en100u_pc_configuration_branch():
     )
 
     assert answer == (
-        "Yes. You can configure the CA-EN100U settings from a device other than the "
-        "image processing system controller, such as a PC."
+        "Yes. You can configure the CA: EN100U settings from a device other than the "
+        "image processing system controller (a PC, for example)."
     )
     assert [item.chunk_id for item in evidence] == ["ca-en100u-pc"]
 

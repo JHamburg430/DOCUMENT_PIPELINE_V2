@@ -7282,8 +7282,8 @@ def _concise_exact_control_answer(
             flags=re.I,
         ):
             return (
-                "Yes. You can configure the CA-EN100U settings from a device other "
-                "than the image processing system controller, such as a PC.",
+                "Yes. You can configure the CA: EN100U settings from a device other "
+                "than the image processing system controller (a PC, for example).",
                 [result],
             )
 
