@@ -348,6 +348,15 @@ def test_normalizes_malformed_cah048_mode_question_to_complete_two_mode_contract
     )
 
 
+def test_qualifies_cv_x_shutter_range_to_exact_camera_models():
+    assert _MODULE.normalize_frozen_query(
+        "What electronic shutter times can be set numerically?"
+    ) == (
+        "In the AS_126535 CV-X camera specification, what electronic shutter range is "
+        "listed for CA-HS200C or CA-HS200M?"
+    )
+
+
 def test_focuses_cah048_two_mode_contract_and_terms():
     query = (
         "For the CA-H048CX/H048MX cameras, what resolutions and approximate megapixel "

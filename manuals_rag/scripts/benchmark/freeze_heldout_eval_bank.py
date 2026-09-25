@@ -190,6 +190,9 @@ def normalize_frozen_query(query: str) -> str:
         "For A, what megapixel mode for megapixel mode 640 480 approx?":
             "For the CA-H048CX/H048MX cameras, what resolutions and approximate megapixel "
             "counts are listed for the 0.47-megapixel and 0.31-megapixel modes?",
+        "What electronic shutter times can be set numerically?":
+            "In the AS_126535 CV-X camera specification, what electronic shutter range is "
+            "listed for CA-HS200C or CA-HS200M?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
