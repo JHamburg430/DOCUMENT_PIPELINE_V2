@@ -257,6 +257,22 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   source PDF pages is recorded separately and remains `human_reviewed=false`.
   Production stays disabled pending a clean full v104 matrix, independent
   audit, and explicit human visual-PDF sign-off.
+- The v104 replacement-only live matrix subsequently rejected both replacement
+  anchors: the LJ-S8000 answer selected the separate 52 mm stage range, and the
+  MU-N11 answer did not preserve the complete current-and-voltage range
+  contract. v104 remains immutable historical evidence and is not an
+  acceptance candidate.
+- Additive v112 supersedes v104 as the next acceptance candidate. It retains
+  the 198 source-verified v103 cases and adds two distinct, source-qualified
+  structured lookups: CA-U5 rated output voltage (24 VDC) and XT-060 60 mm type
+  Z range (plus or minus 6 mm / 0.24 in). The supported freezer accepted
+  200/200 cases with dataset SHA-256
+  `87201400df4e1b5a4863459b6c0e7af4309a64a43bba4b83c89cdbb86ea476dd`.
+  A provisional replacement-only matrix passed 2/2 on both LangGraph and
+  LlamaIndex, and assistant visual review confirmed both values on their PDF
+  pages. These checks remain `human_reviewed=false`; v112 still requires a
+  clean immutable full matrix, independent audit, and explicit human visual-PDF
+  sign-off before production enablement.
 
 ### Latest checkpoint
 

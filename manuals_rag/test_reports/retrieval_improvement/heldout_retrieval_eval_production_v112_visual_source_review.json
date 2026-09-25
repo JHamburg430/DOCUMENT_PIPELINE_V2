@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "dataset": "tests/fixtures/heldout_retrieval_eval_production_v112.jsonl",
+  "dataset_sha256": "87201400df4e1b5a4863459b6c0e7af4309a64a43bba4b83c89cdbb86ea476dd",
+  "reviewer_type": "assistant_visual_pdf_review",
+  "human_reviewed": false,
+  "production_signoff": false,
+  "reviewed_at": "2026-09-25T21:31:06+00:00",
+  "cases": [
+    {
+      "case_id": "0ce85089-bb5f-51c9-962c-f48b42e7fdbd::replacement-v112-output-voltage",
+      "source_filename": "CA-U5_Datasheet.pdf",
+      "source_pdf_sha256": "8624a7c5ed80ad54361e701d391408fddf3013bf312cd169a15682a6eddd292e",
+      "pdf_page": 1,
+      "render_sha256": "7a754bbd70c9265221b356a79b27568f2db7cea989ae8c3f644372f945c1292e",
+      "observed_evidence": [
+        "Model: CA-U5",
+        "Output conditions",
+        "Rated output voltage: 24 VDC"
+      ],
+      "review_status": "assistant_source_verified",
+      "review_note": "The rated output voltage is visible in the CA-U5 input/output conditions table and is distinct from the adjacent current rating."
+    },
+    {
+      "case_id": "111a2c83-c0e2-5d9c-b03d-a9194908932d::replacement-v112-xt060-z-range",
+      "source_filename": "AS_112204_VJ_C_611L77_KA_US_2124_5.pdf",
+      "source_pdf_sha256": "390ee04335e6ff9ac55fd4656218023fdc0d29239206ea15f1a43442e983f80d",
+      "pdf_page": 31,
+      "render_sha256": "301f9012cdbb9951e1138913df7d475dcaf111992acf0c962ec8a8105a5595e4",
+      "observed_evidence": [
+        "High-precision area scanning 3D camera (XT-024/XT-060)",
+        "XT-060 model: 60 mm / 2.36 in type",
+        "Z range (from reference distance): plus or minus 6 mm / 0.24 in"
+      ],
+      "review_status": "assistant_source_verified",
+      "review_note": "The XT-060 column visibly ties the 60 mm type to the plus-or-minus 6 mm Z range; the adjacent XT-024 value is plus or minus 2 mm."
+    }
+  ],
+  "open_gate": "Explicit human visual-PDF adjudication is still required before production enablement."
+}

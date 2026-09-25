@@ -345,6 +345,25 @@ def test_accepts_movable_range_when_subject_is_disambiguated():
     ) == []
 
 
+def test_accepts_ca_u5_rated_output_voltage_lookup():
+    assert _MODULE.missing_query_qualifiers(
+        "In the CA-U5 input/output conditions table, what rated output voltage "
+        "does the power supply provide?",
+        "Output conditions | Rated output voltage | 24 VDC",
+        "CA-U5 Input/output conditions. Rated output voltage: 24 VDC.",
+    ) == []
+
+
+def test_accepts_xt060_z_range_lookup_with_model_and_size():
+    assert _MODULE.missing_query_qualifiers(
+        "What is the Z range tolerance for the XT-060 60 mm type?",
+        'XT-060 60 mm 2.36" type: ±6 mm ±0.24"',
+        'High-precision area scanning 3D camera (XT-024/XT-060). '
+        'XT-060, 60 mm 2.36" type. Z range (from reference distance): '
+        '±6 mm ±0.24".',
+    ) == []
+
+
 def test_rejects_effect_question_without_with_and_without_output_load_evidence():
     assert _MODULE.missing_answer_requirements(
         "How does including an output load of 120 mA affect current consumption?",
