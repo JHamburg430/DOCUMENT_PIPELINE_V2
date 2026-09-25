@@ -7252,6 +7252,11 @@ def _concise_exact_control_answer(
         and re.search(r"\bapplicable standard(?:/class designation)?\b", query, flags=re.I)
         and re.search(r"\bclass\b", query, flags=re.I)
     )
+    ca_en100u_hazardous_location_query = bool(
+        re.search(r"\bCA-EN100U\b", query, flags=re.I)
+        and re.search(r"\bhazardous location\b", query, flags=re.I)
+        and re.search(r"\bexplosive atmosphere\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7298,6 +7303,18 @@ def _concise_exact_control_answer(
             flags=re.I,
         ):
             return "The applicable standard is (BS)EN61326-1, Class A.", [result]
+
+        if ca_en100u_hazardous_location_query and re.search(
+            r"\bDo not use this product in a hazardous location and/or "
+            r"potentially explosive atmosphere\b",
+            content,
+            flags=re.I,
+        ):
+            return (
+                "No. Do not use this product in a hazardous location and/or "
+                "potentially explosive atmosphere.",
+                [result],
+            )
 
         if height_gradient_query and re.search(
             r"\brange of heights between the height of the 2 points specified\b",

@@ -235,6 +235,36 @@ def test_exact_control_extracts_ca_en100u_emc_standard_and_class():
     assert [item.chunk_id for item in evidence] == ["ca-en100u-emc"]
 
 
+def test_exact_control_extracts_only_ca_en100u_hazardous_location_rule():
+    result = SearchResult(
+        chunk_id="ca-en100u-hazard",
+        score=0.9,
+        title="CA-EN100U Instruction Manual",
+        document_version_id="v1",
+        source_document_id="ca-en100u-doc",
+        pages=[1],
+        section_path=["DANGER"],
+        content=(
+            "Column headers: This product is not intended for use as explosion-proof product. "
+            "Do not use this product in a hazardous location and/or potentially explosive "
+            "atmosphere.; Row headers: CAUTION; Cell value: You must verify that this product "
+            "is operating correctly before use."
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "CA-EN100U"},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "Can the CA-EN100U be used in a hazardous location or explosive atmosphere?",
+        [result],
+    )
+
+    assert answer == (
+        "No. Do not use this product in a hazardous location and/or potentially "
+        "explosive atmosphere."
+    )
+    assert [item.chunk_id for item in evidence] == ["ca-en100u-hazard"]
+
+
 def test_exact_control_extracts_sensor_controller_connector_from_models_label():
     result = SearchResult(
         chunk_id="lr-t-m12",
