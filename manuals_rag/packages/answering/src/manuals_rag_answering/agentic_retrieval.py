@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from time import perf_counter
 from typing import Any, Literal, TypedDict
 
@@ -1735,15 +1735,37 @@ def _direct_reference_plane_dent_support(
 
 
 def _verification_evidence(
-    results: list[SearchResult], *, query: str = "", max_bytes: int = 6000,
+    results: list[SearchResult],
+    *,
+    query: str = "",
+    max_bytes: int = 6000,
+    preferred_chunk_ids: Iterable[str] | None = None,
 ) -> dict[str, Any]:
     evidence: list[dict[str, Any]] = []
     # Preserve complete evidence units. UTF-8 bytes conservatively bound token
     # usage without a model-specific tokenizer. Never silently cut table rows.
     terms = set(re.findall(r"\w+", query.casefold()))
-    ranked = sorted(results, key=lambda r: len(terms & set(
-        re.findall(r"\w+", str(r.content or "").casefold())
-    )), reverse=True)
+    preferred_ids = list(dict.fromkeys(str(value) for value in preferred_chunk_ids or []))
+    preferred_priority = {
+        chunk_id: len(preferred_ids) - index
+        for index, chunk_id in enumerate(preferred_ids)
+    }
+    indexed_results = list(enumerate(results))
+    ranked = [
+        result
+        for _index, result in sorted(
+            indexed_results,
+            key=lambda item: (
+                preferred_priority.get(item[1].chunk_id, 0),
+                len(
+                    terms
+                    & set(re.findall(r"\w+", str(item[1].content or "").casefold()))
+                ),
+                -item[0],
+            ),
+            reverse=True,
+        )
+    ]
     omitted_count = 0
     seen: set[str] = set()
     for result in ranked:
@@ -5748,7 +5770,11 @@ def verify_retrieval_claim(
             ),
         ).model_dump()
 
-    evidence_packet = _verification_evidence(results, query=f"{hop.objective} {executed_query}")
+    evidence_packet = _verification_evidence(
+        results,
+        query=f"{hop.objective} {executed_query}",
+        preferred_chunk_ids=preliminary_assessment.get("supporting_chunk_ids") or [],
+    )
     if not evidence_packet["evidence"]:
         return EvidenceVerification(
             trust_state="unresolved", claim_supported=False, supporting_chunk_ids=[],

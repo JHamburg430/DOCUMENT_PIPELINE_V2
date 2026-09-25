@@ -5634,6 +5634,31 @@ def test_verifier_packet_selects_relevant_evidence_beyond_rank_four():
     assert packet['omitted_count'] > 0
 
 
+def test_verifier_packet_prioritizes_preliminary_support_within_budget():
+    from manuals_rag_answering.agentic_retrieval import _verification_evidence
+    results = [
+        _result(str(index), 'd1', 'Control input interface background ' * 8)
+        for index in range(5)
+    ]
+    exact = _result(
+        'exact-input-rating',
+        'd2',
+        'Interface | Control input (assignable) | 20 points | Rated input: 26.4 V max., 1.2 mA min.',
+    )
+    results.append(exact)
+
+    packet = _verification_evidence(
+        results,
+        query='maximum rated input voltage assignable control input interface',
+        max_bytes=1200,
+        preferred_chunk_ids=[exact.chunk_id],
+    )
+
+    assert packet['evidence'][0]['chunk_id'] == exact.chunk_id
+    assert exact.chunk_id in {item['chunk_id'] for item in packet['evidence']}
+    assert packet['omitted_count'] > 0
+
+
 def test_verifier_packet_budget_omits_whole_oversized_source():
     import json
     from manuals_rag_answering.agentic_retrieval import _verification_evidence
