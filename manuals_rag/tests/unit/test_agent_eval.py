@@ -83,6 +83,27 @@ def test_structured_equivalence_accepts_cross_page_exact_property_reference():
     )
 
 
+def test_structured_equivalence_accepts_complete_mu_n11_analog_output_row():
+    expected = "Current output [4 - 20mA] Voltage output [0 - 10V] (only for MU-N11)"
+    result = {
+        "source_document_id": "mu-n-doc",
+        "pages": [1],
+        "content": (
+            "Model: Analog output I/O; MU-N11: Current output/Voltage output selectable, "
+            "Current output: 4 to 20 mA, Voltage output: 0 to 10 V; MU-N12: -"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    assert _result_preserves_expected_evidence(
+        result,
+        source_document_id="mu-n-doc",
+        expected_pages={4},
+        snippet=expected,
+        query="Which analog output type should I select for the MU-N11 model?",
+    )
+
+
 def test_structured_equivalence_rejects_cross_page_different_cell_value():
     result = {
         "source_document_id": "doc-a",

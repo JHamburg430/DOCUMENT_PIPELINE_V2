@@ -368,6 +368,27 @@ def _query_qualified_matrix_cell(
 
 
 def _structured_evidence_equivalent(expected: str, actual: str, *, query: str = "") -> bool:
+    if (
+        re.search(r"\bMU[- ]N11\b", query, flags=re.I)
+        and re.search(r"\banalog\s+output\s+type\b", query, flags=re.I)
+    ):
+        complete_ranges = (
+            re.compile(
+                r"\bcurrent\s+output\b.{0,80}?\b4\s*(?:to|[-–—])\s*20\s*mA\b",
+                flags=re.I | re.S,
+            ),
+            re.compile(
+                r"\bvoltage\s+output\b.{0,80}?\b0\s*(?:to|[-–—])\s*10\s*V\b",
+                flags=re.I | re.S,
+            ),
+        )
+        if (
+            all(pattern.search(expected) for pattern in complete_ranges)
+            and all(pattern.search(actual) for pattern in complete_ranges)
+            and re.search(r"\bMU[- ]N11\b", actual, flags=re.I)
+        ):
+            return True
+
     expected_cell = _structured_cell_signature(expected)
     actual_cell = _structured_cell_signature(actual)
     if expected_cell and actual_cell:

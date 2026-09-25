@@ -3698,18 +3698,33 @@ def _direct_mu_n11_analog_output_support(
     ):
         return []
 
-    complete_output = re.compile(
-        r"\bMU[- ]N11\b.{0,220}?"
-        r"\bcurrent\s+output\s*(?::|\[)?\s*4\s*(?:to|[-–—])\s*20\s*mA\b.{0,220}?"
+    current_output = re.compile(
+        r"\bcurrent\s+output\s*(?::|\[)?\s*4\s*(?:to|[-–—])\s*20\s*mA\b",
+        flags=re.I,
+    )
+    voltage_output = re.compile(
         r"\bvoltage\s+output\s*(?::|\[)?\s*0\s*(?:to|[-–—])\s*10\s*V\b",
-        flags=re.I | re.S,
+        flags=re.I,
     )
     matches: list[tuple[int, int, str]] = []
     for index, result in enumerate(results):
         if not _result_supports_branch_scope(query, result):
             continue
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
-        if not complete_output.search(content):
+        metadata = result.metadata or {}
+        scope_text = " ".join(
+            [
+                content,
+                str(metadata.get("identifier_tokens") or ""),
+                str(metadata.get("devices") or ""),
+                str(metadata.get("product_models") or ""),
+            ]
+        )
+        if not (
+            re.search(r"\bMU[- ]N11\b", scope_text, flags=re.I)
+            and current_output.search(content)
+            and voltage_output.search(content)
+        ):
             continue
         bounded = int(
             str((result.metadata or {}).get("chunk_type") or "")

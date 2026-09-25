@@ -4789,6 +4789,13 @@ def test_mu_n11_analog_output_support_requires_both_scoped_ranges():
         [incomplete, wrong_model, complete],
     ) == ["complete-output"]
 
+    source_order = _result(
+        "source-order",
+        "mu-n-doc",
+        "Current output [4 - 20mA] Voltage output [0 - 10V] (only for MU-N11)",
+    )
+    assert _direct_mu_n11_analog_output_support(query, [source_order]) == ["source-order"]
+
 
 def test_variable_type_support_requires_explicit_enumeration():
     query = "What types of variables can be defined for the XG-X Series?"
