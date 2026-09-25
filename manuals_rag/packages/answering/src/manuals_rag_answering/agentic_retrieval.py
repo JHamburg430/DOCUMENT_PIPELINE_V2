@@ -4768,6 +4768,8 @@ def _direct_scoped_yes_no_support(
         value = re.sub(r"^asynchronous(?:ly)?$", "asynchronous", value)
         value = re.sub(r"^plac(?:e|ed|ing)$", "place", value)
         value = re.sub(r"^us(?:e|ed|ing)$", "use", value)
+        value = re.sub(r"^(?:suitable|suitability)$", "use", value)
+        value = re.sub(r"^requir(?:e|es|ed|ing|ement|ements)$", "require", value)
         value = re.sub(r"^protect(?:s|ed|ing)?$", "protect", value)
         value = re.sub(r"^(?:support|supports|supported|supporting)$", "handle", value)
         value = re.sub(r"^(?:handle|handles|handled|handling)$", "handle", value)

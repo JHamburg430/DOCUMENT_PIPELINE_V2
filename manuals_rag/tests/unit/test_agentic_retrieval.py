@@ -3687,6 +3687,62 @@ def test_verifier_confirms_scoped_yes_no_sentence_without_llm(monkeypatch):
     assert output["supporting_chunk_ids"] == ["capture-units"]
 
 
+def test_verifier_confirms_scoped_functional_safety_prohibition_without_llm(monkeypatch):
+    query = "Is the CA-EN100U suitable for applications requiring functional safety?"
+    hop = RetrievalHop(hop_id="safety", objective=query, query=query)
+    exact = _result(
+        "functional-safety-warning",
+        "ca-en100u-manual",
+        "Do not use this product in an application which requires functional safety.",
+    )
+    exact.metadata.update(
+        {
+            "product_model": "CA-EN100U",
+            "source_filename": "AS_78620_CA-EN100U_IM_96M13845_WW_GB_2072_4a.pdf",
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [exact],
+        {"claim_supported": True, "supporting_chunk_ids": [exact.chunk_id]},
+    )
+
+    assert verified["trust_state"] == "confirmed"
+    assert verified["supporting_chunk_ids"] == ["functional-safety-warning"]
+
+
+def test_verifier_rejects_unscoped_functional_safety_prohibition():
+    query = "Is the CA-EN100U suitable for applications requiring functional safety?"
+    hop = RetrievalHop(hop_id="safety", objective=query, query=query)
+    wrong_product = _result(
+        "wrong-functional-safety-warning",
+        "other-controller-manual",
+        "Do not use this product in an application which requires functional safety.",
+    )
+    wrong_product.metadata.update(
+        {
+            "product_model": "OTHER-100U",
+            "source_filename": "OTHER-100U_manual.pdf",
+        }
+    )
+
+    verified = verify_retrieval_claim(
+        hop,
+        query,
+        [wrong_product],
+        {"claim_supported": True, "supporting_chunk_ids": [wrong_product.chunk_id]},
+        use_llm=False,
+    )
+
+    assert verified["claim_supported"] is False
+
+
 def test_verifier_keeps_npn_pnp_input_roles_bound_to_mosfet_evidence(monkeypatch):
     query = "Can I connect NPN or PNP inputs to the LJ: S8000 series head output elements?"
     hop = RetrievalHop(hop_id="polarity", objective=query, query=query)
