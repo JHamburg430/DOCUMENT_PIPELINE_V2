@@ -428,6 +428,51 @@ def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
             assert plan.hops[0].strategy == "hybrid"
 
 
+def test_model_planners_preserve_shared_predicate_when_parallel_hops_split_identifiers(monkeypatch):
+    original = (
+        "Which illumination methods are listed for the CA-DQP12X and CA-DQP25X "
+        "pattern-projection lights?"
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "mode": "parallel",
+                "rationale": "Look up each model independently.",
+                "hops": [
+                    {
+                        "hop_id": "first_model",
+                        "objective": "Find CA-DQP12X illumination methods",
+                        "query": '"CA-DQP12X" "illumination methods"',
+                        "strategy": "sparse",
+                        "depends_on": [],
+                        "required": True,
+                    },
+                    {
+                        "hop_id": "second_model",
+                        "objective": "Find CA-DQP25X illumination methods",
+                        "query": '"CA-DQP25X" "illumination methods"',
+                        "strategy": "sparse",
+                        "depends_on": [],
+                        "required": True,
+                    },
+                ],
+            },
+            "{}",
+        ),
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(original, use_llm=True)
+        assert plan.mode == "parallel"
+        assert [hop.strategy for hop in plan.hops] == ["structural", "structural"]
+        assert [hop.query for hop in plan.hops] == [
+            f"{original}\nFocus on the requested evidence for CA-DQP12X.",
+            f"{original}\nFocus on the requested evidence for CA-DQP25X.",
+        ]
+        assert [hop.objective for hop in plan.hops] == [hop.query for hop in plan.hops]
+
+
 def test_model_planners_route_exact_count_and_accessory_lookups_to_hybrid(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",

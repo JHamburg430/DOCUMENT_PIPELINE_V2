@@ -1043,17 +1043,54 @@ def _normalize_primary_plan(
             )
         )
     )
+    parallel_focuses: dict[str, str] = {}
+    if original_query and plan.mode == "parallel":
+        analysis = analyze_query(original_query)
+        identifiers = list(dict.fromkeys(analysis.product_identifiers))
+        primary_hops = [hop for hop in plan.hops if hop.recovery_for is None]
+        candidate_focuses: dict[str, str] = {}
+        for hop in primary_hops:
+            hop_text = f"{hop.objective}\n{hop.query}".casefold()
+            matches = [identifier for identifier in identifiers if identifier.casefold() in hop_text]
+            if len(matches) != 1:
+                candidate_focuses = {}
+                break
+            candidate_focuses[hop.hop_id] = matches[0]
+        if (
+            "comparison" in analysis.query_types
+            and len(identifiers) >= 2
+            and len(candidate_focuses) == len(primary_hops)
+            and len(set(candidate_focuses.values())) == len(primary_hops)
+        ):
+            parallel_focuses = candidate_focuses
     return plan.model_copy(
         update={
             "hops": [
                 hop.model_copy(
                     update={
                         "required": True,
-                        **({"strategy": "hybrid"} if structured_coordinate_lookup else {}),
+                        **(
+                            {"strategy": "structural"}
+                            if hop.hop_id in parallel_focuses
+                            else ({"strategy": "hybrid"} if structured_coordinate_lookup else {})
+                        ),
                         **(
                             {"objective": original_query, "query": original_query}
                             if preserve_single
-                            else {}
+                            else (
+                                {
+                                    "objective": (
+                                        f"{original_query}\n"
+                                        f"Focus on the requested evidence for {parallel_focuses[hop.hop_id]}."
+                                    ),
+                                    "query": (
+                                        f"{original_query}\n"
+                                        f"Focus on the requested evidence for {parallel_focuses[hop.hop_id]}."
+                                    ),
+                                }
+                                if hop.hop_id in parallel_focuses
+                                else {}
+                            )
                         ),
                     }
                 )
