@@ -4227,10 +4227,11 @@ def test_illumination_type_support_prefers_query_vocabulary_and_rejects_marketin
 
 
 def test_verifier_confirms_shared_pattern_light_illumination_method_row(monkeypatch):
-    objective = (
+    executed_query = (
         "Which illumination methods are listed for the CA-DQP12X and CA-DQP25X "
         "pattern-projection lights?"
     )
+    objective = "Retrieve illumination methods for CA-DQP12X pattern-projection light"
     hop = RetrievalHop(hop_id="side_1", objective=objective, query=objective)
     unrelated = _result(
         "marketing-copy",
@@ -4258,7 +4259,7 @@ def test_verifier_confirms_shared_pattern_light_illumination_method_row(monkeypa
 
     output = verify_retrieval_claim(
         hop,
-        objective,
+        executed_query,
         [unrelated, result],
         {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
     )

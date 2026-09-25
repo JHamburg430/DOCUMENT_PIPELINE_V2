@@ -4744,7 +4744,7 @@ def verify_retrieval_claim(
                 "scope_candidate_chunk_ids": sorted(scoped_ids),
             }
         direct_illumination_method_support = _direct_illumination_method_support(
-            hop.objective,
+            executed_query,
             results,
         )
         if direct_illumination_method_support:
