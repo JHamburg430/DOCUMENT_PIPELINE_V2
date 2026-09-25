@@ -201,6 +201,26 @@ def _normalized(text: object) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(text or "").lower()).strip()
 
 
+_COMPACT_QUANTITY_TERM = re.compile(
+    r"^\d+(?:\.\d+)?(?:vdc|vac|mv|kv|v|ma|a|mm|cm|nm|um|ms|s|hz|khz|mhz|w|kw|%)$"
+)
+
+
+def _expected_term_matches_answer(term: str, answer_text: str) -> bool:
+    """Match compact quantity tokens against normally spaced answer units."""
+    if term and term in answer_text:
+        return True
+    compact_term = term.replace(" ", "")
+    if not _COMPACT_QUANTITY_TERM.fullmatch(compact_term):
+        return False
+    compact_answer = re.sub(
+        r"(?<=\d)\s+(?=(?:vdc|vac|mv|kv|v|ma|a|mm|cm|nm|um|ms|s|hz|khz|mhz|w|kw|%)\b)",
+        "",
+        answer_text,
+    )
+    return compact_term in compact_answer
+
+
 def _expected_document_ids(case: dict[str, Any]) -> set[str]:
     values = {str(case.get("source_document_id") or "")}
     values.update(
@@ -831,7 +851,9 @@ def score_agent_run(
     answer_text = _normalized(answer.get("answer"))
     relation_grounding = _relation_grounding(case, str(answer.get("answer") or ""))
     expected_terms = [_normalized(value) for value in case.get("expected_terms") or [] if value]
-    term_hits = [term for term in expected_terms if term and term in answer_text]
+    term_hits = [
+        term for term in expected_terms if _expected_term_matches_answer(term, answer_text)
+    ]
     citation_chunks = {
         str(item.get("chunk_id") or "")
         for item in answer.get("citations") or []
@@ -840,7 +862,11 @@ def score_agent_run(
     invalid_citation_chunks = citation_chunks - candidate_chunks
     node_grounding = {
         node.node_id: {
-            "terms": all(_normalized(term) in answer_text for term in node.expected_terms if term),
+            "terms": all(
+                _expected_term_matches_answer(_normalized(term), answer_text)
+                for term in node.expected_terms
+                if term
+            ),
             "citation": not node.expected_chunk_ids
             or all(
                 chunk_id in citation_chunks

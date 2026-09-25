@@ -708,6 +708,30 @@ def test_agent_evaluation_accepts_equivalent_quantity_unit_spelling():
     assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
 
 
+def test_agent_evaluation_matches_compact_expected_quantity_units():
+    case = _quantity_case()
+    case["query"] = "Which analog output type should I select for the MU-N11 model?"
+    case["expected_snippet"] = "Current output 4 to 20mA; Voltage output 0 to 10V."
+    case["expected_terms"] = ["current", "20mA", "voltage", "10V", "4", "0"]
+    case["expected_evidence"][0]["snippet"] = case["expected_snippet"]
+    case["expected_evidence"][0]["expected_terms"] = case["expected_terms"]
+
+    evaluation = score_agent_run(
+        case,
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": "Select current output at 4 to 20 mA or voltage output at 0 to 10 V.",
+            "citations": [{"chunk_id": "setup-values"}],
+        },
+    )
+
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+    assert {"20ma", "10v"}.issubset(
+        evaluation["cells"]["grounded_answer"]["metrics"]["matched_terms"]
+    )
+
+
 def test_agent_evaluation_ignores_incidental_imperative_for_factual_value_lookup():
     case = _quantity_case()
     case["query"] = "What screw torque specification applies to the RS-422 terminals?"
