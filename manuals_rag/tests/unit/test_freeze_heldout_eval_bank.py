@@ -914,6 +914,15 @@ def test_projection_mechanism_contract_drops_incidental_different_adjective():
     ) == ["projects", "analyzes", "projection"]
 
 
+def test_iv4_below_freezing_contract_drops_unasked_upper_temperature_endpoint():
+    query = "Does the IV4-400MA model support operation below freezing temperatures?"
+
+    assert _MODULE.answer_relevant_expected_terms(
+        query,
+        ["iv4-400ma", "freezing", "0", "50"],
+    ) == ["iv4-400ma", "no", "freezing"]
+
+
 def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     expected = (
         "In the AS_160148 XG-X camera specification table, what electronic shutter range "

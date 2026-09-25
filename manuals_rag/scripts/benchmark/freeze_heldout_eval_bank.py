@@ -222,6 +222,13 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
         # semantically complete without repeating that adjective.
         return ["projects", "analyzes", "projection"]
     if (
+        re.search(r"\biv4-400ma\b", normalized_query)
+        and re.search(r"\bbelow freezing temperatures\b", normalized_query)
+    ):
+        # This is a yes/no lower-bound question.  The source's +50 °C upper
+        # endpoint is valid context but is not part of the requested claim.
+        return ["iv4-400ma", "no", "freezing"]
+    if (
         re.search(r"\bdent[- ]depth conditions\b", normalized_query)
         and re.search(r"\breference plane\b", normalized_query)
     ):
