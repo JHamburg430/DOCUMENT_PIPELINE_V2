@@ -293,7 +293,8 @@ def _direct_mechanism_plan(query: str) -> RetrievalPlan | None:
 def _direct_display_behavior_plan(query: str) -> RetrievalPlan | None:
     """Keep one explicitly scoped display behavior in one retrieval hop."""
     if not re.match(
-        r"^\s*how\s+does\b.+\b(?:display|show|indicate|represent)\b.+\?\s*$",
+        r"^\s*(?:how\s+does|what\s+(?:do|does))\b.+"
+        r"\b(?:display|show|indicate|represent)\b.+\?\s*$",
         query,
         flags=re.I,
     ):

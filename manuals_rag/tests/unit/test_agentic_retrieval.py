@@ -819,15 +819,19 @@ def test_model_planners_keep_direct_display_behavior_in_one_hop(monkeypatch):
         "manuals_rag_answering.agentic_retrieval.chat_json",
         lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model planner must not run")),
     )
-    query = "How does the LJ-S8000 display height differences within a selected rectangle region?"
+    queries = [
+        "How does the LJ-S8000 display height differences within a selected rectangle region?",
+        "What do the SZ-V camera models display in real time?",
+    ]
 
-    for planner in (plan_retrieval, plan_llamaindex_retrieval):
-        plan = planner(query, use_llm=True)
-        assert plan.mode == "single"
-        assert len(plan.hops) == 1
-        assert plan.hops[0].objective == query
-        assert plan.hops[0].query == query
-        assert plan.hops[0].strategy == "hybrid"
+    for query in queries:
+        for planner in (plan_retrieval, plan_llamaindex_retrieval):
+            plan = planner(query, use_llm=True)
+            assert plan.mode == "single"
+            assert len(plan.hops) == 1
+            assert plan.hops[0].objective == query
+            assert plan.hops[0].query == query
+            assert plan.hops[0].strategy == "hybrid"
 
 
 def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
