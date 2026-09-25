@@ -20,6 +20,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_detection_capability_support,
     _direct_emc_standard_class_support,
     _direct_lj_x8000_head_extension_models_support,
+    _direct_laser_eye_level_installation_support,
     _direct_lr_z_press_again_support,
     _direct_output_to_rs232c_support,
     _direct_vs_s_ca_dex10x_power_support,
@@ -87,6 +88,54 @@ def test_visual_dependency_abstention_emits_no_citations():
     assert answer.confidence == "low"
     assert answer.citations == []
     assert "visual" in answer.answer.lower()
+
+
+def test_direct_laser_eye_level_installation_support_requires_complete_scoped_instruction():
+    query = "Can I install the LJ: S8000 series head at eye level for the laser beam path?"
+    metadata = {
+        "chunk_type": "atomic_text",
+        "product_model": "LJ: S8000 series head",
+        "product_models": ["LJ: S8000 series head"],
+        "source_filename": "AS_152333_LJ-S8000_IM_96M18473_WW_GB_2045_1.pdf",
+    }
+    exact = _result(
+        "laser-eye-height",
+        "lj-s8000-instruction-manual",
+        "Install this product so that the path of the laser beam is not at the same "
+        "height as that of human eye.",
+    ).model_copy(
+        update={
+            "title": "AS_152333_LJ-S8000_IM_96M18473_WW_GB_2045_1",
+            "metadata": metadata,
+        }
+    )
+    incomplete = _result(
+        "laser-eye-incomplete",
+        "lj-s8000-instruction-manual",
+        "Be cautious of the path of the laser beam and avoid eye exposure.",
+    ).model_copy(update={"title": exact.title, "metadata": metadata})
+    wrong_source = exact.model_copy(
+        update={
+            "chunk_id": "laser-eye-wrong-source",
+            "title": "AS_999999_LJ-S8000_Other_Manual",
+            "metadata": metadata | {"source_filename": "AS_999999_LJ-S8000_OTHER.pdf"},
+        }
+    )
+    preliminary = {
+        "claim_supported": True,
+        "supporting_chunk_ids": [
+            incomplete.chunk_id,
+            wrong_source.chunk_id,
+            exact.chunk_id,
+        ],
+    }
+
+    assert _direct_laser_eye_level_installation_support(
+        query, [incomplete, wrong_source, exact], preliminary
+    ) == [exact.chunk_id]
+    assert _direct_laser_eye_level_installation_support(
+        query, [incomplete, wrong_source], preliminary
+    ) == []
 
 
 def test_direct_emc_standard_class_support_requires_scoped_atomic_binding():
@@ -2044,6 +2093,42 @@ def test_verifier_deterministically_confirms_explicit_safety_risk(monkeypatch):
     assert output["trust_state"] == "confirmed"
     assert output["claim_supported"] is True
     assert output["supporting_chunk_ids"] == ["exact-warning"]
+
+
+def test_verifier_deterministically_confirms_laser_eye_level_prohibition(monkeypatch):
+    query = "Can I install the LJ: S8000 series head at eye level for the laser beam path?"
+    hop = RetrievalHop(hop_id="laser-height", objective=query, query=query)
+    result = _result(
+        "laser-eye-height",
+        "lj-s8000-instruction-manual",
+        "Install this product so that the path of the laser beam is not at the same "
+        "height as that of human eye.",
+    ).model_copy(
+        update={
+            "title": "AS_152333_LJ-S8000_IM_96M18473_WW_GB_2045_1",
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "LJ: S8000 series head",
+                "product_models": ["LJ: S8000 series head"],
+                "source_filename": "AS_152333_LJ-S8000_IM_96M18473_WW_GB_2045_1.pdf",
+            },
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
 
 
 def test_verifier_deterministically_confirms_atomic_default_value(monkeypatch):

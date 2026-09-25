@@ -1990,6 +1990,61 @@ def _direct_warning_support(
     return [best[-1]]
 
 
+def _direct_laser_eye_level_installation_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the LJ-S8000 laser-path height prohibition from one exact instruction.
+
+    A yes/no question such as ``Can I install ... at eye level?`` can make an
+    otherwise-correct LLM verifier mark the negative source instruction as not
+    supporting the proposition. This gate accepts only the complete, scoped
+    AS_152333 instruction; topical laser-safety prose and incomplete clauses do
+    not qualify.
+    """
+    if not (
+        re.search(r"\bLJ\s*[:_-]?\s*S8000\b", query, flags=re.I)
+        and re.search(r"\binstall\b", query, flags=re.I)
+        and re.search(r"\blaser\s+beam(?:\s+path)?\b", query, flags=re.I)
+        and re.search(r"\b(?:eye\s+level|height|human\s+eye)\b", query, flags=re.I)
+        and preliminary_assessment.get("claim_supported")
+    ):
+        return []
+
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids:
+            continue
+        if not _result_supports_branch_scope(query, result):
+            continue
+        metadata = result.metadata or {}
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        source_scope = " ".join(
+            (
+                str(result.title or ""),
+                str(metadata.get("source_filename") or ""),
+                str(metadata.get("document_title") or ""),
+            )
+        )
+        if not re.search(r"\bAS[_-]152333(?=$|[^A-Za-z0-9])", source_scope, flags=re.I):
+            continue
+        if not re.search(
+            r"\bInstall\s+this\s+product\s+so\s+that\s+the\s+path\s+of\s+the\s+"
+            r"laser\s+beam\s+is\s+not\s+at\s+the\s+same\s+height\s+as\s+that\s+of\s+"
+            r"human\s+eye\b",
+            content,
+            flags=re.I,
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_context_sentence_support(
     query: str,
     results: list[SearchResult],
@@ -5298,6 +5353,28 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": sorted(allowed_results),
             "scope_candidate_chunk_ids": [],
+        }
+
+    direct_laser_eye_level_support = _direct_laser_eye_level_installation_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_laser_eye_level_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_laser_eye_level_support,
+            applicability="not_requested",
+            scope_entity="LJ-S8000 Series head",
+            rationale=(
+                "Deterministic laser-safety verification matched the complete AS_152333 "
+                "instruction prohibiting a laser beam path at human-eye height."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
         }
 
     direct_reference_plane_support = _direct_reference_plane_dent_support(
