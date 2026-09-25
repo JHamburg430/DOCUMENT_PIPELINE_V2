@@ -7965,6 +7965,15 @@ def test_structured_table_answer_prefers_range_over_measurement_test_point():
     assert "Response Time" not in answer.answer
     assert answer.citations[0]["chunk_id"] == "detectable-range"
 
+    production_wording_answer, _production_wording_trace = generate_answer_with_trace(
+        "What detecting distance range do LR-TB2000 laser sensors cover?",
+        [test_point, range_record],
+    )
+
+    assert "60 to 2000 mm" in production_wording_answer.answer
+    assert "Response Time" not in production_wording_answer.answer
+    assert production_wording_answer.citations[0]["chunk_id"] == "detectable-range"
+
 
 def test_structured_table_answer_binds_model_to_requested_connector_field():
     result = SearchResult(

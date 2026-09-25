@@ -1987,6 +1987,48 @@ def test_verifier_deterministically_confirms_exact_structured_lookup_cell(monkey
     assert output["supporting_chunk_ids"] == [result.chunk_id]
 
 
+def test_verifier_prefers_detection_range_over_measurement_test_point(monkeypatch):
+    objective = "What detecting distance range do LR-TB2000 laser sensors cover?"
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    wrong = _result(
+        "response-test-point",
+        "lrt-doc",
+        "Column headers: LR-TB2000/TB2000C (Class 2 laser) > White Paper "
+        "(Reflectivity: 90%) > Response Time [ms] > 1; Row headers: Detecting "
+        'distance [mm inch] > 500 19.69"; Cell value: ±7 ±0.28"; Row: 6; Column: 2',
+    )
+    exact = _result(
+        "detectable-range",
+        "lrt-doc",
+        "Column headers: LR-TB2000 > - > LR-TB2000C > LR-TB2000CL; "
+        'Row headers: Detectable distance; Cell value: 60 to 2000 mm 2.36" to 78.74" *2; '
+        "Row: 2; Column: 4",
+    )
+    for result in (wrong, exact):
+        result.metadata.update(
+            {
+                "chunk_type": "table_record",
+                "product_model": "LR-TB2000",
+                "product_family": "LR-T Series",
+            }
+        )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [wrong, exact],
+        {"claim_supported": True, "supporting_chunk_ids": [wrong.chunk_id, exact.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == [exact.chunk_id]
+
+
 def test_verifier_prefers_requested_power_voltage_row_over_connector_sibling(monkeypatch):
     objective = "What power voltage range is required for the IV-500C Ethernet connector?"
     hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)

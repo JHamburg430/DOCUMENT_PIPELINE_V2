@@ -2270,6 +2270,13 @@ def _direct_structured_lookup_support(
     query_terms = terms(query)
     query_axes = set(re.findall(r"\b([xyz])\b", query.lower()))
     query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
+    detection_distance_range_query = bool(
+        re.search(
+            r"\b(?:detection|detectable|detecting)\s+(?:distance\s+)?range\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
     matches: list[tuple[int, int, int, int, str]] = []
     for result_index, result in enumerate(results):
         if not _result_supports_branch_scope(query, result):
@@ -2294,6 +2301,19 @@ def _direct_structured_lookup_support(
         if column_overlap < required_column_overlap:
             continue
         row_overlap = len(row_terms.intersection(query_terms))
+        if detection_distance_range_query:
+            if not re.search(
+                r"\bdetect(?:able|ing|ion)?\s+distance\b",
+                cell_match.group("row"),
+                flags=re.IGNORECASE,
+            ) or not re.search(
+                r"(?<![\w.])\d+(?:\.\d+)?\s*(?:to|through|[-–—])\s*"
+                r"\d+(?:\.\d+)?(?![\w.])",
+                cell_match.group("value"),
+                flags=re.IGNORECASE,
+            ):
+                continue
+            row_overlap = max(row_overlap, 2)
         if row_overlap < min(2, len(row_terms)):
             continue
         row_axes = set(re.findall(r"\b([xyz])\b", cell_match.group("row").lower()))
