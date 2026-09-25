@@ -371,6 +371,20 @@ def test_aligns_lr_z_confirmation_question_with_press_again_step():
     ) == ["press", "again", "1s"]
 
 
+def test_aligns_zoom_camera_question_with_source_selection_instruction():
+    query = _MODULE.normalize_frozen_query(
+        "Should I use a zoom camera when selecting the resolution for my application?"
+    )
+
+    assert query == (
+        "When selecting a zoom camera, how should the camera resolution be chosen for "
+        "the application?"
+    )
+    assert _MODULE.answer_relevant_expected_terms(
+        query, ["select", "camera", "resolution", "selecting", "application"]
+    ) == ["select", "resolution", "application"]
+
+
 def test_focuses_cah048_two_mode_contract_and_terms():
     query = (
         "For the CA-H048CX/H048MX cameras, what resolutions and approximate megapixel "
