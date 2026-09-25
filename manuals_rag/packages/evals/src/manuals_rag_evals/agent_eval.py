@@ -704,11 +704,10 @@ def _equivalent_chunk_ids(
                 chunk_id = str(result.get("chunk_id") or "")
                 if chunk_id:
                     matched.add(chunk_id)
-        # The baseline retrieval gate permits a different manual only under
-        # its strict cross-document semantic-evidence contract. Reuse that
-        # exact scorer here so agent candidate/citation scoring cannot reject
-        # evidence the baseline already proved equivalent, or admit a looser
-        # bag-of-words match of its own.
+        # Reuse the baseline retrieval scorer for both same-document and
+        # cross-document alternatives. Agent candidate/citation scoring must
+        # not reject evidence the retrieval gate already proved equivalent,
+        # or admit a looser bag-of-words match of its own.
         section_path_value = evidence.get("section_path") or case.get("section_path") or ""
         section_path = (
             " / ".join(str(value) for value in section_path_value)
@@ -737,13 +736,24 @@ def _equivalent_chunk_ids(
             source_metadata=dict(evidence.get("source_metadata") or case.get("source_metadata") or {}),
         )
         for result in results:
-            if str(result.get("source_document_id") or "") == source_document_id:
-                continue
             semantic_evaluation = score_search_results(semantic_case, [result], top_k=1)
-            if semantic_evaluation.get("match_reason") not in {
-                "cross_document_semantic_evidence",
-                "applicable_equivalent_answer_evidence",
-            }:
+            same_document = str(result.get("source_document_id") or "") == source_document_id
+            same_document_equivalent = (
+                same_document
+                and bool(section_path)
+                and bool(pages)
+                and bool(_page_set(result).intersection(pages))
+                and semantic_evaluation.get("match_reason") == "same_section_term_overlap"
+            )
+            cross_document_equivalent = (
+                not same_document
+                and semantic_evaluation.get("match_reason")
+                in {
+                    "cross_document_semantic_evidence",
+                    "applicable_equivalent_answer_evidence",
+                }
+            )
+            if not (same_document_equivalent or cross_document_equivalent):
                 continue
             chunk_id = str(result.get("chunk_id") or "")
             if chunk_id:

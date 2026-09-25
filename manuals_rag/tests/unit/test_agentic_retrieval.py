@@ -5817,6 +5817,8 @@ def test_planners_keep_authoritative_lookup_shapes_single_hop(monkeypatch):
         "When should I choose a C-mount smart camera over other options?": "hybrid",
         "In the AS_145624 IV Series specification table, what output type, NPN/PNP and N.O./N.C. switchable configurations, maximum NPN rating, and remaining voltage are specified?": "structural",
         "How do I access the diagnostics view for a detected PLC in the project tree?": "structural",
+        "What benefits does the ShapeTrax 3A search tool provide for Guided Robotic systems?": "hybrid",
+        "For the XG-X Series inline 3D inspection system, which dent-depth conditions can be inspected by freely setting the reference plane?": "dense",
     }
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",

@@ -6591,6 +6591,81 @@ def test_score_search_results_accepts_strong_duplicate_manual_evidence_for_unsco
     assert evaluation["match_reason"] == "cross_document_semantic_evidence"
 
 
+def test_score_search_results_accepts_structured_iv4_temperature_from_duplicate_manual():
+    case = RetrievalEvalCase(
+        case_id="iv4-temperature-duplicate",
+        query="What operating ambient temperature range is allowed for the IV4 Series without freezing?",
+        source_document_id="iv4-brochure",
+        document_version_id="iv4-brochure-version",
+        source_chunk_id="expected-temperature",
+        source_title="IV4 Brochure",
+        source_filename="iv4-brochure.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=28,
+        page_to=28,
+        expected_terms=["environmental", "resistance", "operating", "ambient", "0", "50"],
+        expected_snippet=(
+            "Environmental resistance | Operating ambient temperature | "
+            "0 to +50°C (no freezing)"
+        ),
+        generation_method="unit",
+        source_metadata={"product_family": "IV4 Series"},
+    )
+    result = {
+        "chunk_id": "duplicate-temperature",
+        "source_document_id": "iv4-lighting-manual",
+        "content": (
+            "Column headers: IV4-L4C > IV4-L4M > IV4-L5C; Row headers: "
+            "Environmental resistance > Operating ambient temperature; "
+            "Cell value: 0 to +50°C (No freezing)"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    evaluation = score_search_results(case, [result])
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "cross_document_semantic_evidence"
+
+
+def test_score_search_results_rejects_wrong_structured_iv4_temperature_from_duplicate_manual():
+    case = RetrievalEvalCase(
+        case_id="iv4-temperature-duplicate-wrong-value",
+        query="What operating ambient temperature range is allowed for the IV4 Series without freezing?",
+        source_document_id="iv4-brochure",
+        document_version_id="iv4-brochure-version",
+        source_chunk_id="expected-temperature",
+        source_title="IV4 Brochure",
+        source_filename="iv4-brochure.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=28,
+        page_to=28,
+        expected_terms=["environmental", "resistance", "operating", "ambient", "0", "50"],
+        expected_snippet=(
+            "Environmental resistance | Operating ambient temperature | "
+            "0 to +50°C (no freezing)"
+        ),
+        generation_method="unit",
+        source_metadata={"product_family": "IV4 Series"},
+    )
+    result = {
+        "chunk_id": "wrong-temperature",
+        "source_document_id": "iv4-lighting-manual",
+        "content": (
+            "Column headers: IV4-L4C > IV4-L4M > IV4-L5C; Row headers: "
+            "Environmental resistance > Operating ambient temperature; "
+            "Cell value: -10 to +45°C (No freezing)"
+        ),
+        "metadata": {"chunk_type": "table_record"},
+    }
+
+    evaluation = score_search_results(case, [result])
+
+    assert evaluation["passed"] is False
+
+
 def test_score_search_results_accepts_short_duplicate_fact_with_explicit_model():
     case = RetrievalEvalCase(
         case_id="duplicate-short-fact",

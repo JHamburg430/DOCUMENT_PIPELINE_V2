@@ -613,6 +613,69 @@ def test_agent_evaluation_accepts_baseline_proven_cross_document_semantic_eviden
     assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
 
 
+def test_agent_evaluation_accepts_baseline_proven_same_document_equivalent_chunk():
+    case = {
+        "case_id": "lj-x8000-disconnect-equivalent",
+        "query": "Which devices must be disconnected before connecting the LJ-X8000 to a PLC?",
+        "retrieval_task": "single_step_retrieval",
+        "source_document_id": "lj-x8000-guide",
+        "source_chunk_id": "expected-disconnect",
+        "document_version_id": "lj-x8000-version",
+        "source_title": "LJ-X8000 EtherNet/IP Guide",
+        "source_filename": "lj-x8000.pdf",
+        "chunk_type": "datasheet_record",
+        "section_path": "PLC",
+        "page_from": 3,
+        "page_to": 3,
+        "expected_terms": ["disconnect", "devices", "other", "x8000"],
+        "expected_snippet": (
+            "Disconnect all devices other than the LJ-X8000 and the PLC before connecting."
+        ),
+        "generation_method": "unit",
+        "source_metadata": {"product_family": "LJ-X8000"},
+    }
+    trace = {
+        "sufficient": True,
+        "plan": {"mode": "single", "hops": [{"hop_id": "one", "depends_on": []}]},
+        "evidence_ledger": {
+            "one": {
+                "required": True,
+                "sufficient": True,
+                "strategy": "hybrid",
+                "chunk_ids": ["equivalent-disconnect"],
+            }
+        },
+        "cost": {},
+    }
+    evaluation = score_agent_run(
+        case,
+        trace=trace,
+        results=[
+            {
+                "chunk_id": "equivalent-disconnect",
+                "source_document_id": "lj-x8000-guide",
+                "section_path": ["PLC"],
+                "pages": [3],
+                "content": (
+                    "To give priority to checking the EtherNet/IP connection, disconnect all "
+                    "devices other than the LJ-X and the PLC from the hub."
+                ),
+                "metadata": {"chunk_type": "atomic_text"},
+            }
+        ],
+        answer={
+            "answer": (
+                "For LJ-X8000, disconnect all devices other than the LJ-X and the PLC from the hub."
+            ),
+            "citations": [{"chunk_id": "equivalent-disconnect"}],
+        },
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["cells"]["candidate_recall"]["status"] == "pass"
+    assert evaluation["cells"]["document_retention"]["status"] == "pass"
+
+
 def test_agent_evaluation_accepts_baseline_proven_applicable_table_evidence():
     snippet = (
         "Protection circuit | Protection against reverse power connection, power "

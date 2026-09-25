@@ -3729,6 +3729,30 @@ def _cross_document_semantic_evidence_is_applicable(
         for token in answer_specific_numeric_tokens
     ):
         return False
+    result_chunk_type = str(
+        (result.get("metadata") or {}).get("chunk_type")
+        or result.get("chunk_type")
+        or ""
+    )
+    structured_chunk_types = {"table_record", "spec_record", "section_window"}
+    query_family_identifiers = {
+        _compact_eval_identifier(token)
+        for token in re.findall(r"\b(?=\w*[A-Za-z])(?=\w*\d)[A-Za-z0-9-]{3,}\b", case.query)
+    }
+    if (
+        case.chunk_type in structured_chunk_types
+        and result_chunk_type in structured_chunk_types
+        and snippet_overlap >= 4
+        and query_overlap >= 3
+        and query_family_identifiers
+        and any(identifier in result_text for identifier in query_family_identifiers)
+    ):
+        # Duplicate manuals often serialize the same scoped specification as
+        # a table cell in one document and a section window in another. The
+        # answer-specific numeric guard above prevents a neighboring value
+        # from qualifying; the explicit family token prevents cross-product
+        # table text from qualifying merely through generic spec vocabulary.
+        return True
     query_identifiers = {
         _compact_eval_identifier(identifier)
         for identifier in re.findall(

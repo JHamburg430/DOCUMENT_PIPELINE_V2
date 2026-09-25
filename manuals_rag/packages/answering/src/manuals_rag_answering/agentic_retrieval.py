@@ -317,6 +317,16 @@ def _direct_authoritative_lookup_plan(query: str) -> RetrievalPlan | None:
     )
     if any(re.match(pattern, query, flags=re.I) for pattern in structural_patterns):
         strategy: RetrievalStrategy = "structural"
+    elif (
+        re.match(r"^\s*what\s+benefits?\s+does\b.+\btool\s+provide\b.+\?\s*$", query, flags=re.I)
+        and re.search(r"\b[A-Za-z]+(?:Trax|trax)\s*\w*\b", query)
+    ):
+        strategy = "hybrid"
+    elif (
+        re.match(r"^\s*(?:for\b.+?,\s*)?which\b.+\bconditions?\b.+\binspected\b.+\?\s*$", query, flags=re.I)
+        and re.search(r"\breference\s+plane\b", query, flags=re.I)
+    ):
+        strategy = "dense"
     elif re.match(
         r"^\s*when\s+should\s+i\s+choose\b.+\bover\s+other\s+options\b.+\?\s*$",
         query,
@@ -1061,7 +1071,9 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
     for index, hop in enumerate(base.hops, start=1):
         strategy = hop.strategy
         analysis = analyze_query(hop.query)
-        if strategy == "sparse":
+        if _direct_authoritative_lookup_plan(hop.query) is not None:
+            pass
+        elif strategy == "sparse":
             pass
         elif analysis.product_identifiers and len(analysis.normalized_terms) <= 3:
             strategy = "sparse"
