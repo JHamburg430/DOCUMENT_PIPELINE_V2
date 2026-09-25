@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.client import RemoteDisconnected
 from json import loads
 from pathlib import Path
+import os
 import re
 import subprocess
 import sys
@@ -828,6 +829,32 @@ def test_external_agent_matrix_excludes_stale_and_malformed_artifacts(monkeypatc
     (artifacts / f"{run_id}.partial.json").write_text('{"complete":false}', encoding="utf-8")
     monkeypatch.setattr(ui_server, "_agent_matrix_lock_is_live", lambda path, artifact_run_id: True)
     assert ui_server._external_agent_matrix_run() is None
+
+
+def test_external_agent_matrix_stops_after_newest_valid_terminal_candidate(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    artifacts = reports / "retrieval_improvement"
+    artifacts.mkdir(parents=True)
+    older = artifacts / "older.launch.json"
+    newer = artifacts / "newer.launch.json"
+    older.write_text("{}", encoding="utf-8")
+    newer.write_text("{}", encoding="utf-8")
+    os.utime(older, (1, 1))
+    os.utime(newer, (2, 2))
+    calls = []
+
+    def candidate(path):
+        calls.append(path.name)
+        if path == newer:
+            return {"artifact_run_id": "newer", "status": "completed"}
+        raise AssertionError("older history should not be parsed after the newest valid result")
+
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "_agent_matrix_lock_is_live", lambda path, artifact_run_id: False)
+    monkeypatch.setattr(ui_server, "_external_agent_matrix_candidate", candidate)
+
+    assert ui_server._external_agent_matrix_run()["artifact_run_id"] == "newer"
+    assert calls == ["newer.launch.json"]
 
 
 def test_external_agent_matrix_lock_requires_live_validated_writer(tmp_path):

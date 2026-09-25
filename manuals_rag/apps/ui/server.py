@@ -1727,19 +1727,35 @@ def _external_agent_matrix_candidate(launch_path: Path) -> dict | None:
 def _external_agent_matrix_run(run_id: str | None = None) -> dict | None:
     requested = str(run_id).removeprefix(EXTERNAL_EVAL_RUN_PREFIX) if run_id else None
     artifact_dir = TEST_REPORTS_DIR / "retrieval_improvement"
+    if requested:
+        launch_path = artifact_dir / f"{requested}.launch.json"
+        if not launch_path.exists():
+            return None
+        candidate = _external_agent_matrix_candidate(launch_path)
+        return candidate if candidate and candidate["artifact_run_id"] == requested else None
     try:
         launches = sorted(artifact_dir.glob("*.launch.json"), key=lambda path: path.stat().st_mtime, reverse=True)
     except OSError:
         return None
-    candidates: list[dict] = []
+
+    # A live writer wins even when a newer completed launch exists.  Checking
+    # lock ownership is cheap and avoids fully parsing every historical run.
+    for launch_path in launches:
+        artifact_run_id = launch_path.name.removesuffix(".launch.json")
+        lock_path = launch_path.with_name(f"{artifact_run_id}.lock")
+        if not lock_path.exists() or not _agent_matrix_lock_is_live(lock_path, artifact_run_id):
+            continue
+        candidate = _external_agent_matrix_candidate(launch_path)
+        if candidate is not None and candidate["status"] == "running":
+            return candidate
+
+    # Launches are newest-first, so the first validated terminal artifact is
+    # the current reconciled result.  Do not parse the entire history.
     for launch_path in launches:
         candidate = _external_agent_matrix_candidate(launch_path)
-        if candidate is None or (requested is not None and candidate["artifact_run_id"] != requested):
-            continue
-        if candidate["status"] == "running":
+        if candidate is not None:
             return candidate
-        candidates.append(candidate)
-    return candidates[0] if candidates else None
+    return None
 
 
 def _external_eval_run(run_id: str | None = None) -> dict | None:
