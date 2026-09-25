@@ -3360,6 +3360,48 @@ def test_scope_gate_accepts_series_suffix_alias_without_prefix_matching_models()
     assert supported is False
 
 
+def test_claim_sufficiency_ignores_orientation_words_for_non_orientation_question():
+    result = _result(
+        "ucd",
+        "lr-zh-doc",
+        "Simply press and hold the SET and UP buttons simultaneously to enable "
+        "Universal Change Detection. A neighboring illustration shows straight "
+        "and right-angle mounting examples.",
+    )
+    result.metadata["product_model"] = "LR-ZH"
+
+    supported, assessment = _assess_hop_evidence(
+        "How do I enable the U.C.D. Function on LR-ZH models?",
+        [result],
+    )
+
+    assert supported is True
+    assert assessment["contradictions"] == []
+
+
+def test_claim_sufficiency_rejects_conflicting_values_for_orientation_question():
+    straight = _result(
+        "straight",
+        "mod-doc",
+        "The MOD-600 connector orientation is straight.",
+    )
+    angled = _result(
+        "angled",
+        "mod-doc",
+        "The MOD-600 connector orientation is right-angle.",
+    )
+    for result in (straight, angled):
+        result.metadata["product_model"] = "MOD-600"
+
+    supported, assessment = _assess_hop_evidence(
+        "What connector orientation applies to MOD-600?",
+        [straight, angled],
+    )
+
+    assert supported is False
+    assert assessment["contradictions"] == ["conflicting_orientation_values"]
+
+
 def test_verifier_canonicalizes_vendor_prefixed_scope_for_exact_warning_title(monkeypatch):
     hop = RetrievalHop(
         hop_id="resolve_warning",

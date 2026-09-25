@@ -1380,12 +1380,13 @@ def _assess_hop_evidence(
 
     contradictions: list[str] = []
     orientations: set[str] = set()
-    for result in supporting_results:
-        content = result.content.lower()
-        if re.search(r"\bstraight\b", content):
-            orientations.add("straight")
-        if re.search(r"\bright[- ]?angle\b|\bangle[dt]?\b", content):
-            orientations.add("right_angle")
+    if any(name == "orientation" for name, _pattern in facet_patterns):
+        for result in supporting_results:
+            content = result.content.lower()
+            if re.search(r"\bstraight\b", content):
+                orientations.add("straight")
+            if re.search(r"\bright[- ]?angle\b|\bangle[dt]?\b", content):
+                orientations.add("right_angle")
     if len(orientations) > 1:
         contradictions.append("conflicting_orientation_values")
 
