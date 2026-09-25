@@ -339,6 +339,42 @@ def test_rejects_benefit_question_without_benefit_statement():
     ) == ["benefit statement"]
 
 
+def test_normalizes_malformed_cah048_mode_question_to_complete_two_mode_contract():
+    assert _MODULE.normalize_frozen_query(
+        "For A, what megapixel mode for megapixel mode 640 480 approx?"
+    ) == (
+        "For the CA-H048CX/H048MX cameras, what resolutions and approximate megapixel "
+        "counts are listed for the 0.47-megapixel and 0.31-megapixel modes?"
+    )
+
+
+def test_focuses_cah048_two_mode_contract_and_terms():
+    query = (
+        "For the CA-H048CX/H048MX cameras, what resolutions and approximate megapixel "
+        "counts are listed for the 0.47-megapixel and 0.31-megapixel modes?"
+    )
+    content = (
+        "Area camera | CA-H048CX/H048MX 0.47 megapixel mode: 784 (H) × 596 (V), "
+        "approx. 0.47 megapixels 0.31 megapixel mode: 640 (H) × 480 (V), "
+        "approx. 0.31 megapixels 0.24 megapixel mode: 512 (H) × 480 (V)"
+    )
+
+    snippet = _MODULE.focus_expected_snippet(query, "irrelevant", content)
+
+    assert snippet == (
+        "CA-H048CX/H048MX 0.47 megapixel mode: 784 (H) × 596 (V), approx. "
+        "0.47 megapixels 0.31 megapixel mode: 640 (H) × 480 (V), approx. 0.31 megapixels"
+    )
+    assert _MODULE.answer_relevant_expected_terms(query, ["irrelevant"]) == [
+        "0.47",
+        "784",
+        "596",
+        "0.31",
+        "640",
+        "480",
+    ]
+
+
 def test_rejects_angle_question_anchored_to_linear_resolution():
     assert _MODULE.missing_answer_requirements(
         "What is the display resolution for the CA-S20D when measuring angles?",

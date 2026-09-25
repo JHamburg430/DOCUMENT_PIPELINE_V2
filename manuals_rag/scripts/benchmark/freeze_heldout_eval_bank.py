@@ -187,6 +187,9 @@ def normalize_frozen_query(query: str) -> str:
             "vision-guided robotic guide?",
         "Which head connection extension cable models are compatible with the New LJ-X8000 Series?":
             "Which head connection extension cable models are listed for the LJ-X8000 Series?",
+        "For A, what megapixel mode for megapixel mode 640 480 approx?":
+            "For the CA-H048CX/H048MX cameras, what resolutions and approximate megapixel "
+            "counts are listed for the 0.47-megapixel and 0.31-megapixel modes?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
@@ -209,6 +212,12 @@ def answer_relevant_expected_terms(query: str, terms: list[object]) -> list[str]
     """
 
     normalized_query = _normalized(query)
+    if (
+        re.search(r"\bca-h048cx/h048mx\b", normalized_query)
+        and re.search(r"\b0 47-megapixel\b", normalized_query)
+        and re.search(r"\b0 31-megapixel\b", normalized_query)
+    ):
+        return ["0.47", "784", "596", "0.31", "640", "480"]
     if re.search(r"\blr-tb5000-series models\b", normalized_query) and re.search(
         r"\bm12 connector type models\b", normalized_query
     ):
@@ -972,6 +981,22 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if (
+        re.search(r"\bca-h048cx/h048mx\b", str(query or ""), flags=re.I)
+        and re.search(r"\b0[ .]47[- ]megapixel\b", str(query or ""), flags=re.I)
+        and re.search(r"\b0[ .]31[- ]megapixel\b", str(query or ""), flags=re.I)
+    ):
+        modes = re.search(
+            r"(?P<answer>CA-H048CX/H048MX\s+"
+            r"0\.47\s+megapixel\s+mode:\s*784\s*\(H\)\s*[×x]\s*596\s*\(V\),\s*"
+            r"approx\.\s*0\.47\s+megapixels\s+"
+            r"0\.31\s+megapixel\s+mode:\s*640\s*\(H\)\s*[×x]\s*480\s*\(V\),\s*"
+            r"approx\.\s*0\.31\s+megapixels)",
+            source,
+            flags=re.I,
+        )
+        if modes:
+            return re.sub(r"\s+", " ", modes.group("answer")).strip()
     if re.search(r"\bwhat causes the erh error\b", str(query or ""), flags=re.I) and re.search(
         r"\blr-w70\(c\) edition sensor\b", str(query or ""), flags=re.I
     ):
@@ -1462,6 +1487,23 @@ def verify_and_freeze_cases(
         if (
             re.search(r"\bwhat causes the erh error\b", case["query"], flags=re.I)
             and re.search(r"\blr-w70\(c\) edition sensor\b", case["query"], flags=re.I)
+        ):
+            snippet_text = focus_expected_snippet(
+                case["query"],
+                str(case.get("expected_snippet") or ""),
+                str(chunk.get("content") or ""),
+            )
+            terms = answer_relevant_expected_terms(
+                case["query"],
+                extract_anchor_terms(snippet_text)[:4],
+            )
+            case["expected_snippet"] = snippet_text
+            case["expected_terms"] = terms
+            case["anchor_terms"] = terms
+        if (
+            re.search(r"\bca-h048cx/h048mx\b", case["query"], flags=re.I)
+            and re.search(r"\b0[ .]47[- ]megapixel\b", case["query"], flags=re.I)
+            and re.search(r"\b0[ .]31[- ]megapixel\b", case["query"], flags=re.I)
         ):
             snippet_text = focus_expected_snippet(
                 case["query"],
