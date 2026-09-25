@@ -27,6 +27,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_iv2_infrared_filter_part_support,
     _direct_iv4_output_configuration_support,
     _direct_manual_focus_installation_support,
+    _direct_mu_n11_analog_output_support,
     _direct_pc_to_plc_menu_path_support,
     _direct_password_setting_support,
     _direct_procedure_support,
@@ -4760,6 +4761,33 @@ def test_compound_electrical_rating_requires_voltage_and_current_in_one_rating()
     assert _direct_compound_electrical_rating_support(query, [voltage_only, complete]) == [
         "complete-rating"
     ]
+
+
+def test_mu_n11_analog_output_support_requires_both_scoped_ranges():
+    query = "Which analog output type should I select for the MU-N11 model?"
+    incomplete = _result(
+        "current-only",
+        "mu-n-doc",
+        "MU-N11: Current output: 4 to 20 mA.",
+    )
+    wrong_model = _result(
+        "wrong-model",
+        "mu-n-doc",
+        "MU-N12: Current output: 4 to 20 mA. Voltage output: 0 to 10 V.",
+    )
+    complete = _result(
+        "complete-output",
+        "mu-n-doc",
+        (
+            "MU-N11: Current output/Voltage output selectable. "
+            "Current output: 4 to 20 mA. Voltage output: 0 to 10 V."
+        ),
+    )
+
+    assert _direct_mu_n11_analog_output_support(
+        query,
+        [incomplete, wrong_model, complete],
+    ) == ["complete-output"]
 
 
 def test_variable_type_support_requires_explicit_enumeration():

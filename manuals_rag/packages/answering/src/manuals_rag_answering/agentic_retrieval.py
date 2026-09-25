@@ -3686,6 +3686,39 @@ def _direct_compound_electrical_rating_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_mu_n11_analog_output_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm both selectable MU-N11 analog output ranges in one scoped result."""
+    if not (
+        re.search(r"\bMU[- ]N11\b", query, flags=re.I)
+        and re.search(r"\banalog\s+output\s+type\b", query, flags=re.I)
+        and re.search(r"\bselect\b", query, flags=re.I)
+    ):
+        return []
+
+    complete_output = re.compile(
+        r"\bMU[- ]N11\b.{0,220}?"
+        r"\bcurrent\s+output\s*(?::|\[)?\s*4\s*(?:to|[-–—])\s*20\s*mA\b.{0,220}?"
+        r"\bvoltage\s+output\s*(?::|\[)?\s*0\s*(?:to|[-–—])\s*10\s*V\b",
+        flags=re.I | re.S,
+    )
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not complete_output.search(content):
+            continue
+        bounded = int(
+            str((result.metadata or {}).get("chunk_type") or "")
+            in {"atomic_text", "table_record", "spec_record"}
+        )
+        matches.append((bounded, -len(content), -index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
 def _direct_variable_type_support(query: str, results: list[SearchResult]) -> list[str]:
     """Confirm an explicit bounded enumeration of variable types."""
     if not re.search(r"\b(?:what|which) types? of variables\b", query, flags=re.I):
@@ -4996,6 +5029,26 @@ def verify_retrieval_claim(
         }
 
     if not applicability_required:
+        direct_mu_n11_analog_output_support = _direct_mu_n11_analog_output_support(
+            hop.objective,
+            results,
+        )
+        if direct_mu_n11_analog_output_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_mu_n11_analog_output_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic MU-N11 analog-output verification matched both selectable "
+                    "current and voltage ranges in one scoped result."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
         direct_electrical_rating_support = _direct_compound_electrical_rating_support(
             hop.objective,
             results,
