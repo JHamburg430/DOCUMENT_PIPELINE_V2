@@ -290,6 +290,23 @@ def _direct_mechanism_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _direct_display_behavior_plan(query: str) -> RetrievalPlan | None:
+    """Keep one explicitly scoped display behavior in one retrieval hop."""
+    if not re.match(
+        r"^\s*how\s+does\b.+\b(?:display|show|indicate|represent)\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        return None
+    if re.search(r"\b(?:compare|versus|(?-i:vs)\.?|then\s+(?:what|which|how|why))\b", query, flags=re.I):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request asks for one source-backed display behavior.",
+        hops=[RetrievalHop(hop_id="display_behavior", objective=query, query=query, strategy="hybrid")],
+    )
+
+
 def _parallel_scope_plan(query: str) -> RetrievalPlan | None:
     """Recognize a common, document-general comparison shape without an LLM."""
     match = re.match(
@@ -933,6 +950,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     mechanism_plan = _direct_mechanism_plan(query)
     if mechanism_plan is not None:
         return mechanism_plan
+    display_behavior_plan = _direct_display_behavior_plan(query)
+    if display_behavior_plan is not None:
+        return display_behavior_plan
     analysis = analyze_query(query)
     identifiers = list(dict.fromkeys(analysis.product_identifiers))
     if "comparison" in analysis.query_types and len(identifiers) >= 2:
@@ -978,6 +998,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _labelled_lookup_plan(query)
         or _direct_explanatory_plan(query)
         or _direct_mechanism_plan(query)
+        or _direct_display_behavior_plan(query)
         or _direct_yes_no_plan(query)
     )
     if forced_plan is not None:
@@ -1019,6 +1040,8 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
             strategy = "hybrid"
         elif _direct_feature_amplifier_type_plan(hop.query) is not None:
             strategy = "hybrid"
+        elif _direct_display_behavior_plan(hop.query) is not None:
+            strategy = "hybrid"
         elif set(analysis.query_types).intersection({"configuration", "specification", "troubleshooting", "how_to"}):
             strategy = "structural"
         hops.append(
@@ -1055,6 +1078,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _labelled_lookup_plan(query) is not None
         or _direct_explanatory_plan(query) is not None
         or _direct_mechanism_plan(query) is not None
+        or _direct_display_behavior_plan(query) is not None
         or _direct_yes_no_plan(query) is not None
     ):
         return _llamaindex_heuristic_plan(query)
