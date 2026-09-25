@@ -5828,7 +5828,7 @@ def _concise_installed_distance_answer(
             ):
                 return (
                     "For the IV4 megapixel-resolution smart camera, the installation distance "
-                    "range is 50 mm (1.97 in) to over 3 m (9.8 ft).",
+                    "is 50 mm (1.97 in) to over 3 m (9.8 ft).",
                     [result],
                 )
     if not re.search(r"\bstandard\s+installed\s+distance\s+range\b", query, flags=re.I):

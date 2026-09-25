@@ -320,7 +320,7 @@ def test_generate_answer_extracts_iv4_megapixel_installation_distance(monkeypatc
     )
 
     assert answer.answer == (
-        "For the IV4 megapixel-resolution smart camera, the installation distance range is "
+        "For the IV4 megapixel-resolution smart camera, the installation distance is "
         "50 mm (1.97 in) to over 3 m (9.8 ft)."
     )
     assert trace["final_answer"]["answer_source"] == "deterministic_installed_distance"
