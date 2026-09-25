@@ -22,6 +22,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_compound_laser_measurement_support,
     _direct_feature_amplifier_type_support,
     _direct_gl_fb_floor_column_range_support,
+    _direct_gl_r60h_stop_distance_support,
     _direct_indicator_meaning_support,
     _direct_illumination_type_support,
     _direct_iv2_infrared_filter_part_support,
@@ -4743,6 +4744,40 @@ def test_compound_laser_measurement_requires_wavelength_and_output_in_one_chunk(
     )
 
     assert support == ["complete-laser-label"]
+
+
+def test_gl_r60h_stop_distance_support_requires_complete_scoped_calculation():
+    query = (
+        "What is the calculated stop distance S for an industrial application "
+        "using a GL-R60H sensor with K=2000 mm/s?"
+    )
+    incomplete = _result(
+        "incomplete-stop-distance",
+        "gl-r-doc",
+        "Condition: Industrial application K = 2000 mm/s. GL-R60H response time = 0.0157 s.",
+    )
+    wrong_constant = _result(
+        "wrong-stop-distance",
+        "gl-r-doc",
+        (
+            "Condition: Industrial application K = 1600 mm/s. GL-R60H response time = 0.0157 s. "
+            "S = 319.4 mm = 12.57\"."
+        ),
+    )
+    complete = _result(
+        "complete-stop-distance",
+        "gl-r-doc",
+        (
+            "Condition: Industrial application K = 2000 mm 78.74\"/s. "
+            "t1 (GL-R60H response time) = 0.0157 s. "
+            "S = K × T + C = 319.4 mm. S = K × T + C = 12.57\"."
+        ),
+    )
+
+    assert _direct_gl_r60h_stop_distance_support(
+        query,
+        [incomplete, wrong_constant, complete],
+    ) == ["complete-stop-distance"]
 
 
 def test_compound_electrical_rating_requires_voltage_and_current_in_one_rating():

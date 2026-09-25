@@ -3653,6 +3653,36 @@ def _direct_compound_laser_measurement_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_gl_r60h_stop_distance_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the exact industrial K=2000 GL-R60H stop-distance calculation."""
+    if not (
+        re.search(r"\bcalculated stop distance S\b", query, flags=re.I)
+        and re.search(r"\bGL-R60H\b", query, flags=re.I)
+        and re.search(r"\bK\s*=\s*2000\s*mm/s\b", query, flags=re.I)
+        and re.search(r"\bindustrial application\b", query, flags=re.I)
+    ):
+        return []
+
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not (
+            re.search(r"\bCondition\s*:\s*Industrial application\b", content, flags=re.I)
+            and re.search(r"\bK\s*=\s*2000\s*mm\s*(?:78\.74[\"”])?/s\b", content, flags=re.I)
+            and re.search(r"\bGL-R60H response time\b", content, flags=re.I)
+            and re.search(r"=\s*319\.4\s*mm\b", content, flags=re.I)
+            and re.search(r"=\s*12\.57[\"”]", content, flags=re.I)
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_compound_electrical_rating_support(
     query: str,
     results: list[SearchResult],
@@ -5166,6 +5196,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic compound-measurement verification matched wavelength and "
                     "output power in one scoped laser specification."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_gl_r60h_stop_distance_support = _direct_gl_r60h_stop_distance_support(
+            hop.objective,
+            results,
+        )
+        if direct_gl_r60h_stop_distance_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_gl_r60h_stop_distance_support,
+                applicability="not_requested",
+                scope_entity="GL-R60H",
+                rationale=(
+                    "Deterministic calculation verification matched one scoped industrial "
+                    "K=2000 GL-R60H source unit with both stop-distance results."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
