@@ -3682,6 +3682,24 @@ def _cross_document_semantic_evidence_is_applicable(
         return False
     answer_evidence = _result_answer_evidence_text(result)
     result_text = _compact_eval_identifier(answer_evidence)
+    query_answer_tokens = _answer_overlap_tokens(case.query)
+    expected_answer_tokens = _answer_overlap_tokens(case.expected_snippet)
+    numeric_candidates = {
+        token
+        for token in expected_answer_tokens - query_answer_tokens
+        if any(character.isdigit() for character in token)
+    }
+    answer_specific_numeric_tokens = {
+        token
+        for token in numeric_candidates
+        if not (token.endswith("s") and token[:-1] in numeric_candidates)
+    }
+    if answer_specific_numeric_tokens and not all(
+        _term_matches_evidence(token, answer_evidence)
+        or _compact_eval_identifier(token) in result_text
+        for token in answer_specific_numeric_tokens
+    ):
+        return False
     query_identifiers = {
         _compact_eval_identifier(identifier)
         for identifier in re.findall(

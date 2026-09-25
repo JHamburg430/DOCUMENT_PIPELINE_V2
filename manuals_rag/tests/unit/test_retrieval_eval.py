@@ -6627,6 +6627,48 @@ def test_score_search_results_accepts_short_duplicate_fact_with_explicit_model()
     assert evaluation["match_reason"] == "cross_document_semantic_evidence"
 
 
+def test_score_search_results_rejects_cross_document_context_without_answer_identifiers():
+    case = RetrievalEvalCase(
+        case_id="diagram-controller-models",
+        query=(
+            "Which XG-X controllers are shown in the system configuration diagram "
+            "when connected to an XT controller?"
+        ),
+        source_document_id="expected-diagram-doc",
+        document_version_id="expected-version",
+        source_chunk_id="expected-chunk",
+        source_title="XG-X specifications",
+        source_filename="xgx-specifications.pdf",
+        chunk_type="spec_record",
+        section_path="System configuration",
+        page_from=1,
+        page_to=1,
+        expected_terms=["system", "configuration", "diagram", "x2802/x2902"],
+        expected_snippet="System configuration diagram XG: X2802/X2902 (When connected to XT)",
+        generation_method="unit",
+        source_metadata={"product_family": "XG-X Series"},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "context-only",
+                "source_document_id": "different-xgx-manual",
+                "section_path": ["System configuration"],
+                "content": (
+                    "XG-X system configuration settings for capture using an XT camera. "
+                    "Select the connected camera model."
+                ),
+                "metadata": {"product_family": "XG-X Series", "chunk_type": "section_window"},
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is False
+    assert evaluation["match_reason"] == "no_match"
+
+
 def test_score_search_results_does_not_count_atomic_ranking_context_as_answer_evidence():
     case = RetrievalEvalCase(
         case_id="atomic-context-false-pass",
