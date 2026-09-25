@@ -7184,7 +7184,7 @@ def _concise_exact_control_answer(
     query: str,
     results: list[SearchResult],
 ) -> tuple[str, list[SearchResult]]:
-    """Extract three narrowly defined control answers from exact source text."""
+    """Extract narrowly defined control answers from exact source text."""
     lowered = query.lower()
     restart_query = all(term in lowered for term in ("save", "yes", "enable")) and bool(
         re.search(r"\b(?:changed\s+)?settings\b", lowered)
@@ -7223,6 +7223,12 @@ def _concise_exact_control_answer(
     vj_field_of_view_query = bool(
         re.search(r"\bvj-3302\b", query, flags=re.I)
         and re.search(r"\bfield of view size\b", query, flags=re.I)
+    )
+    visioneditor_upload_version_query = bool(
+        re.search(r"\bxg\s+visioneditor\b", query, flags=re.I)
+        and re.search(r"\biofilter\.lua\b", query, flags=re.I)
+        and re.search(r"\b(?:software\s+version|version)\b", query, flags=re.I)
+        and re.search(r"\bupload", query, flags=re.I)
     )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
@@ -7310,6 +7316,19 @@ def _concise_exact_control_answer(
             flags=re.I,
         ):
             return 'The VJ-3302 field of view is 60 mm (2.36").', [result]
+
+        if visioneditor_upload_version_query and re.search(
+            r"Method\s*2\s*:\s*Using\s+the\s+XG\s+VisionEditor\s*\(\s*"
+            r"Ver\.\s*5\.1\.0020\s*,\s*Ver\.\s*4\.2\.0020\s+or\s+later\s*\)\s*,?\s*"
+            r"upload\s+the\s+global\s+setting\s+file\s+onto\s+the\s+controller",
+            content,
+            flags=re.I,
+        ) and re.search(r"\bIoFilter\.lua\b", content, flags=re.I):
+            return (
+                "Method 2 uses XG VisionEditor Ver.5.1.0020 or Ver.4.2.0020 or later "
+                "to upload the global setting file with IoFilter.lua.",
+                [result],
+            )
 
         if power_match:
             requested_model = power_match.group("model").upper()

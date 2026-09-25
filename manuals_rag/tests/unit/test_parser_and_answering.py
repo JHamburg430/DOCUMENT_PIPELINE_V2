@@ -10249,6 +10249,15 @@ def test_structured_table_answer_binds_model_name_pivot_row():
             '1 µm 0.000039" precision repeatability, 0.6-second inspection intervals.',
             'The VJ-3302 field of view is 60 mm (2.36").',
         ),
+        (
+            "Which software version of XG VisionEditor supports uploading the global setting "
+            "file with IoFilter.lua?",
+            "Method 1: Put IoFilter.lua into SD1:xg/setting/. Method 2: Using the XG "
+            "VisionEditor(Ver.5.1.0020, Ver.4.2.0020 or later), upload the global setting "
+            "file onto the controller. IoFilter.lua is uploaded together with it.",
+            "Method 2 uses XG VisionEditor Ver.5.1.0020 or Ver.4.2.0020 or later to upload "
+            "the global setting file with IoFilter.lua.",
+        ),
     ],
 )
 def test_generate_answer_uses_exact_control_evidence_without_model(
