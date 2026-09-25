@@ -842,6 +842,24 @@ def _shared_setting_value_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _direct_range_value_plan(query: str) -> RetrievalPlan | None:
+    """Keep one explicit lower/upper or range-value lookup in one hybrid hop."""
+    if not re.match(r"^\s*what\b", query, flags=re.I):
+        return None
+    if not re.search(
+        r"\b(?:lower\s+and\s+upper\s+(?:limit\s+)?values?|"
+        r"(?:value|measurement|distance|temperature|voltage|current)\s+range)\b",
+        query,
+        flags=re.I,
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request asks for both endpoints of one scoped value range.",
+        hops=[RetrievalHop(hop_id="range_value", objective=query, query=query, strategy="hybrid")],
+    )
+
+
 def _heuristic_plan(query: str) -> RetrievalPlan:
     function_plan = _xg_lua_output_function_plan(query)
     if function_plan is not None:
@@ -864,6 +882,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     setting_value_plan = _shared_setting_value_plan(query)
     if setting_value_plan is not None:
         return setting_value_plan
+    range_value_plan = _direct_range_value_plan(query)
+    if range_value_plan is not None:
+        return range_value_plan
     coordinate_plan = _coordinate_question_plan(query)
     if coordinate_plan is not None:
         return coordinate_plan
@@ -921,6 +942,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _troubleshooting_facet_plan(query)
         or _comparison_facet_plan(query)
         or _shared_setting_value_plan(query)
+        or _direct_range_value_plan(query)
         or _coordinate_question_plan(query)
         or _explicit_dependency_sequence_plan(query)
         or _reported_clause_plan(query)
@@ -965,6 +987,8 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
             pass
         elif analysis.product_identifiers and len(analysis.normalized_terms) <= 3:
             strategy = "sparse"
+        elif _direct_range_value_plan(hop.query) is not None:
+            strategy = "hybrid"
         elif set(analysis.query_types).intersection({"configuration", "specification", "troubleshooting", "how_to"}):
             strategy = "structural"
         hops.append(
@@ -992,6 +1016,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _troubleshooting_facet_plan(query) is not None
         or _comparison_facet_plan(query) is not None
         or _shared_setting_value_plan(query) is not None
+        or _direct_range_value_plan(query) is not None
         or _coordinate_question_plan(query) is not None
         or _explicit_dependency_sequence_plan(query) is not None
         or _reported_clause_plan(query) is not None

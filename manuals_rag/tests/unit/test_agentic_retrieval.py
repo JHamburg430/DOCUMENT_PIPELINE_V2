@@ -1035,6 +1035,25 @@ def test_model_planners_keep_scoped_yes_no_question_single_hop(monkeypatch):
         assert plan.hops[0].strategy == "hybrid"
 
 
+def test_model_planners_keep_lower_upper_value_lookup_single_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("direct range-value planning must not invoke the model")
+        ),
+    )
+    query = (
+        "What lower and upper limit values should I configure for the analog output "
+        "on the LR-W70(C) Edition?"
+    )
+
+    for plan in (plan_retrieval(query), plan_llamaindex_retrieval(query)):
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "hybrid"
+
+
 def test_planners_keep_explicit_manual_frame_rate_lookup_single_hop(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
