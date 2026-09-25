@@ -1707,13 +1707,21 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
         "product_family",
         "product_families",
         "devices",
-        "manufacturer",
     ):
         value = metadata.get(key)
         if isinstance(value, (list, tuple, set)):
             legacy_scope_values.extend(str(item) for item in value if item)
         elif value:
             legacy_scope_values.append(str(value))
+    manufacturer = str(metadata.get("manufacturer") or "").strip()
+    # Manufacturer metadata is occasionally a parser placeholder (for example
+    # ``ABC Co.``), not product identity.  Keep concrete manufacturer labels
+    # such as ``XG: X Series`` authoritative, but let truly unscoped legacy
+    # chunks fall through to their explicit textual model identifier.
+    normalized_manufacturer = re.sub(r"[_./]+", " ", manufacturer)
+    normalized_manufacturer = re.sub(r"\s*([:-])\s*", r"\1", normalized_manufacturer)
+    if manufacturer and analyze_query(normalized_manufacturer).product_identifiers:
+        legacy_scope_values.append(manufacturer)
     product_family = str(metadata.get("product_family") or "").strip()
     if product_family and product_model:
         # Older metadata often stores a vendor prefix/family and the concrete

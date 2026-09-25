@@ -1320,6 +1320,34 @@ def test_scope_matching_normalizes_spaced_colon_in_authoritative_manufacturer():
     assert _result_supports_branch_scope(query, near_match) is False
 
 
+def test_scope_matching_ignores_generic_manufacturer_placeholder_for_explicit_product_text():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    result = _result(
+        "interfaces",
+        "sz-v-brochure",
+        "Directly connect to SZ-V Series scanners through either USB or Ethernet.",
+    ).model_copy(
+        update={
+            "title": "AS_124659_SZ-V_C.pdf",
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "manufacturer": "ABC Co.",
+                "product_model": None,
+                "product_family": None,
+                "product_models": [],
+                "product_families": [],
+                "devices": [],
+            },
+        }
+    )
+
+    assert _result_supports_branch_scope(
+        "Which interfaces connect directly to SZ-V Series scanners?",
+        result,
+    ) is True
+
+
 def test_scope_matching_accepts_exact_structured_model_label_with_family_metadata():
     from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
 
