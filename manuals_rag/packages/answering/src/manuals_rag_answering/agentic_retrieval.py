@@ -3046,6 +3046,40 @@ def _direct_height_gradient_display_support(
     return matches[:1]
 
 
+def _direct_illumination_method_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm a shared model-bound illumination-method specification row."""
+    if not re.search(r"\billumination methods?\b", query, flags=re.I):
+        return []
+    identifiers = {
+        re.sub(r"[^a-z0-9]+", "", identifier.lower())
+        for identifier in analyze_query(query).product_identifiers
+        if re.sub(r"[^a-z0-9]+", "", identifier.lower())
+    }
+    if not identifiers:
+        return []
+
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        compact_content = re.sub(r"[^a-z0-9]+", "", content.lower())
+        if (
+            str(metadata.get("chunk_type") or "") not in {"table_record", "spec_record"}
+            or len(content) > 700
+            or not _result_supports_branch_scope(query, result)
+            or not re.search(r"\billumination method\s*\|", content, flags=re.I)
+            or not re.search(r"\bblock lighting format\b", content, flags=re.I)
+            or not re.search(r"\bpattern projection\b", content, flags=re.I)
+            or not all(identifier in compact_content for identifier in identifiers)
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_illumination_type_support(
     query: str,
     results: list[SearchResult],
@@ -4703,6 +4737,26 @@ def verify_retrieval_claim(
                     "Deterministic height-display verification matched one scoped atomic "
                     "sentence binding the selected region or points to the "
                     "orange-to-light-blue height gradient."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_illumination_method_support = _direct_illumination_method_support(
+            hop.objective,
+            results,
+        )
+        if direct_illumination_method_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_illumination_method_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic illumination-method verification matched one structured "
+                    "specification row binding every requested model to the shared method list."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

@@ -4226,6 +4226,48 @@ def test_illumination_type_support_prefers_query_vocabulary_and_rejects_marketin
     ]
 
 
+def test_verifier_confirms_shared_pattern_light_illumination_method_row(monkeypatch):
+    objective = (
+        "Which illumination methods are listed for the CA-DQP12X and CA-DQP25X "
+        "pattern-projection lights?"
+    )
+    hop = RetrievalHop(hop_id="side_1", objective=objective, query=objective)
+    unrelated = _result(
+        "marketing-copy",
+        "other-doc",
+        "CA-DQP12X and CA-DQP25X provide advanced pattern projection illumination.",
+    )
+    result = _result(
+        "shared-method-row",
+        "vj-doc",
+        "Illumination method | Block lighting format Pattern projection technique emission/"
+        "profile image capture emission/LumiTrax emission/normal light emission Fixed current "
+        "control mode (1024 intensity range digital: via CA-DC60E connection: configurable for "
+        "each light source)\nModel: Pattern; CA-DQP12X: Color; CA-DQP25X: White",
+    )
+    result.metadata.update(
+        {
+            "chunk_type": "table_record",
+            "identifier_tokens": ["CA-DQP12X", "CA-DQP25X"],
+        }
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [unrelated, result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == [result.chunk_id]
+
+
 def test_saved_settings_activation_support_requires_save_yes_context():
     query = (
         "In the VS Series KUKA robot connection manual, after pressing Save and "
