@@ -17,6 +17,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_ca_e100_camera_count_support,
     _direct_controller_image_capacity_support,
     _direct_devid_protocol_mapping_support,
+    _direct_detection_capability_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _direct_feature_amplifier_type_support,
@@ -287,6 +288,53 @@ def test_verifier_deterministically_rejects_results_outside_requested_identifier
     assert output["claim_supported"] is False
     assert output["supporting_chunk_ids"] == []
     assert output["scope_candidate_chunk_ids"] == []
+
+
+def test_detection_capability_support_requires_exact_model_and_beam_count():
+    matching = _result(
+        "r60h",
+        "safety-doc",
+        'When using the GL: R60H (detection capability d = 25 mm 0.98" and 60 beam axes)',
+    )
+    wrong_model = _result(
+        "r80h",
+        "safety-doc",
+        'When using the GL: R80H (detection capability d = 25 mm 0.98" and 80 beam axes)',
+    )
+
+    assert _direct_detection_capability_support(
+        "What is the detection capability d for the GL-R60H sensor with 60 beam axes?",
+        [wrong_model, matching],
+    ) == [matching.chunk_id]
+    assert _direct_detection_capability_support(
+        "What is the detection capability d for the GL-R60H sensor with 80 beam axes?",
+        [wrong_model, matching],
+    ) == []
+
+
+def test_verifier_confirms_atomic_detection_capability_clause_without_llm(monkeypatch):
+    query = "What is the detection capability d for the GL-R60H sensor with 60 beam axes?"
+    hop = RetrievalHop(hop_id="detection", objective=query, query=query)
+    matching = _result(
+        "r60h",
+        "safety-doc",
+        'When using the GL: R60H (detection capability d = 25 mm 0.98" and 60 beam axes)',
+    )
+    matching.metadata["product_model"] = "AS_114958_TG_611O36_KA_US_2075_2"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [matching],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [matching.chunk_id]
 
 
 def test_planners_keep_value_applies_to_lookup_structural_and_single_hop(monkeypatch):

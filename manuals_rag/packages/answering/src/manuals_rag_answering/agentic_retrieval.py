@@ -1734,6 +1734,47 @@ def _direct_reference_plane_dent_support(
     return []
 
 
+def _direct_detection_capability_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm one model/beam-count/detection-capability clause atomically."""
+
+    if not (
+        re.search(r"\bdetection\s+capability\b", query, flags=re.I)
+        and re.search(r"\bbeam\s+axes\b", query, flags=re.I)
+    ):
+        return []
+    requested_identifiers = {
+        re.sub(r"[^a-z0-9]+", "", identifier.casefold())
+        for identifier in analyze_query(query).product_identifiers
+        if identifier
+    }
+    axes_match = re.search(r"\b(?P<axes>\d+)\s+beam\s+axes\b", query, flags=re.I)
+    if len(requested_identifiers) != 1 or axes_match is None:
+        return []
+    requested_identifier = next(iter(requested_identifiers))
+    requested_axes = axes_match.group("axes")
+    clause_pattern = re.compile(
+        r"\bwhen\s+using\s+(?:the\s+)?"
+        r"(?P<model>[A-Z][A-Z0-9]*(?:\s*[:\-]\s*[A-Z0-9]+)+)"
+        r"\s*\(\s*detection\s+capability\s+d\s*=\s*"
+        r"(?P<metric>\d+(?:\.\d+)?\s*mm)\s+"
+        r"(?P<imperial>\d+(?:\.\d+)?\s*(?:in(?:ch(?:es)?)?|[\"″]))"
+        r"\s*(?:,|and)\s*(?P<axes>\d+)\s+beam\s+axes\b",
+        flags=re.I,
+    )
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        for match in clause_pattern.finditer(content):
+            model = re.sub(r"[^a-z0-9]+", "", match.group("model").casefold())
+            if model == requested_identifier and match.group("axes") == requested_axes:
+                matches.append((len(content), index, result.chunk_id))
+                break
+    return [min(matches)[2]] if matches else []
+
+
 def _verification_evidence(
     results: list[SearchResult],
     *,
@@ -4704,6 +4745,27 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_iv2_filter_support,
+        }
+
+    direct_detection_capability_support = _direct_detection_capability_support(
+        hop.objective,
+        results,
+    )
+    if direct_detection_capability_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_detection_capability_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic specification verification matched one atomic clause binding "
+                "the exact model and beam count to both metric and imperial detection capability."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_detection_capability_support,
         }
 
     requested_identifiers = list(analyze_query(hop.objective).product_identifiers)
