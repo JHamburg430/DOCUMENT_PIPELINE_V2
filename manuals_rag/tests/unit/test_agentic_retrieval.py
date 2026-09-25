@@ -2582,6 +2582,47 @@ def test_verifier_confirms_scoped_yes_no_sentence_without_llm(monkeypatch):
     assert output["supporting_chunk_ids"] == ["capture-units"]
 
 
+def test_verifier_keeps_npn_pnp_input_roles_bound_to_mosfet_evidence(monkeypatch):
+    query = "Can I connect NPN or PNP inputs to the LJ: S8000 series head output elements?"
+    hop = RetrievalHop(hop_id="polarity", objective=query, query=query)
+    wrong = _result(
+        "output-diagram",
+        "lj-s8000-user-manual",
+        "24V DC NPN output Head and controller input circuit. Example of PNP output connection.",
+    )
+    exact = _result(
+        "mosfet-inputs",
+        "lj-s8000-head-manual",
+        "Because this unit utilizes a photo MOSFET in the output elements, any of NPN inputs "
+        "and PNP inputs can be connected.",
+    )
+    for result in (wrong, exact):
+        result.metadata.update(
+            {
+                "chunk_type": "atomic_text",
+                "product_model": "LJ: S8000 series head",
+                "product_family": "LJ: S8000 series head",
+            }
+        )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [wrong, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": [wrong.chunk_id, exact.chunk_id],
+        },
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [exact.chunk_id]
+
+
 def test_verifier_confirms_model_led_negative_yes_no_answer_without_llm(monkeypatch):
     query = "Can the LR-W500 be used to protect human body parts?"
     hop = RetrievalHop(hop_id="safety", objective=query, query=query)

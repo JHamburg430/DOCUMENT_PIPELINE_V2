@@ -4029,6 +4029,45 @@ def _direct_scoped_yes_no_support(
     return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
 
 
+def _direct_dual_polarity_input_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Bind NPN/PNP input compatibility to the stated MOSFET output elements."""
+    if not (
+        re.search(r"\bNPN\s+or\s+PNP\s+inputs?\b", query, flags=re.I)
+        and re.search(r"\boutput\s+elements?\b", query, flags=re.I)
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, int, str]] = []
+    for index, result in enumerate(results):
+        if (
+            result.chunk_id not in preliminary_ids
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not (
+            re.search(r"\bNPN\s+inputs?\b", content, flags=re.I)
+            and re.search(r"\bPNP\s+inputs?\b", content, flags=re.I)
+            and re.search(r"\bcan\s+be\s+connected\b", content, flags=re.I)
+            and re.search(r"\bphoto\s+MOSFET\b", content, flags=re.I)
+            and re.search(r"\boutput\s+elements?\b", content, flags=re.I)
+        ):
+            continue
+        bounded = int(
+            str(result.metadata.get("chunk_type") or "")
+            in {"atomic_text", "procedure_record", "spec_record"}
+        )
+        matches.append((bounded, -len(content), -index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
 def _direct_interface_connection_support(
     query: str,
     results: list[SearchResult],
@@ -4829,6 +4868,28 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic flowchart-rule verification matched one scoped passage "
                     "containing the flowchart, branch condition, and normative instruction."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_dual_polarity_support = _direct_dual_polarity_input_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_dual_polarity_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_dual_polarity_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic polarity verification matched NPN and PNP inputs, the "
+                    "connection predicate, and the MOSFET output-element rationale in one "
+                    "scoped evidence unit."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
