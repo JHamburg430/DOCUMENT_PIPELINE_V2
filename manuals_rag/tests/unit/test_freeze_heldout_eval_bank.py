@@ -638,10 +638,10 @@ def test_repairs_pc_to_plc_query_with_exact_protocol_scope():
     )
 
 
-def test_repairs_generic_xg_x_shutter_query_with_camera_model_scope():
+def test_repairs_generic_xg_x_shutter_query_with_document_table_scope():
     expected = (
-        "What electronic shutter speed range can I set on a CA-200C or CA-200M "
-        "camera in the XG-X Series?"
+        "In the AS_160148 XG-X camera specification table, what electronic shutter range "
+        "is listed immediately before the C-mount lens-mount row?"
     )
 
     assert _MODULE.normalize_frozen_query(
@@ -649,6 +649,10 @@ def test_repairs_generic_xg_x_shutter_query_with_camera_model_scope():
     ) == expected
     assert _MODULE.normalize_frozen_query(
         "What electronic shutter speed range can I set on an XG-X Series camera?"
+    ) == expected
+    assert _MODULE.normalize_frozen_query(
+        "What electronic shutter speed range can I set on a CA-200C or CA-200M camera "
+        "in the XG-X Series?"
     ) == expected
 
 
