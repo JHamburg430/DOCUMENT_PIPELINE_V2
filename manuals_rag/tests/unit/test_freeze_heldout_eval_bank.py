@@ -325,6 +325,26 @@ def test_rejects_selection_recommendation_without_selection_criterion():
     ) == ["selection criterion"]
 
 
+def test_accepts_analog_output_range_inventory_without_recommendation():
+    assert _MODULE.missing_query_qualifiers(
+        "When analog output is used on the MU-N11, which current and voltage "
+        "output ranges are selectable?",
+        "Current output [4 - 20mA] Voltage output [0 - 10V]",
+        "Selecting Analog Output (only for MU-N11). Current output [4 - 20mA] "
+        "Voltage output [0 - 10V]",
+    ) == []
+
+
+def test_accepts_movable_range_when_subject_is_disambiguated():
+    assert _MODULE.missing_query_qualifiers(
+        "For the LJ-S8000 dedicated stand, what non-stage movable range is "
+        "specified alongside the separate 52 mm stage movable range?",
+        'Movable range: 10 mm 0.39" (±5 mm ±0.20")',
+        'Stage movable range: 52 mm 2.05" (±26 mm ±1.02"). '
+        'Movable range: 10 mm 0.39" (±5 mm ±0.20")',
+    ) == []
+
+
 def test_rejects_effect_question_without_with_and_without_output_load_evidence():
     assert _MODULE.missing_answer_requirements(
         "How does including an output load of 120 mA affect current consumption?",

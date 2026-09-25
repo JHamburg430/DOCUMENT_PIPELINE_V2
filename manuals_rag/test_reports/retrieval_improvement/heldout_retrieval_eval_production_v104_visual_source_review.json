@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "dataset": "tests/fixtures/heldout_retrieval_eval_production_v104.jsonl",
+  "dataset_sha256": "1e4b8a22eaa913c810e001c5cab34e8891c07808bcbdd1b263ac10fae75cdc6d",
+  "reviewer_type": "assistant_visual_pdf_review",
+  "human_reviewed": false,
+  "production_signoff": false,
+  "reviewed_at": "2026-09-25T21:08:37+00:00",
+  "cases": [
+    {
+      "case_id": "41a12712-665b-5712-a5b7-50b62eaed698::replacement-v104",
+      "source_filename": "AS_151119_LJ-S8000_C_689103_KA_US_2025_1.pdf",
+      "source_pdf_sha256": "2a8ebad1c09199bf00a380cff061a38c904da09d69100a727b936d08728dda0d",
+      "pdf_page": 39,
+      "render_sha256": "b5d0e5625358e81c9aa04ab6df2aa239e81ef42eba8d8257aab602c8379297ec",
+      "observed_evidence": [
+        "Movable range: 10 mm / 0.39 in (plus or minus 5 mm / 0.20 in)",
+        "Stage movable range: 52 mm / 2.05 in (plus or minus 26 mm / 1.02 in)"
+      ],
+      "review_status": "assistant_source_verified",
+      "review_note": "The replacement query explicitly distinguishes the non-stage value from the separately labelled stage range."
+    },
+    {
+      "case_id": "5c310946-335c-5dfe-8afd-c660a79a9e1a::replacement-v104",
+      "source_filename": "AS_77987_LR-W_UM_542GB_WW_GB_1125_1.pdf",
+      "source_pdf_sha256": "ab798b33b701464f496d71fc4018ceaca1065ac9967695c633baca520f50d727",
+      "pdf_page": 4,
+      "render_sha256": "0d899c1805e023b6947102a390de4dd246c4cd6f563aaea5c1152b64e0176db4",
+      "observed_evidence": [
+        "Selecting Analog Output (only for MU-N11)",
+        "Current output: 4-20 mA",
+        "Voltage output: 0-10 V"
+      ],
+      "review_status": "assistant_source_verified",
+      "review_note": "The replacement asks for the two documented selectable ranges and does not request an unsupported recommendation."
+    }
+  ],
+  "open_gate": "Explicit human visual-PDF adjudication is still required before production enablement."
+}

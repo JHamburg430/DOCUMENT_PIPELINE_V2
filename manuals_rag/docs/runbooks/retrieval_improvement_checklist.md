@@ -246,6 +246,17 @@ this sample. Existing LangGraph, Qdrant, and MRV mechanisms are retained.
   matrix is intentionally deferred until two source-reviewed replacement cases
   are added. Production remains disabled, with the separate frozen-bank and
   human visual-PDF gates still open.
+- Additive v104 restores the immutable bank to 200 cases without modifying
+  v102 or v103. The two replacement queries retain the original source anchors
+  while explicitly disambiguating the LJ-S8000 non-stage movable range and
+  asking for the MU-N11's documented analog-output range inventory instead of
+  an unsupported recommendation. The supported freezer accepted 200/200 cases
+  with dataset SHA-256
+  `1e4b8a22eaa913c810e001c5cab34e8891c07808bcbdd1b263ac10fae75cdc6d`;
+  its focused unit suite passed 173/173. Assistant visual review of the two
+  source PDF pages is recorded separately and remains `human_reviewed=false`.
+  Production stays disabled pending a clean full v104 matrix, independent
+  audit, and explicit human visual-PDF sign-off.
 
 ### Latest checkpoint
 
