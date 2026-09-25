@@ -7735,6 +7735,36 @@ def test_instruction_answer_respects_disable_polarity():
     assert trace["final_answer"]["answer_source"] == "deterministic_instruction"
 
 
+def test_password_range_answer_covers_range_and_zero_behavior():
+    result = SearchResult(
+        chunk_id="w500-password-range",
+        score=0.9,
+        title="LR-W500 Instruction Manual",
+        document_version_id="v1",
+        source_document_id="w500-doc",
+        pages=[3],
+        section_path=["Password"],
+        content=(
+            "An optional password can be set for the 6-1 Key Lock. Select a value from 1 to 999 "
+            "for this setting. If '0' is selected, the password will not be required."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "W500"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What password values can be set for the W500 Key Lock, and what does selecting 0 do?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "The Key Lock password can be set from 1 to 999. Selecting 0 means the password is not "
+        "required."
+    )
+    assert answer.citations[0]["chunk_id"] == "w500-password-range"
+    assert not answer.insufficient_evidence
+    assert trace["final_answer"]["answer_source"] == "deterministic_password_range"
+
+
 def test_structured_table_answer_binds_repeated_wiring_record():
     result = SearchResult(
         chunk_id="iv-out3-records",

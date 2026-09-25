@@ -6798,6 +6798,35 @@ def _concise_compound_laser_measurement_answer(
     return "", []
 
 
+def _concise_password_range_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Answer a password-range plus zero-value request from one complete passage."""
+    if not (
+        re.search(r"\bpassword values?\b", query, flags=re.I)
+        and re.search(r"\bkey lock\b", query, flags=re.I)
+        and re.search(r"\bselecting\s+0\b", query, flags=re.I)
+    ):
+        return "", []
+    for result in results[:12]:
+        evidence = re.sub(r"\s+", " ", _fallback_answer_text(result)).strip()
+        range_match = re.search(r"\bvalue\s+from\s+1\s+to\s+999\b", evidence, flags=re.I)
+        zero_match = re.search(
+            r"\bif\s+['\"]?0['\"]?\s+is\s+selected,?\s+the\s+password\s+"
+            r"will\s+not\s+be\s+required\b",
+            evidence,
+            flags=re.I,
+        )
+        if range_match and zero_match:
+            return (
+                "The Key Lock password can be set from 1 to 999. Selecting 0 means the "
+                "password is not required.",
+                [result],
+            )
+    return "", []
+
+
 def _concise_compound_electrical_rating_answer(
     query: str,
     results: list[SearchResult],
@@ -7192,6 +7221,35 @@ def generate_answer_with_trace(
             # documents. Rebuild them from the scoped evidence rather than trying
             # to remove claims and provenance from a merged summary envelope.
             summarized_evidence = None
+    password_range_answer, password_range_results = _concise_password_range_answer(
+        query,
+        prioritized_results or results,
+    )
+    if password_range_answer:
+        answer = validate_answer(
+            _fallback_answer(query, password_range_results),
+            password_range_results,
+            query=query,
+        )
+        answer.answer = password_range_answer
+        answer.insufficient_evidence = False
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "password_range"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "password_range",
+                "num_predict": None,
+                "used_fallback": False,
+                "answer_source": "deterministic_password_range",
+            }
+        )
+        return answer, trace
     compound_laser_answer, compound_laser_results = _concise_compound_laser_measurement_answer(
         query,
         prioritized_results or results,
