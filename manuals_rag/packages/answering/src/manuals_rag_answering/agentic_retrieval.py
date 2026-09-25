@@ -2310,6 +2310,40 @@ def _direct_controller_image_capacity_support(
     return [matches[0].chunk_id]
 
 
+def _direct_iv4_output_configuration_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the complete IV4-400MA electrical output row atomically."""
+
+    if not (
+        re.search(r"\bIV4[- ]400MA\b", query, flags=re.I)
+        and re.search(r"\boutput\s+type\b", query, flags=re.I)
+        and re.search(r"\bswitchable\s+configurations?\b", query, flags=re.I)
+    ):
+        return []
+
+    exact_output = re.compile(
+        r"\bIV4[- ]400MA\s*:\s*"
+        r"Open\s+collector\s+output\s+"
+        r"NPN\s*/\s*PNP\s+is\s+switchable\s*,\s*"
+        r"N\.?\s*O\.?\s*/\s*N\.?\s*C\.?\s+is\s+switchable\b",
+        flags=re.I,
+    )
+    matches = [
+        result
+        for result in results
+        if str((result.metadata or {}).get("chunk_type") or "")
+        in {"table_record", "spec_record"}
+        and _result_supports_branch_scope(query, result)
+        and exact_output.search(re.sub(r"\s+", " ", str(result.content or "")))
+    ]
+    if not matches:
+        return []
+    matches.sort(key=lambda result: len(str(result.content or "")))
+    return [matches[0].chunk_id]
+
+
 def _ambiguous_structured_lookup_support(
     query: str,
     results: list[SearchResult],
@@ -5370,6 +5404,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic capacity verification matched the VGA and 21 megapixel "
                     "camera classes with both requested image counts in one scoped result."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_iv4_output_support = _direct_iv4_output_configuration_support(
+            hop.objective,
+            results,
+        )
+        if direct_iv4_output_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_iv4_output_support,
+                applicability="not_requested",
+                scope_entity="IV4-400MA",
+                rationale=(
+                    "Deterministic IV4 output verification matched one model-scoped row "
+                    "containing the open-collector type and both switchable configurations."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

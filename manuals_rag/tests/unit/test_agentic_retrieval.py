@@ -21,6 +21,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_feature_amplifier_type_support,
     _direct_indicator_meaning_support,
     _direct_illumination_type_support,
+    _direct_iv4_output_configuration_support,
     _direct_manual_focus_installation_support,
     _direct_pc_to_plc_menu_path_support,
     _direct_password_setting_support,
@@ -2510,6 +2511,65 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
         [wrong_table],
         {"claim_supported": True, "supporting_chunk_ids": ["wrong-archive-table"]},
     ) == []
+
+
+def test_iv4_output_configuration_requires_complete_model_scoped_electrical_row(monkeypatch):
+    query = (
+        "What output type and switchable configurations are specified for the "
+        "IV4-400MA?"
+    )
+    exact = _result(
+        "iv4-output",
+        "iv4-doc",
+        "IV4-400CA: Output; IV4-400MA: Open collector output NPN/PNP is "
+        "switchable, N.O./N.C. is switchable. Maximum rating 26.4 V 50mA.",
+    )
+    output_monitor = _result(
+        "iv4-output-monitor",
+        "iv4-doc",
+        "IV4-400MA: Operation Information; Output monitor is switchable between "
+        "ON and OFF for each output.",
+    )
+    sibling_model = _result(
+        "iv4-sibling-output",
+        "iv4-doc",
+        "IV4-500MA: Open collector output NPN/PNP is switchable, N.O./N.C. is "
+        "switchable.",
+    )
+
+    assert _direct_iv4_output_configuration_support(
+        query,
+        [output_monitor, sibling_model, exact],
+    ) == ["iv4-output"]
+    assert _direct_iv4_output_configuration_support(
+        query,
+        [output_monitor, sibling_model],
+    ) == []
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("LLM verifier must not run")
+        ),
+    )
+    hop = RetrievalHop(hop_id="output", objective=query, query=query)
+    verdict = verify_retrieval_claim(
+        hop,
+        query,
+        [output_monitor, sibling_model, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": [
+                "iv4-output-monitor",
+                "iv4-sibling-output",
+                "iv4-output",
+            ],
+        },
+    )
+
+    assert verdict["trust_state"] == "confirmed"
+    assert verdict["claim_supported"] is True
+    assert verdict["supporting_chunk_ids"] == ["iv4-output"]
 
 
 def test_verifier_confirms_model_matrix_axis_measurement_without_llm(monkeypatch):
