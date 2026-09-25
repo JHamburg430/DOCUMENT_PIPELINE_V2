@@ -1666,7 +1666,17 @@ def _external_agent_matrix_candidate(launch_path: Path) -> dict | None:
     artifact_dir = launch_path.parent
     completed_items: dict[str, dict] = {}
     report_paths: list[Path] = []
-    for report_path in artifact_dir.glob("*.json"):
+    # Segmented matrix runs share a stable cohort prefix such as
+    # ``agent_matrix_v58-``.  Restrict reconciliation to that cohort instead
+    # of parsing every JSON artifact in the report directory; production
+    # directories contain hundreds of unrelated historical reports.
+    cohort_prefix = contract["run_id"].split("-", 1)[0]
+    report_candidates = list(artifact_dir.glob(f"{cohort_prefix}-*.json")) if cohort_prefix else []
+    if final_path not in report_candidates:
+        report_candidates.append(final_path)
+    for report_path in report_candidates:
+        if not report_path.exists():
+            continue
         if report_path.name.endswith((".launch.json", ".partial.json")):
             continue
         report = _validated_agent_matrix_report(report_path, contract, complete=True)

@@ -697,6 +697,8 @@ def test_external_agent_matrix_artifacts_bridge_running_48_of_200_and_reconcile(
         ),
         encoding="utf-8",
     )
+    decoy = artifacts / "unrelated_historical_matrix.json"
+    decoy.write_text("{not-json", encoding="utf-8")
 
     run_id = "agent_matrix_v54-remainder43-f5d8a11"
     launch = provenance(run_id, 43, keys[43:])
@@ -728,6 +730,14 @@ def test_external_agent_matrix_artifacts_bridge_running_48_of_200_and_reconcile(
     monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
     monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
     monkeypatch.setattr(ui_server, "_agent_matrix_lock_is_live", lambda path, artifact_run_id: live["value"])
+    original_artifact_reader = ui_server._agent_matrix_artifact_json
+    inspected_paths = []
+
+    def tracking_artifact_reader(path):
+        inspected_paths.append(path)
+        return original_artifact_reader(path)
+
+    monkeypatch.setattr(ui_server, "_agent_matrix_artifact_json", tracking_artifact_reader)
 
     snapshot = ui_server._external_agent_matrix_run()
     assert snapshot["id"] == f"external-eval-{run_id}"
@@ -735,6 +745,7 @@ def test_external_agent_matrix_artifacts_bridge_running_48_of_200_and_reconcile(
     assert snapshot["completed_questions"] == 48
     assert snapshot["limit"] == 200
     assert snapshot["segment_completed"] == 5
+    assert decoy not in inspected_paths
     matrix = ui_server._build_agent_matrix()
     assert matrix["active_job"]["id"] == snapshot["id"]
     assert len(matrix["rows"]) == 200
