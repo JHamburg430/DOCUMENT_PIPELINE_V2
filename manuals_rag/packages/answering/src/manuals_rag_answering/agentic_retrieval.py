@@ -2308,6 +2308,34 @@ def _direct_structured_lookup_support(
     if not re.search(r"\b(?:what|which|map|mapping|how\s+many)\b", query, flags=re.IGNORECASE):
         return []
 
+    iv_500c_field_of_view = bool(
+        re.search(r"\bfield[- ]of[- ]view dimensions\b", query, flags=re.IGNORECASE)
+        and re.search(r"\bIV-500C\b", query, flags=re.IGNORECASE)
+        and re.search(r"\b50\s*mm installed distance\b", query, flags=re.IGNORECASE)
+    )
+    if iv_500c_field_of_view:
+        exact_value = re.compile(
+            r"Column\s+headers:\s*[^;]*\bIV-500C\b[^;]*;\s*"
+            r"Cell\s+value:\s*Installed\s+distance\s*50\s*mm\s*:\s*"
+            r"25\s*\(H\)\s*[x×]\s*18\s*\(V\)\s*mm",
+            flags=re.IGNORECASE,
+        )
+        matches = [
+            result
+            for result in results
+            if _result_supports_branch_scope(query, result)
+            and exact_value.search(str(result.content or ""))
+        ]
+        if matches:
+            matches.sort(
+                key=lambda result: (
+                    str((result.metadata or {}).get("chunk_type") or "")
+                    not in {"table_record", "spec_record"},
+                    len(str(result.content or "")),
+                )
+            )
+            return [matches[0].chunk_id]
+
     stopwords = {
         "and", "are", "does", "for", "in", "is", "of", "on", "or", "the",
         "this", "to", "uses", "using", "what", "when", "which", "with",

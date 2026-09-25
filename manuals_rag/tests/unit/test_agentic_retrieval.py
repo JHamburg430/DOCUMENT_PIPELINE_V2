@@ -2329,6 +2329,49 @@ def test_verifier_prefers_requested_power_voltage_row_over_connector_sibling(mon
     assert output["supporting_chunk_ids"] == [exact.chunk_id]
 
 
+def test_verifier_prefers_iv_500c_field_of_view_cell_over_distance_range(monkeypatch):
+    objective = "What field-of-view dimensions does the IV-500C have at a 50 mm installed distance?"
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    wrong = _result(
+        "distance-range",
+        "iv500c-doc",
+        "Column headers: IV-500C; Row headers: Installed distance; "
+        "Cell value: Standard distance (50 to 500 mm); Row: 1; Column: 2",
+    )
+    exact = _result(
+        "field-of-view",
+        "iv500c-doc",
+        "Column headers: IV-500C > IV-500CA > IV-500M > IV-500MA; "
+        "Cell value: Installed distance 50 mm: 25 (H) x 18 (V)mm to; "
+        "Row: 2; Column: 2",
+    )
+    for result in (wrong, exact):
+        result.metadata.update(
+            {
+                "chunk_type": "table_record",
+                "product_model": "IV-500C",
+                "product_family": "IV Series",
+            }
+        )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [wrong, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": [wrong.chunk_id, exact.chunk_id],
+        },
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [exact.chunk_id]
+
+
 def test_verifier_rejects_structured_lookup_tied_across_sibling_coordinates(monkeypatch):
     objective = "What Display Settings Green Lower Limit Value applies to VS Series Vision System?"
     hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
