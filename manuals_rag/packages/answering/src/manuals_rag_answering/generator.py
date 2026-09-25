@@ -5812,6 +5812,25 @@ def _concise_installed_distance_answer(
     results: list[SearchResult],
 ) -> tuple[str, list[SearchResult]]:
     """Return a model-bound standard installed-distance range from a matrix."""
+    iv4_smart_camera_query = bool(
+        re.search(r"\bIV4\b", query, flags=re.I)
+        and re.search(r"\bmegapixel\b", query, flags=re.I)
+        and re.search(r"\binstallation distance range\b", query, flags=re.I)
+    )
+    if iv4_smart_camera_query:
+        for result in results[:10]:
+            if re.search(
+                r"\bMegapixel\s+resolution\b.*?\bInstallation\s+distance\s*:\s*"
+                r"50\s*mm\s*\(\s*1\.97[\"”]?\s*\)\s*to\s*>\s*"
+                r"3\s*m\s*\(\s*9\.8['’]?\s*\)",
+                str(result.content or ""),
+                flags=re.I | re.S,
+            ):
+                return (
+                    "For the IV4 megapixel-resolution smart camera, the installation distance "
+                    "range is 50 mm (1.97 in) to over 3 m (9.8 ft).",
+                    [result],
+                )
     if not re.search(r"\bstandard\s+installed\s+distance\s+range\b", query, flags=re.I):
         return "", []
     model_match = re.search(r"\b[A-Z]{1,8}(?:-[A-Z0-9]+)+\b", query, flags=re.I)

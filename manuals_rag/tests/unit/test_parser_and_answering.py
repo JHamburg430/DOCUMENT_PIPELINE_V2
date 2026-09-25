@@ -294,6 +294,38 @@ def test_generate_answer_binds_standard_installed_distance_to_requested_model(mo
     assert trace["final_answer"]["answer_source"] == "deterministic_installed_distance"
 
 
+def test_generate_answer_extracts_iv4_megapixel_installation_distance(monkeypatch):
+    result = SearchResult(
+        chunk_id="iv4-distance",
+        score=0.9,
+        title="IV4 Catalog",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[4],
+        section_path=["AI OCR"],
+        content=(
+            'Megapixel resolution Megapixel resolution Installation distance: 50 mm (1.97") '
+            "to > 3 m (9.8') Smart camera"
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What is the recommended installation distance range for the IV4 megapixel smart camera?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "For the IV4 megapixel-resolution smart camera, the installation distance range is "
+        "50 mm (1.97 in) to over 3 m (9.8 ft)."
+    )
+    assert trace["final_answer"]["answer_source"] == "deterministic_installed_distance"
+
+
 def test_generate_answer_extracts_extension_cables_from_requested_row(monkeypatch):
     result = SearchResult(
         chunk_id="camera-cables",
