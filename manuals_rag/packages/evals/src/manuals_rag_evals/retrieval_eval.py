@@ -3723,7 +3723,24 @@ def _cross_document_semantic_evidence_is_applicable(
         for token in numeric_candidates
         if not (token.endswith("s") and token[:-1] in numeric_candidates)
     }
-    if answer_specific_numeric_tokens and not all(
+    temperature_pattern = re.compile(
+        r"(?P<low>[+-]?\d+(?:\.\d+)?)\s*(?:to|[-–—])\s*"
+        r"(?P<high>[+-]?\d+(?:\.\d+)?)\s*°?\s*(?P<unit>[cf])\b",
+        flags=re.I,
+    )
+    expected_temperature_ranges = {
+        (match.group("low").lstrip("+"), match.group("high").lstrip("+"), match.group("unit").lower())
+        for match in temperature_pattern.finditer(case.expected_snippet)
+    }
+    evidence_temperature_ranges = {
+        (match.group("low").lstrip("+"), match.group("high").lstrip("+"), match.group("unit").lower())
+        for match in temperature_pattern.finditer(answer_evidence)
+    }
+    has_equivalent_temperature_range = (
+        len({unit for _low, _high, unit in expected_temperature_ranges}) >= 2
+        and bool(expected_temperature_ranges.intersection(evidence_temperature_ranges))
+    )
+    if answer_specific_numeric_tokens and not has_equivalent_temperature_range and not all(
         _term_matches_evidence(token, answer_evidence)
         or _compact_eval_identifier(token) in result_text
         for token in answer_specific_numeric_tokens

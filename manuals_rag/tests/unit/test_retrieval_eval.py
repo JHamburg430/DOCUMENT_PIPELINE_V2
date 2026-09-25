@@ -6607,7 +6607,7 @@ def test_score_search_results_accepts_structured_iv4_temperature_from_duplicate_
         expected_terms=["environmental", "resistance", "operating", "ambient", "0", "50"],
         expected_snippet=(
             "Environmental resistance | Operating ambient temperature | "
-            "0 to +50°C (no freezing)"
+            "0 to +50°C 32 to +122°F (no freezing)"
         ),
         generation_method="unit",
         source_metadata={"product_family": "IV4 Series"},
@@ -6645,7 +6645,7 @@ def test_score_search_results_rejects_wrong_structured_iv4_temperature_from_dupl
         expected_terms=["environmental", "resistance", "operating", "ambient", "0", "50"],
         expected_snippet=(
             "Environmental resistance | Operating ambient temperature | "
-            "0 to +50°C (no freezing)"
+            "0 to +50°C 32 to +122°F (no freezing)"
         ),
         generation_method="unit",
         source_metadata={"product_family": "IV4 Series"},
