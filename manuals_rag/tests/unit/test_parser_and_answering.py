@@ -154,6 +154,44 @@ def test_exact_control_rejects_incomplete_focus_and_brightness_evidence():
     assert evidence == []
 
 
+def test_exact_control_extracts_detected_plc_diagnostics_action():
+    exact = SearchResult(
+        chunk_id="detected-plc-diagnostics",
+        score=0.9,
+        title="SR PROFINET Connection Manual",
+        document_version_id="v1",
+        source_document_id="sr-profinet-doc",
+        pages=[2],
+        section_path=["CONFIGURING SIEMENS PLC SETTINGS"],
+        content=(
+            "Open the 'Online access' branch in the 'Project tree,' and then click the "
+            "network card. When the scan completes successfully, the devices on the network "
+            "are displayed. Open the detected PLC, and then double: click "
+            "'Online & diagnostics.'"
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    preceding_only = SearchResult(
+        chunk_id="online-access-only",
+        score=0.8,
+        title="SR PROFINET Connection Manual",
+        document_version_id="v1",
+        source_document_id="sr-profinet-doc",
+        pages=[2],
+        section_path=["CONFIGURING SIEMENS PLC SETTINGS"],
+        content="Open the 'Online access' branch and click the PC network card.",
+        metadata={"chunk_type": "section_window"},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "How do I access the diagnostics view for a detected PLC in the project tree?",
+        [preceding_only, exact],
+    )
+
+    assert answer == "Open the detected PLC, and then double-click 'Online & diagnostics.'"
+    assert [item.chunk_id for item in evidence] == ["detected-plc-diagnostics"]
+
+
 def test_exact_control_extracts_mu_n_section_lr_t_maximum_distance():
     result = SearchResult(
         chunk_id="mu-n-lr-t-distance",

@@ -7201,6 +7201,11 @@ def _concise_exact_control_answer(
         and re.search(r"\bplc\b", lowered)
         and re.search(r"\btransfer", lowered)
     )
+    detected_plc_diagnostics_query = bool(
+        re.search(r"\bdiagnostics view\b", lowered)
+        and re.search(r"\bdetected plc\b", lowered)
+        and re.search(r"\bproject tree\b", lowered)
+    )
     height_gradient_query = bool(
         re.search(r"\bdisplay\b", lowered)
         and re.search(r"\bheight differences?\b", lowered)
@@ -7279,6 +7284,17 @@ def _concise_exact_control_answer(
 
     for result in results:
         content = str(result.content or "")
+        if detected_plc_diagnostics_query and re.search(
+            r"Open\s+the\s+detected\s+PLC,?\s+and\s+then\s+"
+            r"double\s*:?\s*[- ]?click\s+['\"]Online\s*&\s*diagnostics\.['\"]",
+            content,
+            flags=re.I,
+        ):
+            return (
+                "Open the detected PLC, and then double-click 'Online & diagnostics.'",
+                [result],
+            )
+
         if restart_query and re.search(
             r"Press\s+the\s+['\"]?Save['\"]?\s+button.{0,160}?select\s+['\"]?Yes['\"]?",
             content,
