@@ -131,7 +131,7 @@ def _relation_grounding(case: dict[str, Any], answer_text: str) -> dict[str, Any
     factual_value_lookup = bool(
         re.match(r"^\s*what\b", query, flags=re.I)
         and not re.search(
-            r"\b(?:action|do|procedure|step|warning|precaution|should)\b",
+            r"\b(?:action|do|procedure|step|warning|precaution)\b|\bshould\s+(?:i|we|you)\b",
             query,
             flags=re.I,
         )
@@ -144,7 +144,7 @@ def _relation_grounding(case: dict[str, Any], answer_text: str) -> dict[str, Any
             )
         )
     )
-    if factual_value_lookup and expected_profile.action_polarities:
+    if factual_value_lookup:
         # Imperative wording in a manual ("Set the address", "Connect the cable")
         # is incidental when the benchmark asks only for the resulting factual
         # value. Score the value/role bindings, not whether the concise answer

@@ -734,6 +734,35 @@ def test_agent_evaluation_ignores_incidental_imperative_for_factual_value_lookup
     assert relation["passed"] is True
 
 
+def test_agent_evaluation_ignores_incidental_fix_action_for_torque_range_lookup():
+    case = _quantity_case()
+    case["query"] = (
+        "What tightening torque range should be used when fixing the bracket "
+        "with a bolt on the IV4-400CA?"
+    )
+    case["expected_snippet"] = "Tightening torque: 0.5 to 0.7 N·m"
+    case["expected_terms"] = ["tightening", "torque", "0.5", "0.7"]
+    case["expected_evidence"][0]["snippet"] = case["expected_snippet"]
+    case["expected_evidence"][0]["expected_terms"] = case["expected_terms"]
+
+    evaluation = score_agent_run(
+        case,
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": (
+                "Use a tightening torque of 0.5 to 0.7 N·m when fixing the bracket "
+                "with its bolt."
+            ),
+            "citations": [{"chunk_id": "setup-values"}],
+        },
+    )
+
+    relation = evaluation["cells"]["grounded_answer"]["metrics"]["relation_grounding"]
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+    assert relation["passed"] is True
+
+
 def test_agent_evaluation_rejects_unretrieved_irrelevant_citation():
     evaluation = score_agent_run(
         _quantity_case(),
