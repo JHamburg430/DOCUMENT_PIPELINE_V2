@@ -1522,26 +1522,8 @@ def _agent_matrix_artifact_json(path: Path) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
-def _agent_matrix_writer_is_live(pid: int, run_id: str) -> bool:
-    """Find the evaluator on the host, allowing for a container PID namespace."""
-    exact = Path(f"/proc/{pid}/cmdline")
-    candidates = [exact]
-    try:
-        candidates.extend(path for path in Path("/proc").glob("[0-9]*/cmdline") if path != exact)
-    except OSError:
-        pass
-    for cmdline_path in candidates:
-        try:
-            cmdline = cmdline_path.read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
-        except OSError:
-            continue
-        if "compare_agentic_retrieval.py" in cmdline and run_id in cmdline:
-            return True
-    return False
-
-
 def _agent_matrix_lock_is_live(path: Path, run_id: str) -> bool:
-    """A persisted lock file is active only while its validated writer owns the flock."""
+    """A persisted lock is active while a writer owns its cross-namespace flock."""
     try:
         with path.open("r+", encoding="utf-8") as handle:
             lock = json.loads(handle.readline())
@@ -1551,7 +1533,7 @@ def _agent_matrix_lock_is_live(path: Path, run_id: str) -> bool:
             try:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
-                return _agent_matrix_writer_is_live(pid, run_id)
+                return True
             else:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
                 return False
