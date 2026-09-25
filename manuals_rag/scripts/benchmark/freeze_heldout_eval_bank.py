@@ -107,6 +107,8 @@ def normalize_frozen_query(query: str) -> str:
             "What installation precaution applies when adjusting an IV-500C manual-focus sensor after installation?",
         "Which amplifier models support the Intelligent Monitor feature?":
             "Which IV Series amplifier types support the Intelligent Monitor feature?",
+        "What password range disables the Key Lock on the W500?":
+            "What password values can be set for the W500 Key Lock, and what does selecting 0 do?",
         "Which dent-depth conditions can be inspected by freely setting the reference plane?":
             "For the XG-X inline 3D inspection system, which dent-depth conditions can be inspected by freely setting the reference plane?",
         "Which numeric value should I use for devId if my XG controller connects via Ethernet?":
@@ -687,6 +689,16 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
     normalized_query = _normalized(query)
     query_tokens = set(_contract_tokens(normalized_query))
 
+    if (
+        re.search(r"\bpassword values?\b", normalized_query)
+        and re.search(r"\bselecting 0\b", normalized_query)
+    ):
+        if (
+            re.search(r"\b1\s+to\s+999\b", snippet, flags=re.I)
+            and re.search(r"\b0\b.+\bpassword\b.+\bnot\s+be\s+required\b", snippet, flags=re.I)
+        ):
+            return ["1", "999", "0", "password", "required"]
+
     if re.search(r"\bpart number\b", normalized_query):
         for part_number in _answer_part_numbers(snippet):
             if not _term_covers_token(enriched, part_number):
@@ -771,6 +783,19 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if (
+        re.search(r"\bpassword values?\b", str(query or ""), flags=re.I)
+        and re.search(r"\bselecting 0\b", str(query or ""), flags=re.I)
+    ):
+        password_contract = re.search(
+            r"(?P<answer>An optional password can be set.*?"
+            r"Select a value from 1 to 999 for this setting\.\s*"
+            r"If ['\"]?0['\"]? is selected, the password will not be required\.)",
+            source,
+            flags=re.I | re.DOTALL,
+        )
+        if password_contract:
+            return re.sub(r"\s+", " ", password_contract.group("answer")).strip()
     if re.search(r"\bhow\s+is\b.{0,120}\bpowered\b", str(query or ""), flags=re.I):
         powered = re.search(
             r"\bPower[- ]?supply\s*;\s*(?P<model>[A-Z][A-Z0-9-]+)\s*:\s*"

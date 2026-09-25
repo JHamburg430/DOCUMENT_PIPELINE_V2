@@ -638,6 +638,28 @@ def test_repairs_pc_to_plc_query_with_exact_protocol_scope():
     )
 
 
+def test_repairs_w500_password_query_to_match_the_source_contract():
+    assert _MODULE.normalize_frozen_query(
+        "What password range disables the Key Lock on the W500?"
+    ) == "What password values can be set for the W500 Key Lock, and what does selecting 0 do?"
+
+
+def test_focuses_w500_password_contract_on_range_and_zero_meaning():
+    query = "What password values can be set for the W500 Key Lock, and what does selecting 0 do?"
+    source = (
+        "An optional password can be set to further prohibit unauthorized releasing of the "
+        "'6-1 Key Lock' (page 4). Select a value from 1 to 999 for this setting. "
+        "If '0' is selected, the password will not be required."
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, source, source)
+    terms = _MODULE.enrich_expected_answer_terms(query, focused, ["optional", "password"])
+
+    assert "1 to 999" in focused
+    assert "password will not be required" in focused
+    assert terms == ["1", "999", "0", "password", "required"]
+
+
 def test_repairs_generic_xg_x_shutter_query_with_document_and_model_scope():
     expected = (
         "In the AS_160148 XG-X camera specification table, what electronic shutter range "
