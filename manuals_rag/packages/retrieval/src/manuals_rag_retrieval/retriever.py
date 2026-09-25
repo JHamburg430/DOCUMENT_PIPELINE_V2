@@ -335,6 +335,12 @@ def _exact_reference_document_ids(metadata_hits: list[dict[str, object]]) -> lis
 def _chunk_search_filters(filters: dict[str, object], metadata_filters: dict[str, object], analysis: QueryAnalysis) -> dict[str, object]:
     if _has_explicit_document_scope(filters):
         return metadata_filters
+    if _is_camera_selection_criteria_query(analysis.raw_query):
+        # Metadata-only routing is unreliable for generic camera-selection
+        # language because catalog titles rarely carry the decision rule.
+        # Keep the normal corpus filters so dense/sparse retrieval can reach
+        # the answer-bearing camera-selection paragraph.
+        return filters
     if "structured_lookup" in analysis.query_types and len(getattr(analysis, "product_identifiers", []) or []) >= 2:
         return filters
     if (
@@ -345,6 +351,14 @@ def _chunk_search_filters(filters: dict[str, object], metadata_filters: dict[str
     ):
         return filters
     return metadata_filters
+
+
+def _is_camera_selection_criteria_query(query: str) -> bool:
+    return bool(
+        re.search(r"\b(?:when\s+should|when\s+do|why\s+(?:would|should))\s+i\b", query, flags=re.I)
+        and re.search(r"\bc[- ]mount\b", query, flags=re.I)
+        and re.search(r"\bsmart\s+camera\b", query, flags=re.I)
+    )
 
 
 def _exact_identifier_document_ids(
@@ -2781,6 +2795,64 @@ def _preserve_top_reranked_identifier_evidence(
     return [*retained, *(result for result in ranked_results if result.chunk_id not in retained_ids)][:limit]
 
 
+def _promote_camera_selection_criteria_candidates(
+    ranked_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    query: str,
+    *,
+    limit: int,
+    promoted_limit: int = 2,
+) -> list[SearchResult]:
+    """Keep exact C-mount selection guidance ahead of generic camera catalogs.
+
+    Broad camera queries retrieve many model lists, lighting pages, and field-of-view
+    tables. For the narrow selection-criteria question, retain only the atomic rule
+    that binds a C-mount smart camera to lens choice, field-of-view size, and
+    installation distance. Requiring the complete relationship avoids promoting
+    catalog mentions of a C-mount camera.
+    """
+
+    if limit <= 0 or promoted_limit <= 0:
+        return ranked_results[:limit]
+    if not _is_camera_selection_criteria_query(query):
+        return ranked_results[:limit]
+
+    exact_rule = re.compile(
+        r"\buse\s+a\s+c[- ]mount\s+smart\s+camera\s+if\s+you\s+want\s+to\s+select\s+"
+        r"from\s+a\s+variety\s+of\s+lenses\s+for\s+different\s+field[- ]of[- ]view\s+"
+        r"sizes\s+and\s+installation\s+distances\b",
+        flags=re.I,
+    )
+    candidates: list[SearchResult] = []
+    seen_ids: set[str] = set()
+    for result in supplemental_results:
+        if result.chunk_id in seen_ids or not exact_rule.search(str(result.content or "")):
+            continue
+        seen_ids.add(result.chunk_id)
+        candidates.append(
+            result.model_copy(
+                update={
+                    "metadata": {
+                        **result.metadata,
+                        "retrieval_stage": "camera_selection_criteria_promoted",
+                    }
+                }
+            )
+        )
+    if not candidates:
+        return ranked_results[:limit]
+    candidates.sort(
+        key=lambda result: (
+            str(result.metadata.get("chunk_type") or "") != "atomic_text",
+            len(str(result.content or "")),
+            -float(result.score),
+        )
+    )
+    candidates = candidates[:promoted_limit]
+    promoted_ids = {result.chunk_id for result in candidates}
+    return [*candidates, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
+
+
 def _promote_measurement_candidates(
     ranked_results: list[SearchResult],
     supplemental_results: list[SearchResult],
@@ -4778,6 +4850,18 @@ def _retrieve_once(
         ],
         query,
         analysis=analysis,
+        limit=12,
+    )
+    reranked = _promote_camera_selection_criteria_candidates(
+        reranked,
+        [
+            *contextual_lexical_results,
+            *dense_results,
+            *sparse_results,
+            *special_results,
+            *fused,
+        ],
+        query,
         limit=12,
     )
     # The generic promotion passes above can prepend several structured

@@ -2710,6 +2710,74 @@ def test_top_reranked_identifier_evidence_survives_later_promotions():
     assert promoted[0].metadata["retrieval_stage"] == "top_reranked_identifier_preserved"
 
 
+def test_camera_selection_criteria_promotes_complete_atomic_rule():
+    generic = SearchResult(
+        chunk_id="generic-catalog",
+        score=1.0,
+        title="Camera catalog",
+        document_version_id="version-generic",
+        source_document_id="document-generic",
+        pages=[1],
+        section_path=["Cameras"],
+        content="C-mount smart camera VS:C",
+        metadata={"chunk_type": "section_window"},
+    )
+    exact = generic.model_copy(
+        update={
+            "chunk_id": "exact-selection-rule",
+            "content": (
+                "Use a C-mount smart camera if you want to select from a variety of "
+                "lenses for different field-of-view sizes and installation distances."
+            ),
+            "metadata": {"chunk_type": "atomic_text"},
+        }
+    )
+
+    promoted = retriever._promote_camera_selection_criteria_candidates(
+        [generic],
+        [generic, exact],
+        "When should I choose a C-mount smart camera over other options?",
+        limit=5,
+    )
+
+    assert [result.chunk_id for result in promoted] == ["exact-selection-rule", "generic-catalog"]
+    assert promoted[0].metadata["retrieval_stage"] == "camera_selection_criteria_promoted"
+
+
+def test_camera_selection_criteria_bypasses_inexact_metadata_document_routing():
+    analysis = analyze_query("When should I choose a C-mount smart camera over other options?")
+    user_filters = {"is_active": True}
+    metadata_filters = {
+        "is_active": True,
+        "source_document_id": ["wrong-camera-catalog"],
+    }
+
+    assert retriever._chunk_search_filters(user_filters, metadata_filters, analysis) == user_filters
+
+
+def test_camera_selection_criteria_rejects_catalog_only_mentions():
+    generic = SearchResult(
+        chunk_id="generic-catalog",
+        score=1.0,
+        title="Camera catalog",
+        document_version_id="version-generic",
+        source_document_id="document-generic",
+        pages=[1],
+        section_path=["Cameras"],
+        content="C-mount smart camera VS:C with several available lenses.",
+        metadata={"chunk_type": "section_window"},
+    )
+
+    promoted = retriever._promote_camera_selection_criteria_candidates(
+        [generic],
+        [generic],
+        "When should I choose a C-mount smart camera over other options?",
+        limit=5,
+    )
+
+    assert promoted == [generic]
+
+
 def test_how_to_family_selection_keeps_aligned_exact_model_table_evidence():
     analysis = analyze_query("Where should I avoid installing the IV-500C sensor?")
     sibling_context = SearchResult(
