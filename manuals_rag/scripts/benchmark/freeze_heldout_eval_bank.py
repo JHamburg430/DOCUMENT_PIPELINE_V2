@@ -135,6 +135,9 @@ def normalize_frozen_query(query: str) -> str:
             "are specified?",
         "What functions can OUT3 control when its default is set to Error?":
             "Which edge timings can be set for the IV Series IN1 input when it is assigned as an external trigger?",
+        "Which edge timings can be set for the IV Series IN1 input when it is assigned as an external trigger?":
+            "In the AS_145624 IV Series specification table, which edge timings can be set "
+            "for the IN1 input when it is assigned as an external trigger?",
         "What conditions allow the ShapeTrax TM 3A Search tool to maintain stable target search?":
             "What performance claim does the CV-X catalog make for the ShapeTrax 3A Search tool under poor conditions?",
         "What is the maximum image count for an XR 15 mm lens with binning enabled?":

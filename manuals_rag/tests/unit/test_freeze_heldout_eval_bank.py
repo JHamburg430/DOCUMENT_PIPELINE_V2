@@ -892,6 +892,15 @@ def test_qualifies_iv_output_rating_by_manual_and_full_scored_contract():
     )
 
 
+def test_qualifies_iv_in1_edge_timing_by_source_manual():
+    assert _MODULE.normalize_frozen_query(
+        "Which edge timings can be set for the IV Series IN1 input when it is assigned as an external trigger?"
+    ) == (
+        "In the AS_145624 IV Series specification table, which edge timings can be set "
+        "for the IN1 input when it is assigned as an external trigger?"
+    )
+
+
 def test_qualifies_lj_s8000_color_range_by_manual_and_source_control():
     assert _MODULE.normalize_frozen_query(
         "How do I adjust the color range for height data on the LJ-S8000?"
