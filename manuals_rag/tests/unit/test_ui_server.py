@@ -5,6 +5,8 @@ from http.client import RemoteDisconnected
 from json import loads
 from pathlib import Path
 import re
+import subprocess
+import sys
 from threading import Thread
 from time import monotonic
 from time import sleep
@@ -266,6 +268,8 @@ def test_evaluation_workflows_use_sse_first_with_polling_fallback_and_terminal_r
     assert "watchAgentChatJob" in app_js
     assert "watchAgentLiveJob" in app_js
     assert "watchAgentMatrixJob" in app_js
+    assert 'envelope.phase === "agent_matrix_progress"' in app_js
+    assert "event.completed_questions != null" in app_js
     assert 'status: "provisional"' in app_js
     assert "provisional until terminal reconciliation" in app_js
     matrix_stage_block = re.search(
@@ -636,6 +640,210 @@ def test_external_evaluation_progress_events_are_change_driven_and_terminal(monk
     assert final_page.events[-1].provisional is False
     assert final_page.events[-1].artifact_ref == "test_reports/retrieval_eval_results_live.jsonl"
     journal.close()
+
+
+def test_external_agent_matrix_artifacts_bridge_running_48_of_200_and_reconcile(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    artifacts = reports / "retrieval_improvement"
+    dataset_dir = tmp_path / "datasets"
+    artifacts.mkdir(parents=True)
+    dataset_dir.mkdir()
+    cases = [
+        {
+            "case_id": f"case-{index}",
+            "query": f"Question {index}?",
+            "expected_evidence_graph": {"category": "single_hop", "mode": "single"},
+        }
+        for index in range(200)
+    ]
+    dataset_path = dataset_dir / "heldout-v54.jsonl"
+    dataset_path.write_text("\n".join(ui_server.json.dumps(case) for case in cases) + "\n", encoding="utf-8")
+    digest = ui_server.hashlib.sha256(dataset_path.read_bytes()).hexdigest()
+    keys = [f"{digest}:case-{index}" for index in range(200)]
+
+    def item(index):
+        cells = {"tool_selection": {"status": "pass", "label": "PASS", "detail": "tool selected"}}
+        return {
+            "case_id": f"case-{index}",
+            "agent_case_category": "single_hop",
+            "langgraph": {"agent_evaluation": {"passed": True, "cells": ui_server.deepcopy(cells)}},
+            "llamaindex": {"agent_evaluation": {"passed": True, "cells": ui_server.deepcopy(cells)}},
+        }
+
+    def provenance(run_id, offset, ordered_keys):
+        return {
+            "artifact_schema_version": ui_server.AGENT_MATRIX_ARTIFACT_SCHEMA,
+            "run_id": run_id,
+            "dataset": {
+                "path": str(dataset_path),
+                "sha256": digest,
+                "offset": offset,
+                "limit": len(ordered_keys),
+                "ordered_case_keys": ordered_keys,
+            },
+        }
+
+    prior = provenance("agent_matrix_v54-first43", 0, keys[:43])
+    (artifacts / "agent_matrix_v54-first43.json").write_text(
+        ui_server.json.dumps(
+            {
+                **prior,
+                "complete": True,
+                "provenance": prior,
+                "case_count": 43,
+                "items": [item(index) for index in range(43)],
+                "process_exit_status": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    run_id = "agent_matrix_v54-remainder43-f5d8a11"
+    launch = provenance(run_id, 43, keys[43:])
+    (artifacts / f"{run_id}.launch.json").write_text(
+        ui_server.json.dumps({**launch, "state": "launched"}),
+        encoding="utf-8",
+    )
+    (artifacts / f"{run_id}.lock").write_text(
+        ui_server.json.dumps({"run_id": run_id, "pid": 12345}),
+        encoding="utf-8",
+    )
+    partial_items = [item(index) for index in range(43, 48)]
+    (artifacts / f"{run_id}.partial.json").write_text(
+        ui_server.json.dumps(
+            {
+                "artifact_schema_version": ui_server.AGENT_MATRIX_ARTIFACT_SCHEMA,
+                "run_id": run_id,
+                "complete": False,
+                "completed_cases": 5,
+                "expected_cases": 157,
+                "completed_case_keys": keys[43:48],
+                "provenance": launch,
+                "items": partial_items,
+            }
+        ),
+        encoding="utf-8",
+    )
+    live = {"value": True}
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "_agent_matrix_lock_is_live", lambda path, artifact_run_id: live["value"])
+
+    snapshot = ui_server._external_agent_matrix_run()
+    assert snapshot["id"] == f"external-eval-{run_id}"
+    assert snapshot["status"] == "running"
+    assert snapshot["completed_questions"] == 48
+    assert snapshot["limit"] == 200
+    assert snapshot["segment_completed"] == 5
+    matrix = ui_server._build_agent_matrix()
+    assert matrix["active_job"]["id"] == snapshot["id"]
+    assert len(matrix["rows"]) == 200
+    assert matrix["rows"][0]["result"]["langgraph"]["agent_evaluation"]["cells"]["tool_selection"]["status"] == "pass"
+    live_cell = matrix["rows"][43]["result"]["langgraph"]["agent_evaluation"]["cells"]["tool_selection"]
+    assert live_cell["status"] == "provisional"
+    assert live_cell["final_status"] == "pass"
+
+    journal = ui_server.SQLiteEventJournal(tmp_path / "events.sqlite3")
+    monkeypatch.setattr(ui_server, "UI_EVENT_JOURNAL", journal)
+    with ui_server.EXTERNAL_EVAL_LOCK:
+        ui_server.EXTERNAL_EVAL_OBSERVATIONS.clear()
+    ui_server._sync_external_eval_event(snapshot["id"])
+    progress = journal.replay(snapshot["id"]).events
+    assert len(progress) == 1
+    assert progress[0].workflow == "agent_matrix"
+    assert progress[0].phase == "agent_matrix_progress"
+    assert progress[0].payload["completed_questions"] == 48
+
+    final_items = [item(index) for index in range(43, 200)]
+    (artifacts / f"{run_id}.json").write_text(
+        ui_server.json.dumps(
+            {
+                "artifact_schema_version": ui_server.AGENT_MATRIX_ARTIFACT_SCHEMA,
+                "run_id": run_id,
+                "complete": True,
+                "provenance": launch,
+                "case_count": 157,
+                "items": final_items,
+                "summary": {"langgraph": {"agent_matrix_passed": 157}},
+                "process_exit_status": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (artifacts / f"{run_id}.exit").write_text("0\n", encoding="utf-8")
+    live["value"] = False
+    reconciled = ui_server._external_agent_matrix_run(snapshot["id"])
+    assert reconciled["status"] == "completed"
+    assert reconciled["completed_questions"] == 200
+    final_matrix = ui_server._build_agent_matrix()
+    assert final_matrix["active_job"] is None
+    final_cell = final_matrix["rows"][43]["result"]["langgraph"]["agent_evaluation"]["cells"]["tool_selection"]
+    assert final_cell["status"] == "pass"
+    assert "final_status" not in final_cell
+    ui_server._sync_external_eval_event(snapshot["id"])
+    replay = journal.replay(snapshot["id"]).events
+    assert [event.phase for event in replay] == ["agent_matrix_progress", "job_completed"]
+    assert replay[-1].completed is True
+    journal.close()
+
+
+def test_external_agent_matrix_excludes_stale_and_malformed_artifacts(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    artifacts = reports / "retrieval_improvement"
+    artifacts.mkdir(parents=True)
+    dataset = tmp_path / "dataset.jsonl"
+    dataset.write_text('{"case_id":"case-1","query":"Question?"}\n', encoding="utf-8")
+    digest = ui_server.hashlib.sha256(dataset.read_bytes()).hexdigest()
+    run_id = "stale-run"
+    launch = {
+        "artifact_schema_version": ui_server.AGENT_MATRIX_ARTIFACT_SCHEMA,
+        "run_id": run_id,
+        "state": "launched",
+        "dataset": {
+            "path": str(dataset),
+            "sha256": digest,
+            "offset": 0,
+            "limit": 1,
+            "ordered_case_keys": [f"{digest}:case-1"],
+        },
+    }
+    (artifacts / f"{run_id}.launch.json").write_text(ui_server.json.dumps(launch), encoding="utf-8")
+    (artifacts / f"{run_id}.lock").write_text(ui_server.json.dumps({"run_id": run_id, "pid": 1}), encoding="utf-8")
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "_agent_matrix_lock_is_live", lambda path, artifact_run_id: False)
+    assert ui_server._external_agent_matrix_run() is None
+
+    (artifacts / f"{run_id}.partial.json").write_text('{"complete":false}', encoding="utf-8")
+    monkeypatch.setattr(ui_server, "_agent_matrix_lock_is_live", lambda path, artifact_run_id: True)
+    assert ui_server._external_agent_matrix_run() is None
+
+
+def test_external_agent_matrix_lock_requires_live_validated_writer(tmp_path):
+    run_id = "live-lock-run"
+    lock_path = tmp_path / f"{run_id}.lock"
+    script = (
+        "import fcntl,json,os,sys,time;"
+        "path=sys.argv[1];run_id=sys.argv[2];"
+        "handle=open(path,'w+',encoding='utf-8');"
+        "fcntl.flock(handle.fileno(),fcntl.LOCK_EX);"
+        "handle.write(json.dumps({'run_id':run_id,'pid':os.getpid()}));"
+        "handle.flush();os.fsync(handle.fileno());"
+        "print('ready',flush=True);time.sleep(30)"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", script, str(lock_path), run_id, "compare_agentic_retrieval.py"],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert process.stdout is not None
+        assert process.stdout.readline().strip() == "ready"
+        assert ui_server._agent_matrix_lock_is_live(lock_path, run_id) is True
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+    assert ui_server._agent_matrix_lock_is_live(lock_path, run_id) is False
 
 
 def test_question_matrix_qualifies_duplicate_case_ids_by_dataset(monkeypatch, tmp_path):

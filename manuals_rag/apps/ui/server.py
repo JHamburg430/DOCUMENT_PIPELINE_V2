@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import fcntl
+import hashlib
 import os
 import json
 import re
@@ -176,7 +178,7 @@ def _component_run_snapshot(run_id: str) -> dict | None:
 
 def _component_workflow(run_id: str, snapshot: dict | None = None) -> str:
     if run_id.startswith(EXTERNAL_EVAL_RUN_PREFIX):
-        return "evaluation"
+        return str((snapshot or {}).get("workflow") or "evaluation")
     if run_id.startswith("agent-matrix-"):
         return "agent_matrix"
     if run_id.startswith("agent-run-"):
@@ -701,8 +703,11 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._write(payload)
 
     def _local_agent_matrix_job(self, job_id: str) -> None:
-        with AGENT_MATRIX_LOCK:
-            job = dict(AGENT_MATRIX_JOBS.get(job_id) or {})
+        if job_id.startswith(EXTERNAL_EVAL_RUN_PREFIX):
+            job = dict(_external_agent_matrix_run(job_id) or {})
+        else:
+            with AGENT_MATRIX_LOCK:
+                job = dict(AGENT_MATRIX_JOBS.get(job_id) or {})
         if not job:
             self.send_error(404, "Agent matrix job not found")
             return
@@ -906,8 +911,61 @@ def _read_jsonl(path: Path) -> list[dict]:
     return rows
 
 
+def _external_agent_matrix_report(snapshot: dict) -> dict:
+    merged_items: dict[str, dict] = {}
+    summary: dict = {}
+    category_summary: dict = {}
+    for relative_path in snapshot.get("report_paths") or []:
+        path = MANUALS_ROOT / str(relative_path)
+        report = _agent_matrix_artifact_json(path) or {}
+        for item in report.get("items") or []:
+            if isinstance(item, dict) and item.get("case_id"):
+                merged_items[str(item["case_id"])] = deepcopy(item)
+        if report.get("complete"):
+            summary = deepcopy(report.get("summary") or summary)
+            category_summary = deepcopy(report.get("category_summary") or category_summary)
+    provisional_ids = set(snapshot.get("provisional_case_ids") or [])
+    if snapshot.get("status") == "running":
+        for case_id in provisional_ids:
+            item = merged_items.get(str(case_id)) or {}
+            for backend in ("langgraph", "llamaindex"):
+                cells = (((item.get(backend) or {}).get("agent_evaluation") or {}).get("cells") or {})
+                for cell in cells.values():
+                    if not isinstance(cell, dict) or cell.get("status") not in {"pass", "fail"}:
+                        continue
+                    cell["final_status"] = cell["status"]
+                    cell["status"] = "provisional"
+                    cell["label"] = "LIVE"
+                    cell["detail"] = f"{cell.get('detail') or cell['final_status']} · provisional until terminal reconciliation"
+    category_counts: dict[str, int] = {}
+    for item in merged_items.values():
+        category = str(item.get("agent_case_category") or "unknown")
+        category_counts[category] = category_counts.get(category, 0) + 1
+    for backend in ("baseline", "langgraph", "llamaindex"):
+        backend_items = [item.get(backend) for item in merged_items.values() if isinstance(item.get(backend), dict)]
+        backend_summary = dict(summary.get(backend) or {})
+        backend_summary["cases"] = len(backend_items)
+        backend_summary["agent_matrix_passed"] = sum(
+            1 for item in backend_items if (item.get("agent_evaluation") or {}).get("passed")
+        )
+        summary[backend] = backend_summary
+    return {
+        "dataset": snapshot["dataset_path"],
+        "items": list(merged_items.values()),
+        "summary": summary,
+        "category_summary": category_summary,
+        "category_counts": category_counts,
+        "dataset_sha256": None,
+    }
+
+
 def _build_agent_matrix() -> dict:
-    report = _read_json(AGENT_MATRIX_REPORT) if AGENT_MATRIX_REPORT.exists() else {}
+    external_snapshot = _external_agent_matrix_run()
+    report = (
+        _external_agent_matrix_report(external_snapshot)
+        if external_snapshot is not None
+        else (_read_json(AGENT_MATRIX_REPORT) if AGENT_MATRIX_REPORT.exists() else {})
+    )
     dataset_value = str(report.get("dataset") or "tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl")
     dataset_path = Path(dataset_value)
     if not dataset_path.is_absolute():
@@ -919,6 +977,8 @@ def _build_agent_matrix() -> dict:
             (deepcopy(job) for job in AGENT_MATRIX_JOBS.values() if job.get("status") in {"queued", "running"}),
             None,
         )
+    if active_job is None and external_snapshot is not None and external_snapshot.get("status") == "running":
+        active_job = deepcopy(external_snapshot)
     rows = []
     for number, record in enumerate(cases, start=1):
         case = record.get("case") if isinstance(record.get("case"), dict) else record
@@ -953,7 +1013,11 @@ def _build_agent_matrix() -> dict:
     return {
         "schema": "manuals-rag-agent-evaluation-matrix-v2",
         "dataset": str(dataset_path.relative_to(MANUALS_ROOT)) if dataset_path.is_relative_to(MANUALS_ROOT) else str(dataset_path),
-        "generated_at": AGENT_MATRIX_REPORT.stat().st_mtime if AGENT_MATRIX_REPORT.exists() else None,
+        "generated_at": (
+            external_snapshot.get("updated_at")
+            if external_snapshot is not None
+            else (AGENT_MATRIX_REPORT.stat().st_mtime if AGENT_MATRIX_REPORT.exists() else None)
+        ),
         "summary": report.get("summary") or {},
         "category_summary": report.get("category_summary") or {},
         "category_counts": report.get("category_counts") or {},
@@ -1404,7 +1468,7 @@ def _jsonl_record_count(path: Path) -> int:
     return count
 
 
-def _external_eval_run(run_id: str | None = None) -> dict | None:
+def _legacy_external_eval_run(run_id: str | None = None) -> dict | None:
     requested_suffix = (
         str(run_id).removeprefix(EXTERNAL_EVAL_RUN_PREFIX)
         if run_id and str(run_id).startswith(EXTERNAL_EVAL_RUN_PREFIX)
@@ -1447,6 +1511,234 @@ def _external_eval_run(run_id: str | None = None) -> dict | None:
     return None
 
 
+AGENT_MATRIX_ARTIFACT_SCHEMA = "agentic-retrieval-matrix-v2"
+
+
+def _agent_matrix_artifact_json(path: Path) -> dict | None:
+    try:
+        value = _read_json(path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _agent_matrix_lock_is_live(path: Path, run_id: str) -> bool:
+    """A persisted lock file is active only while its validated writer owns the flock."""
+    try:
+        with path.open("r+", encoding="utf-8") as handle:
+            lock = json.loads(handle.readline())
+            pid = int(lock.get("pid") or 0)
+            if lock.get("run_id") != run_id or pid <= 0:
+                return False
+            cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
+            if "compare_agentic_retrieval.py" not in cmdline or run_id not in cmdline:
+                return False
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return True
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                return False
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return False
+
+
+def _agent_matrix_dataset_contract(launch: dict) -> dict | None:
+    dataset = launch.get("dataset") if isinstance(launch.get("dataset"), dict) else {}
+    run_id = str(launch.get("run_id") or "")
+    try:
+        dataset_path = Path(str(dataset["path"])).resolve()
+        dataset_path.relative_to(MANUALS_ROOT.resolve())
+        offset = int(dataset.get("offset") or 0)
+        expected = int(dataset.get("limit") or 0)
+        ordered_keys = [str(value) for value in dataset.get("ordered_case_keys") or []]
+        cases = _read_jsonl(dataset_path)
+        digest = hashlib.sha256(dataset_path.read_bytes()).hexdigest()
+    except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if (
+        launch.get("artifact_schema_version") != AGENT_MATRIX_ARTIFACT_SCHEMA
+        or launch.get("state") != "launched"
+        or not run_id
+        or offset < 0
+        or expected <= 0
+        or digest != dataset.get("sha256")
+    ):
+        return None
+    full_keys = [f"{digest}:{_case_key(record.get('case') if isinstance(record.get('case'), dict) else record)}" for record in cases]
+    sliced_keys = full_keys[offset : offset + expected]
+    if not ordered_keys or ordered_keys != sliced_keys:
+        return None
+    return {
+        "run_id": run_id,
+        "path": dataset_path,
+        "relative_path": str(dataset_path.relative_to(MANUALS_ROOT.resolve())),
+        "sha256": digest,
+        "cases": cases,
+        "full_keys": full_keys,
+        "offset": offset,
+        "expected": len(ordered_keys),
+        "ordered_keys": ordered_keys,
+    }
+
+
+def _validated_agent_matrix_report(path: Path, contract: dict, *, complete: bool) -> dict | None:
+    report = _agent_matrix_artifact_json(path)
+    if not report or report.get("artifact_schema_version") != AGENT_MATRIX_ARTIFACT_SCHEMA:
+        return None
+    provenance = report.get("provenance") if isinstance(report.get("provenance"), dict) else {}
+    dataset = provenance.get("dataset") if isinstance(provenance.get("dataset"), dict) else {}
+    keys = [str(value) for value in dataset.get("ordered_case_keys") or []]
+    try:
+        offset = int(dataset.get("offset") or 0)
+    except (TypeError, ValueError):
+        return None
+    items = report.get("items") if isinstance(report.get("items"), list) else []
+    expected_keys = contract["full_keys"][offset : offset + len(keys)]
+    item_keys = [f"{contract['sha256']}:{str(item.get('case_id') or '')}" for item in items if isinstance(item, dict)]
+    if (
+        bool(report.get("complete")) is not complete
+        or dataset.get("sha256") != contract["sha256"]
+        or not keys
+        or keys != expected_keys
+        or item_keys != keys[: len(items)]
+    ):
+        return None
+    if complete:
+        try:
+            if int(report.get("case_count")) != len(keys) or len(items) != len(keys):
+                return None
+        except (TypeError, ValueError):
+            return None
+    else:
+        try:
+            completed = int(report.get("completed_cases"))
+            expected = int(report.get("expected_cases"))
+        except (TypeError, ValueError):
+            return None
+        completed_keys = [str(value) for value in report.get("completed_case_keys") or []]
+        if expected != len(keys) or completed != len(items) or completed_keys != keys[:completed]:
+            return None
+    return report
+
+
+def _external_agent_matrix_candidate(launch_path: Path) -> dict | None:
+    launch = _agent_matrix_artifact_json(launch_path)
+    contract = _agent_matrix_dataset_contract(launch or {})
+    if contract is None or launch_path.name != f"{contract['run_id']}.launch.json":
+        return None
+    base = launch_path.with_name(contract["run_id"])
+    partial_path = base.with_suffix(".partial.json")
+    final_path = base.with_suffix(".json")
+    exit_path = base.with_suffix(".exit")
+    lock_path = base.with_suffix(".lock")
+    partial = _validated_agent_matrix_report(partial_path, contract, complete=False) if partial_path.exists() else None
+    final = _validated_agent_matrix_report(final_path, contract, complete=True) if final_path.exists() else None
+    if partial is not None and partial.get("run_id") != contract["run_id"]:
+        return None
+    if final is not None and final.get("run_id") != contract["run_id"]:
+        return None
+    live = _agent_matrix_lock_is_live(lock_path, contract["run_id"])
+    exit_code: int | None = None
+    if exit_path.exists():
+        try:
+            exit_code = int(exit_path.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            return None
+    if live:
+        if partial_path.exists() and partial is None:
+            return None
+        status = "running"
+        current = partial
+    elif exit_code == 0 and final is not None:
+        status = "completed"
+        current = final
+    elif exit_code is not None and exit_code != 0:
+        status = "failed"
+        current = partial
+    elif final is not None and int(final.get("process_exit_status") or 0) == 0:
+        status = "completed"
+        current = final
+    else:
+        return None
+
+    artifact_dir = launch_path.parent
+    completed_items: dict[str, dict] = {}
+    report_paths: list[Path] = []
+    for report_path in artifact_dir.glob("*.json"):
+        if report_path.name.endswith((".launch.json", ".partial.json")):
+            continue
+        report = _validated_agent_matrix_report(report_path, contract, complete=True)
+        if report is None:
+            continue
+        provenance = report["provenance"]["dataset"]
+        report_offset = int(provenance.get("offset") or 0)
+        report_keys = [str(value) for value in provenance.get("ordered_case_keys") or []]
+        if report_path != final_path and report_offset + len(report_keys) > contract["offset"]:
+            continue
+        report_paths.append(report_path)
+        completed_items.update({key: item for key, item in zip(report_keys, report["items"])})
+    current_keys: list[str] = []
+    if current is not None:
+        current_keys = [str(value) for value in current["provenance"]["dataset"]["ordered_case_keys"]][: len(current["items"])]
+        completed_items.update({key: item for key, item in zip(current_keys, current["items"])})
+        current_path = final_path if current is final else partial_path
+        if current_path not in report_paths:
+            report_paths.append(current_path)
+    completed = len(set(contract["full_keys"]) & set(completed_items))
+    result_path = final_path if final is not None and status == "completed" else partial_path
+    updated_paths = [launch_path, *(path for path in (partial_path, final_path, exit_path, lock_path) if path.exists())]
+    latest_item = current["items"][-1] if current and current.get("items") else None
+    return {
+        "id": f"{EXTERNAL_EVAL_RUN_PREFIX}{contract['run_id']}",
+        "artifact_run_id": contract["run_id"],
+        "run_type": "external_agent_matrix",
+        "workflow": "agent_matrix",
+        "status": status,
+        "total": len(contract["cases"]),
+        "completed": min(completed, len(contract["cases"])),
+        "completed_questions": min(completed, len(contract["cases"])),
+        "limit": len(contract["cases"]),
+        "current_case_id": str((latest_item or {}).get("case_id") or "") or None,
+        "live_results": {},
+        "dataset_path": contract["relative_path"],
+        "results_path": str(result_path.relative_to(MANUALS_ROOT)),
+        "report_paths": [str(path.relative_to(MANUALS_ROOT)) for path in sorted(set(report_paths))],
+        "provisional_case_ids": [str(item.get("case_id") or "") for item in (current or {}).get("items", [])] if status == "running" else [],
+        "segment_offset": contract["offset"],
+        "segment_completed": len((current or {}).get("items", [])),
+        "segment_total": contract["expected"],
+        "exit_code": exit_code,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(max(path.stat().st_mtime for path in updated_paths))),
+    }
+
+
+def _external_agent_matrix_run(run_id: str | None = None) -> dict | None:
+    requested = str(run_id).removeprefix(EXTERNAL_EVAL_RUN_PREFIX) if run_id else None
+    artifact_dir = TEST_REPORTS_DIR / "retrieval_improvement"
+    try:
+        launches = sorted(artifact_dir.glob("*.launch.json"), key=lambda path: path.stat().st_mtime, reverse=True)
+    except OSError:
+        return None
+    candidates: list[dict] = []
+    for launch_path in launches:
+        candidate = _external_agent_matrix_candidate(launch_path)
+        if candidate is None or (requested is not None and candidate["artifact_run_id"] != requested):
+            continue
+        if candidate["status"] == "running":
+            return candidate
+        candidates.append(candidate)
+    return candidates[0] if candidates else None
+
+
+def _external_eval_run(run_id: str | None = None) -> dict | None:
+    legacy = _legacy_external_eval_run(run_id)
+    if legacy is not None:
+        return legacy
+    return _external_agent_matrix_run(run_id)
+
+
 def _sync_external_eval_event(run_id: str) -> dict | None:
     snapshot = _external_eval_run(run_id)
     if snapshot is None:
@@ -1456,21 +1748,40 @@ def _sync_external_eval_event(run_id: str) -> dict | None:
         if EXTERNAL_EVAL_OBSERVATIONS.get(run_id) == observation:
             return snapshot
         EXTERNAL_EVAL_OBSERVATIONS[run_id] = observation
-    terminal = snapshot["status"] == "completed"
+    terminal = snapshot["status"] in TERMINAL_RUN_STATUSES
+    workflow = str(snapshot.get("workflow") or "evaluation")
+    if terminal:
+        phase = "job_completed" if snapshot["status"] == "completed" else "job_failed"
+    else:
+        phase = "agent_matrix_progress" if workflow == "agent_matrix" else "evaluation_progress"
+    event_name = (
+        "external_agent_matrix_completed"
+        if workflow == "agent_matrix" and snapshot["status"] == "completed"
+        else "external_agent_matrix_failed"
+        if workflow == "agent_matrix" and terminal
+        else "external_agent_matrix_progress"
+        if workflow == "agent_matrix" and not terminal
+        else "external_evaluation_completed"
+        if snapshot["status"] == "completed"
+        else "external_evaluation_failed"
+        if terminal
+        else "external_evaluation_progress"
+    )
     _try_publish_component_event(
         run_id,
-        workflow="evaluation",
-        phase="job_completed" if terminal else "evaluation_progress",
+        workflow=workflow,
+        phase=phase,
         status=str(snapshot["status"]),
         provisional=not terminal,
         total=int(snapshot["total"]),
-        artifact_ref=str(snapshot["results_path"]) if terminal else None,
+        artifact_ref=str(snapshot["results_path"]) if snapshot["status"] == "completed" else None,
         payload={
-            "event": "external_evaluation_completed" if terminal else "external_evaluation_progress",
+            "event": event_name,
             "completed_questions": int(snapshot["completed"]),
             "total_questions": int(snapshot["total"]),
             "dataset_path": snapshot["dataset_path"],
             "results_path": snapshot["results_path"],
+            "current_case_id": snapshot.get("current_case_id"),
         },
     )
     return snapshot
@@ -1981,7 +2292,11 @@ def _build_external_eval_matrix(current_run: dict) -> dict:
 
 def _build_question_matrix() -> dict:
     current_run = _external_eval_run()
-    if current_run is not None and _active_question_matrix_job_id() is None:
+    if (
+        current_run is not None
+        and current_run.get("run_type") == "external_retrieval_eval"
+        and _active_question_matrix_job_id() is None
+    ):
         return _build_external_eval_matrix(current_run)
     manifest_path = TEST_REPORTS_DIR / "retrieval_accuracy_question_bank_manifest.json"
     manifest = _read_json(manifest_path)

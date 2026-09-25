@@ -3458,6 +3458,12 @@ async function loadAgentMatrix() {
       $("agent-matrix-workspace").open = true;
       state.agentMatrix.job = payload.active_job;
       mergeAgentMatrixJobSnapshot(payload.active_job);
+      $("agent-matrix-status").textContent = [
+        payload.active_job.status,
+        `${Number(payload.active_job.completed_questions || 0)}/${Number(payload.active_job.limit || 0)}`,
+        payload.active_job.current_case_id,
+      ].filter(Boolean).join(" · ");
+      $("agent-matrix-status").className = "status-pill running";
       if (!state.realtimeStreams["agent-matrix"]) watchAgentMatrixJob(payload.active_job.id).catch(console.error);
     }
   } catch (error) {
@@ -3488,6 +3494,13 @@ function applyAgentMatrixEnvelope(envelope) {
   if (!job || job.id !== envelope.run_id) return;
   const event = envelope.payload || {};
   job.status = envelope.status || job.status;
+  if (event.completed_questions != null) {
+    job.completed_questions = Number(event.completed_questions || 0);
+  }
+  if (event.total_questions != null) {
+    job.limit = Number(event.total_questions || job.limit || 0);
+  }
+  if (event.current_case_id) job.current_case_id = event.current_case_id;
   if (event.case_id) {
     job.current_case_id = event.case_id;
     job.completed_questions = Number(event.question_number || job.completed_questions || 0);
@@ -3519,6 +3532,7 @@ function applyAgentMatrixEnvelope(envelope) {
   const status = $("agent-matrix-status");
   status.textContent = [job.status, `${job.completed_questions}/${job.limit}`, job.current_case_id, "live"].filter(Boolean).join(" · ");
   status.className = "status-pill running";
+  if (envelope.phase === "agent_matrix_progress") loadAgentMatrix().catch(console.error);
 }
 
 function watchAgentMatrixJob(jobId) {
