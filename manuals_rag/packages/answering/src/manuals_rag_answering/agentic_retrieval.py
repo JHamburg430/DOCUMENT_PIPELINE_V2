@@ -2071,7 +2071,7 @@ def _direct_structured_lookup_support(
     query_terms = terms(query)
     query_axes = set(re.findall(r"\b([xyz])\b", query.lower()))
     query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
-    matches: list[tuple[int, int, int, str]] = []
+    matches: list[tuple[int, int, int, int, str]] = []
     for result_index, result in enumerate(results):
         if not _result_supports_branch_scope(query, result):
             continue
@@ -2094,7 +2094,8 @@ def _direct_structured_lookup_support(
         required_column_overlap = 1 if len(column_terms) >= 4 else min(2, len(column_terms))
         if column_overlap < required_column_overlap:
             continue
-        if len(row_terms.intersection(query_terms)) < min(2, len(row_terms)):
+        row_overlap = len(row_terms.intersection(query_terms))
+        if row_overlap < min(2, len(row_terms)):
             continue
         row_axes = set(re.findall(r"\b([xyz])\b", cell_match.group("row").lower()))
         if query_axes and row_axes and query_axes.isdisjoint(row_axes):
@@ -2143,10 +2144,15 @@ def _direct_structured_lookup_support(
             continue
         chunk_type = str(result.metadata.get("chunk_type") or "")
         bounded = int(chunk_type in {"table_record", "spec_record", "atomic_text"})
-        matches.append((bounded, value_overlap, -result_index, result.chunk_id))
+        # Prefer the row whose label explains the largest part of the request.
+        # A scope phrase can otherwise make an adjacent sibling look valid: for
+        # example, "IV-500C Ethernet connector power voltage" overlaps the
+        # neighboring "Ethernet Connector Network function" row, while the
+        # requested "Power voltage" row has the stronger row-label match.
+        matches.append((bounded, row_overlap, value_overlap, -result_index, result.chunk_id))
     if not matches:
         return []
-    return [max(matches, key=lambda item: item[:3])[-1]]
+    return [max(matches, key=lambda item: item[:4])[-1]]
 
 
 def _ambiguous_structured_lookup_support(

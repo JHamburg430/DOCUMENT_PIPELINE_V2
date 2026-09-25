@@ -1589,6 +1589,50 @@ def test_verifier_deterministically_confirms_exact_structured_lookup_cell(monkey
     assert output["supporting_chunk_ids"] == [result.chunk_id]
 
 
+def test_verifier_prefers_requested_power_voltage_row_over_connector_sibling(monkeypatch):
+    objective = "What power voltage range is required for the IV-500C Ethernet connector?"
+    hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
+    wrong = _result(
+        "connector-function",
+        "iv500c-doc",
+        "Column headers: IV-500C; Row headers: Ethernet *10 Network > "
+        "Ethernet Connector Network function; Cell value: M12 4pin connector; "
+        "Row: 25; Column: 2",
+    )
+    exact = _result(
+        "power-voltage",
+        "iv500c-doc",
+        "Column headers: IV-500C; Row headers: Ethernet *10 Network > Rating "
+        "Power Consumption > Power voltage; Cell value: DC 24V +/- 10% "
+        "(including ripple); Row: 26; Column: 2",
+    )
+    for result in (wrong, exact):
+        result.metadata.update(
+            {
+                "chunk_type": "table_record",
+                "product_model": "IV-500C",
+                "product_family": "IV4 Series",
+            }
+        )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [wrong, exact],
+        {
+            "claim_supported": True,
+            "supporting_chunk_ids": [wrong.chunk_id, exact.chunk_id],
+        },
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == [exact.chunk_id]
+
+
 def test_verifier_rejects_structured_lookup_tied_across_sibling_coordinates(monkeypatch):
     objective = "What Display Settings Green Lower Limit Value applies to VS Series Vision System?"
     hop = RetrievalHop(hop_id="lookup", objective=objective, query=objective)
