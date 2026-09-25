@@ -2882,7 +2882,7 @@ def _direct_lj_x8000_head_extension_models_support(
             continue
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
         compact_content = re.sub(r"[^a-z0-9]", "", content.lower())
-        if not re.search(r"\bhead connection extension cable\b", content, flags=re.I):
+        if not re.search(r"\bhead(?: connection)? extension cable\b", content, flags=re.I):
             continue
         if not all(model in compact_content for model in ("cbb5e", "cbb10e", "cbb20e")):
             continue

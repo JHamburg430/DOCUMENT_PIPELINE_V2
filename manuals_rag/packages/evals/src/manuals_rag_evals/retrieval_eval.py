@@ -3535,7 +3535,7 @@ def _result_is_applicable_equivalent(case: RetrievalEvalCase, result: dict[str, 
         evidence = _result_answer_evidence_text(result)
         compact_evidence = _compact_eval_identifier(evidence)
         return bool(
-            re.search(r"\bhead connection extension cable\b", evidence, flags=re.I)
+            re.search(r"\bhead(?: connection)? extension cable\b", evidence, flags=re.I)
             and all(model in compact_evidence for model in ("cbb5e", "cbb10e", "cbb20e"))
         )
     result_chunk_type = str(result.get("metadata", {}).get("chunk_type") or result.get("chunk_type", ""))

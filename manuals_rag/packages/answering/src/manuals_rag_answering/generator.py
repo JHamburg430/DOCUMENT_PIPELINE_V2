@@ -7339,7 +7339,7 @@ def _concise_exact_control_answer(
         if lj_x8000_head_extension_models_query:
             compact_content = re.sub(r"[^a-z0-9]", "", content.lower())
             if (
-                re.search(r"\bhead connection extension cable\b", content, flags=re.I)
+                re.search(r"\bhead(?: connection)? extension cable\b", content, flags=re.I)
                 and all(model in compact_content for model in ("cbb5e", "cbb10e", "cbb20e"))
             ):
                 return (

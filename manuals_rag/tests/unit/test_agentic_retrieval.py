@@ -160,7 +160,7 @@ def test_direct_lj_x8000_head_extension_support_requires_complete_model_list():
     complete = _result(
         "lj-x8000-cables",
         "lj-x8000-manual",
-        "Head connection extension cable CB-B5E 5 m CB-B10E 10 m CB-B20E 20 m",
+        "Head extension cable CB-B5E 5 m CB-B10E 10 m CB-B20E 20 m",
     ).model_copy(update={"metadata": {"chunk_type": "section_window", "product_models": ["LJ-X8000"]}})
     incomplete = _result(
         "lj-x8000-cables-incomplete",

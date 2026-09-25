@@ -6650,7 +6650,7 @@ def test_score_search_results_accepts_complete_lj_x8000_cable_list_from_duplicat
         "source_document_id": "users-manual",
         "section_path": ["Accessories"],
         "content": (
-            "Head connection extension cable CB-B5E 5 m CB-B10E 10 m "
+            "Head extension cable CB-B5E 5 m CB-B10E 10 m "
             "CB-B20E 20 m"
         ),
         "metadata": {"chunk_type": "section_window", "product_models": ["LJ-X8000"]},
