@@ -378,7 +378,7 @@ def _labelled_lookup_plan(query: str) -> RetrievalPlan | None:
     """Route direct named-field questions to row/cell-preserving retrieval."""
     if not re.search(
         r"\b(?:what|which)\s+[^?]{0,100}\b(?:mode|settings?|option|status|code|"
-        r"address|parameter|rating|range|value|chart|screen|chapter|section|page)\b",
+        r"address|parameter|rating|range|value|frame\s+rate|chart|screen|chapter|section|page)\b",
         query,
         flags=re.IGNORECASE,
     ):
@@ -1437,14 +1437,31 @@ def _result_supports_branch_scope(query: str, result: SearchResult) -> bool:
     """
     if not result_matches_requested_mode(result, query):
         return False
+    def compact(value: object) -> str:
+        return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+
+    metadata = result.metadata or {}
+    requested_manual_ids = {
+        compact(match.group(0))
+        for match in re.finditer(r"\bAS[_ -]?\d{6}\b", query, flags=re.I)
+    }
+    if requested_manual_ids:
+        source_identities = [
+            str(metadata.get("source_filename") or ""),
+            str(metadata.get("document_title") or ""),
+            str(result.title or ""),
+        ]
+        if not any(
+            manual_id in compact(identity)
+            for manual_id in requested_manual_ids
+            for identity in source_identities
+        ):
+            return False
+
     analysis = analyze_query(query)
     identifiers = list(dict.fromkeys(analysis.product_identifiers or []))
     if not identifiers:
         return True
-    metadata = result.metadata or {}
-
-    def compact(value: object) -> str:
-        return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
 
     requested = {compact(identifier) for identifier in identifiers if compact(identifier)}
     def matches_requested(values: list[str]) -> bool:

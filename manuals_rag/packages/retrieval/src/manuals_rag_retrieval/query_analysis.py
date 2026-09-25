@@ -176,8 +176,10 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("troubleshooting")
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "section_window"])
-    if re.search(r"\b(?:compare|difference|versus)\b", lowered) or re.search(r"\bvs\.?\b", lowered) and not re.search(
-        r"\bvs\.?\s+series\b", lowered
+    if re.search(r"\b(?:compare|difference|versus)\b", lowered) or (
+        re.search(r"\bvs\.?\b", lowered)
+        and not re.search(r"\bvs\.?\s+series\b", lowered)
+        and not re.search(r"\bvs[-:][a-z0-9]", lowered)
     ):
         types.append("comparison")
         preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])

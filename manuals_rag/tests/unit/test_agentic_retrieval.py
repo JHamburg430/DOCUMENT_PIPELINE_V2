@@ -616,6 +616,25 @@ def test_model_planners_keep_scoped_yes_no_question_single_hop(monkeypatch):
         assert plan.hops[0].strategy == "hybrid"
 
 
+def test_planners_keep_explicit_manual_frame_rate_lookup_single_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("direct labelled lookup must not invoke the model")
+        ),
+    )
+    query = (
+        "In the AS_145861 VS-C specification manual, what frame rate is listed "
+        "for the VS-C160M/CX model?"
+    )
+
+    for plan in (plan_retrieval(query), plan_llamaindex_retrieval(query)):
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "structural"
+
+
 def test_verifier_confirms_scoped_direct_interface_list_without_llm(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
@@ -1112,6 +1131,28 @@ def test_scope_matching_accepts_exact_model_enumerated_by_source_filename():
         "What does the IV-H500CA status indicator mean?",
         result,
     ) is True
+
+
+def test_scope_matching_requires_explicit_manual_identifier():
+    from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
+
+    query = (
+        "In the AS_145861 VS-C specification manual, what frame rate is listed "
+        "for the VS-C160M/CX model?"
+    )
+    matching = _result(
+        "matching",
+        "vs-old",
+        "Model: Frame rate; VS-C160M/CX: 81 fps",
+    ).model_copy(update={"title": "AS-145861 VS C-611Y94 KA US 2104 2"})
+    conflicting = _result(
+        "conflicting",
+        "vs-new",
+        "Model: Frame rate; VS-C160M/CX: 83 fps",
+    ).model_copy(update={"title": "AS-160462-VS-C-689253-KA-US-2085-1"})
+
+    assert _result_supports_branch_scope(query, matching) is True
+    assert _result_supports_branch_scope(query, conflicting) is False
 
 
 def test_scope_matching_accepts_explicit_model_header_in_section_window():

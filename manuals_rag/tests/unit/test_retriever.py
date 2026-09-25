@@ -39,6 +39,16 @@ def test_stage_capture_persists_ranked_bounded_evidence():
     assert snapshots[0]["results"][0]["evidence_truncated"] is True
 
 
+def test_vs_model_prefix_is_not_treated_as_comparison_operator():
+    analysis = analyze_query(
+        "In the AS_145861 VS-C specification manual, what frame rate is listed "
+        "for the VS-C160M/CX model?"
+    )
+
+    assert "comparison" not in analysis.query_types
+    assert "VS-C160M" in analysis.product_identifiers
+
+
 def test_substage_timings_are_persisted_with_result_counts():
     with retriever.capture_retrieval_stages() as snapshots:
         result = retriever._measure_substage("metadata_selection", "setup query", lambda: [1, 2])
