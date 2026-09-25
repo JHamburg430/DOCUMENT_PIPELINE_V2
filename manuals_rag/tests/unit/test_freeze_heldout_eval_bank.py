@@ -643,7 +643,14 @@ def test_qualifies_conflicting_vs_c160m_frame_rate_by_source_manual():
         "What frame rate does the VS-C160M/CX model support?"
     ) == (
         "In the AS_145861 VS-C specification manual, what frame rate is listed "
+        "for VS-C160M/CX?"
+    )
+    assert _MODULE.normalize_frozen_query(
+        "In the AS_145861 VS-C specification manual, what frame rate is listed "
         "for the VS-C160M/CX model?"
+    ) == (
+        "In the AS_145861 VS-C specification manual, what frame rate is listed "
+        "for VS-C160M/CX?"
     )
 
 

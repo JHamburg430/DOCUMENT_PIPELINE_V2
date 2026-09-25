@@ -133,7 +133,9 @@ def normalize_frozen_query(query: str) -> str:
         "In the CV-X camera specifications, what numerical inputs can be specified for the electronic shutter setting?":
             "Which electronic shutter numerical-input values are listed from 1/15 through 1/20000 in the CV-X camera specification?",
         "What frame rate does the VS-C160M/CX model support?":
-            "In the AS_145861 VS-C specification manual, what frame rate is listed for the VS-C160M/CX model?",
+            "In the AS_145861 VS-C specification manual, what frame rate is listed for VS-C160M/CX?",
+        "In the AS_145861 VS-C specification manual, what frame rate is listed for the VS-C160M/CX model?":
+            "In the AS_145861 VS-C specification manual, what frame rate is listed for VS-C160M/CX?",
     }
     normalized = scoped_rewrites.get(normalized, normalized)
     normalized = re.sub(
