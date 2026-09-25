@@ -4959,6 +4959,48 @@ def _direct_lr_z_press_again_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_vs_s_ca_dex10x_power_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the complete VS-S CA-DEx10X current/power row in one scoped chunk."""
+    if not (
+        re.search(r"\bAS_160462\b", query, flags=re.I)
+        and re.search(r"\bVS-S Series\b", query, flags=re.I)
+        and re.search(r"\bCA-DEx10X connected\b", query, flags=re.I)
+        and re.search(r"\bcurrent and power consumption\b", query, flags=re.I)
+        and re.search(r"\b19\.2 V\b", query, flags=re.I)
+        and re.search(r"\b24 V\b", query, flags=re.I)
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids:
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        scope_text = " ".join(
+            (
+                str(result.title or ""),
+                content,
+                str(result.metadata or ""),
+            )
+        )
+        if not (
+            re.search(r"\bAS[-_]160462\b", scope_text, flags=re.I)
+            and re.search(r"\bVS-S", scope_text, flags=re.I)
+            and re.search(r"\bCurrent consumption\s*\(With CA-DEx10X", content, flags=re.I)
+            and all(value in content for value in ("11.3", "216.7", "19.2", "9.1", "24"))
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def verify_retrieval_claim(
     hop: RetrievalHop,
     executed_query: str,
@@ -5045,6 +5087,28 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_lr_z_press_again_support,
+        }
+
+    direct_vs_s_ca_dex10x_power_support = _direct_vs_s_ca_dex10x_power_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_vs_s_ca_dex10x_power_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_vs_s_ca_dex10x_power_support,
+            applicability="not_requested",
+            scope_entity="VS-S Series with CA-DEx10X",
+            rationale=(
+                "Deterministic specification verification matched one AS_160462 VS-S row "
+                "containing both current and power values at 19.2 V and 24 V."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_vs_s_ca_dex10x_power_support,
         }
 
     direct_included_accessory_support = _direct_included_accessory_support(

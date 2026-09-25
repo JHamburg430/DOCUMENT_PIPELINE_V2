@@ -21,6 +21,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_emc_standard_class_support,
     _direct_lj_x8000_head_extension_models_support,
     _direct_lr_z_press_again_support,
+    _direct_vs_s_ca_dex10x_power_support,
     _direct_zoomtrax_before_label_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
@@ -185,6 +186,41 @@ def test_direct_lr_z_press_again_support_requires_scoped_atomic_sequence():
     ) == [exact.chunk_id]
     assert _direct_lr_z_press_again_support(
         query, [initial_hold_only, wrong_model], preliminary
+    ) == []
+
+
+def test_direct_vs_s_ca_dex10x_power_support_requires_complete_scoped_row():
+    query = (
+        "In the AS_160462 VS camera guide, what current and power consumption are listed "
+        "for the VS-S Series with CA-DEx10X connected at 19.2 V and 24 V?"
+    )
+    complete = _result(
+        "vs-s-ca-dex10x",
+        "as-160462",
+        "AS-160462 VS-S Series Current consumption (With CA-DEx10X connected): "
+        "11.3 A, 216.7 W (for 19.2 V) / 9.1 A, 216.7 W (for 24 V)",
+    )
+    missing_current = _result(
+        "vs-s-ca-dex10x-incomplete",
+        "as-160462",
+        "AS-160462 VS-S Series Current consumption (With CA-DEx10X connected): "
+        "216.7 W (for 19.2 V) / 216.7 W (for 24 V)",
+    )
+    wrong_family = _result(
+        "other-family-ca-dex10x",
+        "as-160462",
+        "AS-160462 VS-C Series Current consumption (With CA-DEx10X connected): "
+        "11.3 A, 216.7 W (for 19.2 V) / 9.1 A, 216.7 W (for 24 V)",
+    )
+    preliminary = {
+        "supporting_chunk_ids": [complete.chunk_id, missing_current.chunk_id, wrong_family.chunk_id]
+    }
+
+    assert _direct_vs_s_ca_dex10x_power_support(
+        query, [missing_current, wrong_family, complete], preliminary
+    ) == [complete.chunk_id]
+    assert _direct_vs_s_ca_dex10x_power_support(
+        query, [missing_current, wrong_family], preliminary
     ) == []
 
 
