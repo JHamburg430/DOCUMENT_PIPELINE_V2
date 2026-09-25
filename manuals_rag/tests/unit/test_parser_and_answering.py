@@ -10258,6 +10258,15 @@ def test_structured_table_answer_binds_model_name_pivot_row():
             "Method 2 uses XG VisionEditor Ver.5.1.0020 or Ver.4.2.0020 or later to upload "
             "the global setting file with IoFilter.lua.",
         ),
+        (
+            "How can I adjust the defect recognition threshold for non-defective workpieces "
+            "in the Subtraction filter?",
+            "Compares the current image with a previously registered master image. It is "
+            "also possible to take individual differences in non-defective workpieces into "
+            "account and adjust how much differences should be recognized as defective.",
+            "It is also possible to take individual differences in non-defective workpieces "
+            "into account and adjust how much differences should be recognized as defective.",
+        ),
     ],
 )
 def test_generate_answer_uses_exact_control_evidence_without_model(

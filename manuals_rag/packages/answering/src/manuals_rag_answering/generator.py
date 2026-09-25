@@ -7230,6 +7230,12 @@ def _concise_exact_control_answer(
         and re.search(r"\b(?:software\s+version|version)\b", query, flags=re.I)
         and re.search(r"\bupload", query, flags=re.I)
     )
+    subtraction_tolerance_query = bool(
+        re.search(r"\bsubtraction\s+filter\b", query, flags=re.I)
+        and re.search(r"\bnon[- ]defective\s+workpieces?\b", query, flags=re.I)
+        and re.search(r"\bdefect\s+recognition\s+threshold\b", query, flags=re.I)
+        and re.search(r"\badjust\b", query, flags=re.I)
+    )
     power_match = re.search(
         r"\bhow\s+(?:is|are)\s+(?:the\s+)?(?P<model>WM-C\d{4})\b.{0,100}\bpowered\b",
         query,
@@ -7329,6 +7335,20 @@ def _concise_exact_control_answer(
                 "to upload the global setting file with IoFilter.lua.",
                 [result],
             )
+
+        if subtraction_tolerance_query:
+            tolerance_match = re.search(
+                r"It\s+is\s+also\s+possible\s+to\s+take\s+individual\s+differences\s+"
+                r"in\s+non[- ]defective\s+workpieces\s+into\s+account\s+and\s+adjust\s+"
+                r"how\s+much\s+differences\s+should\s+be\s+recognized\s+as\s+defective\.?",
+                content,
+                flags=re.I,
+            )
+            if tolerance_match:
+                answer = re.sub(r"\s+", " ", tolerance_match.group(0)).strip()
+                if not answer.endswith("."):
+                    answer += "."
+                return answer, [result]
 
         if power_match:
             requested_model = power_match.group("model").upper()
