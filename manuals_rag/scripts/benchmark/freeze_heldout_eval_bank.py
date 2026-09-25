@@ -84,6 +84,8 @@ def normalize_frozen_query(query: str) -> str:
         "How many cameras connect to one CA-E100 area camera input unit?":
             "In the AS_160148 XG-X manual, how many color/monochrome cameras connect "
             "to one CA-E100 area camera input unit?",
+        "Which screw size is specified for the IV-500C sensor mounting?":
+            "Which screw size is specified for wall-mounting the IV-500C sensor?",
         "Which controllers support the high-resolution camera CA-HFxM/C in System configuration diagram XG?":
             "Which XG-X controllers support the high-resolution CA-HFxM/C camera?",
         "What shock resistance rating applies to the laser sensor in X, Y, and Z axes?":
@@ -712,6 +714,14 @@ def enrich_expected_answer_terms(query: str, snippet: str, terms: list[object]) 
     query_tokens = set(_contract_tokens(normalized_query))
 
     if (
+        re.search(r"\bscrew\s+size\b", normalized_query)
+        and re.search(r"\bwall[- ]mounting\b", normalized_query)
+        and re.search(r"\biv-500c\b", normalized_query)
+        and re.search(r"\bM3\s*x\s*4\b", snippet, flags=re.I)
+    ):
+        return ["M3 x 4"]
+
+    if (
         re.search(r"\bhow\s+many\b.*\bcameras?\b", normalized_query)
         and re.search(r"\bca-e100\b", normalized_query)
         and re.search(r"\b2\s+color/monochrome\s+cameras\b", snippet, flags=re.I)
@@ -823,6 +833,19 @@ def focus_expected_snippet(query: str, snippet: str, source_content: str = "") -
     """Trim a multi-fact source clause to the requested structural field."""
 
     source = source_content or snippet
+    if (
+        re.search(r"\bscrew\s+size\b", str(query or ""), flags=re.I)
+        and re.search(r"\bwall[- ]mounting\b", str(query or ""), flags=re.I)
+        and re.search(r"\biv-500c\b", str(query or ""), flags=re.I)
+    ):
+        wall_screw = re.search(
+            r"Mounting\s+on\s+the\s+wall.*?"
+            r"(?P<answer>Screw\s*:\s*M3\s*x\s*4\b)",
+            source,
+            flags=re.I | re.S,
+        )
+        if wall_screw:
+            return f"Mounting on the wall — {wall_screw.group('answer')}"
     if (
         re.search(r"\bhow\s+many\b.*\bcameras?\b", str(query or ""), flags=re.I)
         and re.search(r"\bca-e100\b", str(query or ""), flags=re.I)

@@ -642,6 +642,12 @@ def test_qualifies_ca_e100_camera_count_by_source_manual():
     )
 
 
+def test_qualifies_iv_500c_screw_size_by_mounting_orientation():
+    assert _MODULE.normalize_frozen_query(
+        "Which screw size is specified for the IV-500C sensor mounting?"
+    ) == "Which screw size is specified for wall-mounting the IV-500C sensor?"
+
+
 def test_repairs_saved_settings_query_with_exact_activation_context():
     assert _MODULE.normalize_frozen_query(
         "In the VS Series KUKA robot connection manual, what action must be taken "
@@ -756,6 +762,25 @@ def test_focuses_ca_e100_camera_count_on_one_unit_not_capture_capacity():
         "2 color/monochrome cameras per CA-E100"
     )
     assert terms == ["CA-E100", "2", "color/monochrome cameras"]
+
+
+def test_focuses_iv_500c_wall_mounting_on_m3_x_4_not_neighboring_screws():
+    query = "Which screw size is specified for wall-mounting the IV-500C sensor?"
+    source = (
+        "Mounting on the wall Screw: M3 x 4 Use the commercially available screws. "
+        "Mounting from the jig side Screw: M4 x 4 Use the commercially available screws. "
+        "Fix the mounting adapter and sensor using the attached screws. Screw: M3 x 1."
+    )
+
+    focused = _MODULE.focus_expected_snippet(query, source, source)
+    terms = _MODULE.enrich_expected_answer_terms(
+        query,
+        focused,
+        ["screw", "commercially", "available", "3"],
+    )
+
+    assert focused == "Mounting on the wall — Screw: M3 x 4"
+    assert terms == ["M3 x 4"]
 
 
 def test_focuses_wm_p6200_scanning_accuracy_on_requested_row():
