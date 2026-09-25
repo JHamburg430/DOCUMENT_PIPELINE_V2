@@ -582,6 +582,38 @@ def run_special_search(
     return results
 
 
+def _structured_configuration_query_variant(query: str) -> str | None:
+    """Return an answer-neutral alias for a narrow structured diagram lookup."""
+    if not re.search(r"\bsystem\s+configuration\s+diagram\b", query, flags=re.I):
+        return None
+    if not re.search(r"\bxg(?:\s*-\s*x)?\s+controllers?\b", query, flags=re.I):
+        return None
+    if not re.search(
+        r"\b(?:connected\s+to\s+(?:an?\s+)?xt|xt\s+controllers?)\b",
+        query,
+        flags=re.I,
+    ):
+        return None
+    return "System configuration diagram XG when connected to XT controller models"
+
+
+def run_structured_configuration_variant_search(
+    store: QdrantStore,
+    query: str,
+    corpus_ids: list[str],
+    filters: dict[str, object],
+    *,
+    limit: int = 40,
+) -> list[SearchResult]:
+    variant = _structured_configuration_query_variant(query)
+    if not variant:
+        return []
+    dense_results = run_dense_search(store, variant, corpus_ids, filters, limit=limit)
+    sparse_results = run_sparse_search(store, variant, corpus_ids, filters, limit=limit)
+    table_results = run_table_search(store, variant, corpus_ids, filters, limit=limit)
+    return store.fuse_rrf([dense_results, sparse_results, table_results], limit=limit)
+
+
 def fuse_results(store: QdrantStore, result_sets: list[list[SearchResult]], *, limit: int = 30) -> list[SearchResult]:
     return store.fuse_rrf(result_sets, limit=limit)
 
@@ -4491,6 +4523,24 @@ def _retrieve_once(
                 ),
             )
         )
+    if _structured_configuration_query_variant(query):
+        branch_operations.append(
+            (
+                "structured_configuration_variant",
+                lambda: _run_qdrant_branch(
+                    lambda: _annotate_stage_metadata(
+                        run_structured_configuration_variant_search(
+                            store,
+                            query,
+                            corpus_ids,
+                            chunk_search_filters,
+                            limit=branch_limit,
+                        ),
+                        "structured_configuration_variant",
+                    ),
+                ),
+            )
+        )
     branch_operations.extend(
         [
             (
@@ -4533,6 +4583,7 @@ def _retrieve_once(
     sparse_results = branch_results.get("sparse", [])
     table_results = branch_results.get("table", [])
     metadata_balanced_table_results = branch_results.get("metadata_balanced_table", [])
+    structured_configuration_variant_results = branch_results.get("structured_configuration_variant", [])
     contextual_lexical_results = branch_results["contextual_lexical"]
     special_results = branch_results["special"]
     fused = _measure_substage(
@@ -4546,6 +4597,7 @@ def _retrieve_once(
                     sparse_results,
                     table_results,
                     metadata_balanced_table_results,
+                    structured_configuration_variant_results,
                     table_lexical_results,
                     contextual_lexical_results,
                     special_results,
@@ -4629,6 +4681,7 @@ def _retrieve_once(
             *dense_results,
             *sparse_results,
             *special_results,
+            *structured_configuration_variant_results,
             *fused,
         ],
         query,

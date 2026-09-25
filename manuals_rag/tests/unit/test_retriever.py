@@ -203,6 +203,26 @@ def test_dependent_power_source_lookup_adds_structured_table_aliases():
     assert retriever._structured_prompt_phrase(query) == "powersupply"
 
 
+def test_xgx_xt_system_configuration_diagram_adds_answer_neutral_query_variant():
+    query = (
+        "Which XG-X controllers are shown in the system configuration diagram "
+        "when connected to an XT controller?"
+    )
+
+    assert retriever._structured_configuration_query_variant(query) == (
+        "System configuration diagram XG when connected to XT controller models"
+    )
+
+
+def test_structured_configuration_query_variant_rejects_partial_intents():
+    assert retriever._structured_configuration_query_variant(
+        "Which XG-X controllers support an XT camera?"
+    ) is None
+    assert retriever._structured_configuration_query_variant(
+        "Which controllers are shown in the system configuration diagram?"
+    ) is None
+
+
 def test_default_spec_lookup_promotes_exact_structured_table_rows():
     generic = SearchResult(
         chunk_id="generic-output",
