@@ -3380,6 +3380,31 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
             "initial start-up?",
             "structural",
         ),
+        (
+            "What mounting bracket type is required for horizontal installation of "
+            "the SZ-VB01 model?",
+            "structural",
+        ),
+        (
+            "Which electronic shutter numerical-input values are listed from 1/15 "
+            "through 1/20000 in the CV-X camera specification?",
+            "structural",
+        ),
+        (
+            "What communication protocols can the Lua Script function customize for "
+            "XG controllers?",
+            "hybrid",
+        ),
+        (
+            "In the LJ-X8000 EtherNet/IP setup for CompactLogix or ControlLogix, how "
+            "do I add a new module to the controller configuration?",
+            "structural",
+        ),
+        (
+            "For the CA-H048CX/H048MX cameras, what resolutions and approximate "
+            "megapixel counts are listed for the 0.47-megapixel and 0.31-megapixel modes?",
+            "structural",
+        ),
     ],
 )
 def test_atomic_lookup_shapes_are_lossless_single_hop_for_both_planners(

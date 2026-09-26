@@ -823,6 +823,40 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
         flags=re.I,
     ):
         strategy = "structural"
+    elif re.match(
+        r"^\s*what\s+mounting\s+bracket\s+type\s+is\s+required\s+for\s+"
+        r"horizontal\s+installation\s+of\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
+        r"^\s*which\s+electronic\s+shutter\s+numerical[- ]input\s+values\s+"
+        r"are\s+listed\s+from\b.+\bthrough\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
+        r"^\s*what\s+communication\s+protocols\s+can\s+.+?\s+function\s+"
+        r"customize\s+for\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    elif re.match(
+        r"^\s*in\s+.+?,\s*how\s+do\s+i\s+add\s+a\s+new\s+module\s+to\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
+        r"^\s*for\s+.+?\s+cameras?,\s*what\s+resolutions?\s+and\s+"
+        r"approximate\s+megapixel\s+counts?\s+are\s+listed\s+for\b.+\bmodes?\s*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
     if strategy is None:
         return None
     return RetrievalPlan(
