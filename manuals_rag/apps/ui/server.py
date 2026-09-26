@@ -959,6 +959,32 @@ def _external_agent_matrix_report(snapshot: dict) -> dict:
     }
 
 
+def _agent_matrix_ui_result(item: dict | None) -> dict | None:
+    """Project a persisted matrix item down to fields rendered by the browser.
+
+    Full evaluation artifacts include retrieval results and stage snapshots that can
+    make the 200-row response exceed 100 MB.  The matrix only needs terminal cells,
+    the generated answer, elapsed time, and the compact trace shown in row details.
+    """
+    if not isinstance(item, dict):
+        return None
+    projected = {
+        key: deepcopy(item[key])
+        for key in ("case_id", "query", "retrieval_task", "agent_case_category")
+        if key in item
+    }
+    for backend in ("langgraph", "llamaindex"):
+        result = item.get(backend)
+        if not isinstance(result, dict):
+            continue
+        projected[backend] = {
+            key: deepcopy(result[key])
+            for key in ("agent_evaluation", "answer", "elapsed_ms", "trace")
+            if key in result
+        }
+    return projected
+
+
 def _build_agent_matrix() -> dict:
     external_snapshot = _external_agent_matrix_run()
     report = (
@@ -983,6 +1009,12 @@ def _build_agent_matrix() -> dict:
     for number, record in enumerate(cases, start=1):
         case = record.get("case") if isinstance(record.get("case"), dict) else record
         case_id = str(case.get("case_id") or f"question-{number}")
+        report_item = report_items.get(case_id)
+        report_graph = (
+            report_item.get("expected_evidence_graph")
+            if isinstance(report_item, dict) and isinstance(report_item.get("expected_evidence_graph"), dict)
+            else {}
+        )
         rows.append(
             {
                 "number": number,
@@ -992,9 +1024,15 @@ def _build_agent_matrix() -> dict:
                 "agent_case_category": (
                     (case.get("expected_evidence_graph") or {}).get("category")
                     or (case.get("source_metadata") or {}).get("agent_case_category")
+                    or (report_item or {}).get("agent_case_category")
+                    or report_graph.get("category")
                     or "unknown"
                 ),
-                "expected_graph_mode": (case.get("expected_evidence_graph") or {}).get("mode") or "",
+                "expected_graph_mode": (
+                    (case.get("expected_evidence_graph") or {}).get("mode")
+                    or report_graph.get("mode")
+                    or ""
+                ),
                 "expected_evidence_count": len(case.get("expected_evidence") or []),
                 "expected_document_count": len(
                     {
@@ -1007,7 +1045,7 @@ def _build_agent_matrix() -> dict:
                     }
                     - {""}
                 ),
-                "result": report_items.get(case_id),
+                "result": _agent_matrix_ui_result(report_item),
             }
         )
     return {

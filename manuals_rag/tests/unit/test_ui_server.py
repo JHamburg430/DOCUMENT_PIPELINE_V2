@@ -440,6 +440,58 @@ def test_agent_evaluation_matrix_joins_question_rows_to_backend_results(monkeypa
     ]
 
 
+def test_agent_evaluation_matrix_omits_heavy_unrendered_artifact_fields(monkeypatch, tmp_path):
+    dataset = tmp_path / "agent-cases.jsonl"
+    report = tmp_path / "agent-report.json"
+    dataset.write_text(
+        ui_server.json.dumps({"case_id": "case-1", "query": "Question?"}) + "\n",
+        encoding="utf-8",
+    )
+    report.write_text(
+        ui_server.json.dumps(
+            {
+                "dataset": str(dataset),
+                "items": [
+                    {
+                        "case_id": "case-1",
+                        "agent_case_category": "exact_structured_lookup",
+                        "expected_evidence_graph": {"category": "exact_structured_lookup", "mode": "single"},
+                        "stage_snapshots": {"huge": "unused" * 1000},
+                        "baseline": {"results": ["unused"]},
+                        "langgraph": {
+                            "stage_snapshots": {"huge": "unused" * 1000},
+                            "results": ["unused"],
+                            "agent_evaluation": {
+                                "passed": True,
+                                "cells": {"tool_selection": {"status": "pass", "label": "PASS"}},
+                            },
+                            "answer": {"answer": "Supported answer"},
+                            "elapsed_ms": 123,
+                            "trace": {"steps": ["retrieve"]},
+                        },
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "AGENT_MATRIX_REPORT", report)
+
+    result = ui_server._build_agent_matrix()["rows"][0]["result"]
+
+    assert result["langgraph"]["agent_evaluation"]["cells"]["tool_selection"]["status"] == "pass"
+    assert result["langgraph"]["answer"]["answer"] == "Supported answer"
+    assert result["langgraph"]["trace"] == {"steps": ["retrieve"]}
+    assert "stage_snapshots" not in result
+    assert "baseline" not in result
+    assert "stage_snapshots" not in result["langgraph"]
+    assert "results" not in result["langgraph"]
+    row = ui_server._build_agent_matrix()["rows"][0]
+    assert row["agent_case_category"] == "exact_structured_lookup"
+    assert row["expected_graph_mode"] == "single"
+
+
 def test_ingestion_ui_supports_multi_upload_filtering_and_step_details():
     app_js = (UI_DIR / "app.js").read_text()
     index_html = (UI_DIR / "index.html").read_text()
