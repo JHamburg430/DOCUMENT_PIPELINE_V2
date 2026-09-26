@@ -728,6 +728,18 @@ def _reported_clause_plan(query: str) -> RetrievalPlan | None:
 
 def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     """Keep exact structured lookups in one lossless, deterministic hop."""
+    # These patterns are only safe for one answerable lookup.  A second
+    # interrogative after a conjunction introduces another required claim
+    # (for example, a procedure plus its safety warning).  Let the normal
+    # planner preserve that decomposition instead of collapsing both claims
+    # into one forced hop.
+    if re.search(
+        r"(?:\band\b|\bplus\b|\bas\s+well\s+as\b)\s+"
+        r"(?:what|which|how|when|where|why|who|must|should|is|are|does|do|can)\b",
+        query,
+        flags=re.I,
+    ):
+        return None
     strategy: RetrievalStrategy | None = None
     if re.match(
         r"^\s*how\s+many\b.+\b(?:store|retain|save)\b.+\bversus\b.+\bcameras?\b.*\?\s*$",
@@ -7159,6 +7171,7 @@ def verify_retrieval_claim(
         and bool(preliminary_assessment.get("claim_supported"))
         and bool(valid_support)
         and not invalid_citations
+        and not out_of_scope
         and not any(
             (allowed_results[chunk_id].metadata or {}).get("query_applicability", {}).get("state") == "conflicting"
             for chunk_id in valid_support

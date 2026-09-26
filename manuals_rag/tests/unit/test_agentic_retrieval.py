@@ -30,6 +30,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_xgx_initial_language_support,
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
+    _exact_structured_single_plan,
     _direct_feature_amplifier_type_support,
     _direct_gl_fb_floor_column_range_support,
     _direct_gl_r60h_stop_distance_support,
@@ -2177,7 +2178,7 @@ def test_verifier_rejects_model_citations_that_were_not_retrieved(monkeypatch):
     assert result["judge"]["attempts"][0]["parsed_response"]["supporting_chunk_ids"] == ["invented-chunk"]
 
 
-def test_verifier_drops_out_of_scope_citation_when_valid_scoped_support_remains(monkeypatch):
+def test_verifier_fails_closed_when_out_of_scope_citation_accompanies_scoped_support(monkeypatch):
     hop = RetrievalHop(
         hop_id="lookup",
         objective="Does IV4-400MA support operation below freezing temperatures?",
@@ -2219,8 +2220,8 @@ def test_verifier_drops_out_of_scope_citation_when_valid_scoped_support_remains(
         {"claim_supported": True, "supporting_chunk_ids": ["iv4-temperature"]},
     )
 
-    assert result["claim_supported"] is True
-    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is False
+    assert result["trust_state"] == "unresolved"
     assert result["supporting_chunk_ids"] == ["iv4-temperature"]
     assert result["out_of_scope_chunk_ids"] == ["sibling-temperature"]
 
@@ -3396,6 +3397,55 @@ def test_atomic_lookup_shapes_are_lossless_single_hop_for_both_planners(
         assert len(plan.hops) == 1
         assert plan.hops[0].query == query
         assert plan.hops[0].strategy == strategy
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        (
+            "How do I enable the U.C.D. Function on LR-ZH models to detect targets "
+            "varying from the background, and what safety warning must I follow?"
+        ),
+        (
+            "How long does image transfer take for VJ-H500CX in 5 megapixel mode, "
+            "plus which cable is required?"
+        ),
+        (
+            "What indicates normal operation when obtaining robot coordinates in "
+            "VS Creator, and how do I correct an error?"
+        ),
+    ],
+)
+def test_atomic_lookup_shapes_do_not_collapse_compound_claims(query, monkeypatch):
+    assert _exact_structured_single_plan(query) is None
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "mode": "parallel",
+                "rationale": "The request contains two independently required claims.",
+                "hops": [
+                    {
+                        "hop_id": "primary_fact",
+                        "objective": "Retrieve the primary requested fact.",
+                        "query": query,
+                        "strategy": "hybrid",
+                    },
+                    {
+                        "hop_id": "companion_fact",
+                        "objective": "Retrieve the companion requested fact.",
+                        "query": query,
+                        "strategy": "hybrid",
+                    },
+                ],
+            },
+            "{}",
+        ),
+    )
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=True)
+        assert plan.mode == "parallel"
+        assert len(plan.hops) == 2
 
 
 def test_iv4_output_configuration_requires_complete_model_scoped_electrical_row(monkeypatch):
