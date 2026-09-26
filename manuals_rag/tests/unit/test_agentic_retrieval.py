@@ -3385,6 +3385,11 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
             "structural",
         ),
         (
+            "In the AS_124150 LJ-X8000 communication manual, how do I activate the "
+            "Laser ON input?",
+            "structural",
+        ),
+        (
             "What mounting bracket type is required for horizontal installation of "
             "the SZ-VB01 model?",
             "structural",

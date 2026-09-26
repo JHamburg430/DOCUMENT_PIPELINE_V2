@@ -754,6 +754,13 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     ):
         strategy = "structural"
     elif re.match(
+        r"^\s*in\s+.+?\s+manual,\s*how\s+do\s+i\s+"
+        r"(?:enable|activate|turn\s+on)\b.+\binput\s*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
         r"^\s*how\s+long\s+does\b.+\btake\b.+\b(?:in|at)\b.+\bmode\b.*\?\s*$",
         query,
         flags=re.I,
