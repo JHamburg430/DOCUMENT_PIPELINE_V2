@@ -818,6 +818,12 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     ):
         strategy = "structural"
     elif re.match(
+        r"^\s*how\s+should\s+i\s+shield\b.+\bfrom\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
         r"^\s*what\s+mounting\s+hole\s+size\s+and\s+tightening\s+torque\s+apply\s+to\b.+\?\s*$",
         query,
         flags=re.I,

@@ -3381,6 +3381,10 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
             "structural",
         ),
         (
+            "How should I shield the LJ-S8000 head from nearby lighting fixtures?",
+            "structural",
+        ),
+        (
             "What mounting bracket type is required for horizontal installation of "
             "the SZ-VB01 model?",
             "structural",
