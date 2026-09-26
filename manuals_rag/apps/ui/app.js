@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260926-hide-unscored-question-stages";
+const ASSET_VERSION = "20260926-scored-stage-guard";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -31,6 +31,7 @@ const state = {
   matrixFilters: { text: "", run: "", type: "", anyStatus: "", stages: {} },
   matrixVisibleColumns: null,
   matrixVisibleColumnsCustomized: false,
+  matrixScoredStageKeys: new Set(),
   running: false,
   runDebug: null,
   runDebugTimer: null,
@@ -713,13 +714,25 @@ function scoredMatrixStageKeys(items = []) {
 }
 
 function applyMatrixDefaultColumnVisibility(items = []) {
-  if (state.matrixVisibleColumnsCustomized || !items.length) return;
+  if (!items.length) {
+    state.matrixScoredStageKeys = new Set();
+    return;
+  }
   const scoredStages = scoredMatrixStageKeys(items);
+  state.matrixScoredStageKeys = scoredStages;
+  if (state.matrixVisibleColumnsCustomized) {
+    renderMatrixColumnControls();
+    return;
+  }
   state.matrixVisibleColumns = {
     ...Object.fromEntries(MATRIX_BASE_COLUMNS.map((column) => [column.key, true])),
     ...Object.fromEntries(MATRIX_STAGES.map((stage) => [stage.key, scoredStages.has(stage.key)])),
   };
   renderMatrixColumnControls();
+}
+
+function isMatrixStageScored(key) {
+  return state.matrixScoredStageKeys?.has(key) === true;
 }
 
 function isMatrixColumnVisible(key) {
@@ -730,7 +743,7 @@ function matrixColumnDefinitions() {
   return [
     ...MATRIX_BASE_COLUMNS,
     ...MATRIX_STAGES.map((stage) => ({ ...stage, stage: true })),
-  ].filter((column) => isMatrixColumnVisible(column.key));
+  ].filter((column) => isMatrixColumnVisible(column.key) && (!column.stage || isMatrixStageScored(column.key)));
 }
 
 function normalizedMatrixText(row) {
@@ -854,10 +867,10 @@ function renderMatrixColumnControls() {
       ${MATRIX_STAGES.map((stage) => `
         <label>
           <span class="matrix-column-filter-label">
-            <input type="checkbox" data-matrix-visible="${escapeHtml(stage.key)}"${visible[stage.key] !== false ? " checked" : ""} />
+            <input type="checkbox" data-matrix-visible="${escapeHtml(stage.key)}"${visible[stage.key] !== false && isMatrixStageScored(stage.key) ? " checked" : ""}${isMatrixStageScored(stage.key) ? "" : " disabled"} />
             ${escapeHtml(stage.label)}
           </span>
-          <select data-matrix-stage-filter="${escapeHtml(stage.key)}">${statusOptions(stageFilters[stage.key] || "")}</select>
+          <select data-matrix-stage-filter="${escapeHtml(stage.key)}"${isMatrixStageScored(stage.key) ? "" : " disabled"}>${statusOptions(stageFilters[stage.key] || "")}</select>
         </label>
       `).join("")}
     </div>
@@ -879,7 +892,7 @@ function renderMatrixSummary(totals = {}, totalRows = 0) {
     return;
   }
   node.className = "matrix-summary";
-  const visibleStages = MATRIX_STAGES.filter((stage) => isMatrixColumnVisible(stage.key));
+  const visibleStages = MATRIX_STAGES.filter((stage) => isMatrixStageScored(stage.key) && isMatrixColumnVisible(stage.key));
   if (!visibleStages.length) {
     node.className = "matrix-summary empty-state";
     node.textContent = "This run has no scored question-pipeline stages.";

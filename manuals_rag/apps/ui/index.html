@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260926-hide-unscored-question-stages" />
+    <link rel="stylesheet" href="/styles.css?v=20260926-scored-stage-guard" />
   </head>
   <body>
     <main class="app-shell">
@@ -170,7 +170,7 @@
           <div class="matrix-progress-heading">
             <div>
               <h3>Question-pipeline diagnostics</h3>
-              <p>Only stages scored by the selected run are shown. Unscored stages are hidden by default and can be enabled under Columns and stage filters.</p>
+              <p>Only stages scored by the selected run are shown. Unscored stages stay hidden until an evaluation records a result for them.</p>
             </div>
             <small>Swipe to see scored stages</small>
           </div>
@@ -402,6 +402,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260926-hide-unscored-question-stages"></script>
+    <script src="/app.js?v=20260926-scored-stage-guard"></script>
   </body>
 </html>
