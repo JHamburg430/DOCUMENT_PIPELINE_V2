@@ -31,7 +31,21 @@ class EvaluationWorkspaceContractTest(unittest.TestCase):
         ):
             self.assertIn(f'id="{element_id}"', self.html)
         self.assertIn("function setupEvaluationWorkspace()", self.js)
+        self.assertIn("workspace.insertBefore(agentMatrix, questionMatrix)", self.js)
         self.assertIn("workspace.appendChild(agentLab)", self.js)
+
+    def test_completed_agent_matrix_is_the_primary_evaluation_surface(self):
+        self.assertIn("Current Agent Evaluation Matrix", self.html)
+        self.assertIn('id="agent-matrix-workspace" class="panel agent-matrix-panel evaluation-section evaluation-disclosure" open', self.html)
+        self.assertLess(
+            self.html.index('href="#agent-matrix-workspace"'),
+            self.html.index('href="#question-matrix-workspace"'),
+        )
+        self.assertIn("terminalRows === rows.length", self.js)
+        self.assertIn('if (rows.length) $("agent-matrix-limit").value = rows.length;', self.js)
+        self.assertIn("Question-pipeline diagnostics", self.html)
+        self.assertIn("unavailable stages remain blank", self.html)
+        self.assertIn('class="evaluation-disclosure agent-matrix-controls"', self.html)
 
     def test_top_matrix_progress_bars_are_preserved(self):
         self.assertIn("function renderMatrixSummary(totals = {}, totalRows = 0)", self.js)

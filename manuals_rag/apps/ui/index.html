@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260924-mobile-evaluation" />
+    <link rel="stylesheet" href="/styles.css?v=20260925-current-agent-matrix" />
   </head>
   <body>
     <main class="app-shell">
@@ -29,9 +29,9 @@
             <p class="muted">Question-bank diagnostics, live agent traces, and agent scoring in one workspace.</p>
           </div>
           <nav class="evaluation-jump-links" aria-label="Evaluation workspace sections">
+            <a href="#agent-matrix-workspace">Current agent matrix</a>
             <a href="#question-matrix-workspace">Question matrix</a>
             <a href="#agent-lab">Live agent lab</a>
-            <a href="#agent-matrix-workspace">Agent matrix</a>
           </nav>
         </header>
         <section id="question-matrix-workspace" class="panel evaluation-section">
@@ -169,8 +169,8 @@
           </details>
           <div class="matrix-progress-heading">
             <div>
-              <h3>Overall matrix progress</h3>
-              <p>Pass, fail, and pending counts for every evaluation stage.</p>
+              <h3>Question-pipeline diagnostics</h3>
+              <p>Only stages persisted by this retrieval or answer-evaluation run are scored; unavailable stages remain blank.</p>
             </div>
             <small>Swipe to see all 17 stages</small>
           </div>
@@ -281,22 +281,25 @@
             <div class="empty-state">Run a question to compare the agent backends and inspect every retrieval hop.</div>
           </section>
         </details>
-        <details id="agent-matrix-workspace" class="panel agent-matrix-panel evaluation-section evaluation-disclosure">
-          <summary><span>Agent Evaluation Matrix</span><span id="agent-matrix-status" class="status-pill">Not run</span></summary>
+        <details id="agent-matrix-workspace" class="panel agent-matrix-panel evaluation-section evaluation-disclosure" open>
+          <summary><span>Current Agent Evaluation Matrix</span><span id="agent-matrix-status" class="status-pill">Loading</span></summary>
           <p class="muted">Each row is a test question. Columns isolate tool routing, retrieval coverage, reasoning dependencies, evidence sufficiency, grounded synthesis, and operating cost.</p>
-          <div class="matrix-actions">
-            <label>Dataset <input id="agent-matrix-dataset" value="tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl" /></label>
-            <label>Questions <input id="agent-matrix-limit" type="number" min="1" max="1000" value="48" /></label>
-            <label>Max hops <input id="agent-matrix-hops" type="number" min="1" max="8" value="6" /></label>
-            <label>Corpus <input id="agent-matrix-corpus" value="manuals_vendor_keyence" /></label>
-            <label class="inline-check"><input id="agent-matrix-no-llm" type="checkbox" /><span>Deterministic planners</span></label>
-            <button id="run-agent-matrix" type="button">Run Agent Matrix</button>
-            <button id="refresh-agent-matrix" type="button">Refresh</button>
-            <button id="replay-agent-matrix-fixture" class="secondary-button" type="button">Replay Live Fixture</button>
-          </div>
           <div id="agent-matrix-summary" class="matrix-summary empty-state">No agent evaluation loaded.</div>
           <div id="agent-matrix-table" class="matrix-table-shell"></div>
           <div id="agent-matrix-detail"></div>
+          <details class="evaluation-disclosure agent-matrix-controls">
+            <summary><span>Run controls</span><small>Start or refresh an agent matrix</small></summary>
+            <div class="matrix-actions">
+              <label>Dataset <input id="agent-matrix-dataset" value="tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl" /></label>
+              <label>Questions <input id="agent-matrix-limit" type="number" min="1" max="1000" value="48" /></label>
+              <label>Max hops <input id="agent-matrix-hops" type="number" min="1" max="8" value="6" /></label>
+              <label>Corpus <input id="agent-matrix-corpus" value="manuals_vendor_keyence" /></label>
+              <label class="inline-check"><input id="agent-matrix-no-llm" type="checkbox" /><span>Deterministic planners</span></label>
+              <button id="run-agent-matrix" type="button">Run Agent Matrix</button>
+              <button id="refresh-agent-matrix" type="button">Refresh</button>
+              <button id="replay-agent-matrix-fixture" class="secondary-button" type="button">Replay Live Fixture</button>
+            </div>
+          </details>
         </details>
       </section>
 
@@ -399,6 +402,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260924-mobile-evaluation"></script>
+    <script src="/app.js?v=20260925-current-agent-matrix"></script>
   </body>
 </html>

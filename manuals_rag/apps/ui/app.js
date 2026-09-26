@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260924-mobile-evaluation";
+const ASSET_VERSION = "20260925-current-agent-matrix";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -3395,6 +3395,18 @@ function renderAgentMatrix(payload) {
   const rows = payload.rows || [];
   const summary = payload.summary || {};
   const categoryCounts = payload.category_counts || {};
+  if (rows.length) $("agent-matrix-limit").value = rows.length;
+  const terminalRows = rows.filter((row) => {
+    const result = row.result || {};
+    return ["langgraph", "llamaindex"].every((backend) =>
+      AGENT_MATRIX_LAYERS.every(([layer]) => ["pass", "fail"].includes(result?.[backend]?.agent_evaluation?.cells?.[layer]?.status)),
+    );
+  }).length;
+  if (!payload.active_job && rows.length) {
+    const status = $("agent-matrix-status");
+    status.textContent = terminalRows === rows.length ? `Complete · ${terminalRows}/${rows.length}` : `Results · ${terminalRows}/${rows.length} terminal`;
+    status.className = `status-pill ${terminalRows === rows.length ? "pass" : "idle"}`;
+  }
   $("agent-matrix-summary").className = "matrix-summary";
   $("agent-matrix-summary").innerHTML = `
     <article class="matrix-stat"><span>Questions</span><strong>${rows.length}</strong><small>${escapeHtml(payload.dataset || "")}</small></article>
@@ -3894,8 +3906,14 @@ function setupEvaluationWorkspace() {
   const workspace = $("evaluation");
   const agentLab = $("agent-lab");
   if (!workspace || !agentLab || agentLab.parentElement === workspace) return;
+  const questionMatrix = $("question-matrix-workspace");
+  const agentMatrix = $("agent-matrix-workspace");
   agentLab.classList.remove("tab-panel");
   agentLab.classList.add("evaluation-agent-lab");
+  if (agentMatrix && questionMatrix) {
+    agentMatrix.open = true;
+    workspace.insertBefore(agentMatrix, questionMatrix);
+  }
   workspace.appendChild(agentLab);
 }
 
