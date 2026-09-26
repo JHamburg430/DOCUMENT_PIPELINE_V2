@@ -859,6 +859,29 @@ def test_model_planners_keep_scoped_structured_lookups_in_one_hop(monkeypatch):
     assert planner_calls == []
 
 
+def test_model_planners_keep_direct_compatibility_mode_and_error_lookups_in_one_hop(monkeypatch):
+    planner_calls = []
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **kwargs: planner_calls.append(kwargs),
+    )
+    queries = [
+        "Which XG-X controllers support the high-resolution CA-HFxM/C camera?",
+        "How does the W500 Auto detection mode select between C+I and C?",
+        "What causes the ErH error on the LR-W70(C) Edition sensor?",
+    ]
+
+    for query in queries:
+        for planner in (plan_retrieval, plan_llamaindex_retrieval):
+            plan = planner(query, use_llm=True)
+            assert plan.mode == "single"
+            assert len(plan.hops) == 1
+            assert plan.hops[0].objective == query
+            assert plan.hops[0].query == query
+            assert plan.hops[0].strategy == "hybrid"
+    assert planner_calls == []
+
+
 def test_model_planners_keep_direct_display_behavior_in_one_hop(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
@@ -2224,6 +2247,41 @@ def test_verifier_fails_closed_when_out_of_scope_citation_accompanies_scoped_sup
     assert result["trust_state"] == "unresolved"
     assert result["supporting_chunk_ids"] == ["iv4-temperature"]
     assert result["out_of_scope_chunk_ids"] == ["sibling-temperature"]
+
+
+def test_verifier_confirms_scoped_below_freezing_rejection_without_llm(monkeypatch):
+    objective = "Does the IV4-400MA model support operation below freezing temperatures?"
+    hop = RetrievalHop(hop_id="direct_lookup", objective=objective, query=objective)
+    scoped = _result(
+        "iv4-temperature",
+        "iv4-doc",
+        "Column headers: IV4-400CA > IV4-400MA > IV4-500CA; "
+        "Row headers: Operating ambient temperature; "
+        "Cell value: 0 to +50°C (No freezing); Row: 8; Column: 2",
+    )
+    scoped.metadata["product_family"] = "IV4"
+    sibling = _result(
+        "sibling-temperature",
+        "sibling-doc",
+        "IV4-500MA operating ambient temperature: -10 to +50°C.",
+    )
+    sibling.metadata["product_model"] = "IV4-500MA"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        objective,
+        [scoped, sibling],
+        {"claim_supported": True, "supporting_chunk_ids": [scoped.chunk_id]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+    assert result["supporting_chunk_ids"] == ["iv4-temperature"]
+    assert result["out_of_scope_chunk_ids"] == []
 
 
 def test_verifier_deterministically_confirms_condition_aligned_warning(monkeypatch):
