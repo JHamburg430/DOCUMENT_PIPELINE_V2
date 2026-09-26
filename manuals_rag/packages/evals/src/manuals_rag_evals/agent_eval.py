@@ -908,6 +908,30 @@ def score_agent_run(
         for hop_id, item in ledger.items()
         if item.get("required") and not item.get("sufficient") and str(hop_id) not in recovered_targets
     ]
+    verifier_invalid_citations = sorted(
+        {
+            str(chunk_id)
+            for item in ledger.values()
+            for chunk_id in (
+                ((item.get("assessment") or {}).get("verification") or {}).get(
+                    "invalid_citation_ids"
+                )
+                or []
+            )
+        }
+    )
+    verifier_out_of_scope_citations = sorted(
+        {
+            str(chunk_id)
+            for item in ledger.values()
+            for chunk_id in (
+                ((item.get("assessment") or {}).get("verification") or {}).get(
+                    "out_of_scope_chunk_ids"
+                )
+                or []
+            )
+        }
+    )
     predicted_sufficient = bool(trace.get("sufficient"))
     if graph.expected_outcome == "insufficient":
         sufficiency_ok = not predicted_sufficient
@@ -926,6 +950,11 @@ def score_agent_run(
             and all(bool(chunks) for chunks in support.values())
             and bool(context.get("all_required_claims_retained", True))
         )
+    sufficiency_ok = (
+        sufficiency_ok
+        and not verifier_invalid_citations
+        and not verifier_out_of_scope_citations
+    )
     recoveries = [item for item in ledger.values() if item.get("recovery_for")]
     successful_recoveries = [item for item in recoveries if item.get("sufficient")]
     sufficiency_cell = _cell(
@@ -934,6 +963,8 @@ def score_agent_run(
         sufficient=predicted_sufficient,
         unsupported=unsupported,
         expected_outcome=graph.expected_outcome,
+        verifier_invalid_citation_ids=verifier_invalid_citations,
+        verifier_out_of_scope_chunk_ids=verifier_out_of_scope_citations,
         recovery_attempts=len(recoveries),
         successful_recoveries=len(successful_recoveries),
     )

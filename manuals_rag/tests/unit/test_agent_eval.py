@@ -481,6 +481,71 @@ def test_agent_evaluation_scores_each_requested_layer():
     assert evaluation["passed"] is True
 
 
+def test_agent_evaluation_fails_sufficiency_for_verifier_scope_or_citation_violations():
+    for field in ("invalid_citation_ids", "out_of_scope_chunk_ids"):
+        trace = {
+            "sufficient": True,
+            "duration_ms": 1200,
+            "plan": {
+                "mode": "dependent",
+                "hops": [
+                    {"hop_id": "one", "depends_on": []},
+                    {"hop_id": "two", "depends_on": ["one"]},
+                ],
+            },
+            "evidence_ledger": {
+                "one": {
+                    "required": True,
+                    "sufficient": True,
+                    "strategy": "sparse",
+                    "chunk_ids": ["identify"],
+                    "assessment": {
+                        "verification": {
+                            "invalid_citation_ids": [],
+                            "out_of_scope_chunk_ids": [],
+                        }
+                    },
+                },
+                "two": {
+                    "required": True,
+                    "sufficient": True,
+                    "strategy": "structural",
+                    "chunk_ids": ["orientation"],
+                    "assessment": {
+                        "verification": {
+                            "invalid_citation_ids": [],
+                            "out_of_scope_chunk_ids": [],
+                        }
+                    },
+                },
+            },
+            "cost": {"retrieval_calls": 2, "llm_token_estimate": 300},
+        }
+        trace["evidence_ledger"]["one"]["assessment"]["verification"][field] = [
+            "wrong-scope"
+        ]
+        evaluation = score_agent_run(
+            _case(),
+            trace=trace,
+            results=[{"chunk_id": "orientation", "source_document_id": "doc-a"}],
+            answer={
+                "answer": "The cable is OP-26487 and it is straight.",
+                "citations": [{"chunk_id": "identify"}, {"chunk_id": "orientation"}],
+            },
+        )
+
+        assert evaluation["passed"] is False
+        assert evaluation["cells"]["evidence_sufficiency"]["status"] == "fail"
+        metric = (
+            "verifier_invalid_citation_ids"
+            if field == "invalid_citation_ids"
+            else "verifier_out_of_scope_chunk_ids"
+        )
+        assert evaluation["cells"]["evidence_sufficiency"]["metrics"][metric] == [
+            "wrong-scope"
+        ]
+
+
 def test_agent_evaluation_separates_candidate_recall_from_final_context_retention():
     trace = {
         "sufficient": True,
