@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260925-current-agent-matrix";
+const ASSET_VERSION = "20260926-hide-unscored-question-stages";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -30,6 +30,7 @@ const state = {
   matrixSort: { key: "number", direction: "asc" },
   matrixFilters: { text: "", run: "", type: "", anyStatus: "", stages: {} },
   matrixVisibleColumns: null,
+  matrixVisibleColumnsCustomized: false,
   running: false,
   runDebug: null,
   runDebugTimer: null,
@@ -700,6 +701,27 @@ function matrixVisibleColumns() {
   return { ...MATRIX_DEFAULT_VISIBLE_COLUMNS, ...(state.matrixVisibleColumns || {}) };
 }
 
+function scoredMatrixStageKeys(items = []) {
+  const scored = new Set();
+  for (const item of items) {
+    const cells = matrixCellsForItem(item);
+    for (const stage of MATRIX_STAGES) {
+      if (["pass", "fail", "provisional"].includes(cells[stage.key]?.status)) scored.add(stage.key);
+    }
+  }
+  return scored;
+}
+
+function applyMatrixDefaultColumnVisibility(items = []) {
+  if (state.matrixVisibleColumnsCustomized || !items.length) return;
+  const scoredStages = scoredMatrixStageKeys(items);
+  state.matrixVisibleColumns = {
+    ...Object.fromEntries(MATRIX_BASE_COLUMNS.map((column) => [column.key, true])),
+    ...Object.fromEntries(MATRIX_STAGES.map((stage) => [stage.key, scoredStages.has(stage.key)])),
+  };
+  renderMatrixColumnControls();
+}
+
 function isMatrixColumnVisible(key) {
   return matrixVisibleColumns()[key] !== false;
 }
@@ -857,7 +879,13 @@ function renderMatrixSummary(totals = {}, totalRows = 0) {
     return;
   }
   node.className = "matrix-summary";
-  node.innerHTML = MATRIX_STAGES.map((stage) => {
+  const visibleStages = MATRIX_STAGES.filter((stage) => isMatrixColumnVisible(stage.key));
+  if (!visibleStages.length) {
+    node.className = "matrix-summary empty-state";
+    node.textContent = "This run has no scored question-pipeline stages.";
+    return;
+  }
+  node.innerHTML = visibleStages.map((stage) => {
     const counts = totals[stage.key] || { pass: 0, fail: 0, blank: 0 };
     const denominator = counts.pass + counts.fail;
     const passRate = denominator ? (counts.pass / denominator) * 100 : 0;
@@ -943,6 +971,7 @@ function renderQuestionMatrix(payload) {
   const loaded = Number(payload?.loaded_questions || baseItems.length || 0) + liveItems.length;
   const official = Number(payload?.official_total_questions || 0);
   const currentRun = payload?.current_run;
+  applyMatrixDefaultColumnVisibility(items);
   renderMatrixRunOverview(state.matrixJob, currentRun);
   const countText = currentRun?.status === "running"
     ? `${Number(currentRun.completed || 0)} / ${Number(currentRun.total || loaded || 0)} current-run questions`
@@ -1208,6 +1237,7 @@ function setupMatrixControls() {
   });
   updateMatrixGenerationControlVisibility();
   state.matrixVisibleColumns = { ...MATRIX_DEFAULT_VISIBLE_COLUMNS };
+  state.matrixVisibleColumnsCustomized = false;
   renderMatrixColumnControls();
   $("matrix-run-all-bank")?.addEventListener("click", () => startMatrixJob({ mode: "all_bank" }));
   $("matrix-run-column")?.addEventListener("click", () => startMatrixJob({ mode: "column", column: $("matrix-column")?.value || "retrieval" }));
@@ -1240,6 +1270,7 @@ function setupMatrixControls() {
     const stageFilterKey = event.target.dataset.matrixStageFilter;
     if (visibleKey) {
       state.matrixVisibleColumns[visibleKey] = event.target.checked;
+      state.matrixVisibleColumnsCustomized = true;
     }
     if (stageFilterKey) {
       state.matrixFilters.stages[stageFilterKey] = event.target.value;

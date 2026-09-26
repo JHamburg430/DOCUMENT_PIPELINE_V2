@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260925-current-agent-matrix" />
+    <link rel="stylesheet" href="/styles.css?v=20260926-hide-unscored-question-stages" />
   </head>
   <body>
     <main class="app-shell">
@@ -170,13 +170,13 @@
           <div class="matrix-progress-heading">
             <div>
               <h3>Question-pipeline diagnostics</h3>
-              <p>Only stages persisted by this retrieval or answer-evaluation run are scored; unavailable stages remain blank.</p>
+              <p>Only stages scored by the selected run are shown. Unscored stages are hidden by default and can be enabled under Columns and stage filters.</p>
             </div>
-            <small>Swipe to see all 17 stages</small>
+            <small>Swipe to see scored stages</small>
           </div>
           <div id="matrix-summary" class="matrix-summary empty-state">No evaluation loaded.</div>
           <details class="evaluation-disclosure matrix-results-disclosure" open>
-            <summary><span>Matrix rows</span><small>Tap a row for its evidence and answer trace</small></summary>
+            <summary><span>Matrix rows</span><small>Scored columns only · tap a row for details</small></summary>
             <div id="matrix-table" class="matrix-table-shell"></div>
           </details>
           <details class="evaluation-disclosure matrix-detail-disclosure">
@@ -402,6 +402,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260925-current-agent-matrix"></script>
+    <script src="/app.js?v=20260926-hide-unscored-question-stages"></script>
   </body>
 </html>

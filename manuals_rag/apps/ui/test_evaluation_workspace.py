@@ -44,8 +44,15 @@ class EvaluationWorkspaceContractTest(unittest.TestCase):
         self.assertIn("terminalRows === rows.length", self.js)
         self.assertIn('if (rows.length) $("agent-matrix-limit").value = rows.length;', self.js)
         self.assertIn("Question-pipeline diagnostics", self.html)
-        self.assertIn("unavailable stages remain blank", self.html)
+        self.assertIn("Unscored stages are hidden by default", self.html)
         self.assertIn('class="evaluation-disclosure agent-matrix-controls"', self.html)
+
+    def test_question_matrix_hides_unscored_stage_columns_by_default(self):
+        self.assertIn("function scoredMatrixStageKeys(items = [])", self.js)
+        self.assertIn("function applyMatrixDefaultColumnVisibility(items = [])", self.js)
+        self.assertIn('["pass", "fail", "provisional"].includes', self.js)
+        self.assertIn("state.matrixVisibleColumnsCustomized = true", self.js)
+        self.assertIn("Scored columns only", self.html)
 
     def test_top_matrix_progress_bars_are_preserved(self):
         self.assertIn("function renderMatrixSummary(totals = {}, totalRows = 0)", self.js)
