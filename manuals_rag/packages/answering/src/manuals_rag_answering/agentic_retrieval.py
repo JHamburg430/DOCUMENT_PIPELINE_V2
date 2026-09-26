@@ -449,7 +449,7 @@ def _labelled_lookup_plan(query: str) -> RetrievalPlan | None:
     """Route direct named-field questions to row/cell-preserving retrieval."""
     if not re.search(
         r"\b(?:what|which)\s+[^?]{0,100}\b(?:mode|settings?|option|status|code|"
-        r"address|parameter|rating|range|value|colou?rs?|frame\s+rate|chart|screen|chapter|section|page)\b",
+        r"address|parameter|rating|range|value|languages?|colou?rs?|frame\s+rate|chart|screen|chapter|section|page)\b",
         query,
         flags=re.IGNORECASE,
     ):
@@ -730,6 +730,30 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     """Keep exact structured lookups in one lossless, deterministic hop."""
     strategy: RetrievalStrategy | None = None
     if re.match(
+        r"^\s*how\s+many\b.+\b(?:store|retain|save)\b.+\bversus\b.+\bcameras?\b.*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    elif re.match(
+        r"^\s*how\s+(?:do|can)\s+i\s+(?:enable|activate|turn\s+on)\b.+\bon\b.+\bto\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
+        r"^\s*how\s+long\s+does\b.+\btake\b.+\b(?:in|at)\b.+\bmode\b.*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    elif re.match(
+        r"^\s*what\s+indicates\s+normal\s+operation\s+when\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    elif re.match(
         r"^\s*how\s+should\s+i\s+adjust\b.+\bif\s+it\s+shows\b.+\?\s*$",
         query,
         flags=re.I,
@@ -7135,7 +7159,6 @@ def verify_retrieval_claim(
         and bool(preliminary_assessment.get("claim_supported"))
         and bool(valid_support)
         and not invalid_citations
-        and not out_of_scope
         and not any(
             (allowed_results[chunk_id].metadata or {}).get("query_applicability", {}).get("state") == "conflicting"
             for chunk_id in valid_support

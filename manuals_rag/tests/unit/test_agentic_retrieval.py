@@ -1,3 +1,5 @@
+import pytest
+
 from manuals_rag_answering.agentic_retrieval import (
     AgenticRetrievalController,
     LlamaIndexAgenticController,
@@ -2175,6 +2177,54 @@ def test_verifier_rejects_model_citations_that_were_not_retrieved(monkeypatch):
     assert result["judge"]["attempts"][0]["parsed_response"]["supporting_chunk_ids"] == ["invented-chunk"]
 
 
+def test_verifier_drops_out_of_scope_citation_when_valid_scoped_support_remains(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Does IV4-400MA support operation below freezing temperatures?",
+        query="Does IV4-400MA support operation below freezing temperatures?",
+    )
+    scoped = _result(
+        "iv4-temperature",
+        "iv4-doc",
+        "IV4-400MA operating ambient temperature: 0 to +50 C (no freezing).",
+    )
+    scoped.metadata["product_model"] = "IV4-400MA"
+    sibling = _result(
+        "sibling-temperature",
+        "sibling-doc",
+        "Another model supports operation below freezing.",
+    )
+    sibling.metadata["product_model"] = "IV4-500MA"
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "trust_state": "confirmed",
+                "claim_supported": True,
+                "supporting_chunk_ids": ["iv4-temperature", "sibling-temperature"],
+                "conflicting_chunk_ids": [],
+                "applicability": "unknown",
+                "scope_entity": "IV4-400MA",
+                "rationale": "The scoped row states 0 to +50 C with no freezing.",
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [scoped, sibling],
+        {"claim_supported": True, "supporting_chunk_ids": ["iv4-temperature"]},
+    )
+
+    assert result["claim_supported"] is True
+    assert result["trust_state"] == "confirmed"
+    assert result["supporting_chunk_ids"] == ["iv4-temperature"]
+    assert result["out_of_scope_chunk_ids"] == ["sibling-temperature"]
+
+
 def test_verifier_deterministically_confirms_condition_aligned_warning(monkeypatch):
     hop = RetrievalHop(
         hop_id="warning",
@@ -3301,6 +3351,51 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
         [wrong_table],
         {"claim_supported": True, "supporting_chunk_ids": ["wrong-archive-table"]},
     ) == []
+
+
+@pytest.mark.parametrize(
+    ("query", "strategy"),
+    [
+        (
+            "How many images can the controller store with VGA color cameras versus "
+            "21 megapixel cameras?",
+            "hybrid",
+        ),
+        (
+            "How do I enable the U.C.D. Function on LR-ZH models to detect targets "
+            "varying from the background?",
+            "structural",
+        ),
+        (
+            "How long does image transfer take for VJ-H500CX in 5 megapixel mode?",
+            "hybrid",
+        ),
+        (
+            "What indicates normal operation when obtaining robot coordinates in VS Creator?",
+            "hybrid",
+        ),
+        (
+            "Which languages can be selected for the XG-X2902LJ controller during "
+            "initial start-up?",
+            "structural",
+        ),
+    ],
+)
+def test_atomic_lookup_shapes_are_lossless_single_hop_for_both_planners(
+    query, strategy, monkeypatch
+):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("deterministic atomic lookups must not call the planner model")
+        ),
+    )
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=True)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == strategy
 
 
 def test_iv4_output_configuration_requires_complete_model_scoped_electrical_row(monkeypatch):
