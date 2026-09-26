@@ -853,6 +853,95 @@ def test_external_agent_matrix_artifacts_bridge_running_48_of_200_and_reconcile(
     journal.close()
 
 
+def test_external_agent_matrix_resume_surfaces_predecessor_partial_as_checkpoint(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    artifacts = reports / "retrieval_improvement"
+    datasets = tmp_path / "datasets"
+    artifacts.mkdir(parents=True)
+    datasets.mkdir()
+    cases = [{"case_id": f"case-{index}", "query": f"Question {index}?"} for index in range(8)]
+    dataset_path = datasets / "heldout-v99.jsonl"
+    dataset_path.write_text("\n".join(ui_server.json.dumps(case) for case in cases) + "\n", encoding="utf-8")
+    digest = ui_server.hashlib.sha256(dataset_path.read_bytes()).hexdigest()
+    keys = [f"{digest}:case-{index}" for index in range(8)]
+
+    def provenance(run_id, offset, ordered_keys, revision):
+        return {
+            "artifact_schema_version": ui_server.AGENT_MATRIX_ARTIFACT_SCHEMA,
+            "run_id": run_id,
+            "source": {"revision": revision, "dirty": False},
+            "dataset": {
+                "path": str(dataset_path),
+                "sha256": digest,
+                "offset": offset,
+                "limit": len(ordered_keys),
+                "ordered_case_keys": ordered_keys,
+            },
+        }
+
+    def item(index):
+        cells = {"tool_selection": {"status": "pass", "label": "PASS", "detail": "tool selected"}}
+        return {
+            "case_id": f"case-{index}",
+            "langgraph": {"agent_evaluation": {"passed": True, "cells": ui_server.deepcopy(cells)}},
+            "llamaindex": {"agent_evaluation": {"passed": True, "cells": ui_server.deepcopy(cells)}},
+        }
+
+    predecessor_id = "agent_matrix_v99-interrupted-oldrev"
+    predecessor = provenance(predecessor_id, 0, keys, "old-revision")
+    (artifacts / f"{predecessor_id}.launch.json").write_text(
+        ui_server.json.dumps({**predecessor, "state": "launched"}), encoding="utf-8"
+    )
+    (artifacts / f"{predecessor_id}.partial.json").write_text(
+        ui_server.json.dumps(
+            {
+                "artifact_schema_version": ui_server.AGENT_MATRIX_ARTIFACT_SCHEMA,
+                "run_id": predecessor_id,
+                "complete": False,
+                "completed_cases": 4,
+                "expected_cases": 8,
+                "completed_case_keys": keys[:4],
+                "provenance": predecessor,
+                "items": [item(index) for index in range(4)],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    current_id = "agent_matrix_v99-remainder-newrev"
+    current = provenance(current_id, 4, keys[4:], "new-revision")
+    current_launch_path = artifacts / f"{current_id}.launch.json"
+    current_launch_path.write_text(ui_server.json.dumps({**current, "state": "launched"}), encoding="utf-8")
+    (artifacts / f"{current_id}.partial.json").write_text(
+        ui_server.json.dumps(
+            {
+                "artifact_schema_version": ui_server.AGENT_MATRIX_ARTIFACT_SCHEMA,
+                "run_id": current_id,
+                "complete": False,
+                "completed_cases": 1,
+                "expected_cases": 4,
+                "completed_case_keys": keys[4:5],
+                "provenance": current,
+                "items": [item(4)],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "_agent_matrix_lock_is_live", lambda path, artifact_run_id: artifact_run_id == current_id)
+
+    snapshot = ui_server._external_agent_matrix_candidate(current_launch_path)
+    assert snapshot["checkpoint_report_path"].endswith(f"{predecessor_id}.partial.json")
+    report = ui_server._external_agent_matrix_report(snapshot)
+    by_case = {item["case_id"]: item for item in report["items"]}
+    assert by_case["case-3"]["_ui_artifact_state"] == "checkpoint"
+    assert by_case["case-3"]["_ui_source_revision"] == "old-revision"
+    assert by_case["case-4"]["_ui_artifact_state"] == "current"
+    assert report["summary"]["langgraph"]["cases"] == 1
+    assert report["summary"]["langgraph"]["agent_matrix_passed"] == 1
+
+
 def test_external_agent_matrix_excludes_stale_and_malformed_artifacts(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     artifacts = reports / "retrieval_improvement"

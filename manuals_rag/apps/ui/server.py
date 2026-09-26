@@ -915,12 +915,33 @@ def _external_agent_matrix_report(snapshot: dict) -> dict:
     merged_items: dict[str, dict] = {}
     summary: dict = {}
     category_summary: dict = {}
+    checkpoint_path = snapshot.get("checkpoint_report_path")
+    if checkpoint_path:
+        checkpoint = _agent_matrix_artifact_json(MANUALS_ROOT / str(checkpoint_path)) or {}
+        checkpoint_limit = max(0, int(snapshot.get("segment_offset") or 0))
+        checkpoint_revision = str(((checkpoint.get("provenance") or {}).get("source") or {}).get("revision") or "")
+        for item in (checkpoint.get("items") or [])[:checkpoint_limit]:
+            if not isinstance(item, dict) or not item.get("case_id"):
+                continue
+            projected = deepcopy(item)
+            projected["_ui_artifact_state"] = "checkpoint"
+            projected["_ui_artifact_run_id"] = str(checkpoint.get("run_id") or "")
+            projected["_ui_source_revision"] = checkpoint_revision
+            merged_items[str(item["case_id"])] = projected
     for relative_path in snapshot.get("report_paths") or []:
         path = MANUALS_ROOT / str(relative_path)
         report = _agent_matrix_artifact_json(path) or {}
         for item in report.get("items") or []:
             if isinstance(item, dict) and item.get("case_id"):
-                merged_items[str(item["case_id"])] = deepcopy(item)
+                projected = deepcopy(item)
+                projected["_ui_artifact_state"] = (
+                    "current" if str(relative_path) == str(snapshot.get("results_path") or "") else "completed_segment"
+                )
+                projected["_ui_artifact_run_id"] = str(report.get("run_id") or "")
+                projected["_ui_source_revision"] = str(
+                    (((report.get("provenance") or {}).get("source") or {}).get("revision") or "")
+                )
+                merged_items[str(item["case_id"])] = projected
         if report.get("complete"):
             summary = deepcopy(report.get("summary") or summary)
             category_summary = deepcopy(report.get("category_summary") or category_summary)
@@ -942,7 +963,11 @@ def _external_agent_matrix_report(snapshot: dict) -> dict:
         category = str(item.get("agent_case_category") or "unknown")
         category_counts[category] = category_counts.get(category, 0) + 1
     for backend in ("baseline", "langgraph", "llamaindex"):
-        backend_items = [item.get(backend) for item in merged_items.values() if isinstance(item.get(backend), dict)]
+        backend_items = [
+            item.get(backend)
+            for item in merged_items.values()
+            if item.get("_ui_artifact_state") != "checkpoint" and isinstance(item.get(backend), dict)
+        ]
         backend_summary = dict(summary.get(backend) or {})
         backend_summary["cases"] = len(backend_items)
         backend_summary["agent_matrix_passed"] = sum(
@@ -973,6 +998,9 @@ def _agent_matrix_ui_result(item: dict | None) -> dict | None:
         for key in ("case_id", "query", "retrieval_task", "agent_case_category")
         if key in item
     }
+    projected["artifact_state"] = str(item.get("_ui_artifact_state") or "current")
+    projected["artifact_run_id"] = str(item.get("_ui_artifact_run_id") or "")
+    projected["source_revision"] = str(item.get("_ui_source_revision") or "")
     for backend in ("langgraph", "llamaindex"):
         result = item.get(backend)
         if not isinstance(result, dict):
@@ -1707,6 +1735,41 @@ def _external_agent_matrix_candidate(launch_path: Path) -> dict | None:
     # directories contain hundreds of unrelated historical reports.
     cohort_prefix = contract["run_id"].split("-", 1)[0]
     report_candidates = list(artifact_dir.glob(f"{cohort_prefix}-*.json")) if cohort_prefix else []
+    checkpoint_path: Path | None = None
+    checkpoint_mtime = -1.0
+    if contract["offset"] > 0 and cohort_prefix:
+        try:
+            current_launch_mtime = launch_path.stat().st_mtime
+        except OSError:
+            current_launch_mtime = float("inf")
+        for prior_partial_path in artifact_dir.glob(f"{cohort_prefix}-*.partial.json"):
+            if prior_partial_path == partial_path:
+                continue
+            prior_run_id = prior_partial_path.name.removesuffix(".partial.json")
+            prior_launch_path = prior_partial_path.with_name(f"{prior_run_id}.launch.json")
+            prior_launch = _agent_matrix_artifact_json(prior_launch_path) if prior_launch_path.exists() else None
+            prior_contract = _agent_matrix_dataset_contract(prior_launch or {})
+            if prior_contract is None or prior_contract["sha256"] != contract["sha256"]:
+                continue
+            prior_partial = _validated_agent_matrix_report(prior_partial_path, prior_contract, complete=False)
+            if prior_partial is None:
+                continue
+            prior_start = int(prior_contract["offset"])
+            prior_end = prior_start + len(prior_partial.get("items") or [])
+            try:
+                candidate_mtime = prior_partial_path.stat().st_mtime
+            except OSError:
+                continue
+            if (
+                prior_start > 0
+                or prior_end < contract["offset"]
+                or prior_end > contract["offset"] + 1
+                or candidate_mtime > current_launch_mtime
+                or candidate_mtime <= checkpoint_mtime
+            ):
+                continue
+            checkpoint_path = prior_partial_path
+            checkpoint_mtime = candidate_mtime
     if final_path not in report_candidates:
         report_candidates.append(final_path)
     for report_path in report_candidates:
@@ -1750,6 +1813,9 @@ def _external_agent_matrix_candidate(launch_path: Path) -> dict | None:
         "dataset_path": contract["relative_path"],
         "results_path": str(result_path.relative_to(MANUALS_ROOT)),
         "report_paths": [str(path.relative_to(MANUALS_ROOT)) for path in sorted(set(report_paths))],
+        "checkpoint_report_path": (
+            str(checkpoint_path.relative_to(MANUALS_ROOT)) if checkpoint_path is not None else None
+        ),
         "provisional_case_ids": [str(item.get("case_id") or "") for item in (current or {}).get("items", [])] if status == "running" else [],
         "segment_offset": contract["offset"],
         "segment_completed": len((current or {}).get("items", [])),

@@ -3331,7 +3331,14 @@ function agentMatrixCell(result, layer) {
   return backends.map(([backend, label]) => {
     const cell = result?.[backend]?.agent_evaluation?.cells?.[layer];
     const status = cell?.status || "blank";
-    return `<span class="matrix-cell ${escapeHtml(status)}" data-agent-matrix-backend="${backend}" data-agent-matrix-layer="${escapeHtml(layer)}" title="${escapeHtml(cell?.detail || `${label} not evaluated`)}" aria-label="${escapeHtml(`${label} ${cell?.label || status}`)}">${label} ${escapeHtml(cell?.label || (status === "provisional" ? "LIVE" : "—"))}</span>`;
+    const checkpoint = result?.artifact_state === "checkpoint";
+    const displayStatus = checkpoint && ["pass", "fail"].includes(status) ? "provisional" : status;
+    const value = cell?.label || (status === "provisional" ? "LIVE" : "—");
+    const displayValue = checkpoint && ["pass", "fail"].includes(status) ? `${value}*` : value;
+    const provenance = checkpoint
+      ? `Prior partial checkpoint ${result?.artifact_run_id || ""}; not terminal acceptance. `
+      : "";
+    return `<span class="matrix-cell ${escapeHtml(displayStatus)}" data-agent-matrix-backend="${backend}" data-agent-matrix-layer="${escapeHtml(layer)}" title="${escapeHtml(`${provenance}${cell?.detail || `${label} not evaluated`}`)}" aria-label="${escapeHtml(`${label} ${displayValue}`)}">${label} ${escapeHtml(displayValue)}</span>`;
   }).join(" ");
 }
 
@@ -3439,9 +3446,11 @@ function renderAgentMatrix(payload) {
   const rows = payload.rows || [];
   const summary = payload.summary || {};
   const categoryCounts = payload.category_counts || {};
+  const checkpointRows = rows.filter((row) => row.result?.artifact_state === "checkpoint").length;
   if (rows.length) $("agent-matrix-limit").value = rows.length;
   const terminalRows = rows.filter((row) => {
     const result = row.result || {};
+    if (result.artifact_state === "checkpoint") return false;
     return ["langgraph", "llamaindex"].every((backend) =>
       AGENT_MATRIX_LAYERS.every(([layer]) => ["pass", "fail"].includes(result?.[backend]?.agent_evaluation?.cells?.[layer]?.status)),
     );
@@ -3456,7 +3465,7 @@ function renderAgentMatrix(payload) {
     <article class="matrix-stat"><span>Questions</span><strong>${rows.length}</strong><small>${escapeHtml(payload.dataset || "")}</small></article>
     <article class="matrix-stat"><span>LangGraph passed</span><strong>${escapeHtml(summary.langgraph?.agent_matrix_passed ?? "—")}</strong><small>complete agent rows</small></article>
     <article class="matrix-stat"><span>LlamaIndex passed</span><strong>${escapeHtml(summary.llamaindex?.agent_matrix_passed ?? "—")}</strong><small>complete agent rows</small></article>
-    <article class="matrix-stat"><span>Coverage</span><strong>${Object.keys(categoryCounts).length || "—"}</strong><small>${escapeHtml(Object.entries(categoryCounts).map(([key, value]) => `${key}: ${value}`).join(" · ") || "categories pending")}</small></article>
+    <article class="matrix-stat"><span>Coverage</span><strong>${Object.keys(categoryCounts).length || "—"}</strong><small>${escapeHtml(Object.entries(categoryCounts).map(([key, value]) => `${key}: ${value}`).join(" · ") || "categories pending")}${checkpointRows ? `<br>${checkpointRows} prior checkpoint row(s) marked *; visible but excluded from terminal acceptance` : ""}</small></article>
   `;
   if (!rows.length) {
     $("agent-matrix-table").innerHTML = '<div class="empty-state">The selected dataset has no questions.</div>';
@@ -3469,7 +3478,7 @@ function renderAgentMatrix(payload) {
       <tbody>${rows.map((row) => `
         <tr class="clickable${row.case_id === state.agentMatrix.selectedCaseId ? " selected-row" : ""}" data-agent-matrix-case="${escapeHtml(row.case_id)}">
           <td>${row.number}</td>
-          <td><span class="status-pill">${escapeHtml(row.agent_case_category)}</span><small>${escapeHtml(row.expected_graph_mode)}</small></td>
+          <td><span class="status-pill">${escapeHtml(row.agent_case_category)}</span><small>${escapeHtml(row.expected_graph_mode)}${row.result?.artifact_state === "checkpoint" ? " · prior checkpoint" : ""}</small></td>
           <td class="matrix-text-cell"><strong>${escapeHtml(row.question)}</strong><small>${escapeHtml(row.retrieval_task)} · ${row.expected_evidence_count} evidence target(s) · ${row.expected_document_count} document(s)</small></td>
           ${AGENT_MATRIX_LAYERS.map(([key]) => `<td>${agentMatrixCell(row.result, key)}</td>`).join("")}
         </tr>
