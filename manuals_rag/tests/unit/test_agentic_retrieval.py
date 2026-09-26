@@ -113,6 +113,39 @@ def test_direct_xgx_high_resolution_camera_controller_support():
     ]
 
 
+def test_verifier_confirms_scoped_system_configuration_controller_list_without_llm(monkeypatch):
+    objective = (
+        "Which XG-X controllers are shown in the system configuration diagram "
+        "when connected to an XT controller?"
+    )
+    hop = RetrievalHop(hop_id="authoritative_lookup", objective=objective, query=objective)
+    exact = _result(
+        "xt-controller-map",
+        "xgx-catalog",
+        "System configuration diagram XG: X2802/X2902 (When connected to XT)",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+    sibling = _result(
+        "other-controller-map",
+        "xgx-catalog",
+        "System configuration diagram XG: X2002/X2202 (When connected to CC)",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [exact, sibling],
+        {"claim_supported": True, "supporting_chunk_ids": [exact.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["xt-controller-map"]
+
+
 def test_direct_laser_eye_level_installation_support_requires_complete_scoped_instruction():
     query = "Can I install the LJ: S8000 series head at eye level for the laser beam path?"
     metadata = {

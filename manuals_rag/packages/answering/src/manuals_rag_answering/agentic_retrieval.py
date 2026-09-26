@@ -3401,6 +3401,54 @@ def _direct_structured_compatibility_support(
     return [mappings[0][0]]
 
 
+def _direct_system_configuration_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm one controller list from a scoped system-configuration diagram."""
+    target_match = re.search(
+        r"\bwhich\s+.+?\s+controllers?\s+are\s+shown\s+in\s+the\s+"
+        r"system\s+configuration\s+diagram\s+when\s+connected\s+to\s+"
+        r"(?:an?\s+)?(?P<target>[A-Z][A-Z0-9_-]*)\s+controller\b",
+        query,
+        flags=re.I,
+    )
+    if not target_match:
+        return []
+    target = re.sub(r"[^a-z0-9]", "", target_match.group("target").lower())
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[frozenset[str], int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        diagram = re.search(
+            r"\bSystem\s+configuration\s+diagram\s+XG\s*:\s*"
+            r"(?P<controllers>X(?:G-X)?\d{4}(?:\s*/\s*X(?:G-X)?\d{4})+)\s*"
+            r"\(\s*When\s+connected\s+to\s+(?P<target>[A-Z][A-Z0-9_-]*)\s*\)",
+            content,
+            flags=re.I,
+        )
+        if not diagram or re.sub(
+            r"[^a-z0-9]", "", diagram.group("target").lower()
+        ) != target:
+            continue
+        controllers = frozenset(
+            re.sub(r"^XG-X", "X", value.upper())
+            for value in re.findall(r"X(?:G-X)?\d{4}", diagram.group("controllers"), flags=re.I)
+        )
+        if len(controllers) < 2:
+            continue
+        matches.append((controllers, len(content), index, result.chunk_id))
+    if not matches or len({controllers for controllers, *_rest in matches}) != 1:
+        return []
+    return [min(matches, key=lambda item: item[1:3])[-1]]
+
+
 def _direct_structured_accessory_support(
     query: str,
     results: list[SearchResult],
@@ -5972,6 +6020,28 @@ def verify_retrieval_claim(
             rationale=(
                 "Deterministic compatibility verification matched one explicit source-model to "
                 "supported-model mapping in a scoped structured row."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_system_configuration_support = _direct_system_configuration_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_system_configuration_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_system_configuration_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic system-configuration verification matched the requested "
+                "connection target to one explicit controller list."
             ),
         ).model_dump() | {
             "invalid_citation_ids": [],
