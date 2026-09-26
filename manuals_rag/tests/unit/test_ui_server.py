@@ -345,6 +345,8 @@ def test_agent_chat_page_exposes_grounded_conversation_controls():
     assert 'id="agent-chat-query"' in index_html
     assert 'id="agent-chat-backend"' in index_html
     assert 'id="agent-chat-show-trace"' in index_html
+    assert 'id="agent-chat-max-hops" type="number" min="1" max="8" value="6"' in index_html
+    assert 'id="agent-max-hops" type="number" min="1" max="8" value="6"' in index_html
     assert "Show live retrieval trace" in index_html
     assert "/local/agent-chat/run" in app_js
     assert "/local/agent-chat/current" in app_js

@@ -3135,7 +3135,7 @@ async function sendAgentChatMessage() {
       query,
       corpus_ids: splitList($("agent-chat-corpus").value || DEFAULT_CORPUS),
       backends: [$("agent-chat-backend").value],
-      max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-chat-max-hops").value || 4))),
+      max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-chat-max-hops").value || 6))),
     });
     const pending = state.agentChat.turns.find((item) => item.jobId === pendingId);
     if (pending) pending.jobId = job.id;
@@ -3297,7 +3297,7 @@ async function runAgentTest() {
     query,
     corpus_ids: splitList($("agent-corpus").value || DEFAULT_CORPUS),
     backends,
-    max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-max-hops").value || 4))),
+    max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-max-hops").value || 6))),
   });
   hydrateAgentLiveJob(job);
   await watchAgentLiveJob(job.id);
@@ -3602,7 +3602,7 @@ async function runAgentMatrix() {
   const job = await localPostJson("/local/agent-matrix/run", {
     dataset: $("agent-matrix-dataset").value.trim(),
     limit: Number($("agent-matrix-limit").value || 10),
-    max_hops: Number($("agent-matrix-hops").value || 4),
+    max_hops: Number($("agent-matrix-hops").value || 6),
     corpus_id: $("agent-matrix-corpus").value.trim() || DEFAULT_CORPUS,
     no_llm: $("agent-matrix-no-llm").checked,
   });

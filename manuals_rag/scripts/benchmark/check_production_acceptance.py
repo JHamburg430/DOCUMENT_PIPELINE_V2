@@ -70,20 +70,37 @@ def _expected_outcome(case: dict[str, Any]) -> str:
     return str((case.get("expected_evidence_graph") or {}).get("expected_outcome") or "answerable")
 
 
-def _referenced_document_ids(value: Any, key: str = "") -> set[str]:
-    """Collect document references from the real dataset's nested evidence fields."""
+def _referenced_document_ids(case: dict[str, Any]) -> set[str]:
+    """Collect authoritative case/evidence references, excluding diagnostic metadata hits."""
     ids: set[str] = set()
-    if isinstance(value, dict):
-        for child_key, child in value.items():
-            ids.update(_referenced_document_ids(child, str(child_key)))
-    elif isinstance(value, list):
-        if key in {"source_document_ids", "expected_document_ids"}:
-            ids.update(str(item) for item in value if item)
-        else:
-            for child in value:
-                ids.update(_referenced_document_ids(child, key))
-    elif value and key in {"source_document_id", "expected_source_document_id"}:
-        ids.add(str(value))
+
+    for key in ("source_document_id", "expected_source_document_id"):
+        value = str(case.get(key) or "").strip()
+        if value:
+            ids.add(value)
+    for key in ("source_document_ids", "expected_document_ids"):
+        ids.update(str(value) for value in case.get(key) or [] if value)
+
+    for item in case.get("expected_evidence") or []:
+        if not isinstance(item, dict):
+            continue
+        for key in ("source_document_id", "expected_source_document_id"):
+            value = str(item.get(key) or "").strip()
+            if value:
+                ids.add(value)
+        for key in ("source_document_ids", "expected_document_ids"):
+            ids.update(str(value) for value in item.get(key) or [] if value)
+
+    graph = case.get("expected_evidence_graph") or {}
+    for node in graph.get("nodes") or []:
+        if not isinstance(node, dict):
+            continue
+        for key in ("source_document_id", "expected_source_document_id"):
+            value = str(node.get(key) or "").strip()
+            if value:
+                ids.add(value)
+        for key in ("source_document_ids", "expected_document_ids"):
+            ids.update(str(value) for value in node.get(key) or [] if value)
     return ids
 
 

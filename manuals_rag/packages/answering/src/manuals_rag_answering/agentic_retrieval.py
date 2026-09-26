@@ -327,11 +327,7 @@ def _direct_authoritative_lookup_plan(query: str) -> RetrievalPlan | None:
         and re.search(r"\breference\s+plane\b", query, flags=re.I)
     ):
         strategy = "dense"
-    elif re.match(
-        r"^\s*when\s+should\s+i\s+choose\b.+\bover\s+other\s+options\b.+\?\s*$",
-        query,
-        flags=re.I,
-    ):
+    elif re.match(r"^\s*when\s+should\s+i\s+choose\b.+\?\s*$", query, flags=re.I):
         strategy = "hybrid"
     else:
         return None
@@ -768,6 +764,25 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
         strategy = "hybrid"
     elif re.match(
         r"^\s*what\s+.+?\s+value\s+applies\s+to\s+.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
+        r"^\s*what\s+is\s+the\s+field\s+of\s+view\b.+\b"
+        r"at\s+an\s+installation\s+distance\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
+        r"^\s*how\s+should\s+i\s+handle\s+unused\s+input[- ]output\s+cables\s+on\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
+        r"^\s*what\s+mounting\s+hole\s+size\s+and\s+tightening\s+torque\s+apply\s+to\b.+\?\s*$",
         query,
         flags=re.I,
     ):
@@ -3192,7 +3207,11 @@ def _direct_structured_compatibility_support(
     preliminary_assessment: dict[str, Any],
 ) -> list[str]:
     """Confirm an explicit supported/compatible model mapping in one structured row."""
-    if not re.search(r"\b(?:compatib(?:le|ility)|works?\s+with|supported\s+(?:by|with))\b", query, flags=re.I):
+    if not re.search(
+        r"\b(?:compatib(?:le|ility)|works?\s+with|supports?|supported\s+(?:by|with))\b",
+        query,
+        flags=re.I,
+    ):
         return []
     requested = {
         re.sub(r"[^a-z0-9]", "", identifier.lower())
@@ -3201,6 +3220,47 @@ def _direct_structured_compatibility_support(
     preliminary_ids = {
         str(chunk_id) for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
     }
+
+    camera_support_query = re.search(
+        r"\bwhich\s+XG-X\s+controllers?\s+supports?\s+(?:the\s+)?"
+        r"high-resolution\s+(?P<camera>CA-HF[A-Z0-9x]+M/C)\s+camera\b",
+        query,
+        flags=re.I,
+    )
+    if camera_support_query:
+        requested_camera = re.sub(
+            r"[^a-z0-9]", "", camera_support_query.group("camera").lower()
+        )
+        diagram_matches: list[tuple[frozenset[str], str]] = []
+        for result in results:
+            if (
+                result.chunk_id not in preliminary_ids
+                or not _result_supports_branch_scope(query, result)
+                or str((result.metadata or {}).get("chunk_type") or "") != "spec_record"
+            ):
+                continue
+            content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+            compact_content = re.sub(r"[^a-z0-9]", "", content.lower())
+            if requested_camera not in compact_content:
+                continue
+            diagram = re.search(
+                r"System\s+configuration\s+diagram\s+XG\s*:\s*"
+                r"(?P<controllers>X(?:G-X)?\d{4}(?:\s*/\s*X(?:G-X)?\d{4})+).*?"
+                r"when\s+using\s+a\s+high-resolution\s+camera",
+                content,
+                flags=re.I,
+            )
+            if not diagram:
+                continue
+            controllers = frozenset(
+                re.sub(r"^XG-X", "X", value.upper())
+                for value in re.findall(r"X(?:G-X)?\d{4}", diagram.group("controllers"), flags=re.I)
+            )
+            if controllers:
+                diagram_matches.append((controllers, result.chunk_id))
+        if diagram_matches and len({models for models, _chunk_id in diagram_matches}) == 1:
+            return [diagram_matches[0][1]]
+
     mappings: list[tuple[int, int, int, str, str, str]] = []
     for result_index, result in enumerate(results):
         if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):

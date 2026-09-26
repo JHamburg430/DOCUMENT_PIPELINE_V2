@@ -171,6 +171,28 @@ def test_rejects_nested_tuning_document_overlap_and_stale_revision():
     assert any("release revision" in blocker for blocker in report["blockers"])
 
 
+def test_ignores_diagnostic_metadata_document_hits_for_disjointness():
+    case = _case()
+    case["source_metadata"] = {
+        "selected_document_metadata_hits": [
+            {"source_document_id": "tuning-document", "score": 0.01}
+        ]
+    }
+    artifact = _artifact(case)
+
+    report = _MODULE.evaluate(
+        artifact,
+        [case],
+        dataset_sha256="hash",
+        tuning_document_ids={"tuning-document"},
+        min_cases=1,
+        max_p95_latency_ms=1000,
+        expected_source_revision="release-commit",
+    )
+
+    assert report["accepted"] is True
+
+
 def test_rejects_duplicate_dataset_case_ids():
     case = _case()
     artifact = _artifact(case)

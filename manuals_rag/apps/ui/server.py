@@ -1080,7 +1080,7 @@ def _start_agent_matrix_job(payload: dict) -> dict:
     if not dataset_path.is_relative_to(MANUALS_ROOT) or not dataset_path.exists():
         raise ValueError("Agent matrix dataset must be an existing file inside the repository.")
     limit = _as_positive_int(payload.get("limit"), 10, maximum=1000)
-    max_hops = _as_positive_int(payload.get("max_hops"), 4, maximum=8)
+    max_hops = _as_positive_int(payload.get("max_hops"), 6, maximum=8)
     corpus_id = str(payload.get("corpus_id") or DEFAULT_CORPUS_ID)
     no_llm = bool(payload.get("no_llm"))
     with AGENT_MATRIX_LOCK:
@@ -1134,7 +1134,7 @@ def _start_agent_live_job(payload: dict, *, surface: str = "lab") -> dict:
     corpus_ids = [str(item).strip() for item in corpus_ids if str(item).strip()]
     if not corpus_ids:
         corpus_ids = [DEFAULT_CORPUS_ID]
-    max_hops = _as_positive_int(payload.get("max_retrieval_hops"), 4, maximum=8)
+    max_hops = _as_positive_int(payload.get("max_retrieval_hops"), 6, maximum=8)
     with AGENT_LIVE_LOCK:
         active = next((job for job in AGENT_LIVE_JOBS.values() if job.get("status") in {"queued", "running"}), None)
         if active:

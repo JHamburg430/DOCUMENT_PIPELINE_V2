@@ -42,6 +42,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_procedure_support,
     _direct_saved_settings_activation_support,
     _direct_structured_lookup_support,
+    _direct_structured_compatibility_support,
     _direct_structured_power_source_support,
     _direct_variable_type_support,
     verify_retrieval_claim,
@@ -89,6 +90,24 @@ def test_visual_dependency_abstention_emits_no_citations():
     assert answer.confidence == "low"
     assert answer.citations == []
     assert "visual" in answer.answer.lower()
+
+
+def test_direct_xgx_high_resolution_camera_controller_support():
+    query = "Which XG-X controllers support the high-resolution CA-HFxM/C camera?"
+    result = _result(
+        "camera-controller-map",
+        "xgx-catalog",
+        "System configuration diagram XG: X2902/X2802 "
+        "(when using a high-resolution camera (CA-HFxM/C))",
+    ).model_copy(update={"metadata": {"chunk_type": "spec_record"}})
+    preliminary = {
+        "claim_supported": True,
+        "supporting_chunk_ids": [result.chunk_id],
+    }
+
+    assert _direct_structured_compatibility_support(query, [result], preliminary) == [
+        result.chunk_id
+    ]
 
 
 def test_direct_laser_eye_level_installation_support_requires_complete_scoped_instruction():
@@ -812,6 +831,29 @@ def test_model_planners_keep_direct_cause_effect_mechanism_in_one_hop(monkeypatc
         assert plan.hops[0].objective == query
         assert plan.hops[0].query == query
         assert plan.hops[0].strategy in {"hybrid", "structural"}
+
+
+def test_model_planners_keep_scoped_structured_lookups_in_one_hop(monkeypatch):
+    planner_calls = []
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **kwargs: planner_calls.append(kwargs),
+    )
+    queries = [
+        "What is the field of view for the ultra-narrow model at an installation distance of 23 mm to 40 mm?",
+        "How should I handle unused input-output cables on the IV4-400CA?",
+        "What mounting hole size and tightening torque apply to the IV4-400CA IP reset switch?",
+    ]
+
+    for query in queries:
+        for planner in (plan_retrieval, plan_llamaindex_retrieval):
+            plan = planner(query, use_llm=True)
+            assert plan.mode == "single"
+            assert len(plan.hops) == 1
+            assert plan.hops[0].objective == query
+            assert plan.hops[0].query == query
+            assert plan.hops[0].strategy == "structural"
+    assert planner_calls == []
 
 
 def test_model_planners_keep_direct_display_behavior_in_one_hop(monkeypatch):
@@ -5820,11 +5862,10 @@ def test_planners_keep_authoritative_lookup_shapes_single_hop(monkeypatch):
         "What benefits does the ShapeTrax 3A search tool provide for Guided Robotic systems?": "hybrid",
         "For the XG-X Series inline 3D inspection system, which dent-depth conditions can be inspected by freely setting the reference plane?": "dense",
     }
+    planner_calls = []
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
-        lambda **_kwargs: (_ for _ in ()).throw(
-            AssertionError("authoritative lookup must bypass model planning")
-        ),
+        lambda **kwargs: planner_calls.append(kwargs),
     )
 
     for query, strategy in queries.items():
@@ -5836,6 +5877,7 @@ def test_planners_keep_authoritative_lookup_shapes_single_hop(monkeypatch):
             assert len(plan.hops) == 1
             assert plan.hops[0].query == query
             assert plan.hops[0].strategy == strategy
+    assert planner_calls == []
 
 
 def test_verifier_confirms_explicit_negative_quantity_limit_without_llm(monkeypatch):
