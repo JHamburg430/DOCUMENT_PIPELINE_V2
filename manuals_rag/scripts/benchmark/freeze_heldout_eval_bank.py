@@ -86,6 +86,9 @@ def normalize_frozen_query(query: str) -> str:
         "What mounting bracket part number is required for the MU-N Series sensor installation?":
             "When using the separately sold mounting bracket for MU-N Series sensor installation, "
             "what is its part number?",
+        "What tightening torque applies to the IV4-400CA biaxial adjustment bracket?":
+            "What tightening torque applies to the left and right screws used to adjust the "
+            "angle and distance on the IV4-400CA biaxial adjustment bracket?",
         "How many cameras connect to one CA-E100 area camera input unit?":
             "In the AS_160148 XG-X manual, how many color/monochrome cameras connect "
             "to one CA-E100 area camera input unit?",

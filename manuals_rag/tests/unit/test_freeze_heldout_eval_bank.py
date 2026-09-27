@@ -1325,6 +1325,15 @@ def test_makes_mu_n_mounting_bracket_query_conditional():
     )
 
 
+def test_qualifies_iv4_biaxial_bracket_torque_as_adjustment_screws():
+    assert _MODULE.normalize_frozen_query(
+        "What tightening torque applies to the IV4-400CA biaxial adjustment bracket?"
+    ) == (
+        "What tightening torque applies to the left and right screws used to adjust the "
+        "angle and distance on the IV4-400CA biaxial adjustment bracket?"
+    )
+
+
 def test_dent_range_contract_scores_answer_bearing_terms_not_grammatical_subject():
     query = (
         "For the XG-X Series inline 3D inspection system, which dent-depth conditions "
