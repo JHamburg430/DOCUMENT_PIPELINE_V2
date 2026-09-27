@@ -48,6 +48,63 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def replace_quarantined_cases(
+    cases: list[dict[str, Any]],
+    replacement_cases: list[dict[str, Any]],
+    *,
+    quarantine_case_ids: list[str],
+    replacement_case_ids: list[str],
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Replace quarantined cases in place while preserving ordered-bank cardinality."""
+
+    if not quarantine_case_ids and not replacement_case_ids:
+        return list(cases), []
+    if len(quarantine_case_ids) != len(replacement_case_ids):
+        raise ValueError("quarantine and replacement case counts must match")
+    if len(set(quarantine_case_ids)) != len(quarantine_case_ids):
+        raise ValueError("duplicate quarantine case_id")
+    if len(set(replacement_case_ids)) != len(replacement_case_ids):
+        raise ValueError("duplicate replacement case_id")
+
+    source_by_id = {
+        str(case.get("case_id") or "").strip(): case
+        for case in cases
+    }
+    replacement_by_id = {
+        str(case.get("case_id") or "").strip(): case
+        for case in replacement_cases
+    }
+    missing_quarantine = [case_id for case_id in quarantine_case_ids if case_id not in source_by_id]
+    if missing_quarantine:
+        raise ValueError(f"quarantine case_id(s) absent from input: {missing_quarantine}")
+    missing_replacements = [case_id for case_id in replacement_case_ids if case_id not in replacement_by_id]
+    if missing_replacements:
+        raise ValueError(f"replacement case_id(s) absent from replacement input: {missing_replacements}")
+
+    remaining_ids = set(source_by_id) - set(quarantine_case_ids)
+    collisions = [case_id for case_id in replacement_case_ids if case_id in remaining_ids]
+    if collisions:
+        raise ValueError(f"replacement case_id(s) collide with retained input: {collisions}")
+
+    replacement_for_quarantine = dict(zip(quarantine_case_ids, replacement_case_ids, strict=True))
+    effective_cases: list[dict[str, Any]] = []
+    audit: list[dict[str, str]] = []
+    for case in cases:
+        case_id = str(case.get("case_id") or "").strip()
+        replacement_id = replacement_for_quarantine.get(case_id)
+        if replacement_id is None:
+            effective_cases.append(case)
+            continue
+        effective_cases.append(replacement_by_id[replacement_id])
+        audit.append(
+            {
+                "quarantined_case_id": case_id,
+                "replacement_case_id": replacement_id,
+            }
+        )
+    return effective_cases, audit
+
+
 def _normalized(text: object) -> str:
     punctuation_neutral = re.sub(r"[.;]+", " ", str(text or ""))
     return re.sub(r"\s+", " ", punctuation_neutral).strip().casefold()
@@ -89,6 +146,9 @@ def normalize_frozen_query(query: str) -> str:
         "What tightening torque applies to the IV4-400CA biaxial adjustment bracket?":
             "What tightening torque applies to the left and right screws used to adjust the "
             "angle and distance on the IV4-400CA biaxial adjustment bracket?",
+        "What tightening torque is required for the power I/O or Ethernet cable connectors on the IV4-400CA?":
+            "What tightening torque applies to the waterproof cap for an unused power I/O "
+            "or Ethernet cable connector on the IV4-400CA?",
         "How many cameras connect to one CA-E100 area camera input unit?":
             "In the AS_160148 XG-X manual, how many color/monochrome cameras connect "
             "to one CA-E100 area camera input unit?",
@@ -1894,6 +1954,23 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--manifest-output", type=Path, required=True)
     parser.add_argument(
+        "--replacement-input",
+        type=Path,
+        help="Candidate JSONL containing explicitly selected replacements for quarantined cases.",
+    )
+    parser.add_argument(
+        "--quarantine-case-id",
+        action="append",
+        default=[],
+        help="Input case_id to quarantine; repeat in the desired replacement order.",
+    )
+    parser.add_argument(
+        "--replacement-case-id",
+        action="append",
+        default=[],
+        help="Replacement case_id paired by position with --quarantine-case-id.",
+    )
+    parser.add_argument(
         "--rejections-output",
         type=Path,
         help="Write rejected cases and continue freezing valid cases instead of failing on the first defect.",
@@ -1907,7 +1984,21 @@ def main() -> int:
     if args.output.exists() or args.manifest_output.exists() or (args.rejections_output and args.rejections_output.exists()):
         parser.error("refusing to overwrite a frozen dataset or manifest")
 
-    cases = _load_jsonl(args.input)
+    input_cases = _load_jsonl(args.input)
+    if (args.quarantine_case_id or args.replacement_case_id) and not args.replacement_input:
+        parser.error("--replacement-input is required when quarantine/replacement ids are supplied")
+    if args.replacement_input and not (args.quarantine_case_id or args.replacement_case_id):
+        parser.error("replacement ids are required with --replacement-input")
+    replacement_cases = _load_jsonl(args.replacement_input) if args.replacement_input else []
+    try:
+        cases, replacements = replace_quarantined_cases(
+            input_cases,
+            replacement_cases,
+            quarantine_case_ids=args.quarantine_case_id,
+            replacement_case_ids=args.replacement_case_id,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
     tuning_cases = [case for path in args.tuning_dataset for case in _load_jsonl(path)]
     verified_at = datetime.now(UTC).replace(microsecond=0).isoformat()
     chunk_ids = {
@@ -1945,10 +2036,14 @@ def main() -> int:
         "frozen_at": verified_at,
         "input_path": str(args.input),
         "input_sha256": _sha256(args.input),
+        "replacement_input_path": str(args.replacement_input) if args.replacement_input else None,
+        "replacement_input_sha256": _sha256(args.replacement_input) if args.replacement_input else None,
+        "case_replacements": replacements,
         "output_path": str(args.output),
         "output_sha256": _sha256(args.output),
         "ordered_case_ids": [str(case["case_id"]) for case in frozen],
-        "input_case_count": len(cases),
+        "input_case_count": len(input_cases),
+        "effective_input_case_count": len(cases),
         "case_count": len(frozen),
         "rejected_case_count": len(rejected),
         "rejections_path": str(args.rejections_output) if args.rejections_output else None,

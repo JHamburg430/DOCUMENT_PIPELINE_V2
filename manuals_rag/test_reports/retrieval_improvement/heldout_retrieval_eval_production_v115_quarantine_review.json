@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "decision": "replace_layout_dependent_case",
+  "quarantined_case_id": "67af2741-66e4-5566-8b13-06f5c2925747::1",
+  "quarantined_bank": "tests/fixtures/heldout_retrieval_eval_production_v114.jsonl",
+  "quarantined_offset": 110,
+  "reason": "The persisted text separates the angle-and-distance adjustment procedure from its visual torque label and also places a different bracket-attachment torque in nearby text. The intended 1.0 to 1.5 N-m answer depends on PDF layout, so text-only evidence cannot satisfy the production answer contract safely.",
+  "replacement_case_id": "07680984-40f4-5d35-b0f8-b679103c7660::1",
+  "replacement_offset": 110,
+  "replacement_bank": "tests/fixtures/heldout_retrieval_eval_production_v115.jsonl",
+  "replacement_source_chunk_id": "07680984-40f4-5d35-b0f8-b679103c7660",
+  "replacement_query": "What tightening torque applies to the waterproof cap for an unused power I/O or Ethernet cable connector on the IV4-400CA?",
+  "replacement_expected_snippet": "Tightening torque: 0.45 to 0.55 N\u00b7m",
+  "replacement_validation": {
+    "artifact": "test_reports/retrieval_improvement/agent_matrix_replacement-waterproof-cap-diagnostic-7b5db16.json",
+    "langgraph_full_pass": true,
+    "llamaindex_full_pass": true,
+    "source_chunk_retained": true,
+    "source_document_retained": true,
+    "evidence_sufficient": true,
+    "grounded_answer_term_coverage": "4/4"
+  },
+  "runtime_code_changed": false
+}

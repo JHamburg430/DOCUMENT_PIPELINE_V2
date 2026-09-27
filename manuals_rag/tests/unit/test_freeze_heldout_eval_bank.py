@@ -1334,6 +1334,47 @@ def test_qualifies_iv4_biaxial_bracket_torque_as_adjustment_screws():
     )
 
 
+def test_qualifies_iv4_connector_torque_as_unused_connector_waterproof_cap():
+    assert _MODULE.normalize_frozen_query(
+        "What tightening torque is required for the power I/O or Ethernet cable connectors on the IV4-400CA?"
+    ) == (
+        "What tightening torque applies to the waterproof cap for an unused power I/O "
+        "or Ethernet cable connector on the IV4-400CA?"
+    )
+
+
+def test_replaces_quarantined_case_in_place_with_auditable_pair():
+    cases = [
+        {"case_id": "keep-1"},
+        {"case_id": "quarantine-1"},
+        {"case_id": "keep-2"},
+    ]
+    effective, audit = _MODULE.replace_quarantined_cases(
+        cases,
+        [{"case_id": "replacement-1", "query": "verified"}],
+        quarantine_case_ids=["quarantine-1"],
+        replacement_case_ids=["replacement-1"],
+    )
+
+    assert [case["case_id"] for case in effective] == ["keep-1", "replacement-1", "keep-2"]
+    assert audit == [
+        {
+            "quarantined_case_id": "quarantine-1",
+            "replacement_case_id": "replacement-1",
+        }
+    ]
+
+
+def test_rejects_replacement_that_collides_with_retained_case():
+    with pytest.raises(ValueError, match="collide with retained input"):
+        _MODULE.replace_quarantined_cases(
+            [{"case_id": "keep-1"}, {"case_id": "quarantine-1"}],
+            [{"case_id": "keep-1"}],
+            quarantine_case_ids=["quarantine-1"],
+            replacement_case_ids=["keep-1"],
+        )
+
+
 def test_dent_range_contract_scores_answer_bearing_terms_not_grammatical_subject():
     query = (
         "For the XG-X Series inline 3D inspection system, which dent-depth conditions "
