@@ -1070,6 +1070,29 @@ def _direct_feature_amplifier_type_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _direct_line_scan_numeric_adjustment_plan(query: str) -> RetrievalPlan | None:
+    """Keep one shared focus/brightness control explanation in one exact hop."""
+    if not (
+        re.search(r"\bline scan camera\b", query, flags=re.I)
+        and re.search(r"\bfocus\b", query, flags=re.I)
+        and re.search(r"\bbrightness\b", query, flags=re.I)
+        and re.search(r"\bnumeric(?:al(?:ly)?)?\b", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request asks for one shared numerical focus/brightness control explanation.",
+        hops=[
+            RetrievalHop(
+                hop_id="line_scan_numeric_adjustment",
+                objective=query,
+                query=query,
+                strategy="hybrid",
+            )
+        ],
+    )
+
+
 def _heuristic_plan(query: str) -> RetrievalPlan:
     function_plan = _xg_lua_output_function_plan(query)
     if function_plan is not None:
@@ -1101,6 +1124,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     feature_amplifier_type_plan = _direct_feature_amplifier_type_plan(query)
     if feature_amplifier_type_plan is not None:
         return feature_amplifier_type_plan
+    line_scan_numeric_plan = _direct_line_scan_numeric_adjustment_plan(query)
+    if line_scan_numeric_plan is not None:
+        return line_scan_numeric_plan
     coordinate_plan = _coordinate_question_plan(query)
     if coordinate_plan is not None:
         return coordinate_plan
@@ -1164,6 +1190,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _shared_setting_value_plan(query)
         or _direct_range_value_plan(query)
         or _direct_feature_amplifier_type_plan(query)
+        or _direct_line_scan_numeric_adjustment_plan(query)
         or _coordinate_question_plan(query)
         or _explicit_dependency_sequence_plan(query)
         or _reported_clause_plan(query)
@@ -1217,6 +1244,8 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
             strategy = "hybrid"
         elif _direct_feature_amplifier_type_plan(hop.query) is not None:
             strategy = "hybrid"
+        elif _direct_line_scan_numeric_adjustment_plan(hop.query) is not None:
+            strategy = "hybrid"
         elif _direct_display_behavior_plan(hop.query) is not None:
             strategy = "hybrid"
         elif set(analysis.query_types).intersection({"configuration", "specification", "troubleshooting", "how_to"}):
@@ -1249,6 +1278,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _shared_setting_value_plan(query) is not None
         or _direct_range_value_plan(query) is not None
         or _direct_feature_amplifier_type_plan(query) is not None
+        or _direct_line_scan_numeric_adjustment_plan(query) is not None
         or _coordinate_question_plan(query) is not None
         or _explicit_dependency_sequence_plan(query) is not None
         or _reported_clause_plan(query) is not None
@@ -4202,6 +4232,37 @@ def _direct_password_setting_support(query: str, results: list[SearchResult]) ->
     return [min(matches)[2]] if matches else []
 
 
+def _direct_key_lock_hold_duration_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm a scoped Run Mode Key Lock duration without decoding OCR key glyphs."""
+    if not (
+        re.search(r"\bkey lock\b", query, flags=re.I)
+        and re.search(r"\b(?:how long|duration)\b", query, flags=re.I)
+        and re.search(r"\bhold\b", query, flags=re.I)
+        and re.search(r"\brun mode\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not (
+            re.search(r"\bkey lock\b", content, flags=re.I)
+            and re.search(r"\brun mode\b", content, flags=re.I)
+            and re.search(
+                r"(?:>\s*3\s*s\b|\b(?:more than|over|longer than)\s+3\s+seconds?\b)",
+                content,
+                flags=re.I,
+            )
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_manual_focus_installation_support(
     query: str,
     results: list[SearchResult],
@@ -6189,6 +6250,27 @@ def verify_retrieval_claim(
             rationale=(
                 "Deterministic password verification matched the scoped 1-to-999 setting range "
                 "and the explicit no-password meaning of value 0."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_key_lock_duration_support = _direct_key_lock_hold_duration_support(
+        hop.objective,
+        results,
+    )
+    if direct_key_lock_duration_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_key_lock_duration_support,
+            applicability="not_requested",
+            scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            rationale=(
+                "Deterministic Key Lock verification matched the scoped Run Mode instruction "
+                "and its explicit greater-than-three-second hold duration."
             ),
         ).model_dump() | {
             "invalid_citation_ids": [],

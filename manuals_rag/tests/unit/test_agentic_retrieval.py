@@ -6171,6 +6171,49 @@ def test_planners_keep_shared_setting_value_facets_single_hop(monkeypatch):
         assert [hop.query for hop in plan.hops] == [query]
 
 
+def test_planners_keep_line_scan_numeric_adjustment_single_hop(monkeypatch):
+    query = "How can I adjust the focus and brightness of the line scan camera using numerical values?"
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("shared control explanation must bypass model planning")
+        ),
+    )
+
+    for plan in (plan_retrieval(query, use_llm=True), plan_llamaindex_retrieval(query, use_llm=True)):
+        assert plan.mode == "single"
+        assert [hop.query for hop in plan.hops] == [query]
+        assert [hop.strategy for hop in plan.hops] == ["hybrid"]
+
+
+def test_verifier_confirms_scoped_key_lock_hold_duration_without_decoding_key_glyphs(monkeypatch):
+    query = "How long must I hold the key combination to enable Key Lock on the LR-ZH500C3P in Run Mode?"
+    hop = RetrievalHop(hop_id="key_lock", objective=query, query=query, strategy="structural")
+    supported = _result(
+        "key-lock-duration",
+        "lr-zh-doc",
+        "3-4 Useful functions Key lock /g18/g18/g18 /g46/g81/g69 /g18/g18/g18 /g87/g80/g46 ( + ) >3s (Run Mode)",
+    ).model_copy(
+        update={"metadata": {"chunk_type": "section_window", "product_model": "LR-ZH500C3P"}}
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [supported],
+        {"claim_supported": True, "supporting_chunk_ids": [supported.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["key-lock-duration"]
+
+
 def test_planners_keep_feature_amplifier_type_lookup_single_hop(monkeypatch):
     query = "Which IV Series amplifier types support the Intelligent Monitor feature?"
 
