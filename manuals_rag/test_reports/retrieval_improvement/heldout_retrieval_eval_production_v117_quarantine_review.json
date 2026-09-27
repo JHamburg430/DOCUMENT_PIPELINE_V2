@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "decision": "replace_malformed_relationship_case",
+  "quarantined_case_id": "11feb893-da7e-55df-a74c-8d061467316b::1",
+  "quarantined_bank": "tests/fixtures/heldout_retrieval_eval_production_v116.jsonl",
+  "quarantined_offset": 31,
+  "reason": "The query incorrectly describes OP-87133 as the memory slot. Persisted source evidence identifies OP-87133 as a supported 512 MB SD card and lists CA-SD1G, CA-SD4G, and CA-SD16G as additional supported cards. The case therefore encodes a false device relationship, and the scope verifier correctly rejected the retrieved evidence.",
+  "replacement_case_id": "383f965c-9753-5b25-b4b7-009efa8c87f8::1",
+  "replacement_offset": 31,
+  "replacement_bank": "tests/fixtures/heldout_retrieval_eval_production_v117.jsonl",
+  "replacement_source_chunk_id": "383f965c-9753-5b25-b4b7-009efa8c87f8",
+  "replacement_query": "What is the X FAR side measurement for the LJ-S015 model?",
+  "replacement_expected_snippet": "LJ-S015: 16mm",
+  "replacement_validation": {
+    "artifact": "test_reports/retrieval_improvement/agent_matrix_v117-candidate-383-smoke-277d566.json",
+    "langgraph_full_pass": true,
+    "llamaindex_full_pass": true,
+    "source_chunk_retained": true,
+    "source_document_retained_or_verbatim_equivalent": true,
+    "evidence_sufficient": true,
+    "grounded_answer_term_coverage": "1/1",
+    "process_exit_status": 0,
+    "source_revision": "277d566d15f41a511f5f1b0ad9350874a3c269d6",
+    "source_dirty": false
+  },
+  "runtime_code_changed": false
+}
