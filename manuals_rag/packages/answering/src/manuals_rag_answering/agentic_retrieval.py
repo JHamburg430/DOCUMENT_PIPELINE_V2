@@ -1643,7 +1643,13 @@ def _assess_hop_evidence(
     if re.search(r"\b(?:orientation|straight|right[- ]?angle|angled)\b", lowered_query):
         facet_patterns.append(("orientation", r"\b(?:straight|right[- ]?angle|angled|vertical|horizontal)\b"))
     if re.search(r"\b(?:model|part number|catalog(?:ue)? number)\b", lowered_query):
-        facet_patterns.append(("identifier", r"\b(?=[a-z0-9:/-]*\d)[a-z][a-z0-9]*(?:[-:/][a-z0-9]+)+\b"))
+        facet_patterns.append(
+            (
+                "identifier",
+                r"(?:\b(?=[a-z0-9:/-]*\d)[a-z][a-z0-9]*(?:[-:/][a-z0-9]+)+\b"
+                r"|\b(?:op|part|catalog(?:ue)?)(?:\s*(?:number|no\.?|#))?\s*[:#-]?\s*\d{4,}\b)",
+            )
+        )
 
     query_terms = {
         term

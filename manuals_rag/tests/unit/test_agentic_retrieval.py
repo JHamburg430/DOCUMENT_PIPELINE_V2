@@ -6744,6 +6744,34 @@ def test_claim_sufficiency_rejects_cross_chunk_keyword_collage():
     assert assessment["gap_reason"] == "no_single_chunk_supports_claim"
 
 
+def test_claim_sufficiency_accepts_labeled_numeric_part_number():
+    sufficient, assessment = _assess_hop_evidence(
+        "When using the mounting bracket for MU-N Series sensor installation, what is its part number?",
+        [
+            _result(
+                "mounting-bracket",
+                "mu-n-doc",
+                "When using the mounting bracket (OP: 76877, sold separately), attach the MU-N Series sensor as shown.",
+            )
+        ],
+    )
+
+    assert sufficient is True
+    assert assessment["supporting_chunk_ids"] == ["mounting-bracket"]
+    assert assessment["result_assessments"][0]["facet_hits"] == ["identifier"]
+
+
+def test_claim_sufficiency_does_not_treat_unlabeled_measurement_as_part_number():
+    sufficient, assessment = _assess_hop_evidence(
+        "What is the MU-N Series mounting bracket part number?",
+        [_result("measurement", "mu-n-doc", "The MU-N Series cable is 10000 mm long.")],
+    )
+
+    assert sufficient is False
+    assert assessment["supporting_chunk_ids"] == []
+    assert assessment["result_assessments"][0]["missing_facets"] == ["identifier"]
+
+
 def test_claim_sufficiency_rejects_incidental_requested_model_in_conflicting_document_scope():
     wrong = _result(
         "wrong",
