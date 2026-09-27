@@ -44,6 +44,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_password_setting_support,
     _direct_procedure_support,
     _direct_saved_settings_activation_support,
+    _direct_series_scanner_head_limit_support,
     _direct_structured_lookup_support,
     _direct_structured_compatibility_support,
     _direct_structured_power_source_support,
@@ -6372,6 +6373,47 @@ def test_manual_focus_installation_support_rejects_automatic_focus_sibling():
     assert _direct_manual_focus_installation_support(query, [automatic, manual]) == [
         "manual-focus"
     ]
+
+
+def test_series_scanner_head_limit_support_confirms_explicit_up_to_limit_without_llm(monkeypatch):
+    query = "How many scanner heads can be connected in series to a single display unit?"
+    result = _result(
+        "scanner-head-limit",
+        "sz-v-doc",
+        "Display unit Up to 20 m 65.62' connections between units "
+        "Series connect up to 3 scanner heads",
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text"}})
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query)
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    assert _direct_series_scanner_head_limit_support(query, [result]) == [
+        "scanner-head-limit"
+    ]
+    output = verify_retrieval_claim(hop, query, [result], {"claim_supported": False})
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["scanner-head-limit"]
+
+
+def test_series_scanner_head_limit_support_rejects_wrong_entity_or_missing_display_scope():
+    query = "What is the maximum number of scanner heads supported by a single display unit?"
+    wrong_entity = _result(
+        "camera-limit",
+        "sz-v-doc",
+        "Display unit Series connect up to 3 cameras",
+    )
+    missing_display = _result(
+        "unscoped-head-limit",
+        "sz-v-doc",
+        "Series connect up to 3 scanner heads to the controller",
+    )
+
+    assert _direct_series_scanner_head_limit_support(
+        query,
+        [wrong_entity, missing_display],
+    ) == []
 
 
 def test_pc_to_plc_menu_path_support_requires_literal_transfer_instruction():

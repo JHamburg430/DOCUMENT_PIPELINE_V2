@@ -4293,6 +4293,46 @@ def _direct_key_lock_hold_duration_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_series_scanner_head_limit_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm an explicit upper limit for scanner heads on one display unit.
+
+    Manuals commonly express a maximum as ``up to N`` rather than using the
+    word ``maximum``.  Keep this deterministic shortcut deliberately narrow:
+    the question and one scoped evidence unit must bind the quantity, scanner
+    heads, series connection, and display unit together.
+    """
+    if not (
+        re.search(r"\bscanner\s+heads?\b", query, flags=re.I)
+        and re.search(r"\bdisplay\s+unit\b", query, flags=re.I)
+        and re.search(r"\b(?:how many|maximum(?:\s+number)?|max(?:imum)?)\b", query, flags=re.I)
+        and re.search(r"\b(?:series|connect(?:ed|ing|s)?)\b", query, flags=re.I)
+    ):
+        return []
+
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not content or len(content) > 900:
+            continue
+        if not (
+            re.search(r"\bdisplay\s+unit\b", content, flags=re.I)
+            and re.search(
+                r"\b(?:series\s+connect|connect(?:ed|ing|s)?\s+in\s+series)\b",
+                content,
+                flags=re.I,
+            )
+            and re.search(r"\bup\s+to\s+\d+\s+scanner\s+heads?\b", content, flags=re.I)
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def _direct_manual_focus_installation_support(
     query: str,
     results: list[SearchResult],
@@ -6301,6 +6341,28 @@ def verify_retrieval_claim(
             rationale=(
                 "Deterministic Key Lock verification matched the scoped Run Mode instruction "
                 "and its explicit greater-than-three-second hold duration."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
+    direct_series_scanner_head_limit_support = _direct_series_scanner_head_limit_support(
+        hop.objective,
+        results,
+    )
+    if direct_series_scanner_head_limit_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_series_scanner_head_limit_support,
+            applicability="not_requested",
+            scope_entity="single display unit",
+            rationale=(
+                "Deterministic connection-limit verification matched one scoped evidence unit "
+                "that binds a single display unit to an explicit up-to-N series limit for "
+                "scanner heads."
             ),
         ).model_dump() | {
             "invalid_citation_ids": [],
