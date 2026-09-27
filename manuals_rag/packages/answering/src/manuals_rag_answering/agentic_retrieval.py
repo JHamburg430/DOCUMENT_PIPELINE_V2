@@ -877,6 +877,13 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     ):
         strategy = "hybrid"
     elif re.match(
+        r"^\s*what\s+safety\s+step\s+must\s+be\s+taken\s+before\s+"
+        r"connecting\b.+\bto\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    elif re.match(
         r"^\s*in\s+.+?,\s*how\s+do\s+i\s+add\s+a\s+new\s+module\s+to\b.+\?\s*$",
         query,
         flags=re.I,
@@ -2237,6 +2244,49 @@ def _direct_warning_support(
         return []
     best = max(matches, key=lambda item: item[:4])
     return [best[-1]]
+
+
+def _direct_preconnection_safety_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm an explicit power-off check immediately before a connection step."""
+    if not re.match(
+        r"^\s*what\s+safety\s+step\s+must\s+be\s+taken\s+before\s+connecting\b",
+        query,
+        flags=re.I,
+    ):
+        return []
+    requested = {
+        re.sub(r"[^a-z0-9]", "", identifier.lower())
+        for identifier in analyze_query(query).product_identifiers
+    }
+    if len(requested) < 2:
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        compact_content = re.sub(r"[^a-z0-9]", "", content.lower())
+        if not all(identifier in compact_content for identifier in requested):
+            continue
+        if not (
+            re.search(
+                r"\bcheck\s+that\s+power\b.+\bis\s+not\s+being\s+supplied\b",
+                content,
+                flags=re.I,
+            )
+            and re.search(r"\band\s+then\s+connect\b", content, flags=re.I)
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
 
 
 def _direct_laser_eye_level_installation_support(
@@ -7093,6 +7143,27 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic menu-mapping verification matched the requested label and "
                     "feature in one scoped table record."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_preconnection_safety_support = _direct_preconnection_safety_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_preconnection_safety_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_preconnection_safety_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic pre-connection safety verification matched the scoped "
+                    "power-off check and subsequent connection instruction."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],

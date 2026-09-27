@@ -146,6 +146,55 @@ def test_verifier_confirms_scoped_system_configuration_controller_list_without_l
     assert output["supporting_chunk_ids"] == ["xt-controller-map"]
 
 
+def test_verifier_confirms_preconnection_power_check_without_llm(monkeypatch):
+    objective = (
+        "What safety step must be taken before connecting the encoder head CA-EN100H "
+        "to the CA-EN100U?"
+    )
+    hop = RetrievalHop(hop_id="structured_lookup", objective=objective, query=objective)
+    exact = _result(
+        "encoder-power-check",
+        "ca-en100u-doc",
+        "Check that power (24 VDC) is not being supplied to the CA-EN100U, and then "
+        "connect the encoder head CA-EN100H to the encoder connector of the CA-EN100U.",
+    )
+    exact.metadata["product_model"] = "CA-EN100U"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        objective,
+        [exact],
+        {"claim_supported": True, "supporting_chunk_ids": [exact.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["encoder-power-check"]
+
+
+def test_model_planners_keep_preconnection_safety_lookup_in_one_hop(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model planner must not run")),
+    )
+    query = (
+        "What safety step must be taken before connecting the encoder head CA-EN100H "
+        "to the CA-EN100U?"
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=True)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].objective == query
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "hybrid"
+
+
 def test_direct_laser_eye_level_installation_support_requires_complete_scoped_instruction():
     query = "Can I install the LJ: S8000 series head at eye level for the laser beam path?"
     metadata = {
