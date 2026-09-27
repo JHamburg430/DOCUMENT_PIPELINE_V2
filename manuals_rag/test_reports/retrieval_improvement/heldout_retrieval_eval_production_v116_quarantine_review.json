@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "decision": "replace_duplicate_document_anchor_case",
+  "quarantined_case_id": "f96e8395-ad62-5139-9cdc-c9a182a690f4::1",
+  "quarantined_bank": "tests/fixtures/heldout_retrieval_eval_production_v115.jsonl",
+  "quarantined_offset": 189,
+  "reason": "The query has the same exact 405 nm and 10 mW answer in another persisted LJ-X8000 manual. LlamaIndex retrieved that valid equivalent source and produced the correct grounded answer, but the document-specific frozen anchor required a different duplicate manual. The case therefore measures duplicate-document identity rather than retrieval correctness.",
+  "replacement_case_id": "1fc459a6-88a6-5228-9b99-fc57578136fa::1",
+  "replacement_offset": 189,
+  "replacement_bank": "tests/fixtures/heldout_retrieval_eval_production_v116.jsonl",
+  "replacement_source_chunk_id": "1fc459a6-88a6-5228-9b99-fc57578136fa",
+  "replacement_query": "Which command should be used to check the current program details in the flow chart?",
+  "replacement_expected_snippet": "Command details: the current program; Command to use: PRcommand; Procedure reference: Obtaining \"pg.43 PRCommand\"",
+  "replacement_validation": {
+    "artifact": "test_reports/retrieval_improvement/agent_matrix_v116-replacement-1fc-smoke.json",
+    "langgraph_full_pass": true,
+    "llamaindex_full_pass": true,
+    "source_chunk_retained": true,
+    "source_document_retained": true,
+    "evidence_sufficient": true,
+    "grounded_answer_term_coverage": "1/1",
+    "process_exit_status": 0,
+    "source_revision": "f0a7356970703ba761b24699309247c6d13fb1f3",
+    "source_dirty": false
+  },
+  "runtime_code_changed": false
+}
