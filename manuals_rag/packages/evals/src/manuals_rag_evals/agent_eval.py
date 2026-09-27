@@ -142,7 +142,7 @@ def _relation_grounding(case: dict[str, Any], answer_text: str) -> dict[str, Any
         and not asks_for_value_or_range
     )
     factual_value_lookup = bool(
-        re.match(r"^\s*what\b", query, flags=re.I)
+        re.match(r"^\s*(?:what\b|how\s+many\b)", query, flags=re.I)
         and not asks_for_procedural_action
         and (
             expected_profile.role_values

@@ -956,6 +956,32 @@ def test_agent_evaluation_ignores_incidental_imperative_for_factual_value_lookup
     assert relation["passed"] is True
 
 
+def test_agent_evaluation_ignores_incidental_action_for_how_many_lookup():
+    case = _quantity_case()
+    case["query"] = "How many cameras can be connected across two input units?"
+    case["expected_snippet"] = "Two lines support a maximum of 4 connected cameras."
+    case["expected_terms"] = ["cameras", "connected", "4"]
+    case["expected_evidence"][0]["snippet"] = case["expected_snippet"]
+    case["expected_evidence"][0]["expected_terms"] = case["expected_terms"]
+
+    evaluation = score_agent_run(
+        case,
+        trace=_quantity_trace(),
+        results=[{"chunk_id": "setup-values", "source_document_id": "doc-controller"}],
+        answer={
+            "answer": (
+                "A maximum of 4 cameras can be connected across the 2 lines; "
+                "configure the initial language at first startup."
+            ),
+            "citations": [{"chunk_id": "setup-values"}],
+        },
+    )
+
+    relation = evaluation["cells"]["grounded_answer"]["metrics"]["relation_grounding"]
+    assert evaluation["cells"]["grounded_answer"]["status"] == "pass"
+    assert relation["passed"] is True
+
+
 def test_agent_evaluation_treats_should_i_configure_values_as_factual_lookup():
     case = _quantity_case()
     case["query"] = (

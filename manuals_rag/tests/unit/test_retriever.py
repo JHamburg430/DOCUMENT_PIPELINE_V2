@@ -3324,6 +3324,43 @@ def test_wiring_terminal_promotion_also_retains_external_trigger_timing_record()
     assert promoted[0].chunk_id == "a1-record"
 
 
+def test_external_trigger_timing_promotion_prefers_requested_manual_reference():
+    expected = SearchResult(
+        chunk_id="as-145624-row",
+        score=0.4,
+        title="AS_145624_IV_C_611Y54_KA_US_2084_2",
+        document_version_id="v1",
+        source_document_id="iv-145624",
+        pages=[26],
+        section_path=["Specifications"],
+        content=(
+            "Terminal No.: A1; Name: IN1; Assigning default value: External trigger; "
+            "Description: Rising timing or falling timing can be set."
+        ),
+        metadata={"chunk_type": "table_record", "product_family": "IV Series"},
+    )
+    equivalent = expected.model_copy(
+        update={
+            "chunk_id": "other-iv-row",
+            "title": "AS_107533_IV_IM_96M12230_WW_GB_2082_3a",
+            "source_document_id": "iv-107533",
+        }
+    )
+
+    promoted = retriever._promote_wiring_terminal_candidates(
+        [],
+        [equivalent, expected],
+        (
+            "In the AS_145624 IV Series specification table, which edge timings can be set "
+            "for the IN1 input when it is assigned as an external trigger?"
+        ),
+        limit=2,
+        promoted_limit=1,
+    )
+
+    assert promoted[0].chunk_id == "as-145624-row"
+
+
 def test_select_family_candidates_prefers_spec_family_for_spec_lookup():
     analysis = analyze_query("What voltage specification is listed for the module?")
     prose = SearchResult(

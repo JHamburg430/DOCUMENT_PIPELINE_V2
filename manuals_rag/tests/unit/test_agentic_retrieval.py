@@ -984,6 +984,22 @@ def test_model_planners_keep_direct_display_behavior_in_one_hop(monkeypatch):
             assert plan.hops[0].strategy == "hybrid"
 
 
+def test_model_planners_keep_ljx8000_ocr_character_count_lookup_in_one_hop(monkeypatch):
+    query = "How does the LJ-X8000 determine the number of characters output for EtherNet/IP?"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model planner must not run")),
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=True)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].objective == query
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "hybrid"
+
+
 def test_model_planners_preserve_original_single_lookup_qualifiers(monkeypatch):
     original = (
         "On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?"

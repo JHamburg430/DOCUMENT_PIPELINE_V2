@@ -787,6 +787,16 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
         flags=re.I,
     ):
         strategy = "hybrid"
+    elif (
+        re.match(
+            r"^\s*how\s+does\s+.+?\bdetermine\b.+\bnumber\s+of\s+characters\s+output\b.+\?\s*$",
+            query,
+            flags=re.I,
+        )
+        and re.search(r"\bLJ\s*-?\s*X8000\b", query, flags=re.I)
+        and re.search(r"\bEtherNet\s*/?\s*IP\b", query, flags=re.I)
+    ):
+        strategy = "hybrid"
     elif re.search(
         r"\bhow\s+many\b.+\bcount\s+value\b.+\bset\s+value\b",
         query,

@@ -3416,7 +3416,11 @@ def _promote_wiring_terminal_candidates(
         _compact_identifier(series)
         for series in re.findall(r"\b[A-Z][A-Z0-9-]*\s+Series\b", query, flags=re.IGNORECASE)
     }
-    candidates: list[tuple[int, int, int, int, SearchResult]] = []
+    requested_document_refs = {
+        _compact_identifier(value)
+        for value in re.findall(r"\bAS[-_]\d+\b", query, flags=re.IGNORECASE)
+    }
+    candidates: list[tuple[int, int, int, int, int, SearchResult]] = []
     seen: set[str] = set()
     for index, result in enumerate(supplemental_results):
         if result.chunk_id in seen:
@@ -3447,6 +3451,16 @@ def _promote_wiring_terminal_candidates(
                 if part
             )
         )
+        document_scope = _compact_identifier(
+            " ".join(
+                str(part)
+                for part in (
+                    result.title,
+                    result.metadata.get("source_filename"),
+                )
+                if part
+            )
+        )
         candidates.append(
             (
                 int(
@@ -3456,6 +3470,10 @@ def _promote_wiring_terminal_candidates(
                         and all(term in exact_content for term in ("externaltrigger", "risingtiming", "fallingtiming"))
                     )
                 ),
+                int(
+                    not requested_document_refs
+                    or any(reference in document_scope for reference in requested_document_refs)
+                ),
                 int(not requested_series or any(series in scope for series in requested_series)),
                 int(str(result.metadata.get("chunk_type") or "") == "table_record"),
                 -index,
@@ -3464,12 +3482,12 @@ def _promote_wiring_terminal_candidates(
         )
     if not candidates:
         return ranked_results[:limit]
-    candidates.sort(key=lambda item: item[:4], reverse=True)
+    candidates.sort(key=lambda item: item[:5], reverse=True)
     promoted = [
         result.model_copy(
             update={"metadata": {**result.metadata, "retrieval_stage": "wiring_terminal_promoted"}}
         )
-        for _exact, _scope, _structured, _negative_index, result in candidates[:promoted_limit]
+        for _exact, _document_scope, _scope, _structured, _negative_index, result in candidates[:promoted_limit]
     ]
     promoted_ids = {result.chunk_id for result in promoted}
     return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
