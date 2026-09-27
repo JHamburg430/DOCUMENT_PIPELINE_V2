@@ -1438,6 +1438,11 @@ def _normalize_primary_plan(
             parallel_focuses = candidate_focuses
     return plan.model_copy(
         update={
+            # A plan with one primary lookup is semantically single-hop even
+            # when the model labels it ``parallel``.  Keeping the invalid
+            # parallel label bypasses the validated direct-query retrieval
+            # path and can discard exact document identifiers.
+            **({"mode": "single"} if preserve_single else {}),
             "hops": [
                 hop.model_copy(
                     update={
