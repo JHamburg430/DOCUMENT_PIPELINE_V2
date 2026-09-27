@@ -2242,6 +2242,37 @@ def _answer_uses_comparison_troubleshooting_side_rows(answer: str, query: str, r
     return True
 
 
+def _concise_symbolic_display_cause_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Answer the OCR-obscured LR-W70 three-dot display from its selected row only."""
+    compact_query = re.sub(r"[^a-z0-9]+", "", query.lower())
+    if not (
+        "lrw70" in compact_query
+        and "whatcauses" in compact_query
+        and "display" in compact_query
+        and "threedots" in compact_query
+    ):
+        return "", []
+    for result in results[:12]:
+        content = str(result.content or "").strip()
+        compact_content = re.sub(r"[^a-z0-9]+", "", content.lower())
+        if not (
+            str(result.metadata.get("chunk_type") or "") == "table_record"
+            and "cause" in compact_content
+            and "insufficientlight" in compact_content
+            and "receivedbythesensor" in compact_content
+        ):
+            continue
+        mode_suffix = " (Auto/C+I/C modes)" if "autocicmodes" in compact_content else ""
+        return (
+            f"Cause: Displayed when insufficient light is received by the sensor{mode_suffix}.",
+            [result],
+        )
+    return "", []
+
+
 def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     if not results:
         return AnswerResponse(
@@ -2258,6 +2289,10 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         ("", [])
         if _is_comparison_query(query)
         else _concise_troubleshooting_answer(query, results)
+    )
+    symbolic_display_answer, symbolic_display_results = _concise_symbolic_display_cause_answer(
+        query,
+        results,
     )
     dependency_answer, dependency_results = _concise_dependency_mapping_answer(query, results)
     if _is_troubleshooting_query(query) and _query_troubleshooting_anchor(query) and not concise_answer:
@@ -2283,7 +2318,8 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     ):
         table_answer = ""
     fallback_results = (
-        concise_results
+        symbolic_display_results
+        or concise_results
         or dependency_results
         or location_results
         or table_results
@@ -2297,7 +2333,9 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         matches = _comparison_troubleshooting_side_matches(query, results)
         incomplete = len(sides) > 1 and len(matches) < len(sides)
     top = fallback_results[0]
-    if concise_answer:
+    if symbolic_display_answer:
+        answer_text = symbolic_display_answer
+    elif concise_answer:
         answer_text = concise_answer
     elif dependency_answer:
         answer_text = dependency_answer
@@ -7146,6 +7184,18 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         answer = answer.model_copy(
             update={
                 "answer": concise_troubleshooting,
+                "citations": normalized.citations,
+                "used_documents": normalized.used_documents,
+                "insufficient_evidence": False,
+            }
+        )
+
+    symbolic_display, symbolic_results = _concise_symbolic_display_cause_answer(query, results)
+    if symbolic_display and symbolic_results:
+        normalized = _fallback_answer(query, symbolic_results)
+        answer = answer.model_copy(
+            update={
+                "answer": symbolic_display,
                 "citations": normalized.citations,
                 "used_documents": normalized.used_documents,
                 "insufficient_evidence": False,

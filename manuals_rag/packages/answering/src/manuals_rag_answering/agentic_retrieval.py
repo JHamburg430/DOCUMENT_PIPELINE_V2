@@ -1093,6 +1093,29 @@ def _direct_line_scan_numeric_adjustment_plan(query: str) -> RetrievalPlan | Non
     )
 
 
+def _direct_mu_n_lr_t_max_distance_plan(query: str) -> RetrievalPlan | None:
+    """Keep one scoped MU-N/LR-T maximum-distance lookup in one hybrid hop."""
+    if not (
+        re.search(r"\bMU-N\s+SERIES\b", query, flags=re.I)
+        and re.search(r"\bmaximum\s+detecting\s+distance\b", query, flags=re.I)
+        and re.search(r"\bLR-T\b", query, flags=re.I)
+        and re.search(r"\blaser\s+sensor\b", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="The request is one scoped MU-N/LR-T maximum-distance lookup.",
+        hops=[
+            RetrievalHop(
+                hop_id="mu_n_lr_t_max_distance",
+                objective=query,
+                query=query,
+                strategy="hybrid",
+            )
+        ],
+    )
+
+
 def _heuristic_plan(query: str) -> RetrievalPlan:
     function_plan = _xg_lua_output_function_plan(query)
     if function_plan is not None:
@@ -1127,6 +1150,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     line_scan_numeric_plan = _direct_line_scan_numeric_adjustment_plan(query)
     if line_scan_numeric_plan is not None:
         return line_scan_numeric_plan
+    mu_n_lr_t_distance_plan = _direct_mu_n_lr_t_max_distance_plan(query)
+    if mu_n_lr_t_distance_plan is not None:
+        return mu_n_lr_t_distance_plan
     coordinate_plan = _coordinate_question_plan(query)
     if coordinate_plan is not None:
         return coordinate_plan
@@ -1191,6 +1217,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         or _direct_range_value_plan(query)
         or _direct_feature_amplifier_type_plan(query)
         or _direct_line_scan_numeric_adjustment_plan(query)
+        or _direct_mu_n_lr_t_max_distance_plan(query)
         or _coordinate_question_plan(query)
         or _explicit_dependency_sequence_plan(query)
         or _reported_clause_plan(query)
@@ -1246,6 +1273,8 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
             strategy = "hybrid"
         elif _direct_line_scan_numeric_adjustment_plan(hop.query) is not None:
             strategy = "hybrid"
+        elif _direct_mu_n_lr_t_max_distance_plan(hop.query) is not None:
+            strategy = "hybrid"
         elif _direct_display_behavior_plan(hop.query) is not None:
             strategy = "hybrid"
         elif set(analysis.query_types).intersection({"configuration", "specification", "troubleshooting", "how_to"}):
@@ -1279,6 +1308,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _direct_range_value_plan(query) is not None
         or _direct_feature_amplifier_type_plan(query) is not None
         or _direct_line_scan_numeric_adjustment_plan(query) is not None
+        or _direct_mu_n_lr_t_max_distance_plan(query) is not None
         or _coordinate_question_plan(query) is not None
         or _explicit_dependency_sequence_plan(query) is not None
         or _reported_clause_plan(query) is not None

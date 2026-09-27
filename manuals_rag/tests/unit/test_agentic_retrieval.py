@@ -6187,6 +6187,25 @@ def test_planners_keep_line_scan_numeric_adjustment_single_hop(monkeypatch):
         assert [hop.strategy for hop in plan.hops] == ["hybrid"]
 
 
+def test_planners_keep_mu_n_lr_t_max_distance_single_hop(monkeypatch):
+    query = (
+        "In the MU-N SERIES section, what maximum detecting distance is listed for the "
+        "connected LR-T laser sensor?"
+    )
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("scoped maximum-distance lookup must bypass model planning")
+        ),
+    )
+
+    for plan in (plan_retrieval(query, use_llm=True), plan_llamaindex_retrieval(query, use_llm=True)):
+        assert plan.mode == "single"
+        assert [hop.query for hop in plan.hops] == [query]
+        assert [hop.strategy for hop in plan.hops] == ["hybrid"]
+
+
 def test_verifier_confirms_scoped_key_lock_hold_duration_without_decoding_key_glyphs(monkeypatch):
     query = "How long must I hold the key combination to enable Key Lock on the LR-ZH500C3P in Run Mode?"
     hop = RetrievalHop(hop_id="key_lock", objective=query, query=query, strategy="structural")

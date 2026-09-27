@@ -5354,6 +5354,57 @@ def test_validate_answer_falls_back_when_range_answer_omits_endpoints():
     assert [citation["chunk_id"] for citation in validated.citations] == [result.chunk_id]
 
 
+def test_validate_answer_contains_lr_w70_three_dot_cause_to_selected_row():
+    query = "What causes the display to show three dots on the LR-W70(C) Edition sensor?"
+    result = SearchResult(
+        chunk_id="lr-w70-three-dots",
+        score=1.0,
+        title="LR-W70 Manual",
+        document_version_id="v1",
+        source_document_id="lr-w70-doc",
+        pages=[12],
+        section_path=["Troubleshooting"],
+        content=(
+            "Display: ; Cause: Displayed when insuf f icient light is received by the sensor "
+            "(Auto/C+I/C modes); Solution: Check whether the detection distance is within specif ied range."
+        ),
+        metadata={
+            "chunk_type": "table_record",
+            "context_window": (
+                "Display: ErH; Cause: The sensor cable is broken. "
+                "Display: ErC; Cause: Excessive current is flowing through the output wire. "
+                "Display: ; Cause: Displayed when excessive light is received by the sensor."
+            ),
+        },
+    )
+    unsupported = AnswerResponse(
+        answer="The display indicates a sensor cable fault.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": result.chunk_id,
+                "document_id": result.source_document_id,
+                "pages": result.pages,
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+    validated = validate_answer(unsupported, [result], query=query)
+
+    assert validated.answer == (
+        "Cause: Displayed when insufficient light is received by the sensor (Auto/C+I/C modes)."
+    )
+    assert "sensor cable" not in validated.answer.lower()
+    assert "excessive current" not in validated.answer.lower()
+    assert "excessive light" not in validated.answer.lower()
+    assert [citation["chunk_id"] for citation in validated.citations] == [result.chunk_id]
+
+
 def test_quantity_fallback_binds_the_count_to_the_asked_component_and_stays_concise():
     query = "How many communication expansion units can I connect to the controller?"
     wrong = SearchResult(
