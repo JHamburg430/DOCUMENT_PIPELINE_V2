@@ -6444,6 +6444,37 @@ def test_planners_keep_authoritative_lookup_shapes_single_hop(monkeypatch):
     assert planner_calls == []
 
 
+def test_verifier_confirms_named_shapetrax_guided_robot_benefits_without_llm(monkeypatch):
+    query = "What benefits does the ShapeTrax 3A search tool provide for Guided Robotic systems?"
+    hop = RetrievalHop(hop_id="authoritative_lookup", objective=query, query=query)
+    general = _result(
+        "general-shapetrax",
+        "general-doc",
+        "ShapeTrax TM 3A offers speed and accuracy under poor conditions.",
+    ).model_copy(update={"metadata": {"chunk_type": "parent_section"}})
+    direct = _result(
+        "guided-shapetrax",
+        "guided-doc",
+        "Key Functions for Advanced Vision-Guided Robot Systems. Powerful search tool "
+        "ShapeTrax™3A, a highly evolved search that provides excellent performance and "
+        "stable operation.",
+    ).model_copy(update={"metadata": {"chunk_type": "section_window"}})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [general, direct],
+        {"claim_supported": True, "supporting_chunk_ids": [general.chunk_id, direct.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["guided-shapetrax"]
+
+
 def test_verifier_confirms_explicit_negative_quantity_limit_without_llm(monkeypatch):
     query = "Can I connect more than one communication expansion unit to the LJ-S8000 Series?"
     hop = RetrievalHop(hop_id="lookup", objective=query, query=query)

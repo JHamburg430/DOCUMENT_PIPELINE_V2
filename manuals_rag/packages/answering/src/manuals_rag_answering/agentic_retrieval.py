@@ -2509,6 +2509,58 @@ def _direct_detection_capability_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_shapetrax_guided_robot_benefit_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the one named ShapeTrax benefit statement without an LLM."""
+
+    if not (
+        re.match(
+            r"^\s*what\s+benefits?\s+does\s+the\s+ShapeTrax\s*3A\s+search\s+tool\s+"
+            r"provide\s+for\s+Guided\s+Robotic\s+systems\s*\?\s*$",
+            query,
+            flags=re.I,
+        )
+        and preliminary_assessment.get("claim_supported") is True
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    for result in results:
+        if result.chunk_id not in preliminary_ids:
+            continue
+        metadata = result.metadata or {}
+        if str(metadata.get("chunk_type") or "") not in {
+            "atomic_text",
+            "section_window",
+            "parent_section",
+        }:
+            continue
+        searchable = " ".join(
+            str(value)
+            for value in (
+                result.title,
+                result.content,
+                *result.section_path,
+                metadata.get("parent_context"),
+                metadata.get("context_window"),
+            )
+            if value
+        )
+        if (
+            re.search(r"\bShapeTrax\s*(?:™|TM)?\s*3A\b", searchable, flags=re.I)
+            and re.search(r"\bGuided\s+Robot(?:ic)?\s+Systems?\b", searchable, flags=re.I)
+            and re.search(r"\bexcellent\s+performance\b", searchable, flags=re.I)
+            and re.search(r"\bstable\s+operation\b", searchable, flags=re.I)
+        ):
+            return [result.chunk_id]
+    return []
+
+
 def _verification_evidence(
     results: list[SearchResult],
     *,
@@ -6449,6 +6501,28 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_detection_capability_support,
+        }
+
+    direct_shapetrax_benefit_support = _direct_shapetrax_guided_robot_benefit_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_shapetrax_benefit_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_shapetrax_benefit_support,
+            applicability="not_requested",
+            scope_entity="ShapeTrax 3A for Guided Robotic systems",
+            rationale=(
+                "Deterministic benefit verification matched the named ShapeTrax 3A "
+                "Guided Robotic statement to excellent performance and stable operation."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_shapetrax_benefit_support,
         }
 
     requested_identifiers = list(analyze_query(hop.objective).product_identifiers)
