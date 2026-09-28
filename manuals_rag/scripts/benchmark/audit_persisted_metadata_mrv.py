@@ -41,7 +41,9 @@ def _compact(value: str) -> str:
 def _audit_document(row: dict[str, Any]) -> dict[str, Any]:
     metadata = dict(row.get("metadata_json") or {})
     claims = [dict(item) for item in metadata.get("metadata_claims") or []]
-    confirmed = [item for item in claims if item.get("verification_status") == "confirmed"]
+    evidence = [dict(item) for item in metadata.get("metadata_evidence") or []]
+    verified_items = [*claims, *evidence]
+    confirmed = [item for item in verified_items if item.get("verification_status") == "confirmed"]
     routing = [
         *list(metadata.get("routing_product_models") or []),
         *list(metadata.get("routing_part_numbers") or []),
@@ -89,7 +91,7 @@ def _audit_document(row: dict[str, Any]) -> dict[str, Any]:
     }
     upload_identity_keys: set[str] = {
         _compact(value)
-        for item in claims
+        for item in verified_items
         if str(item.get("source_method") or item.get("source") or "") == "upload_identity_page_grounded"
         and item.get("kind") == "product_model"
         and item.get("grounded") is True
@@ -188,30 +190,46 @@ def run(document_ids: list[str] | None = None, *, corpus_id: str | None = None) 
     if corpus_id:
         where_clauses.append("sd.corpus_id = %s")
         params.append(corpus_id)
+    expected_scope_columns = ",\n               ".join(
+        f"dme.metadata_json->'{field}' as expected_{field}"
+        for field in PROPAGATED_SCOPE_FIELDS
+    )
     scope_mismatch = " or ".join(
-        f"rc.metadata_json->'{field}' is distinct from dme.metadata_json->'{field}'"
+        f"rc.metadata_json->'{field}' is distinct from ds.expected_{field}"
         for field in PROPAGATED_SCOPE_FIELDS
     )
     rows = fetch_all(
         f"""
-        select sd.id as document_id, sd.source_filename, sd.title, sd.ingest_status,
-               dme.metadata_json,
-               count(rc.id)::int as chunk_count,
+        with document_scope as materialized (
+            select sd.id as document_id, sd.source_filename, sd.title, sd.ingest_status,
+                   dme.metadata_json, dme.document_version_id,
+                   {expected_scope_columns}
+            from source_documents sd
+            left join document_metadata_extractions dme on dme.source_document_id = sd.id
+            where {' and '.join(where_clauses)}
+        )
+        select ds.document_id, ds.source_filename, ds.title, ds.ingest_status,
+               ds.metadata_json,
+               coalesce(chunk_audit.chunk_count, 0)::int as chunk_count,
+               coalesce(chunk_audit.mrv_chunk_count, 0)::int as mrv_chunk_count,
+               coalesce(chunk_audit.scope_mismatch_chunk_count, 0)::int as scope_mismatch_chunk_count,
+               coalesce(chunk_audit.version_mismatch_chunk_count, 0)::int as version_mismatch_chunk_count
+        from document_scope ds
+        left join lateral (
+            select count(rc.id)::int as chunk_count,
                count(rc.id) filter (
                    where rc.metadata_json->>'metadata_pipeline_version' = %s
                )::int as mrv_chunk_count,
                count(rc.id) filter (where {scope_mismatch})::int as scope_mismatch_chunk_count,
                count(rc.id) filter (
-                   where rc.document_version_id is distinct from dme.document_version_id
+                   where rc.document_version_id is distinct from ds.document_version_id
                )::int as version_mismatch_chunk_count
-        from source_documents sd
-        left join document_metadata_extractions dme on dme.source_document_id = sd.id
-        left join retrieval_chunks rc on rc.source_document_id = sd.id and rc.is_active = true
-        where {' and '.join(where_clauses)}
-        group by sd.id, sd.source_filename, sd.title, sd.ingest_status, dme.metadata_json, dme.document_version_id
-        order by sd.source_filename
+            from retrieval_chunks rc
+            where rc.source_document_id = ds.document_id and rc.is_active = true
+        ) chunk_audit on true
+        order by ds.source_filename
         """,
-        tuple(params),
+        tuple([*params[1:], params[0]]),
     )
     documents = [_audit_document(row) for row in rows]
     found = {item["document_id"] for item in documents}

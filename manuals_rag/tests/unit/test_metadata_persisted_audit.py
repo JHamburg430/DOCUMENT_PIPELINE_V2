@@ -26,7 +26,9 @@ def test_audit_can_select_a_complete_corpus(monkeypatch):
     report = _MODULE.run(corpus_id="manuals_canary")
 
     assert "sd.corpus_id = %s" in captured["query"]
-    assert captured["params"] == (_MODULE.PIPELINE, "manuals_canary")
+    assert captured["params"] == ("manuals_canary", _MODULE.PIPELINE)
+    assert "with document_scope as materialized" in captured["query"]
+    assert "left join lateral" in captured["query"]
     assert report["document_count"] == 0
     assert report["checks_passed"] is False
     assert report["scope_failures"] == ["no_documents_found"]
@@ -128,6 +130,51 @@ def test_audit_rejects_late_compatible_model_as_document_routing_scope():
     assert "routing_identifier_without_scoped_relationship" in result["failures"]
 
 
+def test_audit_accepts_confirmed_upload_identity_from_metadata_evidence():
+    row = {
+        "document_id": "doc-upload",
+        "source_filename": "CA-EN100U_Datasheet.pdf",
+        "title": "Encoder relay unit",
+        "ingest_status": "indexed",
+        "chunk_count": 1,
+        "mrv_chunk_count": 1,
+        "scope_mismatch_chunk_count": 0,
+        "version_mismatch_chunk_count": 0,
+        "metadata_json": {
+            "metadata_schema_version": 2,
+            "metadata_pipeline_version": _MODULE.PIPELINE,
+            "title": "Encoder relay unit",
+            "routing_product_models": ["CA-EN100U"],
+            "metadata_claims": [{
+                "value": "CA-EN100U",
+                "kind": "product_model",
+                "relation": "mentioned",
+                "source_method": "source_native_identifier",
+                "verification_status": "confirmed",
+                "confidence": 0.85,
+                "grounded": True,
+                "source_quote": "Model | CA-EN100U",
+                "page_from": 1,
+            }],
+            "metadata_evidence": [{
+                "value": "CA-EN100U",
+                "kind": "product_model",
+                "relation": "mentioned",
+                "source_method": "upload_identity_page_grounded",
+                "verification_status": "confirmed",
+                "confidence": 0.85,
+                "grounded": True,
+                "source_quote": "Model | CA-EN100U",
+                "page_from": 1,
+            }],
+        },
+    }
+
+    result = _MODULE._audit_document(row)
+
+    assert result["checks_passed"] is True
+
+
 def test_audit_rejects_download_call_to_action_as_title():
     row = {
         "document_id": "doc-3",
@@ -177,4 +224,5 @@ def test_current_pipeline_stamp_does_not_mask_stale_chunk_scope(monkeypatch):
     assert "chunk_scope_metadata_mismatch" in report["documents"][0]["failures"]
     assert "chunk_document_version_mismatch" in report["documents"][0]["failures"]
     for field in _MODULE.PROPAGATED_SCOPE_FIELDS:
-        assert f"rc.metadata_json->'{field}' is distinct from dme.metadata_json->'{field}'" in captured["query"]
+        assert f"dme.metadata_json->'{field}' as expected_{field}" in captured["query"]
+        assert f"rc.metadata_json->'{field}' is distinct from ds.expected_{field}" in captured["query"]

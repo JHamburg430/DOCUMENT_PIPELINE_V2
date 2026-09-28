@@ -1266,14 +1266,83 @@ def pack_metadata_source_segments(
     return batches
 
 
-def _quote_location(quote: str, segments: list[MetadataSourceSegment]) -> MetadataSourceSegment | None:
+def _normalized_text_with_source_spans(text: str) -> tuple[str, list[tuple[int, int]]]:
+    """Normalize whitespace/case while retaining each output character's source span."""
+    normalized: list[str] = []
+    spans: list[tuple[int, int]] = []
+    pending_whitespace_start: int | None = None
+    pending_whitespace_end: int | None = None
+    for index, character in enumerate(text):
+        if character.isspace():
+            if normalized and pending_whitespace_start is None:
+                pending_whitespace_start = index
+            pending_whitespace_end = index + 1
+            continue
+        if pending_whitespace_start is not None:
+            normalized.append(" ")
+            spans.append((pending_whitespace_start, pending_whitespace_end or pending_whitespace_start + 1))
+            pending_whitespace_start = None
+            pending_whitespace_end = None
+        folded = character.casefold()
+        normalized.extend(folded)
+        spans.extend([(index, index + 1)] * len(folded))
+    return "".join(normalized), spans
+
+
+def _literal_quote_location(
+    quote: str,
+    segments: list[MetadataSourceSegment],
+) -> tuple[MetadataSourceSegment, str] | None:
+    """Locate a whitespace-normalized quote and return the exact contiguous source span."""
     normalized_quote = " ".join(quote.casefold().split())
     if not normalized_quote:
         return None
     for segment in segments:
-        if normalized_quote in " ".join(segment.text.casefold().split()):
-            return segment
+        normalized_source, spans = _normalized_text_with_source_spans(segment.text)
+        offset = normalized_source.find(normalized_quote)
+        if offset < 0:
+            continue
+        start = spans[offset][0]
+        end = spans[offset + len(normalized_quote) - 1][1]
+        return segment, segment.text[start:end]
     return None
+
+
+def _quote_location(quote: str, segments: list[MetadataSourceSegment]) -> MetadataSourceSegment | None:
+    located = _literal_quote_location(quote, segments)
+    return located[0] if located is not None else None
+
+
+def _literalize_evidence_quote(
+    item: dict[str, Any],
+    segments: list[MetadataSourceSegment],
+) -> dict[str, Any]:
+    """Replace a normalized evidence quote with its literal source representation."""
+    page_from = item.get("page_from")
+    page_to = item.get("page_to") or page_from
+    page_segments = [
+        segment
+        for segment in segments
+        if page_from is not None
+        and page_to is not None
+        and segment.page_from is not None
+        and segment.page_from <= page_to
+        and (segment.page_to or segment.page_from) >= page_from
+    ]
+    located = _literal_quote_location(
+        str(item.get("source_quote") or ""),
+        page_segments or segments,
+    )
+    if located is None:
+        return item
+    segment, literal_quote = located
+    return {
+        **item,
+        "source_quote": literal_quote,
+        "page_from": segment.page_from,
+        "page_to": segment.page_to,
+        "section_path": list(segment.section_path),
+    }
 
 
 def _expected_version_kinds(segments: list[MetadataSourceSegment]) -> set[str]:
@@ -1495,7 +1564,10 @@ def _ground_scoped_candidates(
         quote = candidate.source_quote.strip()
         kind = candidate.kind.strip().lower()
         relation = candidate.relation.strip().lower()
-        located = _quote_location(quote, segments)
+        literal_location = _literal_quote_location(quote, segments)
+        located = literal_location[0] if literal_location is not None else None
+        if literal_location is not None:
+            quote = literal_location[1]
         if (
             not value
             or kind not in SCOPED_METADATA_KINDS
@@ -3235,14 +3307,17 @@ def _reduce_metadata_claims(state: MetadataWorkflowState) -> dict[str, Any]:
         ),
     )
     upload_identity = _filename_grounded_identifier_evidence(state["filename"], state["segments"])
-    evidence = _dedupe_evidence(
-        mapped
-        + _focused_model_column_claims(state["filename"], state["segments"])
-        + _compatible_model_column_claims(state["segments"])
-        + _opening_title_identifier_evidence(state["selected_title"], state["segments"])
-        + upload_identity
-        + _deterministic_protocol_evidence(state["segments"])
-    )
+    evidence = _dedupe_evidence([
+        _literalize_evidence_quote(item, state["segments"])
+        for item in (
+            mapped
+            + _focused_model_column_claims(state["filename"], state["segments"])
+            + _compatible_model_column_claims(state["segments"])
+            + _opening_title_identifier_evidence(state["selected_title"], state["segments"])
+            + upload_identity
+            + _deterministic_protocol_evidence(state["segments"])
+        )
+    ])
     evidence = _demote_competing_cover_callouts(evidence, upload_identity)
     return {"claims": reconcile_metadata_claims(evidence)}
 

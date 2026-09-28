@@ -452,6 +452,24 @@ def test_grounding_preserves_late_identifier_in_full_table_quote():
     assert "ZX-2400" in claims[0]["source_quote"]
 
 
+def test_grounding_rebinds_normalized_quote_to_literal_source_span():
+    source = "Method 2: Using the XG VisionEditor(Ver.5.1.0020,  Ver.4.2.0020 or later)."
+    normalized_quote = "Method 2: Using the XG VisionEditor(Ver.5.1.0020, Ver.4.2.0020 or later)."
+    extracted = ScopedMetadataExtraction.model_validate({"entities": [{
+        "value": "Ver.5.1.0020",
+        "kind": "software_version",
+        "relation": "applies_to",
+        "subject": "XG VisionEditor",
+        "source_quote": normalized_quote,
+        "confidence": 0.95,
+    }]})
+
+    claims = _ground_scoped_candidates(extracted, [MetadataSourceSegment(source, 3, 3)])
+
+    assert claims[0]["source_quote"] == source
+    assert claims[0]["source_quote"] in source
+
+
 def test_code_only_footer_cannot_become_primary_product_family():
     extracted = ScopedMetadataExtraction.model_validate({"entities": [
         {
@@ -559,6 +577,29 @@ def test_model_column_coverage_excludes_compatible_products():
     assert " ".join(claims[3]["source_quote"].split()) == " ".join(segment.text.split())
     assert all(_literal_compatible_model_column_claim_is_confirmed(item) for item in claims)
     assert _model_column_identifiers(MetadataSourceSegment("Model name | ZX-15 | ZX-25\nRange | 5 | 10", 2, 2)) == ["ZX-15", "ZX-25"]
+
+
+def test_compatible_model_claims_can_be_rebound_to_literal_table_spacing():
+    from manuals_rag_parsers.metadata import (
+        _compatible_model_column_claims,
+        _literalize_evidence_quote,
+    )
+
+    source = (
+        "Model | Length | Recommended compatible models\n"
+        "ZX-1000 | 1000 | AB-20 / AB-40\n"
+        " |  | AB-60"
+    )
+    segment = MetadataSourceSegment(source, 2, 2)
+    claim = next(
+        item for item in _compatible_model_column_claims([segment])
+        if item["value"] == "AB-60"
+    )
+
+    rebound = _literalize_evidence_quote(claim, [segment])
+
+    assert rebound["source_quote"] in source
+    assert "\n |  | AB-60" in rebound["source_quote"]
 
 
 def test_verified_compatibility_subject_counts_for_model_column_coverage():
