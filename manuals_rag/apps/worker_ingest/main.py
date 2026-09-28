@@ -260,6 +260,7 @@ def process_job(job: dict[str, str]) -> None:
         inferred_metadata = infer_document_metadata_from_segments(
             document["source_filename"],
             _metadata_source_segments(normalized),
+            max_segment_chars=settings.metadata_segment_chars,
         )
         metadata = {
             "tenant_id": document["tenant_id"],
