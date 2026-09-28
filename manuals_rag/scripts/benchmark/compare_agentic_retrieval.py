@@ -492,6 +492,10 @@ def main() -> None:
     parser.add_argument("--source-dirty", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--exit-file", type=Path, help="Write process exit status, including graceful timeout termination.")
     args = parser.parse_args()
+    if max(1, args.case_concurrency) > 1 and max(1, args.backend_concurrency) > 1:
+        parser.error(
+            "case and backend concurrency cannot both exceed 1; compare them as separate bounded modes"
+        )
     args.run_id = args.run_id or uuid.uuid4().hex
     args.started_at = _utc_now()
     lock_path = args.lock_file or (args.output.with_suffix(".lock") if args.output else None)
