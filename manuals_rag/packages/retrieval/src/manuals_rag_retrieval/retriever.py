@@ -189,7 +189,13 @@ def _measure_value(operation):
 
 
 def _run_qdrant_branch(operation: Callable[[], list[SearchResult]]) -> list[SearchResult]:
-    """Bound aggregate vector-store fan-out across concurrent retrieval cases."""
+    """Bound one vector-store request across concurrent retrieval cases.
+
+    The historical name is retained for compatibility with focused tests, but
+    callers must acquire the permit around a single dense or sparse request.
+    Holding it around a compound branch prevents fair scheduling and would
+    deadlock nested document-level fan-out.
+    """
     with _QDRANT_BRANCH_SEMAPHORE:
         return operation()
 
@@ -496,7 +502,16 @@ def run_dense_search(store: QdrantStore, query: str, corpus_ids: list[str], filt
     results: list[SearchResult] = []
     for corpus_id in corpus_ids:
         try:
-            results.extend(store.search_dense(corpus_id=corpus_id, query=query, filters=filters, limit=limit))
+            results.extend(
+                _run_qdrant_branch(
+                    lambda corpus_id=corpus_id: store.search_dense(
+                        corpus_id=corpus_id,
+                        query=query,
+                        filters=filters,
+                        limit=limit,
+                    )
+                )
+            )
         except Exception as exc:
             logger.warning("Dense search skipped for corpus_id=%s after embedding/search failure: %s", corpus_id, exc)
     return results
@@ -505,7 +520,16 @@ def run_dense_search(store: QdrantStore, query: str, corpus_ids: list[str], filt
 def run_sparse_search(store: QdrantStore, query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
     results: list[SearchResult] = []
     for corpus_id in corpus_ids:
-        results.extend(store.search_sparse(corpus_id=corpus_id, query=query, filters=filters, limit=limit))
+        results.extend(
+            _run_qdrant_branch(
+                lambda corpus_id=corpus_id: store.search_sparse(
+                    corpus_id=corpus_id,
+                    query=query,
+                    filters=filters,
+                    limit=limit,
+                )
+            )
+        )
     return results
 
 
@@ -514,11 +538,25 @@ def run_table_search(store: QdrantStore, query: str, corpus_ids: list[str], filt
     results: list[SearchResult] = []
     for corpus_id in corpus_ids:
         try:
-            dense_results = store.search_dense(corpus_id=corpus_id, query=query, filters=table_filters, limit=limit)
+            dense_results = _run_qdrant_branch(
+                lambda corpus_id=corpus_id: store.search_dense(
+                    corpus_id=corpus_id,
+                    query=query,
+                    filters=table_filters,
+                    limit=limit,
+                )
+            )
         except Exception as exc:
             logger.warning("Table dense search skipped for corpus_id=%s after embedding/search failure: %s", corpus_id, exc)
             dense_results = []
-        sparse_results = store.search_sparse(corpus_id=corpus_id, query=query, filters=table_filters, limit=limit)
+        sparse_results = _run_qdrant_branch(
+            lambda corpus_id=corpus_id: store.search_sparse(
+                corpus_id=corpus_id,
+                query=query,
+                filters=table_filters,
+                limit=limit,
+            )
+        )
         results.extend(store.fuse_rrf([dense_results, sparse_results], limit=limit))
     return results
 
@@ -543,6 +581,7 @@ def run_metadata_balanced_table_search(
     if _has_explicit_document_scope(filters):
         return []
     results: list[SearchResult] = []
+    scoped_searches: list[tuple[str, dict[str, object]]] = []
     seen_documents: set[str] = set()
     for hit in metadata_document_hits:
         document_id = str(hit.get("source_document_id") or "")
@@ -550,17 +589,24 @@ def run_metadata_balanced_table_search(
             continue
         seen_documents.add(document_id)
         scoped_filters = {**filters, "source_document_id": document_id}
-        results.extend(
-            run_table_search(
+        scoped_searches.append((document_id, scoped_filters))
+        if len(seen_documents) >= document_limit:
+            break
+    worker_count = min(settings.retrieval_qdrant_max_concurrency, len(scoped_searches))
+    with ThreadPoolExecutor(max_workers=max(1, worker_count), thread_name_prefix="document-table") as executor:
+        futures = [
+            executor.submit(
+                run_table_search,
                 store,
                 query,
                 corpus_ids,
                 scoped_filters,
-                limit=per_document_limit,
-            )[:per_document_limit]
-        )
-        if len(seen_documents) >= document_limit:
-            break
+                per_document_limit,
+            )
+            for _document_id, scoped_filters in scoped_searches
+        ]
+        for future in futures:
+            results.extend(future.result()[:per_document_limit])
     return results
 
 
@@ -608,8 +654,22 @@ def run_special_search(
     results: list[SearchResult] = []
     for route_filters in _special_route_filters(base_filters, analysis):
         for corpus_id in corpus_ids:
-            dense_results = store.search_dense(corpus_id=corpus_id, query=query, filters=route_filters, limit=limit)
-            sparse_results = store.search_sparse(corpus_id=corpus_id, query=query, filters=route_filters, limit=limit)
+            dense_results = _run_qdrant_branch(
+                lambda corpus_id=corpus_id, route_filters=route_filters: store.search_dense(
+                    corpus_id=corpus_id,
+                    query=query,
+                    filters=route_filters,
+                    limit=limit,
+                )
+            )
+            sparse_results = _run_qdrant_branch(
+                lambda corpus_id=corpus_id, route_filters=route_filters: store.search_sparse(
+                    corpus_id=corpus_id,
+                    query=query,
+                    filters=route_filters,
+                    limit=limit,
+                )
+            )
             results.extend(store.fuse_rrf([dense_results, sparse_results], limit=limit))
     return results
 
@@ -4891,32 +4951,28 @@ def _retrieve_once(
             [
                 (
                     "dense",
-                    lambda: _run_qdrant_branch(
-                        lambda: _annotate_stage_metadata(
-                            run_dense_search(
-                                store,
-                                query,
-                                corpus_ids,
-                                chunk_search_filters,
-                                limit=branch_limit,
-                            ),
-                            "dense",
+                    lambda: _annotate_stage_metadata(
+                        run_dense_search(
+                            store,
+                            query,
+                            corpus_ids,
+                            chunk_search_filters,
+                            limit=branch_limit,
                         ),
+                        "dense",
                     ),
                 ),
                 (
                     "sparse",
-                    lambda: _run_qdrant_branch(
-                        lambda: _annotate_stage_metadata(
-                            run_sparse_search(
-                                store,
-                                query,
-                                corpus_ids,
-                                chunk_search_filters,
-                                limit=branch_limit,
-                            ),
-                            "sparse",
+                    lambda: _annotate_stage_metadata(
+                        run_sparse_search(
+                            store,
+                            query,
+                            corpus_ids,
+                            chunk_search_filters,
+                            limit=branch_limit,
                         ),
+                        "sparse",
                     ),
                 ),
             ]
@@ -4925,17 +4981,15 @@ def _retrieve_once(
         branch_operations.append(
             (
                 "table",
-                lambda: _run_qdrant_branch(
-                    lambda: _annotate_stage_metadata(
-                        run_table_search(
-                            store,
-                            query,
-                            corpus_ids,
-                            chunk_search_filters,
-                            limit=branch_limit,
-                        ),
-                        "table",
+                lambda: _annotate_stage_metadata(
+                    run_table_search(
+                        store,
+                        query,
+                        corpus_ids,
+                        chunk_search_filters,
+                        limit=branch_limit,
                     ),
+                    "table",
                 ),
             )
         )
@@ -4943,17 +4997,15 @@ def _retrieve_once(
         branch_operations.append(
             (
                 "metadata_balanced_table",
-                lambda: _run_qdrant_branch(
-                    lambda: _annotate_stage_metadata(
-                        run_metadata_balanced_table_search(
-                            store,
-                            query,
-                            corpus_ids,
-                            filters,
-                            metadata_document_hits,
-                        ),
-                        "metadata_balanced_table",
+                lambda: _annotate_stage_metadata(
+                    run_metadata_balanced_table_search(
+                        store,
+                        query,
+                        corpus_ids,
+                        filters,
+                        metadata_document_hits,
                     ),
+                    "metadata_balanced_table",
                 ),
             )
         )
@@ -4961,17 +5013,15 @@ def _retrieve_once(
         branch_operations.append(
             (
                 "structured_configuration_variant",
-                lambda: _run_qdrant_branch(
-                    lambda: _annotate_stage_metadata(
-                        run_structured_configuration_variant_search(
-                            store,
-                            query,
-                            corpus_ids,
-                            chunk_search_filters,
-                            limit=branch_limit,
-                        ),
-                        "structured_configuration_variant",
+                lambda: _annotate_stage_metadata(
+                    run_structured_configuration_variant_search(
+                        store,
+                        query,
+                        corpus_ids,
+                        chunk_search_filters,
+                        limit=branch_limit,
                     ),
+                    "structured_configuration_variant",
                 ),
             )
         )
@@ -4979,17 +5029,15 @@ def _retrieve_once(
         branch_operations.append(
             (
                 "ocr_output_character_count_variant",
-                lambda: _run_qdrant_branch(
-                    lambda: _annotate_stage_metadata(
-                        run_ocr_output_character_count_variant_search(
-                            store,
-                            query,
-                            corpus_ids,
-                            chunk_search_filters,
-                            limit=branch_limit,
-                        ),
-                        "ocr_output_character_count_variant",
+                lambda: _annotate_stage_metadata(
+                    run_ocr_output_character_count_variant_search(
+                        store,
+                        query,
+                        corpus_ids,
+                        chunk_search_filters,
+                        limit=branch_limit,
                     ),
+                    "ocr_output_character_count_variant",
                 ),
             )
         )
@@ -5010,18 +5058,16 @@ def _retrieve_once(
             ),
             (
                 "special",
-                lambda: _run_qdrant_branch(
-                    lambda: _annotate_stage_metadata(
-                        run_special_search(
-                            store,
-                            query,
-                            corpus_ids,
-                            chunk_search_filters,
-                            analysis,
-                            limit=branch_limit,
-                        ),
-                        "special",
+                lambda: _annotate_stage_metadata(
+                    run_special_search(
+                        store,
+                        query,
+                        corpus_ids,
+                        chunk_search_filters,
+                        analysis,
+                        limit=branch_limit,
                     ),
+                    "special",
                 ),
             ),
         ]

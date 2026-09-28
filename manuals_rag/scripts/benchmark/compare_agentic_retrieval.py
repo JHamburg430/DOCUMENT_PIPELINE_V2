@@ -138,6 +138,8 @@ def _build_provenance(args: argparse.Namespace, raw_cases: list[dict[str, Any]])
             "retrieval_branch_max_workers": settings.retrieval_branch_max_workers,
             "retrieval_qdrant_max_concurrency": settings.retrieval_qdrant_max_concurrency,
             "case_concurrency": int(getattr(args, "case_concurrency", 1)),
+            "backend_concurrency": int(getattr(args, "backend_concurrency", 1)),
+            "answer_concurrency": 2,
         },
     }
 
@@ -276,6 +278,7 @@ def _evaluate_case(
         filters,
         max_hops=args.max_hops,
         use_llm=not args.no_llm,
+        backend_concurrency=max(1, int(getattr(args, "backend_concurrency", 1))),
     )
     item: dict[str, Any] = {
         "case_id": case.case_id,
@@ -306,13 +309,10 @@ def _evaluate_case(
             "evaluation": baseline_evaluation,
         },
     }
-    for backend in ("langgraph", "llamaindex"):
-        _emit_progress(
-            getattr(args, "progress_jsonl", False),
-            {"event": "answer_started", "case_id": case.case_id, "backend": backend},
-        )
+    backends = ("langgraph", "llamaindex")
+
+    def generate_backend_answer(backend: str) -> tuple[dict[str, Any], dict[str, Any]]:
         output = comparison[backend]
-        evaluation = score_search_results(case, output["results"], top_k=10)
         with capture_ollama_usage() as answer_usage_events:
             answer = (
                 generate_answer(
@@ -322,42 +322,56 @@ def _evaluate_case(
                 if output["sufficient"]
                 else insufficient_agent_answer(case.query, output["trace"])
             ).model_dump()
-        answer_usage = summarize_ollama_usage(answer_usage_events)
-        retrieval_cost = dict(output["trace"].get("cost") or {})
-        retrieval_by_purpose = dict(retrieval_cost.get("by_purpose") or {})
-        answer_by_purpose = dict(answer_usage.get("by_purpose") or {})
-        output["trace"]["cost"] = {
-            **retrieval_cost,
-            "retrieval_tokens": int(retrieval_cost.get("total_tokens") or 0),
-            "answer_tokens": int(answer_usage.get("total_tokens") or 0),
-            "answer_generation": answer_usage,
-            "model_calls": int(retrieval_cost.get("model_calls") or 0)
-            + int(answer_usage.get("model_calls") or 0),
-            "prompt_tokens": int(retrieval_cost.get("prompt_tokens") or 0)
-            + int(answer_usage.get("prompt_tokens") or 0),
-            "completion_tokens": int(retrieval_cost.get("completion_tokens") or 0)
-            + int(answer_usage.get("completion_tokens") or 0),
-            "total_tokens": int(retrieval_cost.get("total_tokens") or 0)
-            + int(answer_usage.get("total_tokens") or 0),
-            "total_duration_ms": round(
-                float(retrieval_cost.get("total_duration_ms") or 0.0)
-                + float(answer_usage.get("total_duration_ms") or 0.0),
-                2,
-            ),
-            "by_purpose": {**retrieval_by_purpose, **answer_by_purpose},
-        }
-        agent_evaluation = score_agent_run(
-            raw_case,
-            trace=output["trace"],
-            results=output["results"],
-            answer=answer,
-            elapsed_ms=output["elapsed_ms"],
-        )
-        item[backend] = dict(output) | {
-            "evaluation": evaluation,
-            "answer": answer,
-            "agent_evaluation": agent_evaluation,
-        }
+        return answer, summarize_ollama_usage(answer_usage_events)
+
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="agent-answer") as answer_executor:
+        answer_futures = {}
+        for backend in backends:
+            _emit_progress(
+                getattr(args, "progress_jsonl", False),
+                {"event": "answer_started", "case_id": case.case_id, "backend": backend},
+            )
+            answer_futures[backend] = answer_executor.submit(generate_backend_answer, backend)
+
+        for backend in backends:
+            output = comparison[backend]
+            evaluation = score_search_results(case, output["results"], top_k=10)
+            answer, answer_usage = answer_futures[backend].result()
+            retrieval_cost = dict(output["trace"].get("cost") or {})
+            retrieval_by_purpose = dict(retrieval_cost.get("by_purpose") or {})
+            answer_by_purpose = dict(answer_usage.get("by_purpose") or {})
+            output["trace"]["cost"] = {
+                **retrieval_cost,
+                "retrieval_tokens": int(retrieval_cost.get("total_tokens") or 0),
+                "answer_tokens": int(answer_usage.get("total_tokens") or 0),
+                "answer_generation": answer_usage,
+                "model_calls": int(retrieval_cost.get("model_calls") or 0)
+                + int(answer_usage.get("model_calls") or 0),
+                "prompt_tokens": int(retrieval_cost.get("prompt_tokens") or 0)
+                + int(answer_usage.get("prompt_tokens") or 0),
+                "completion_tokens": int(retrieval_cost.get("completion_tokens") or 0)
+                + int(answer_usage.get("completion_tokens") or 0),
+                "total_tokens": int(retrieval_cost.get("total_tokens") or 0)
+                + int(answer_usage.get("total_tokens") or 0),
+                "total_duration_ms": round(
+                    float(retrieval_cost.get("total_duration_ms") or 0.0)
+                    + float(answer_usage.get("total_duration_ms") or 0.0),
+                    2,
+                ),
+                "by_purpose": {**retrieval_by_purpose, **answer_by_purpose},
+            }
+            agent_evaluation = score_agent_run(
+                raw_case,
+                trace=output["trace"],
+                results=output["results"],
+                answer=answer,
+                elapsed_ms=output["elapsed_ms"],
+            )
+            item[backend] = dict(output) | {
+                "evaluation": evaluation,
+                "answer": answer,
+                "agent_evaluation": agent_evaluation,
+            }
     return item
 
 
@@ -459,6 +473,12 @@ def main() -> None:
         type=int,
         default=int(os.getenv("AGENT_MATRIX_CASE_CONCURRENCY", "2")),
         help="Maximum cases evaluated concurrently; artifacts are still written in dataset order.",
+    )
+    parser.add_argument(
+        "--backend-concurrency",
+        type=int,
+        default=int(os.getenv("AGENT_MATRIX_BACKEND_CONCURRENCY", "1")),
+        help="Maximum agent backends evaluated concurrently within a case.",
     )
     parser.add_argument("--no-llm", action="store_true", help="Use the deterministic fallback planner/refiner.")
     parser.add_argument("--output", type=Path)
