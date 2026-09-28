@@ -1,3 +1,5 @@
+import httpx
+
 from manuals_rag_common.config import settings
 from manuals_rag_retrieval.embeddings import (
     EMBED_BATCH_SIZE,
@@ -121,3 +123,40 @@ def test_embed_dense_falls_back_to_single_requests(monkeypatch):
     assert "two" in calls[0]["input"][1]
     assert isinstance(calls[1]["input"], str) and "one" in calls[1]["input"]
     assert isinstance(calls[2]["input"], str) and "two" in calls[2]["input"]
+
+
+def test_embed_dense_retries_single_request_transport_errors(monkeypatch):
+    calls = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"embedding": [1.0, 2.0, 3.0]}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, path, json):
+            calls.append(json)
+            if isinstance(json["input"], list):
+                raise RuntimeError("batch failure")
+            if sum(not isinstance(call["input"], list) for call in calls) == 1:
+                raise httpx.ReadTimeout("timed out")
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_retrieval.embeddings.httpx.Client", FakeClient)
+    monkeypatch.setattr("manuals_rag_retrieval.embeddings.time.sleep", lambda _seconds: None)
+
+    assert embed_dense(["one"]) == [[1.0, 2.0, 3.0]]
+    assert len(calls) == 3

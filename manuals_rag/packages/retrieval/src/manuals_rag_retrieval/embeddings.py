@@ -92,10 +92,16 @@ def _embed_one_with_fallbacks(client: httpx.Client, text: str) -> list[float]:
     for limit in (MAX_EMBED_CHARS, 4000, 2500, 1200, 600):
         candidate = normalize_for_embedding(normalized, max_chars=limit)
         for attempt in range(EMBED_RETRY_LIMIT + 1):
-            response = client.post(
-                "/api/embed",
-                json={"model": settings.ollama_embed_model, "input": candidate or "content unavailable"},
-            )
+            try:
+                response = client.post(
+                    "/api/embed",
+                    json={"model": settings.ollama_embed_model, "input": candidate or "content unavailable"},
+                )
+            except httpx.TransportError:
+                if attempt < EMBED_RETRY_LIMIT:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+                raise
             if response.status_code == 400:
                 break
             if response.status_code in EMBED_RETRY_STATUS_CODES and attempt < EMBED_RETRY_LIMIT:
@@ -108,10 +114,16 @@ def _embed_one_with_fallbacks(client: httpx.Client, text: str) -> list[float]:
             break
     if payload is None:
         for attempt in range(EMBED_RETRY_LIMIT + 1):
-            response = client.post(
-                "/api/embed",
-                json={"model": settings.ollama_embed_model, "input": "content unavailable"},
-            )
+            try:
+                response = client.post(
+                    "/api/embed",
+                    json={"model": settings.ollama_embed_model, "input": "content unavailable"},
+                )
+            except httpx.TransportError:
+                if attempt < EMBED_RETRY_LIMIT:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+                raise
             if response.status_code in EMBED_RETRY_STATUS_CODES and attempt < EMBED_RETRY_LIMIT:
                 time.sleep(0.5 * (attempt + 1))
                 continue
