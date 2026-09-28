@@ -3563,6 +3563,10 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
             "structural",
         ),
         (
+            "Which screw size is specified for wall-mounting the IV-500C sensor?",
+            "structural",
+        ),
+        (
             "Which electronic shutter numerical-input values are listed from 1/15 "
             "through 1/20000 in the CV-X camera specification?",
             "structural",
@@ -3619,6 +3623,10 @@ def test_atomic_lookup_shapes_are_lossless_single_hop_for_both_planners(
         (
             "What does the DTM indicator signify on the LR-ZH500C3P sensor, "
             "and how do I perform datum calibration?"
+        ),
+        (
+            "Which screw size is specified for wall-mounting the IV-500C sensor, "
+            "and what maximum head thickness is allowed?"
         ),
     ],
 )

@@ -893,6 +893,13 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     ):
         strategy = "structural"
     elif re.match(
+        r"^\s*which\s+screw\s+size\s+is\s+specified\s+for\s+"
+        r"(?:wall[- ]mounting|mounting)\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
         r"^\s*what\s+mounting\s+bracket\s+type\s+is\s+required\s+for\s+"
         r"horizontal\s+installation\s+of\b.+\?\s*$",
         query,
