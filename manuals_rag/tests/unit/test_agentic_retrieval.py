@@ -36,6 +36,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_compound_electrical_rating_support,
     _direct_compound_laser_measurement_support,
     _exact_structured_single_plan,
+    _single_hop_execution_query,
     _direct_feature_amplifier_type_support,
     _direct_gl_fb_floor_column_range_support,
     _direct_gl_r60h_stop_distance_support,
@@ -7840,3 +7841,57 @@ def test_structured_power_support_binds_model_to_pipe_table_power_row():
     ).model_copy(update={"metadata": {"chunk_type": "section_window", "product_family": "WM"}})
 
     assert _direct_structured_power_source_support(query, [result]) == ["wm-power"]
+
+
+def test_structured_power_support_uses_explicit_model_when_metadata_is_broad():
+    query = "How is the WM-C6010 laser-scanning probe relay unit powered?"
+    result = _result(
+        "wm-power-window",
+        "wm-catalog",
+        (
+            "model | | WM-C6010 | WM-C6025\n"
+            "Power supply | | Supplied from dedicated AC | adapter\n"
+            "Ratings | Rated voltage | 24VDC"
+        ),
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "section_window",
+                "product_model": "3D/GD&T and shape measurement",
+            }
+        }
+    )
+
+    assert _direct_structured_power_source_support(query, [result]) == ["wm-power-window"]
+
+
+def test_exact_structured_plan_rewrites_named_power_lookup_to_power_supply():
+    query = "How is the WM-C6010 laser-scanning probe relay unit powered?"
+
+    plan = _exact_structured_single_plan(query)
+
+    assert plan is not None
+    assert plan.mode == "single"
+    assert plan.hops[0].objective == query
+    assert plan.hops[0].query == "WM-C6010 Power supply"
+    assert plan.hops[0].strategy == "structural"
+
+
+def test_single_hop_execution_preserves_deterministic_power_lookup_rewrite():
+    query = "How is the WM-C6010 laser-scanning probe relay unit powered?"
+    plan = _exact_structured_single_plan(query)
+
+    assert plan is not None
+    assert _single_hop_execution_query(query, plan.hops[0]) == "WM-C6010 Power supply"
+
+
+def test_single_hop_execution_rejects_unvalidated_planner_rewrite():
+    query = "How is the WM-C6010 laser-scanning probe relay unit powered?"
+    hop = RetrievalHop(
+        hop_id="structured_lookup",
+        objective=query,
+        query="WM-C6010 voltage",
+        strategy="structural",
+    )
+
+    assert _single_hop_execution_query(query, hop) == query

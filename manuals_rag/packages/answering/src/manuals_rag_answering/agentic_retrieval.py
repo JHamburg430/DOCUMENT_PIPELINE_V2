@@ -783,6 +783,7 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     ):
         return None
     strategy: RetrievalStrategy | None = None
+    retrieval_query = query
     if re.match(
         r"^\s*how\s+many\b.+\b(?:store|retain|save)\b.+\bversus\b.+\bcameras?\b.*\?\s*$",
         query,
@@ -975,13 +976,39 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
         flags=re.I,
     ):
         strategy = "structural"
+    elif re.match(
+        r"^\s*how\s+(?:is|are)\s+.+?\s+powered\s*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        identifiers = list(analyze_query(query).product_identifiers)
+        if len(identifiers) == 1:
+            strategy = "structural"
+            retrieval_query = f"{identifiers[0]} Power supply"
     if strategy is None:
         return None
     return RetrievalPlan(
         mode="single",
         rationale="The request is one exact structured lookup whose qualifiers must remain intact.",
-        hops=[RetrievalHop(hop_id="structured_lookup", objective=query, query=query, strategy=strategy)],
+        hops=[
+            RetrievalHop(
+                hop_id="structured_lookup",
+                objective=query,
+                query=retrieval_query,
+                strategy=strategy,
+            )
+        ],
     )
+
+
+def _single_hop_execution_query(original_query: str, hop: RetrievalHop) -> str:
+    """Keep only deterministic, lossless single-hop rewrites at execution time."""
+    exact_plan = _exact_structured_single_plan(original_query)
+    if exact_plan is not None and len(exact_plan.hops) == 1:
+        exact_hop = exact_plan.hops[0]
+        if hop.query == exact_hop.query and hop.objective == exact_hop.objective:
+            return hop.query
+    return original_query
 
 
 def _warning_dependency_plan(query: str) -> RetrievalPlan | None:
@@ -4201,9 +4228,18 @@ def _direct_structured_power_source_support(
     }
     mappings: list[tuple[int, int, int, str, str, str]] = []
     for result_index, result in enumerate(results):
-        if not _result_supports_branch_scope(query, result):
-            continue
         content = str(result.content or "")
+        normalized_content = re.sub(r"[^a-z0-9]", "", content.lower())
+        # Some catalog section windows carry a broad product_model label even
+        # though the serialized table itself names the requested model.  Let
+        # that explicit row/column identity establish scope; do not discard a
+        # direct mapping solely because the inherited document metadata is
+        # broader (or stale after a source repair).
+        content_names_requested_model = bool(requested) and any(
+            identifier in normalized_content for identifier in requested
+        )
+        if not _result_supports_branch_scope(query, result) and not content_names_requested_model:
+            continue
         cells = list(
             re.finditer(
                 r"Column\s+headers:\s*(?P<target>[A-Z][A-Z0-9:-]+);\s*"
@@ -8462,7 +8498,7 @@ class AgenticRetrievalController:
             # retriever that is validated independently.  Agent strategy lanes
             # are for decomposed branches; narrowing a direct lookup can only
             # discard proven answer-bearing evidence.
-            executed_query = state["query"]
+            executed_query = _single_hop_execution_query(state["query"], hop)
             executed_strategy = "hybrid"
         if dependency_anchors and hop.strategy == "hybrid":
             deterministic_query = _deterministic_identifier_facet_query(hop, dependency_anchors)
@@ -8897,7 +8933,7 @@ class LlamaIndexAgenticController:
             # production retriever.  A planner paraphrase can silently drop a
             # model, mode, unit, or qualifier and turn a known-good baseline
             # lookup into a different retrieval task.
-            executed_query = state["query"]
+            executed_query = _single_hop_execution_query(state["query"], hop)
         executed_strategy: RetrievalStrategy = (
             "hybrid"
             if plan.mode == "single" and not hop.depends_on and not hop.recovery_for
