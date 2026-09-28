@@ -141,7 +141,13 @@ DOCUMENT_KIND_ALIASES = {
 
 VERSION_SIGNAL_PATTERNS = {
     "firmware_version": re.compile(
-        r"\b(?:firmware|fw)\b.{0,80}?\b(?:v(?:er(?:sion)?)?\.?\s*)?\d+(?:\.\d+){0,3}\b",
+        r"(?:"
+        r"\b[A-Z][A-Z0-9_.:-]*\d[A-Z0-9_.:-]*\s+(?:firmware|fw)(?:\s+version)?\s*"
+        r"(?:v(?:er(?:sion)?)?\.?\s*)?\d+(?:\.\d+){0,3}\b"
+        r"|\b(?:firmware|fw)\b\s+version\s+"
+        r"(?:(?:is|was)\s+)?(?:(?:earlier|later|lower|higher)\s+than\s+)?"
+        r"(?:v(?:er(?:sion)?)?\.?\s*)?\d+(?:\.\d+){0,3}\b"
+        r")",
         re.IGNORECASE,
     ),
     "software_version": re.compile(
@@ -1336,6 +1342,29 @@ def _deterministic_version_evidence(
                         "page_to": segment.page_to, "section_path": list(segment.section_path),
                         "confidence": 0.95, "grounded": True, "source": "deterministic_explicit_version",
                     })
+            if "firmware_version" in expected_kinds:
+                for match in re.finditer(
+                    r"\b(?P<subject>firmware|fw)\b\s+version\s+"
+                    r"(?:(?:is|was)\s+)?(?:(?:earlier|later|lower|higher)\s+than\s+)?"
+                    r"(?:v(?:er(?:sion)?)?\.?\s*)?(?P<version>\d+(?:\.\d+){0,3})\b",
+                    line,
+                    re.IGNORECASE,
+                ):
+                    recovered.append(
+                        {
+                            "value": match.group("version"),
+                            "kind": "firmware_version",
+                            "relation": "mentioned",
+                            "subject": match.group("subject"),
+                            "source_quote": line,
+                            "page_from": segment.page_from,
+                            "page_to": segment.page_to,
+                            "section_path": list(segment.section_path),
+                            "confidence": 0.95,
+                            "grounded": True,
+                            "source": "deterministic_explicit_version",
+                        }
+                    )
             for kind, pattern in patterns.items():
                 for match in pattern.finditer(line):
                     subject = " ".join(match.group("subject").split()).strip(" |,;:")
@@ -1901,6 +1930,14 @@ def _literal_deterministic_version_claim_is_confirmed(claim: dict[str, Any]) -> 
     if claim.get("kind") == "software_version" and (subject, value) in _parenthesized_version_mentions(quote):
         return True
     if claim.get("kind") == "firmware_version":
+        if subject.casefold() in {"firmware", "fw"}:
+            return re.search(
+                rf"\b{re.escape(subject)}\b\s+version\s+"
+                rf"(?:(?:is|was)\s+)?(?:(?:earlier|later|lower|higher)\s+than\s+)?"
+                rf"(?:v(?:er(?:sion)?)?\.?\s*)?{re.escape(value)}\b",
+                quote,
+                re.IGNORECASE,
+            ) is not None
         return re.search(
             rf"{re.escape(subject)}\s+(?:firmware|fw)(?:\s+version)?\s*"
             rf"(?:v(?:er(?:sion)?)?\.?\s*)?{re.escape(value)}\b",

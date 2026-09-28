@@ -1066,7 +1066,7 @@ def test_version_bearing_batch_gets_focused_completeness_pass(monkeypatch):
     )
 
 
-def test_unresolved_critical_version_batch_fails_instead_of_silently_degrading(monkeypatch):
+def test_unscoped_firmware_version_is_preserved_as_literal_mention(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_parsers.metadata._extract_metadata_with_model",
         lambda filename, text: MetadataExtraction(document_kind="manual", title="Compatibility"),
@@ -1076,11 +1076,44 @@ def test_unresolved_critical_version_batch_fails_instead_of_silently_degrading(m
         lambda **kwargs: ({"entities": []}, "{}"),
     )
 
-    with pytest.raises(MetadataExtractionIncomplete, match="missing grounded"):
-        infer_document_metadata_from_segments(
-            "compatibility.pdf",
-            [MetadataSourceSegment("Controller firmware version 5.0 or later is required.", 8, 8)],
-        )
+    metadata = infer_document_metadata_from_segments(
+        "compatibility.pdf",
+        [MetadataSourceSegment("Controller firmware version 5.0 or later is required.", 8, 8)],
+    )
+
+    claim = next(
+        item
+        for item in metadata.metadata_claims
+        if item["kind"] == "firmware_version" and item["value"] == "5.0"
+    )
+    assert claim["relation"] == "mentioned"
+    assert claim["subject"] == "firmware"
+    assert claim["verification_status"] == "confirmed"
+    assert metadata.firmware_applicability == []
+
+
+def test_firmware_word_near_table_number_is_not_a_version_signal(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="Error table"),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ({"entities": []}, "{}"),
+    )
+
+    metadata = infer_document_metadata_from_segments(
+        "errors.pdf",
+        [
+            MetadataSourceSegment(
+                "The firmware of the connected camera is obsolete. | Update the controller firmware. | 18",
+                1291,
+                1291,
+            )
+        ],
+    )
+
+    assert not any(item["kind"] == "firmware_version" for item in metadata.metadata_claims)
 
 
 def test_repeated_footer_document_code_cannot_become_routing_product(monkeypatch):
