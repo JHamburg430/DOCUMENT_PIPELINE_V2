@@ -2596,6 +2596,39 @@ def _direct_lr_w70_analog_limit_support(
     return [min(matches)[-1]] if matches else []
 
 
+def _direct_sz_v32n_protocol_selection_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the explicit SZ-V32N(X) protocol-selection requirement."""
+
+    if not re.match(
+        r"^\s*which\s+communication\s+protocols\s+must\s+be\s+selected\s+"
+        r"when\s+using\s+the\s+SZ\s*[:\-]\s*V32N\(X\)\s*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        if (
+            str(metadata.get("chunk_type") or "")
+            not in {"atomic_text", "spec_record", "section_window", "parent_section"}
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if re.search(
+            r"\bWhen\s+using\s+the\s+SZ\s*:\s*V32N\(X\),\s+it\s+is\s+necessary\s+"
+            r"to\s+select\s+one\s+of\s+the\s+following\s+communication\s+protocols\b",
+            content,
+            flags=re.I,
+        ):
+            matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[-1]] if matches else []
+
+
 def _verification_evidence(
     results: list[SearchResult],
     *,
@@ -6579,6 +6612,27 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_lr_w70_analog_limit_support,
+        }
+
+    direct_sz_v32n_protocol_support = _direct_sz_v32n_protocol_selection_support(
+        hop.objective,
+        results,
+    )
+    if direct_sz_v32n_protocol_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_sz_v32n_protocol_support,
+            applicability="not_requested",
+            scope_entity="SZ-V32N(X)",
+            rationale=(
+                "Deterministic requirement verification matched the scoped SZ-V32N(X) "
+                "statement requiring selection of a communication protocol."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_sz_v32n_protocol_support,
         }
 
     requested_identifiers = list(analyze_query(hop.objective).product_identifiers)

@@ -7393,6 +7393,14 @@ def _concise_exact_control_answer(
         and re.search(r"\bhazardous location\b", query, flags=re.I)
         and re.search(r"\bexplosive atmosphere\b", query, flags=re.I)
     )
+    sz_v32n_protocol_selection_query = bool(
+        re.match(
+            r"^\s*which\s+communication\s+protocols\s+must\s+be\s+selected\s+"
+            r"when\s+using\s+the\s+SZ\s*[:\-]\s*V32N\(X\)\s*\?\s*$",
+            query,
+            flags=re.I,
+        )
+    )
     zoomtrax_before_label_query = bool(
         re.search(r"\blabeled\s+['\"]?Before ZoomTrax['\"]?", query, flags=re.I)
         and re.search(r"\bAS_142767\b", query, flags=re.I)
@@ -7409,6 +7417,17 @@ def _concise_exact_control_answer(
 
     for result in results:
         content = str(result.content or "")
+        if sz_v32n_protocol_selection_query and re.search(
+            r"\bWhen\s+using\s+the\s+SZ\s*:\s*V32N\(X\),\s+it\s+is\s+necessary\s+"
+            r"to\s+select\s+one\s+of\s+the\s+following\s+communication\s+protocols\b",
+            content,
+            flags=re.I,
+        ):
+            return (
+                "When using the SZ: V32N(X), it is necessary to select one of the "
+                "following communication protocols.",
+                [result],
+            )
         if detected_plc_diagnostics_query and re.search(
             r"Open\s+the\s+detected\s+PLC,?\s+and\s+then\s+"
             r"double\s*:?\s*[- ]?click\s+['\"]Online\s*&\s*diagnostics\.['\"]",

@@ -50,6 +50,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_procedure_support,
     _direct_saved_settings_activation_support,
     _direct_series_scanner_head_limit_support,
+    _direct_sz_v32n_protocol_selection_support,
     _direct_structured_lookup_support,
     _direct_structured_compatibility_support,
     _direct_structured_power_source_support,
@@ -1304,6 +1305,41 @@ def test_verifier_confirms_lr_w70_analog_limit_range_without_llm(monkeypatch):
 
     assert output["trust_state"] == "confirmed"
     assert output["supporting_chunk_ids"] == ["analog-limits"]
+
+
+def test_verifier_confirms_sz_v32n_protocol_selection_without_llm(monkeypatch):
+    query = "Which communication protocols must be selected when using the SZ: V32N(X)?"
+    supported = _result(
+        "sz-v32n-protocol",
+        "sz-v-doc",
+        "Communication functions that can be used simultaneously. When using the "
+        "SZ: V32N(X), it is necessary to select one of the following communication "
+        "protocols. The relation is shown in the following table.",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "section_window",
+                "product_model": "SZ-V32N(X)",
+            }
+        }
+    )
+    assert _direct_sz_v32n_protocol_selection_support(query, [supported]) == [
+        "sz-v32n-protocol"
+    ]
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+    output = verify_retrieval_claim(
+        RetrievalHop(hop_id="protocol", objective=query, query=query),
+        query,
+        [supported],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["sz-v32n-protocol"]
 
 
 def test_planners_keep_explicit_manual_frame_rate_lookup_single_hop(monkeypatch):

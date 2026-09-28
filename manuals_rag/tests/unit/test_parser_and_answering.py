@@ -192,6 +192,35 @@ def test_exact_control_extracts_detected_plc_diagnostics_action():
     assert [item.chunk_id for item in evidence] == ["detected-plc-diagnostics"]
 
 
+def test_exact_control_extracts_sz_v32n_protocol_selection_requirement():
+    result = SearchResult(
+        chunk_id="sz-v32n-protocol",
+        score=0.9,
+        title="SZ-V Manual",
+        document_version_id="v1",
+        source_document_id="sz-v-doc",
+        pages=[21],
+        section_path=["HUB"],
+        content=(
+            "Communication functions that can be used simultaneously. When using the "
+            "SZ: V32N(X), it is necessary to select one of the following communication "
+            "protocols. The relation is shown in the following table."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    answer, evidence = _concise_exact_control_answer(
+        "Which communication protocols must be selected when using the SZ: V32N(X)?",
+        [result],
+    )
+
+    assert answer == (
+        "When using the SZ: V32N(X), it is necessary to select one of the following "
+        "communication protocols."
+    )
+    assert [item.chunk_id for item in evidence] == ["sz-v32n-protocol"]
+
+
 def test_exact_control_extracts_mu_n_section_lr_t_maximum_distance():
     result = SearchResult(
         chunk_id="mu-n-lr-t-distance",
