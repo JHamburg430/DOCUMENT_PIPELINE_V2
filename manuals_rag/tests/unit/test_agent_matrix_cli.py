@@ -68,6 +68,29 @@ def test_matrix_cli_refuses_to_overwrite_an_existing_artifact_set(tmp_path, monk
     assert exit_file.read_text() == '0\n'
 
 
+def test_matrix_cli_rejects_stacked_case_and_backend_concurrency(tmp_path, monkeypatch):
+    module = _runner()
+    dataset = tmp_path / "input"
+    dataset.write_text('{"case_id":"smoke"}\n')
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "matrix",
+            "--dataset",
+            str(dataset),
+            "--corpus-id",
+            "test",
+            "--case-concurrency",
+            "2",
+            "--backend-concurrency",
+            "2",
+        ],
+    )
+
+    with pytest.raises(SystemExit, match="2"):
+        module.main()
+
+
 def test_matrix_case_concurrency_keeps_single_writer_and_dataset_order(tmp_path, monkeypatch):
     module = _runner()
     dataset = tmp_path / "input.jsonl"
