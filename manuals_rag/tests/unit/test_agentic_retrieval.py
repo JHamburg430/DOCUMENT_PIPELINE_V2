@@ -3544,6 +3544,10 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
             "structural",
         ),
         (
+            "What examples of transparent objects can LR-ZH models detect?",
+            "hybrid",
+        ),
+        (
             "Which languages can be selected for the XG-X2902LJ controller during "
             "initial start-up?",
             "structural",
@@ -3623,6 +3627,10 @@ def test_atomic_lookup_shapes_are_lossless_single_hop_for_both_planners(
         (
             "What does the DTM indicator signify on the LR-ZH500C3P sensor, "
             "and how do I perform datum calibration?"
+        ),
+        (
+            "What examples of transparent objects can LR-ZH models detect, "
+            "and how should I configure Universal Change Detection?"
         ),
         (
             "Which screw size is specified for wall-mounting the IV-500C sensor, "
