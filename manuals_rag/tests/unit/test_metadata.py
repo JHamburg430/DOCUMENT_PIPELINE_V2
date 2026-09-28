@@ -21,6 +21,7 @@ from manuals_rag_parsers.metadata import (
     _ground_scoped_candidates,
     _ground_values,
     _plausible_company_name,
+    _scoped_model_segments,
     _values_for_routing,
     build_metadata_extraction_graph,
     harvest_metadata_candidates,
@@ -297,6 +298,21 @@ def test_metadata_segment_packing_covers_the_full_document():
     batches = pack_metadata_source_segments(segments, max_chars=80)
     pages = [segment.page_from for batch in batches for segment in batch]
     assert pages == list(range(1, 8))
+
+
+def test_scoped_model_segments_keep_opening_and_late_candidate_evidence():
+    segments = [
+        MetadataSourceSegment("Plain cover narrative", 1, 1),
+        MetadataSourceSegment("More opening-page narrative", 2, 2),
+        MetadataSourceSegment("Ordinary operating prose without routing metadata", 3, 3),
+        MetadataSourceSegment("Use cable OP-42284 with CV-X482.", 80, 80),
+        MetadataSourceSegment("The firmware version is earlier than 2.0.", 120, 120),
+        MetadataSourceSegment("EtherCAT communication is supported.", 121, 121),
+    ]
+
+    selected = _scoped_model_segments(segments)
+
+    assert [segment.page_from for segment in selected] == [1, 2, 80, 120, 121]
 
 
 def test_scoped_metadata_accepts_type_and_entity_aliases():

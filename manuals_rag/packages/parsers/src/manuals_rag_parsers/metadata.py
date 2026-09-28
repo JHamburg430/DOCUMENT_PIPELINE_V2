@@ -2640,6 +2640,30 @@ def _opening_page_segments(segments: list[MetadataSourceSegment]) -> list[Metada
     return [segment for _index, segment in indexed]
 
 
+def _scoped_model_segments(
+    segments: list[MetadataSourceSegment],
+) -> list[MetadataSourceSegment]:
+    """Select source units that can contribute to model-classified routing claims.
+
+    The scoped model schema contains only entities and typed relationships; it
+    does not produce settings, parameters, menu labels, or document topics.
+    Those fields come from the opening-page base extraction.  Running the
+    scoped model over narrative pages with no identifier, protocol, or version
+    candidate therefore adds latency without adding a publishable claim.
+
+    Keep both opening physical pages for document identity and every later
+    source unit found by the deterministic candidate harvester.  Full source
+    segments remain in workflow state for the deterministic source-native
+    ledger, completeness checks, quote grounding, and independent verification.
+    """
+    opening_ids = {id(segment) for segment in _opening_page_segments(segments)}
+    return [
+        segment
+        for segment in segments
+        if id(segment) in opening_ids or harvest_metadata_candidates([segment])
+    ]
+
+
 def _title_evidence(title: str, segments: list[MetadataSourceSegment]) -> dict[str, Any] | None:
     located = _quote_location(title, segments)
     if located is None:
@@ -3012,7 +3036,7 @@ def _prepare_metadata_workflow(state: MetadataWorkflowState) -> dict[str, Any]:
         "selected_title": selected_title,
         "printed_title_evidence": printed_title_evidence,
         "batches": pack_metadata_source_segments(
-            segments, max_chars=state["max_segment_chars"]
+            _scoped_model_segments(segments), max_chars=state["max_segment_chars"]
         ),
         "mapped_evidence": [],
     }
