@@ -244,6 +244,9 @@ return null for failure_kind and an empty string for missing_evidence.
 Use probable when evidence is suggestive but incomplete, unresolved when the needed fact is absent,
 conflicting when supplied evidence disagrees or applicability conflicts, and rejected when evidence
 is unrelated. Preserve unknown applicability as unknown; never infer that unknown means compatible.
+When the claim does not ask about compatibility, version, or applicability, return
+applicability=not_requested. Never use applicability=conflicting to report a factual source
+conflict; use trust_state, conflicting_chunk_ids, and failure_kind=source_conflict instead.
 """.strip()
 
 
@@ -7782,6 +7785,18 @@ def verify_retrieval_claim(
                 for chunk_id in normalized_payload.get("conflicting_chunk_ids") or []
                 if str(chunk_id)
             ]
+            if (
+                not applicability_required
+                and normalized_payload.get("applicability") == "conflicting"
+            ):
+                # Applicability is a separate gate used only for explicit
+                # compatibility/version questions. Small structured-output
+                # models occasionally place a generic uncertainty signal in
+                # this field even while confirming a directly supported fact.
+                # Ignore that irrelevant field without weakening real source
+                # conflicts, which remain represented by trust_state,
+                # conflicting_chunk_ids, and query-applicability metadata.
+                normalized_payload["applicability"] = "not_requested"
             verdict_alias = str(
                 normalized_payload.get("verdict")
                 or normalized_payload.get("state")

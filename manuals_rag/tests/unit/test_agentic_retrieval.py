@@ -5428,6 +5428,49 @@ def test_verifier_accepts_explicit_firmware_applicability(monkeypatch):
     assert result["applicability"] == "applicable"
 
 
+def test_verifier_ignores_spurious_applicability_conflict_for_direct_fact(monkeypatch):
+    question = (
+        "Which terminal on the image processing system controller should connect "
+        "to cable no. 10 (SG)?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=question, query=question)
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {
+                "trust_state": "confirmed",
+                "claim_supported": True,
+                "supporting_chunk_ids": ["terminal-map"],
+                "conflicting_chunk_ids": [],
+                "applicability": "conflicting",
+                "scope_entity": "image processing system controller",
+                "failure_kind": None,
+                "missing_evidence": "",
+                "rationale": "Cable no. 10 (SG) connects to the 0 V OUT terminal.",
+            },
+            "{}",
+        ),
+    )
+
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [
+            _result(
+                "terminal-map",
+                "ca-en100u-manual",
+                "Connect cable no. 10 (SG) to the 0 V OUT terminal on the image "
+                "processing system controller.",
+            )
+        ],
+        {"claim_supported": True, "supporting_chunk_ids": ["terminal-map"]},
+    )
+
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+    assert result["applicability"] == "not_requested"
+
+
 def test_verifier_retries_once_after_malformed_model_response(monkeypatch):
     hop = RetrievalHop(
         hop_id="lookup",
