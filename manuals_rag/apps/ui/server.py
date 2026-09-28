@@ -1184,6 +1184,7 @@ def _build_agent_matrix() -> dict:
         "category_counts": report.get("category_counts") or {},
         "dataset_sha256": report.get("dataset_sha256"),
         "active_job": active_job,
+        "latest_job": deepcopy(external_snapshot) if external_snapshot is not None else None,
         "rows": rows,
         "layers": [
             "tool_selection",

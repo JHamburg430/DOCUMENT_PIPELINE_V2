@@ -848,6 +848,7 @@ def test_external_agent_matrix_artifacts_bridge_running_48_of_200_and_reconcile(
     assert decoy not in inspected_paths
     matrix = ui_server._build_agent_matrix()
     assert matrix["active_job"]["id"] == snapshot["id"]
+    assert matrix["latest_job"]["id"] == snapshot["id"]
     assert len(matrix["rows"]) == 200
     assert matrix["rows"][0]["result"]["langgraph"]["agent_evaluation"]["cells"]["tool_selection"]["status"] == "pass"
     live_cell = matrix["rows"][43]["result"]["langgraph"]["agent_evaluation"]["cells"]["tool_selection"]
@@ -888,6 +889,7 @@ def test_external_agent_matrix_artifacts_bridge_running_48_of_200_and_reconcile(
     assert reconciled["completed_questions"] == 200
     final_matrix = ui_server._build_agent_matrix()
     assert final_matrix["active_job"] is None
+    assert final_matrix["latest_job"]["status"] == "completed"
     final_cell = final_matrix["rows"][43]["result"]["langgraph"]["agent_evaluation"]["cells"]["tool_selection"]
     assert final_cell["status"] == "pass"
     assert "final_status" not in final_cell
@@ -896,6 +898,30 @@ def test_external_agent_matrix_artifacts_bridge_running_48_of_200_and_reconcile(
     assert [event.phase for event in replay] == ["agent_matrix_progress", "job_completed"]
     assert replay[-1].completed is True
     journal.close()
+
+
+def test_agent_matrix_surfaces_latest_failed_external_run(monkeypatch):
+    snapshot = {
+        "id": "external-eval-agent_matrix_failed",
+        "status": "failed",
+        "completed_questions": 7,
+        "limit": 200,
+        "exit_code": 137,
+        "dataset_path": "tests/fixtures/heldout.jsonl",
+        "updated_at": "2026-09-28T19:58:19Z",
+    }
+    monkeypatch.setattr(ui_server, "_external_agent_matrix_run", lambda: snapshot)
+    monkeypatch.setattr(
+        ui_server,
+        "_external_agent_matrix_report",
+        lambda value: {"dataset": value["dataset_path"], "items": []},
+    )
+    monkeypatch.setattr(ui_server, "_read_jsonl", lambda path: [])
+
+    matrix = ui_server._build_agent_matrix()
+
+    assert matrix["active_job"] is None
+    assert matrix["latest_job"] == snapshot
 
 
 def test_external_agent_matrix_resume_surfaces_predecessor_partial_as_checkpoint(monkeypatch, tmp_path):

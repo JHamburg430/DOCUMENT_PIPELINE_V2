@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260928-ingestion-realtime";
+const ASSET_VERSION = "20260928-eval-failure-status";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -3460,8 +3460,18 @@ function renderAgentMatrix(payload) {
   }).length;
   if (!payload.active_job && rows.length) {
     const status = $("agent-matrix-status");
-    status.textContent = terminalRows === rows.length ? `Complete · ${terminalRows}/${rows.length}` : `Results · ${terminalRows}/${rows.length} terminal`;
-    status.className = `status-pill ${terminalRows === rows.length ? "pass" : "idle"}`;
+    const latestJob = payload.latest_job;
+    if (latestJob?.status === "failed") {
+      status.textContent = [
+        "Failed",
+        `${Number(latestJob.completed_questions || 0)}/${Number(latestJob.limit || rows.length)}`,
+        latestJob.exit_code == null ? "" : `exit ${latestJob.exit_code}`,
+      ].filter(Boolean).join(" · ");
+      status.className = "status-pill fail";
+    } else {
+      status.textContent = terminalRows === rows.length ? `Complete · ${terminalRows}/${rows.length}` : `Results · ${terminalRows}/${rows.length} terminal`;
+      status.className = `status-pill ${terminalRows === rows.length ? "pass" : "idle"}`;
+    }
   }
   $("agent-matrix-summary").className = "matrix-summary";
   $("agent-matrix-summary").innerHTML = `

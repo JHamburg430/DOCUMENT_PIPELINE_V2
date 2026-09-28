@@ -47,6 +47,11 @@ class EvaluationWorkspaceContractTest(unittest.TestCase):
         self.assertIn("Unscored stages stay hidden", self.html)
         self.assertIn('class="evaluation-disclosure agent-matrix-controls"', self.html)
 
+    def test_failed_external_matrix_is_not_presented_as_stale_results(self):
+        self.assertIn('latestJob?.status === "failed"', self.js)
+        self.assertIn('`exit ${latestJob.exit_code}`', self.js)
+        self.assertIn('status.className = "status-pill fail"', self.js)
+
     def test_question_matrix_hides_unscored_stage_columns_by_default(self):
         self.assertIn("function scoredMatrixStageKeys(items = [])", self.js)
         self.assertIn("function applyMatrixDefaultColumnVisibility(items = [])", self.js)
