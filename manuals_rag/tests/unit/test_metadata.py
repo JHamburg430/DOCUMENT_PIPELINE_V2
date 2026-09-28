@@ -305,14 +305,16 @@ def test_scoped_model_segments_keep_opening_and_late_candidate_evidence():
         MetadataSourceSegment("Plain cover narrative", 1, 1),
         MetadataSourceSegment("More opening-page narrative", 2, 2),
         MetadataSourceSegment("Ordinary operating prose without routing metadata", 3, 3),
+        MetadataSourceSegment("CV-X482 appears in an ordinary example.", 79, 79),
         MetadataSourceSegment("Use cable OP-42284 with CV-X482.", 80, 80),
+        MetadataSourceSegment("Use cable OP-42284 with CV-X482.", 81, 81),
         MetadataSourceSegment("The firmware version is earlier than 2.0.", 120, 120),
         MetadataSourceSegment("EtherCAT communication is supported.", 121, 121),
     ]
 
     selected = _scoped_model_segments(segments)
 
-    assert [segment.page_from for segment in selected] == [1, 2, 80, 120, 121]
+    assert [segment.page_from for segment in selected] == [1, 2, 80, 120]
 
 
 def test_scoped_metadata_accepts_type_and_entity_aliases():

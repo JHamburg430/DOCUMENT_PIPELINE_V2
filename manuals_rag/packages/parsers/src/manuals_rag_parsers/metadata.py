@@ -157,6 +157,18 @@ VERSION_SIGNAL_PATTERNS = {
         re.IGNORECASE,
     ),
 }
+METADATA_VERSION_CANDIDATE_PATTERN = re.compile(
+    r"\b(?:firmware|software|version|ver\.?|revision|rev\.?)\b"
+    r"[^\n]{0,100}?\b\d+(?:\.\d+){0,3}\b",
+    re.IGNORECASE,
+)
+SCOPED_RELATION_CUE_PATTERN = re.compile(
+    r"\b(?:model|series|compatible|compatibility|accessor(?:y|ies)|option|for\s+use|"
+    r"used\s+with|connect(?:ed|ion)?|support(?:ed|s)?|requires?|required|appl(?:y|ies)|"
+    r"available|product|controller|sensor|camera|head|unit|cable|adapter|bracket|"
+    r"part\s+number|order(?:ing)?|configuration|plc|software|firmware|version|revision)\b",
+    re.IGNORECASE,
+)
 
 
 class MetadataExtractionIncomplete(RuntimeError):
@@ -1106,10 +1118,6 @@ def _segment_text(segment: MetadataSourceSegment) -> str:
 def harvest_metadata_candidates(segments: list[MetadataSourceSegment]) -> list[dict[str, Any]]:
     """Harvest broad, corpus-general candidates before asking the model to classify them."""
     candidates: list[dict[str, Any]] = []
-    version_pattern = re.compile(
-        r"\b(?:firmware|software|version|ver\.?|revision|rev\.?)\b[^\n]{0,100}?\b\d+(?:\.\d+){0,3}\b",
-        re.IGNORECASE,
-    )
     seen: set[tuple[str, str, int | None]] = set()
     for segment in segments:
         for raw_line in segment.text.splitlines():
@@ -1118,7 +1126,7 @@ def harvest_metadata_candidates(segments: list[MetadataSourceSegment]) -> list[d
                 continue
             for kind, pattern in (
                 ("identifier", IDENTIFIER_CANDIDATE_PATTERN),
-                ("version_statement", version_pattern),
+                ("version_statement", METADATA_VERSION_CANDIDATE_PATTERN),
                 ("protocol", PROTOCOL_PATTERN),
             ):
                 for match in pattern.finditer(quote):
@@ -2651,17 +2659,38 @@ def _scoped_model_segments(
     scoped model over narrative pages with no identifier, protocol, or version
     candidate therefore adds latency without adding a publishable claim.
 
-    Keep both opening physical pages for document identity and every later
-    source unit found by the deterministic candidate harvester.  Full source
-    segments remain in workflow state for the deterministic source-native
-    ledger, completeness checks, quote grounding, and independent verification.
+    Keep both opening physical pages for document identity, explicit version
+    statements, model tables, and later identifier lines that contain a typed
+    relationship cue. Repeated identical evidence needs one model decision;
+    the source-native ledger still retains every supporting page. Full source
+    segments remain in workflow state for that ledger, completeness checks,
+    quote grounding, and independent verification.
     """
     opening_ids = {id(segment) for segment in _opening_page_segments(segments)}
-    return [
-        segment
-        for segment in segments
-        if id(segment) in opening_ids or harvest_metadata_candidates([segment])
-    ]
+    selected: list[MetadataSourceSegment] = []
+    seen_evidence: set[str] = set()
+    for segment in segments:
+        if id(segment) in opening_ids:
+            selected.append(segment)
+            continue
+        has_version = METADATA_VERSION_CANDIDATE_PATTERN.search(segment.text) is not None
+        has_model_table = bool(
+            _model_column_identifiers(segment)
+            or _compatible_model_column_claims([segment])
+        )
+        has_scoped_identifier = any(
+            IDENTIFIER_CANDIDATE_PATTERN.search(line)
+            and SCOPED_RELATION_CUE_PATTERN.search(line)
+            for line in segment.text.splitlines()
+        )
+        if not (has_version or has_model_table or has_scoped_identifier):
+            continue
+        fingerprint = " ".join(segment.text.casefold().split())
+        if fingerprint in seen_evidence:
+            continue
+        seen_evidence.add(fingerprint)
+        selected.append(segment)
+    return selected
 
 
 def _title_evidence(title: str, segments: list[MetadataSourceSegment]) -> dict[str, Any] | None:
