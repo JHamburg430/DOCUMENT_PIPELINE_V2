@@ -3540,6 +3540,10 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
             "hybrid",
         ),
         (
+            "What does the DTM indicator signify on the LR-ZH500C3P sensor?",
+            "structural",
+        ),
+        (
             "Which languages can be selected for the XG-X2902LJ controller during "
             "initial start-up?",
             "structural",
@@ -3611,6 +3615,10 @@ def test_atomic_lookup_shapes_are_lossless_single_hop_for_both_planners(
         (
             "What indicates normal operation when obtaining robot coordinates in "
             "VS Creator, and how do I correct an error?"
+        ),
+        (
+            "What does the DTM indicator signify on the LR-ZH500C3P sensor, "
+            "and how do I perform datum calibration?"
         ),
     ],
 )
