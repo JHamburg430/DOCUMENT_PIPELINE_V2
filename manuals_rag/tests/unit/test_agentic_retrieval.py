@@ -994,8 +994,14 @@ def test_model_planners_keep_direct_display_behavior_in_one_hop(monkeypatch):
             assert plan.mode == "single"
             assert len(plan.hops) == 1
             assert plan.hops[0].objective == query
-            assert plan.hops[0].query == query
-            assert plan.hops[0].strategy == "hybrid"
+            if "selected rectangle region" in query:
+                assert plan.hops[0].query == (
+                    "LJ-S8000 rectangle region range of heights maximum minimum displayed gradationally"
+                )
+                assert plan.hops[0].strategy == "structural"
+            else:
+                assert plan.hops[0].query == query
+                assert plan.hops[0].strategy == "hybrid"
 
 
 def test_model_planners_keep_ljx8000_ocr_character_count_lookup_in_one_hop(monkeypatch):
@@ -7812,6 +7818,39 @@ def test_verifier_confirms_height_gradient_from_two_point_selection_sentence():
 
     assert output["trust_state"] == "confirmed"
     assert output["supporting_chunk_ids"] == ["height-gradient-points"]
+
+
+def test_verifier_rejects_rectangle_range_setting_without_gradient_behavior():
+    query = "How does the LJ-S8000 display height differences within a selected rectangle region?"
+    hop = RetrievalHop(hop_id="height", objective=query, query=query)
+    incomplete = _result(
+        "range-setting",
+        "lj-s8000-doc",
+        (
+            "If [Range specification] is selected for [Method], clicking two points on the "
+            "screen refreshes the display color using the height range in the rectangle."
+        ),
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "LJ: S8000 Series",
+                "product_family": "LJ-S8000 Series",
+            }
+        }
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [incomplete],
+        {"claim_supported": True, "supporting_chunk_ids": ["range-setting"]},
+        use_llm=False,
+    )
+
+    assert output["trust_state"] == "unresolved"
+    assert output["claim_supported"] is False
+    assert output["failure_kind"] == "missing_fact"
 
 
 def test_saved_settings_support_accepts_exact_manual_identity_in_section_window():

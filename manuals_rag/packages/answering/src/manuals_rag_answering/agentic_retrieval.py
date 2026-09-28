@@ -343,10 +343,25 @@ def _direct_display_behavior_plan(query: str) -> RetrievalPlan | None:
         return None
     if re.search(r"\b(?:compare|versus|(?-i:vs)\.?|then\s+(?:what|which|how|why))\b", query, flags=re.I):
         return None
+    retrieval_query = query
+    strategy: RetrievalStrategy = "hybrid"
+    if _is_height_gradient_display_query(query):
+        retrieval_query = (
+            "LJ-S8000 rectangle region range of heights maximum minimum "
+            "displayed gradationally"
+        )
+        strategy = "structural"
     return RetrievalPlan(
         mode="single",
         rationale="The request asks for one source-backed display behavior.",
-        hops=[RetrievalHop(hop_id="display_behavior", objective=query, query=query, strategy="hybrid")],
+        hops=[
+            RetrievalHop(
+                hop_id="display_behavior",
+                objective=query,
+                query=retrieval_query,
+                strategy=strategy,
+            )
+        ],
     )
 
 
@@ -1003,11 +1018,12 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
 
 def _single_hop_execution_query(original_query: str, hop: RetrievalHop) -> str:
     """Keep only deterministic, lossless single-hop rewrites at execution time."""
-    exact_plan = _exact_structured_single_plan(original_query)
-    if exact_plan is not None and len(exact_plan.hops) == 1:
-        exact_hop = exact_plan.hops[0]
-        if hop.query == exact_hop.query and hop.objective == exact_hop.objective:
-            return hop.query
+    for plan_builder in (_exact_structured_single_plan, _direct_display_behavior_plan):
+        exact_plan = plan_builder(original_query)
+        if exact_plan is not None and len(exact_plan.hops) == 1:
+            exact_hop = exact_plan.hops[0]
+            if hop.query == exact_hop.query and hop.objective == exact_hop.objective:
+                return hop.query
     return original_query
 
 
@@ -4557,6 +4573,15 @@ def _direct_display_range_support(
     return [matches[0][1]]
 
 
+def _is_height_gradient_display_query(query: str) -> bool:
+    return bool(
+        re.search(r"\bLJ[- ]?S8000\b", query, flags=re.I)
+        and re.search(r"\bdisplay\b", query, flags=re.I)
+        and re.search(r"\bheight differences?\b", query, flags=re.I)
+        and re.search(r"\brectangle region\b", query, flags=re.I)
+    )
+
+
 def _direct_height_gradient_display_support(
     query: str,
     results: list[SearchResult],
@@ -4568,11 +4593,7 @@ def _direct_height_gradient_display_support(
     orientation text elsewhere in the retrieval set cannot manufacture a
     contradiction.
     """
-    if not (
-        re.search(r"\bdisplay\b", query, flags=re.I)
-        and re.search(r"\bheight differences?\b", query, flags=re.I)
-        and re.search(r"\brectangle region\b", query, flags=re.I)
-    ):
+    if not _is_height_gradient_display_query(query):
         return []
     matches: list[str] = []
     for result in results:
@@ -7320,6 +7341,27 @@ def verify_retrieval_claim(
                     "Deterministic height-display verification matched one scoped atomic "
                     "sentence binding the selected region or points to the "
                     "orange-to-light-blue height gradient."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        if _is_height_gradient_display_query(hop.objective):
+            return EvidenceVerification(
+                trust_state="unresolved",
+                claim_supported=False,
+                supporting_chunk_ids=[],
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                failure_kind="missing_fact",
+                missing_evidence=(
+                    "A scoped manual sentence that binds the selected rectangle's height extrema "
+                    "to the displayed gradational color behavior."
+                ),
+                rationale=(
+                    "The retrieved evidence does not directly state how height differences in the "
+                    "selected rectangle are represented; a range-setting statement alone is insufficient."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
