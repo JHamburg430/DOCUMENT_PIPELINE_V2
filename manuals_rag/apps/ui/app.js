@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260926-scored-stage-guard";
+const ASSET_VERSION = "20260928-ingestion-realtime";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -14,6 +14,8 @@ const MATRIX_GENERATION_LEGACY_DEFAULT_PROMPTS = new Set([
 ]);
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
+const INGESTION_FALLBACK_POLL_MS = 1000;
+const INGESTION_DISCOVERY_POLL_MS = 5000;
 
 const state = {
   documents: [],
@@ -41,6 +43,7 @@ const state = {
     selectedDocumentIds: new Set(),
     selectedRunId: null,
     selectedStepKey: null,
+    followProgress: false,
   },
   agentLab: {
     runs: {},
@@ -3672,7 +3675,7 @@ async function recoverAfterPageReturn() {
     }
     if (activeTab === "agent-chat") await loadAgentChatJob();
     if (activeTab === "ingestion") {
-      await loadIngestionStatus();
+      await maybePollIngestion();
     }
     if (activeTab === "history") {
       await loadHistory();
@@ -3850,6 +3853,7 @@ function bindIngestionInteractions() {
   document.querySelectorAll("[data-ingestion-run]").forEach((button) => {
     button.addEventListener("click", () => {
       state.ingestion.selectedRunId = button.dataset.ingestionRun;
+      state.ingestion.followProgress = true;
       const run = (state.ingestion.payload?.recent_runs || []).find((item) => String(item.run_id) === state.ingestion.selectedRunId);
       const steps = run?.steps || [];
       state.ingestion.selectedStepKey = (steps.find((step) => step.status === "running" || step.status === "failed") || steps[0])?.step_key || null;
@@ -3859,6 +3863,7 @@ function bindIngestionInteractions() {
   document.querySelectorAll("[data-ingestion-step]").forEach((button) => {
     button.addEventListener("click", () => {
       state.ingestion.selectedStepKey = button.dataset.ingestionStep;
+      state.ingestion.followProgress = false;
       renderIngestion();
     });
   });
@@ -3908,19 +3913,27 @@ async function ingestSelectedDocuments() {
   const button = $("ingestion-ingest-selected");
   button.disabled = true;
   const failures = [];
+  const queuedRunIds = [];
   for (let index = 0; index < documentIds.length; index += 1) {
     $("ingestion-action-status").textContent = `Queueing document ${index + 1} of ${documentIds.length}...`;
     try {
-      await apiJson(`/documents/${encodeURIComponent(documentIds[index])}/ingest`, { method: "POST", body: "{}" });
+      const queued = await apiJson(`/documents/${encodeURIComponent(documentIds[index])}/ingest`, { method: "POST", body: "{}" });
+      if (queued.run_id) queuedRunIds.push(String(queued.run_id));
     } catch (error) {
       failures.push(`${documentIds[index]}: ${error.message}`);
     }
   }
   state.ingestion.selectedDocumentIds.clear();
+  if (queuedRunIds.length) {
+    state.ingestion.selectedRunId = queuedRunIds[queuedRunIds.length - 1];
+    state.ingestion.selectedStepKey = null;
+    state.ingestion.followProgress = true;
+  }
   $("ingestion-action-status").innerHTML = failures.length
     ? `<span class="error-text">Queued ${documentIds.length - failures.length}; ${failures.length} failed.</span><ul class="detail-list">${failures.map((failure) => `<li>${escapeHtml(failure)}</li>`).join("")}</ul>`
     : `<span class="success-text">Queued ${documentIds.length} document${documentIds.length === 1 ? "" : "s"} for ingestion.</span>`;
-  await loadIngestionStatus();
+  queuedRunIds.forEach((runId) => watchIngestionRun(runId));
+  scheduleIngestionPoll();
 }
 
 async function loadIngestionStatus() {
@@ -3943,16 +3956,90 @@ async function loadIngestionStatus() {
     .map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
     .join("");
   updateIngestionDocumentFilter(payload.recent_documents || []);
+  if (state.ingestion.followProgress && state.ingestion.selectedRunId) {
+    const selectedRun = (payload.recent_runs || []).find((run) => String(run.run_id) === state.ingestion.selectedRunId);
+    const steps = selectedRun?.steps || [];
+    const liveStep = steps.find((step) => step.status === "running" || step.status === "failed")
+      || [...steps].reverse().find((step) => step.status === "completed");
+    if (liveStep) state.ingestion.selectedStepKey = liveStep.step_key;
+    if (selectedRun && !["queued", "running"].includes(selectedRun.status)) state.ingestion.followProgress = false;
+  }
+  renderIngestion();
+  (payload.recent_runs || [])
+    .filter((run) => ["queued", "running"].includes(String(run.status).toLowerCase()))
+    .forEach((run) => watchIngestionRun(String(run.run_id)));
+}
+
+function applyIngestionSnapshot(snapshot) {
+  const payload = (state.ingestion.payload ||= { recent_runs: [], recent_documents: [] });
+  const runs = (payload.recent_runs ||= []);
+  const runIndex = runs.findIndex((run) => String(run.run_id) === String(snapshot.run_id));
+  if (runIndex >= 0) runs[runIndex] = { ...runs[runIndex], ...snapshot };
+  else runs.unshift(snapshot);
+
+  const documentRow = (payload.recent_documents || []).find(
+    (document) => String(document.document_id) === String(snapshot.document_id),
+  );
+  if (documentRow) {
+    documentRow.ingest_status = snapshot.ingest_status;
+    documentRow.updated_at = snapshot.updated_at;
+  }
+  if (state.ingestion.followProgress && String(snapshot.run_id) === state.ingestion.selectedRunId) {
+    const steps = snapshot.steps || [];
+    const liveStep = steps.find((step) => step.status === "running" || step.status === "failed")
+      || [...steps].reverse().find((step) => step.status === "completed");
+    if (liveStep) state.ingestion.selectedStepKey = liveStep.step_key;
+    if (!["queued", "running"].includes(String(snapshot.status).toLowerCase())) state.ingestion.followProgress = false;
+  }
   renderIngestion();
 }
 
-function maybePollIngestion() {
+function watchIngestionRun(runId) {
+  const streamKey = `ingestion:${runId}`;
+  if (state.realtimeStreams[streamKey]?.runId === runId) return;
+  closeRunEventStream(streamKey);
+  let consecutiveErrors = 0;
+  const source = new EventSource(`/local/ingestion-runs/${encodeURIComponent(runId)}/subscribe`);
+  state.realtimeStreams[streamKey] = { source, runId };
+
+  const applySnapshot = (message) => {
+    consecutiveErrors = 0;
+    const snapshot = JSON.parse(message.data);
+    applyIngestionSnapshot(snapshot);
+    if (["completed", "failed", "cancelled"].includes(String(snapshot.status).toLowerCase())) {
+      closeRunEventStream(streamKey);
+      scheduleIngestionPoll();
+    }
+  };
+  source.addEventListener("snapshot", applySnapshot);
+  source.addEventListener("ingestion-update", applySnapshot);
+  source.onerror = () => {
+    consecutiveErrors += 1;
+    if (source.readyState === EventSource.CLOSED || consecutiveErrors >= 3) {
+      closeRunEventStream(streamKey);
+      scheduleIngestionPoll(INGESTION_FALLBACK_POLL_MS);
+    }
+  };
+}
+
+function scheduleIngestionPoll(delay = INGESTION_DISCOVERY_POLL_MS) {
+  if (state.ingestionTimer) clearTimeout(state.ingestionTimer);
+  state.ingestionTimer = setTimeout(() => maybePollIngestion(), delay);
+}
+
+async function maybePollIngestion() {
+  if (state.ingestionTimer) clearTimeout(state.ingestionTimer);
+  state.ingestionTimer = null;
   const active = document.querySelector(".tab.active")?.dataset.tab === "ingestion";
   if (!active) return;
-  loadIngestionStatus().catch((error) => {
+  try {
+    await loadIngestionStatus();
+  } catch (error) {
     $("ingestion-summary").className = "metrics empty-state";
     $("ingestion-summary").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
-  });
+  } finally {
+    scheduleIngestionPoll();
+  }
 }
 
 function setupEvaluationWorkspace() {
@@ -4049,7 +4136,7 @@ async function init() {
     replayAgentMatrixFixture();
   }
   $("refresh-history").addEventListener("click", loadHistory);
-  $("refresh-ingestion").addEventListener("click", loadIngestionStatus);
+  $("refresh-ingestion").addEventListener("click", maybePollIngestion);
   $("ingestion-upload").addEventListener("click", uploadIngestionDocuments);
   $("ingestion-ingest-selected").addEventListener("click", ingestSelectedDocuments);
   ["ingestion-filter-document", "ingestion-filter-text", "ingestion-filter-status"].forEach((id) => {
@@ -4068,7 +4155,6 @@ async function init() {
     renderIngestion();
   });
   setConnectionStatus("UI ready · synchronizing active views");
-  state.ingestionTimer = setInterval(maybePollIngestion, 5000);
   const initialLoads = evaluationFixtureMode ? [] : [loadQuestionMatrix(), loadAgentMatrix(), loadAgentLiveJob(), loadAgentChatJob()];
   Promise.allSettled(initialLoads).then((results) => {
     const failure = results.find((result) => result.status === "rejected");

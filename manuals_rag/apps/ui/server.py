@@ -277,6 +277,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         if parsed.path.startswith("/local/question-matrix/jobs/"):
             self._local_question_matrix_job(parsed.path.rsplit("/", 1)[-1])
             return
+        if parsed.path.startswith("/local/ingestion-runs/") and parsed.path.endswith("/subscribe"):
+            self._local_ingestion_run_stream(parsed.path.split("/")[-2])
+            return
         if parsed.path == "/local/question-matrix":
             self._local_question_matrix()
             return
@@ -487,6 +490,98 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                 )
                 row = cur.fetchone()
                 return dict(row) if row else None
+
+    def _query_ingestion_run_snapshot(self, run_id: str) -> dict | None:
+        """Read the current ingestion run and its ordered steps without mutating application state."""
+        with psycopg.connect(POSTGRES_DSN, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    select ir.id as run_id, ir.status, ir.failure_class, ir.failure_reason,
+                           ir.created_at, ir.updated_at, sd.id as document_id,
+                           sd.corpus_id, sd.source_filename, sd.ingest_status
+                    from ingestion_runs ir
+                    join source_documents sd on sd.id = ir.source_document_id
+                    where ir.id = %s
+                    """,
+                    (run_id,),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                snapshot = dict(row)
+                cur.execute(
+                    """
+                    select step_key, sequence, label, status, started_at, completed_at,
+                           duration_ms, detail_json, error
+                    from ingestion_run_steps
+                    where run_id = %s
+                    order by sequence
+                    """,
+                    (run_id,),
+                )
+                snapshot["steps"] = [dict(step) for step in cur.fetchall()]
+                return snapshot
+
+    def _local_ingestion_run_stream(self, run_id: str) -> None:
+        try:
+            snapshot = self._query_ingestion_run_snapshot(run_id)
+        except Exception as error:
+            self.send_error(500, f"Ingestion run lookup failed: {error.__class__.__name__}: {error}")
+            return
+        if snapshot is None:
+            self.send_error(404, "Ingestion run not found")
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+
+        sequence = 1
+        started = time.monotonic()
+        last_write = started
+        previous_payload = json.dumps(snapshot, default=str, sort_keys=True, separators=(",", ":"))
+
+        def write_snapshot(event_name: str, payload: dict) -> bool:
+            body = json.dumps(payload, default=str, separators=(",", ":"))
+            return self._write(f"id: {sequence}\nevent: {event_name}\ndata: {body}\n\n".encode("utf-8"))
+
+        try:
+            if not write_snapshot("snapshot", snapshot):
+                return
+            if str(snapshot.get("status") or "").lower() in TERMINAL_RUN_STATUSES:
+                return
+            while time.monotonic() - started < RUN_EVENT_STREAM_MAX_SECONDS:
+                time.sleep(RUN_EVENT_POLL_SECONDS)
+                current = self._query_ingestion_run_snapshot(run_id)
+                if current is None:
+                    return
+                current_payload = json.dumps(current, default=str, sort_keys=True, separators=(",", ":"))
+                if current_payload != previous_payload:
+                    sequence += 1
+                    if not write_snapshot("ingestion-update", current):
+                        return
+                    previous_payload = current_payload
+                    last_write = time.monotonic()
+                    if str(current.get("status") or "").lower() in TERMINAL_RUN_STATUSES:
+                        return
+                elif time.monotonic() - last_write >= RUN_EVENT_HEARTBEAT_SECONDS:
+                    if not self._write(encode_heartbeat()):
+                        return
+                    last_write = time.monotonic()
+        except (BrokenPipeError, ConnectionResetError):
+            return
+        except Exception as error:
+            error_payload = json.dumps(
+                {"detail": f"Ingestion event stream failed: {error.__class__.__name__}: {error}"},
+                separators=(",", ":"),
+            )
+            self._write(f"event: error\ndata: {error_payload}\n\n".encode("utf-8"))
+        finally:
+            self.close_connection = True
 
     def _local_run_event_stream(self, run_id: str, *, after: int, limit: int) -> None:
         try:

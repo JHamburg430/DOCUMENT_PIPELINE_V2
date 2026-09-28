@@ -517,6 +517,51 @@ def test_ingestion_ui_supports_multi_upload_filtering_and_step_details():
     assert ".ingestion-step-detail" in styles_css
 
 
+def test_ingestion_ui_uses_sse_updates_with_polling_fallback_and_step_following():
+    app_js = (UI_DIR / "app.js").read_text()
+
+    assert "function watchIngestionRun(runId)" in app_js
+    assert "function applyIngestionSnapshot(snapshot)" in app_js
+    assert "new EventSource(`/local/ingestion-runs/" in app_js
+    assert 'source.addEventListener("ingestion-update", applySnapshot)' in app_js
+    assert "applyIngestionSnapshot(snapshot)" in app_js
+    assert "scheduleIngestionPoll(INGESTION_FALLBACK_POLL_MS)" in app_js
+    assert "state.ingestion.followProgress = true" in app_js
+    assert 'steps.find((step) => step.status === "running" || step.status === "failed")' in app_js
+    assert "setInterval(maybePollIngestion, 5000)" not in app_js
+
+
+def test_ingestion_sse_stream_emits_changed_snapshots_until_terminal(monkeypatch):
+    snapshots = iter([
+        {"run_id": "run-1", "status": "queued", "steps": []},
+        {"run_id": "run-1", "status": "running", "steps": [{"step_key": "parse", "status": "running"}]},
+        {"run_id": "run-1", "status": "completed", "steps": [{"step_key": "parse", "status": "completed"}]},
+    ])
+    latest = {"value": None}
+
+    def snapshot(_handler, _run_id):
+        try:
+            latest["value"] = next(snapshots)
+        except StopIteration:
+            pass
+        return latest["value"]
+
+    monkeypatch.setattr(UiHandler, "_query_ingestion_run_snapshot", snapshot)
+    monkeypatch.setattr(ui_server, "RUN_EVENT_POLL_SECONDS", 0.01)
+    monkeypatch.setattr(ui_server, "RUN_EVENT_STREAM_MAX_SECONDS", 1)
+    httpd = _serve(UiHandler)
+    try:
+        with urlopen(f"http://127.0.0.1:{httpd.server_port}/local/ingestion-runs/run-1/subscribe", timeout=5) as response:
+            body = response.read().decode("utf-8")
+        assert response.headers["Content-Type"] == "text/event-stream; charset=utf-8"
+        assert "event: snapshot" in body
+        assert body.count("event: ingestion-update") == 2
+        assert '"status":"running"' in body
+        assert '"status":"completed"' in body
+    finally:
+        httpd.shutdown()
+
+
 def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()
