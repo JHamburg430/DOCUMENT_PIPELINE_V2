@@ -3469,24 +3469,39 @@ def _concise_benefit_answer(
 ) -> tuple[str, list[SearchResult]]:
     """Return the bounded evidence sentence that explains a named benefit."""
 
-    if not re.search(
+    causal_benefit_query = bool(re.search(
         r"^\s*how\s+(?:does|do)\b.+\b(?:reduce|improve|benefit)\b",
         query,
         flags=re.IGNORECASE,
-    ):
+    ))
+    listed_benefits_query = bool(re.search(
+        r"^\s*what\s+benefits?\s+(?:does|do)\b.+\b(?:provide|offer)\b",
+        query,
+        flags=re.IGNORECASE,
+    ))
+    if not (causal_benefit_query or listed_benefits_query):
         return "", []
     query_terms = _material_claim_terms(query)
-    candidates: list[tuple[int, int, int, str, SearchResult]] = []
+    candidates: list[tuple[int, int, int, int, str, SearchResult]] = []
     for result_index, result in enumerate(results[:12]):
         evidence = _fallback_answer_text(result)
         for segment in re.split(r"(?<=[.!?])\s+|\n+", evidence):
             clean = re.sub(r"\s+", " ", segment).strip(" -|•·▪\t\r\n")
-            if not re.search(
+            causal_cues = re.findall(
                 r"\b(?:reduc(?:e|es|ed|ing)|eliminat(?:e|es|ed|ing)|"
                 r"avoid(?:s|ed|ing)?|sav(?:e|es|ed|ing))\b",
                 clean,
                 flags=re.IGNORECASE,
-            ):
+            )
+            listed_cues = re.findall(
+                r"\b(?:powerful|excellent|performance|stable|accuracy|speed|"
+                r"efficient|efficiency|reliable|reliability|automatic|automatically|"
+                r"improv(?:e|es|ed|ing|ement)|reduc(?:e|es|ed|ing|tion))\b",
+                clean,
+                flags=re.IGNORECASE,
+            )
+            cue_count = len(causal_cues if causal_benefit_query else listed_cues)
+            if cue_count == 0:
                 continue
             overlap = len(query_terms.intersection(_material_claim_terms(clean)))
             if overlap < 3:
@@ -3495,12 +3510,12 @@ def _concise_benefit_answer(
                 str(result.metadata.get("chunk_type") or "")
                 in {"atomic_text", "procedure_record"}
             )
-            candidates.append((overlap, bounded, -result_index, clean, result))
+            candidates.append((overlap, cue_count, bounded, -result_index, clean, result))
     if not candidates:
         return "", []
-    _overlap, _bounded, _negative_index, answer, result = max(
+    _overlap, _cue_count, _bounded, _negative_index, answer, result = max(
         candidates,
-        key=lambda item: item[:3],
+        key=lambda item: item[:4],
     )
     return answer, [result]
 

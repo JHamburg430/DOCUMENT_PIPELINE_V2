@@ -8089,6 +8089,48 @@ def test_benefit_answer_uses_exact_auto_image_selector_learning_statement():
     assert trace["final_answer"]["answer_source"] == "deterministic_benefit"
 
 
+def test_listed_benefits_answer_prefers_direct_named_benefit_statement():
+    direct = SearchResult(
+        chunk_id="shapetrax-guided-robot-benefit",
+        score=0.9,
+        title="Guided Robot Systems",
+        document_version_id="v1",
+        source_document_id="guided-robot-doc",
+        pages=[3],
+        section_path=["NEW"],
+        content=(
+            "Key Functions for Advanced Vision-Guided Robot Systems\n\n"
+            "Powerful search tool ShapeTrax™3A, a highly evolved search that provides "
+            "excellent performance and stable operation"
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    broader = SearchResult(
+        chunk_id="shapetrax-general-benefits",
+        score=1.0,
+        title="Alignment/Dimension Measurement",
+        document_version_id="v1",
+        source_document_id="general-doc",
+        pages=[18, 19],
+        section_path=["ALIGNMENT/DIMENSION MEASUREMENT"],
+        content=(
+            "ShapeTrax TM 3A Search tool with ultimate performance, speed, and accuracy "
+            "under poor conditions."
+        ),
+        metadata={"chunk_type": "parent_section"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What benefits does the ShapeTrax 3A search tool provide for Guided Robotic systems?",
+        [direct, broader],
+    )
+
+    assert answer.answer.startswith("Powerful search tool ShapeTrax")
+    assert "excellent performance and stable operation" in answer.answer
+    assert answer.citations[0]["chunk_id"] == "shapetrax-guided-robot-benefit"
+    assert trace["final_answer"]["answer_source"] == "deterministic_benefit"
+
+
 def test_troubleshooting_answer_extracts_prose_remedy_after_symptom():
     result = SearchResult(
         chunk_id="one-spot-remedy",
