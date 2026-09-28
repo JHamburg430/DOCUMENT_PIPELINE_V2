@@ -127,3 +127,79 @@ def test_matrix_case_concurrency_keeps_single_writer_and_dataset_order(tmp_path,
     assert [item["case_id"] for item in partial["items"]] == ["a", "b", "c"]
     assert partial["completed_case_keys"] == ["a", "b", "c"]
     assert set(writer_threads) == {threading.get_ident()}
+
+
+def test_case_answers_run_concurrently_and_merge_in_backend_order(monkeypatch):
+    module = _runner()
+    fixture = Path(__file__).resolve().parents[1] / "fixtures/heldout_retrieval_eval_production_v117.jsonl"
+    raw_case = json.loads(fixture.read_text().splitlines()[0])
+    baseline = module.SearchResult(
+        chunk_id="baseline",
+        score=1.0,
+        title="Manual",
+        document_version_id="version",
+        source_document_id=raw_case["source_document_id"],
+        pages=[1],
+        section_path=["Section"],
+        content="baseline evidence",
+        metadata={},
+    )
+
+    def backend_output(name):
+        result = baseline.model_copy(update={"chunk_id": name, "content": f"{name} evidence"})
+        return {
+            "elapsed_ms": 1.0,
+            "sufficient": True,
+            "stop_reason": "sufficient",
+            "result_chunk_ids": [name],
+            "result_document_ids": [raw_case["source_document_id"]],
+            "results": [result.model_dump()],
+            "stage_snapshots": [],
+            "trace": {"cost": {}},
+        }
+
+    monkeypatch.setattr(module, "retrieve", lambda *_args, **_kwargs: [baseline])
+    monkeypatch.setattr(module, "build_filters", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(module, "score_search_results", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(module, "score_agent_run", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(module, "assess_evidence_sufficiency", lambda *_args: SimpleNamespace(sufficient=True))
+    monkeypatch.setattr(
+        module,
+        "compare_agentic_backends",
+        lambda *_args, **_kwargs: {
+            "langgraph": backend_output("langgraph"),
+            "llamaindex": backend_output("llamaindex"),
+            "equivalent_result_chunks": False,
+        },
+    )
+
+    rendezvous = threading.Barrier(2)
+    lock = threading.Lock()
+    active = 0
+    maximum_active = 0
+
+    def generate_answer(_query, results):
+        nonlocal active, maximum_active
+        with lock:
+            active += 1
+            maximum_active = max(maximum_active, active)
+        rendezvous.wait(timeout=2)
+        with lock:
+            active -= 1
+        return SimpleNamespace(model_dump=lambda: {"answer": results[0].chunk_id, "citations": []})
+
+    monkeypatch.setattr(module, "generate_answer", generate_answer)
+    args = SimpleNamespace(
+        corpus_id=["manuals_vendor_keyence"],
+        max_hops=4,
+        no_llm=True,
+        backend_concurrency=1,
+        progress_jsonl=False,
+    )
+
+    item = module._evaluate_case(args, raw_case, 1)
+
+    assert maximum_active == 2
+    assert list(item)[-2:] == ["langgraph", "llamaindex"]
+    assert item["langgraph"]["answer"]["answer"] == "langgraph"
+    assert item["llamaindex"]["answer"]["answer"] == "llamaindex"

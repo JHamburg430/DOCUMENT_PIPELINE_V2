@@ -4,6 +4,8 @@ import asyncio
 import json
 import re
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
+from threading import BoundedSemaphore
 from time import perf_counter
 from typing import Any, Literal, TypedDict
 
@@ -26,6 +28,7 @@ RetrievalStrategy = Literal["hybrid", "broad", "dense", "sparse", "structural"]
 PlanMode = Literal["single", "parallel", "dependent"]
 EvidenceTrustState = Literal["confirmed", "probable", "unresolved", "conflicting", "rejected"]
 ApplicabilityState = Literal["applicable", "conflicting", "unknown", "not_requested"]
+_AGENT_VERIFIER_SEMAPHORE = BoundedSemaphore(settings.agentic_verifier_max_concurrency)
 VerificationFailureKind = Literal[
     "missing_fact",
     "wrong_document",
@@ -7993,6 +7996,49 @@ def _context_coverage(
     }
 
 
+def _ready_hop_ids(state: AgenticState) -> list[str]:
+    pending = list(state.get("pending_hop_ids", []))
+    completed = list(state.get("completed_hop_ids", []))
+    remaining_budget = max(0, int(state["max_hops"]) - len(completed))
+    recovery_sources = {
+        hop.recovery_for
+        for hop_id in pending
+        if (hop := _hop_by_id(state, hop_id)).recovery_for is not None
+    }
+    ready = [
+        hop_id
+        for hop_id in pending
+        if all(dependency in completed for dependency in _hop_by_id(state, hop_id).depends_on)
+        and not recovery_sources.intersection(_hop_by_id(state, hop_id).depends_on)
+    ]
+    return ready[: min(settings.agentic_hop_max_concurrency, remaining_budget)]
+
+
+def _merge_ready_hop_states(
+    state: AgenticState,
+    ready_hop_ids: list[str],
+    completed_states: list[AgenticState],
+) -> AgenticState:
+    pending = [hop_id for hop_id in state.get("pending_hop_ids", []) if hop_id not in ready_hop_ids]
+    completed = list(state.get("completed_hop_ids", []))
+    hop_results = dict(state.get("hop_results", {}))
+    ledger = dict(state.get("evidence_ledger", {}))
+    for hop_id, completed_state in zip(ready_hop_ids, completed_states, strict=True):
+        if hop_id in completed_state.get("completed_hop_ids", []):
+            completed.append(hop_id)
+        if hop_id in completed_state.get("hop_results", {}):
+            hop_results[hop_id] = completed_state["hop_results"][hop_id]
+        if hop_id in completed_state.get("evidence_ledger", {}):
+            ledger[hop_id] = completed_state["evidence_ledger"][hop_id]
+    return {
+        **state,
+        "pending_hop_ids": pending,
+        "completed_hop_ids": completed,
+        "hop_results": hop_results,
+        "evidence_ledger": ledger,
+    }
+
+
 class AgenticRetrievalController:
     def __init__(
         self,
@@ -8069,7 +8115,7 @@ class AgenticRetrievalController:
             "stop_reason": "",
         }
 
-    def execute_next(self, state: AgenticState) -> AgenticState:
+    def _execute_one(self, state: AgenticState) -> AgenticState:
         if self._runtime_exhausted(state):
             self._emit("agent_stopped", stop_reason="runtime_budget_exhausted")
             return {**state, "stop_reason": "runtime_budget_exhausted"}
@@ -8175,7 +8221,8 @@ class AgenticRetrievalController:
         if retrieval_error:
             assessment["retrieval_error"] = retrieval_error
             assessment["gap_reason"] = "retrieval_error"
-        verification = dict(self.verifier(hop, executed_query, results, assessment))
+        with _AGENT_VERIFIER_SEMAPHORE:
+            verification = dict(self.verifier(hop, executed_query, results, assessment))
         if "judge" not in verification:
             verification["judge"] = {
                 "mode": "deterministic",
@@ -8230,6 +8277,21 @@ class AgenticRetrievalController:
             "hop_results": hop_results,
             "evidence_ledger": ledger,
         }
+
+    def execute_next(self, state: AgenticState) -> AgenticState:
+        ready = _ready_hop_ids(state)
+        if len(ready) <= 1:
+            return self._execute_one(state)
+        with ThreadPoolExecutor(max_workers=len(ready), thread_name_prefix="langgraph-hop") as executor:
+            futures = [
+                executor.submit(
+                    self._execute_one,
+                    {**state, "pending_hop_ids": [hop_id]},
+                )
+                for hop_id in ready
+            ]
+            completed_states = [future.result() for future in futures]
+        return _merge_ready_hop_states(state, ready, completed_states)
 
     def judge(self, state: AgenticState) -> AgenticState:
         plan = RetrievalPlan.model_validate(state["plan"])
@@ -8499,7 +8561,7 @@ class LlamaIndexAgenticController:
             return "structural"
         return hop.strategy
 
-    def execute_next(self, state: AgenticState) -> AgenticState:
+    def _execute_one(self, state: AgenticState) -> AgenticState:
         if self._runtime_exhausted(state):
             self._emit("agent_stopped", stop_reason="runtime_budget_exhausted")
             return {**state, "stop_reason": "runtime_budget_exhausted"}
@@ -8586,7 +8648,8 @@ class LlamaIndexAgenticController:
         if retrieval_error:
             assessment["retrieval_error"] = retrieval_error
             assessment["gap_reason"] = "retrieval_error"
-        verification = dict(self.verifier(hop, executed_query, results, assessment))
+        with _AGENT_VERIFIER_SEMAPHORE:
+            verification = dict(self.verifier(hop, executed_query, results, assessment))
         if "judge" not in verification:
             verification["judge"] = {
                 "mode": "deterministic",
@@ -8642,6 +8705,21 @@ class LlamaIndexAgenticController:
             "hop_results": hop_results,
             "evidence_ledger": ledger,
         }
+
+    def execute_next(self, state: AgenticState) -> AgenticState:
+        ready = _ready_hop_ids(state)
+        if len(ready) <= 1:
+            return self._execute_one(state)
+        with ThreadPoolExecutor(max_workers=len(ready), thread_name_prefix="llamaindex-hop") as executor:
+            futures = [
+                executor.submit(
+                    self._execute_one,
+                    {**state, "pending_hop_ids": [hop_id]},
+                )
+                for hop_id in ready
+            ]
+            completed_states = [future.result() for future in futures]
+        return _merge_ready_hop_states(state, ready, completed_states)
 
     def judge(self, state: AgenticState) -> AgenticState:
         plan = RetrievalPlan.model_validate(state["plan"])
@@ -8894,14 +8972,16 @@ def compare_agentic_backends(
     *,
     max_hops: int = 4,
     use_llm: bool = True,
+    backend_concurrency: int = 1,
 ) -> dict[str, Any]:
     from manuals_rag_retrieval.retriever import capture_retrieval_stages
 
-    outputs: dict[str, Any] = {}
-    for backend, factory in (
+    backend_factories = (
         ("langgraph", build_langgraph_agentic_retriever),
         ("llamaindex", build_llamaindex_agentic_retriever),
-    ):
+    )
+
+    def run_backend(backend: str, factory) -> tuple[str, dict[str, Any]]:
         started = perf_counter()
         with capture_ollama_usage() as usage_events:
             with capture_retrieval_stages() as stage_snapshots:
@@ -8921,7 +9001,7 @@ def compare_agentic_backends(
             **usage,
             "measured": True,
         }
-        outputs[backend] = {
+        return backend, {
             "elapsed_ms": elapsed_ms,
             "sufficient": state.get("sufficient", False),
             "stop_reason": state.get("stop_reason"),
@@ -8933,6 +9013,20 @@ def compare_agentic_backends(
             "stage_snapshots": stage_snapshots,
             "trace": trace,
         }
+
+    outputs: dict[str, Any] = {}
+    worker_count = min(max(1, backend_concurrency), len(backend_factories))
+    if worker_count == 1:
+        completed = [run_backend(backend, factory) for backend, factory in backend_factories]
+    else:
+        with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="agent-backend") as executor:
+            futures = [
+                executor.submit(run_backend, backend, factory)
+                for backend, factory in backend_factories
+            ]
+            completed = [future.result() for future in futures]
+    for backend, output in completed:
+        outputs[backend] = output
     outputs["equivalent_result_chunks"] = (
         outputs["langgraph"]["result_chunk_ids"] == outputs["llamaindex"]["result_chunk_ids"]
     )

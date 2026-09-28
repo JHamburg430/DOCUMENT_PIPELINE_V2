@@ -1,3 +1,6 @@
+import threading
+import time
+
 import pytest
 
 from manuals_rag_answering.agentic_retrieval import (
@@ -7,6 +10,7 @@ from manuals_rag_answering.agentic_retrieval import (
     RetrievalPlan,
     build_langgraph_agentic_retriever,
     build_llamaindex_agentic_retriever,
+    compare_agentic_backends,
     plan_retrieval,
     plan_llamaindex_retrieval,
     refine_dependent_query,
@@ -6541,6 +6545,106 @@ def test_dependent_hop_is_refined_from_prior_evidence():
     ]
     assert output["evidence_ledger"]["find_tolerance"]["executed_query"] == executed_queries[1]
     assert output["sufficient"] is True
+
+
+@pytest.mark.parametrize("controller_type", [AgenticRetrievalController, LlamaIndexAgenticController])
+def test_dependency_ready_hops_run_concurrently_and_merge_in_plan_order(controller_type):
+    plan = RetrievalPlan(
+        mode="parallel",
+        hops=[
+            RetrievalHop(hop_id="first", objective="Find first fact", query="first fact"),
+            RetrievalHop(hop_id="second", objective="Find second fact", query="second fact"),
+        ],
+    )
+    rendezvous = threading.Barrier(2)
+    lock = threading.Lock()
+    active = 0
+    maximum_active = 0
+
+    def retrieve(query, _corpus_ids, _filters, _strategy, _limit):
+        nonlocal active, maximum_active
+        with lock:
+            active += 1
+            maximum_active = max(maximum_active, active)
+        rendezvous.wait(timeout=2)
+        time.sleep(0.01 if query == "first fact" else 0)
+        with lock:
+            active -= 1
+        return [_result(query, "parallel-doc", f"Evidence for {query}")]
+
+    def verify(_hop, _query, results, _assessment):
+        return {
+            "trust_state": "confirmed",
+            "claim_supported": True,
+            "supporting_chunk_ids": [results[0].chunk_id],
+            "conflicting_chunk_ids": [],
+            "applicability": "applicable",
+            "scope_entity": None,
+            "rationale": "direct support",
+        }
+
+    controller = controller_type(
+        use_llm=False,
+        planner=lambda _query: plan,
+        retriever=retrieve,
+        verifier=verify,
+    )
+    initialized = controller.initialize(
+        {"query": "two facts", "corpus_ids": ["manuals"], "filters": {}, "max_hops": 4}
+    )
+    output = controller.execute_next(initialized)
+
+    assert maximum_active == 2
+    assert output["completed_hop_ids"] == ["first", "second"]
+    assert list(output["hop_results"]) == ["first", "second"]
+    assert list(output["evidence_ledger"]) == ["first", "second"]
+
+
+def test_compare_agentic_backends_can_run_concurrently_and_publish_declared_order(monkeypatch):
+    rendezvous = threading.Barrier(2)
+    lock = threading.Lock()
+    active = 0
+    maximum_active = 0
+
+    class FakeRetriever:
+        def __init__(self, backend):
+            self.backend = backend
+
+        def invoke(self, _state):
+            nonlocal active, maximum_active
+            with lock:
+                active += 1
+                maximum_active = max(maximum_active, active)
+            rendezvous.wait(timeout=2)
+            with lock:
+                active -= 1
+            result = _result(self.backend, "doc", f"Evidence from {self.backend}")
+            return {
+                "sufficient": True,
+                "stop_reason": "sufficient",
+                "retrieval_results": [result.model_dump()],
+                "retrieval_trace": {"cost": {}},
+            }
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.build_langgraph_agentic_retriever",
+        lambda **_kwargs: FakeRetriever("langgraph"),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.build_llamaindex_agentic_retriever",
+        lambda **_kwargs: FakeRetriever("llamaindex"),
+    )
+
+    output = compare_agentic_backends(
+        "query",
+        ["manuals"],
+        {},
+        use_llm=False,
+        backend_concurrency=2,
+    )
+
+    assert maximum_active == 2
+    assert list(output) == ["langgraph", "llamaindex", "equivalent_result_chunks"]
 
 
 def test_source_audited_encoder_head_dependency_binds_discovered_model():

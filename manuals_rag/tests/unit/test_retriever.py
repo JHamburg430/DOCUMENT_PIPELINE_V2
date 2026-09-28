@@ -3830,7 +3830,7 @@ def test_metadata_balanced_table_search_preserves_candidates_per_routed_document
         per_document_limit=2,
     )
 
-    assert [call["source_document_id"] for call in calls] == ["doc-1", "doc-2", "doc-3"]
+    assert sorted(call["source_document_id"] for call in calls) == ["doc-1", "doc-2", "doc-3"]
     assert [result.source_document_id for result in results] == [
         "doc-1",
         "doc-1",
@@ -3839,6 +3839,47 @@ def test_metadata_balanced_table_search_preserves_candidates_per_routed_document
         "doc-3",
         "doc-3",
     ]
+
+
+def test_metadata_balanced_table_search_runs_documents_concurrently_but_merges_in_route_order(monkeypatch):
+    rendezvous = Barrier(2)
+
+    def fake_table_search(_store, _query, _corpus_ids, filters, limit=40):
+        document_id = str(filters["source_document_id"])
+        if document_id in {"doc-1", "doc-2"}:
+            rendezvous.wait(timeout=2)
+        return [
+            SearchResult(
+                chunk_id=f"chunk-{document_id}",
+                score=1.0,
+                title=document_id,
+                document_version_id=f"version-{document_id}",
+                source_document_id=document_id,
+                pages=[1],
+                section_path=["Specs"],
+                content=f"Evidence from {document_id}",
+                metadata={"chunk_type": "table_record"},
+            )
+        ]
+
+    monkeypatch.setattr(retriever, "run_table_search", fake_table_search)
+    monkeypatch.setattr(retriever, "settings", SimpleNamespace(retrieval_qdrant_max_concurrency=2))
+
+    results = retriever.run_metadata_balanced_table_search(
+        object(),
+        "rated input voltage",
+        ["c1"],
+        {"is_active": True},
+        [
+            {"source_document_id": "doc-1"},
+            {"source_document_id": "doc-2"},
+            {"source_document_id": "doc-3"},
+        ],
+        document_limit=3,
+        per_document_limit=1,
+    )
+
+    assert [result.source_document_id for result in results] == ["doc-1", "doc-2", "doc-3"]
 
 
 def test_metadata_balanced_table_search_skips_explicit_document_scope(monkeypatch):
