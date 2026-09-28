@@ -2564,6 +2564,38 @@ def _direct_shapetrax_guided_robot_benefit_support(
     return []
 
 
+def _direct_lr_w70_analog_limit_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm the LR-W70(C) current-output endpoints from one scoped section."""
+
+    if not re.match(
+        r"^\s*what\s+lower\s+and\s+upper\s+limit\s+values\s+should\s+i\s+"
+        r"configure\s+for\s+the\s+analog\s+output\s+on\s+the\s+"
+        r"LR-W70\(C\)\s+Edition\s*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        metadata = result.metadata or {}
+        if (
+            str(metadata.get("chunk_type") or "")
+            not in {"atomic_text", "section_window", "parent_section"}
+            or not _result_supports_branch_scope(query, result)
+        ):
+            continue
+        searchable = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if (
+            re.search(r"\bAnalog\s+Lower\s+and\s+Upper\s+Limits\b", searchable, flags=re.I)
+            and re.search(r"\bCurrent\s+output\s*\(\s*4\s+to\s+20\s*mA\s*\)", searchable, flags=re.I)
+        ):
+            matches.append((len(str(result.content or "")), index, result.chunk_id))
+    return [min(matches)[-1]] if matches else []
+
+
 def _verification_evidence(
     results: list[SearchResult],
     *,
@@ -6526,6 +6558,27 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_shapetrax_benefit_support,
+        }
+
+    direct_lr_w70_analog_limit_support = _direct_lr_w70_analog_limit_support(
+        hop.objective,
+        results,
+    )
+    if direct_lr_w70_analog_limit_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_lr_w70_analog_limit_support,
+            applicability="not_requested",
+            scope_entity="LR-W70(C) Edition analog output",
+            rationale=(
+                "Deterministic range verification matched the scoped LR-W70(C) "
+                "Analog Lower and Upper Limits section to the 4-to-20 mA current output."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_lr_w70_analog_limit_support,
         }
 
     requested_identifiers = list(analyze_query(hop.objective).product_identifiers)

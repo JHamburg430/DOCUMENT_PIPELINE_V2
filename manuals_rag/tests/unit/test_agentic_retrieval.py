@@ -27,6 +27,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_emc_standard_class_support,
     _direct_lj_x8000_head_extension_models_support,
     _direct_laser_eye_level_installation_support,
+    _direct_lr_w70_analog_limit_support,
     _direct_lr_z_press_again_support,
     _direct_output_to_rs232c_support,
     _direct_vs_s_ca_dex10x_power_support,
@@ -1250,6 +1251,59 @@ def test_model_planners_keep_lower_upper_value_lookup_single_hop(monkeypatch):
         assert len(plan.hops) == 1
         assert plan.hops[0].query == query
         assert plan.hops[0].strategy == "hybrid"
+
+
+def test_verifier_confirms_lr_w70_analog_limit_range_without_llm(monkeypatch):
+    query = (
+        "What lower and upper limit values should I configure for the analog output "
+        "on the LR-W70(C) Edition?"
+    )
+    nearby = _result(
+        "nearby-range",
+        "lr-w70-doc",
+        "Initial settings 20 mA 4 mA",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "LR-W70(C) Edition",
+                "parent_context": (
+                    "8-8 Analog Lower and Upper Limits. Current output (4 to 20 mA)"
+                ),
+            }
+        }
+    )
+    supported = _result(
+        "analog-limits",
+        "lr-w70-doc",
+        "8-8 Analog Lower and Upper Limits Configure scaling settings, if necessary. "
+        "Current output (4 to 20 mA)",
+    ).model_copy(
+        update={
+            "metadata": {
+                "chunk_type": "atomic_text",
+                "product_model": "LR-W70(C) Edition",
+                "product_models": ["LR-W70(C) Edition"],
+            }
+        }
+    )
+    assert _direct_lr_w70_analog_limit_support(query, [nearby, supported]) == [
+        "analog-limits"
+    ]
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+    output = verify_retrieval_claim(
+        RetrievalHop(hop_id="range_value", objective=query, query=query),
+        query,
+        [nearby, supported],
+        {"claim_supported": False, "supporting_chunk_ids": []},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["analog-limits"]
 
 
 def test_planners_keep_explicit_manual_frame_rate_lookup_single_hop(monkeypatch):
