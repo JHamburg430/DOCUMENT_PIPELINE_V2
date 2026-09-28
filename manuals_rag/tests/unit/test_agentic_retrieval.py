@@ -5619,6 +5619,40 @@ def test_verifier_promotes_attributed_support_when_model_marks_it_probable(monke
     assert output["supporting_chunk_ids"] == ["stb"]
 
 
+def test_verifier_confirms_exact_subtraction_control_without_model_veto(monkeypatch):
+    query = (
+        "How can I adjust the defect recognition threshold for non-defective workpieces "
+        "in the Subtraction filter?"
+    )
+    hop = RetrievalHop(hop_id="threshold", objective=query, query=query)
+    result = _result(
+        "subtraction-threshold",
+        "cv-x-doc",
+        (
+            "Compares the current image with a previously registered master image. "
+            "It is also possible to take individual differences in non-defective workpieces "
+            "into account and adjust how much differences should be recognized as defective."
+        ),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("exact control evidence must not depend on a model verdict")
+        ),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [result],
+        {"claim_supported": True, "supporting_chunk_ids": [result.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["claim_supported"] is True
+    assert output["supporting_chunk_ids"] == ["subtraction-threshold"]
+
+
 def test_verifier_prompt_judges_negative_answers_as_supported_and_omits_preliminary_payload(
     monkeypatch,
 ):
@@ -6877,6 +6911,79 @@ def test_recovery_stops_after_two_consecutive_hops_without_new_evidence():
         assert output["stop_reason"] == "retrieval_no_progress"
         last_hop = output["retrieval_trace"]["completed_hops"][-1]
         assert output["evidence_ledger"][last_hop]["assessment"]["no_progress_streak"] == 2
+
+
+def test_xgx_encoder_connection_plans_preserve_one_original_objective(monkeypatch):
+    query = "How do you wire the Keyence encoder for the XG-X?"
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("the deterministic connection plan must bypass model planning")
+        ),
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=True)
+
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].objective == query
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "hybrid"
+        assert "voltage" not in plan.hops[0].query.lower()
+        assert "diagram" not in plan.hops[0].query.lower()
+
+
+def test_recovery_ignores_novel_irrelevant_chunks_when_measuring_progress():
+    query = "How can I adjust the defect recognition threshold for non-defective workpieces?"
+    plan = RetrievalPlan(
+        hops=[RetrievalHop(hop_id="threshold", objective=query, query=query, strategy="hybrid")]
+    )
+    retrieval_calls = 0
+
+    def retrieve(*_args):
+        nonlocal retrieval_calls
+        retrieval_calls += 1
+        return [
+            _result(
+                f"irrelevant-{retrieval_calls}",
+                f"unrelated-doc-{retrieval_calls}",
+                "A different product manual section that does not answer the threshold question.",
+            )
+        ]
+
+    for factory, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        retrieval_calls = 0
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+            verifier=lambda *_args: {
+                "trust_state": "unresolved",
+                "claim_supported": False,
+                "supporting_chunk_ids": [],
+                "conflicting_chunk_ids": [],
+                "applicability": "not_requested",
+                "scope_entity": "Subtraction filter",
+                "failure_kind": "missing_fact",
+                "missing_evidence": "the directly supported threshold adjustment rule",
+                "rationale": "The retrieved section is unrelated.",
+            },
+        )
+
+        output = _invoke(factory, controller, query=query, max_hops=6)
+
+        assert retrieval_calls == 3
+        assert output["sufficient"] is False
+        assert output["stop_reason"] == "retrieval_no_progress"
+        last_hop = output["retrieval_trace"]["completed_hops"][-1]
+        last_assessment = output["evidence_ledger"][last_hop]["assessment"]
+        assert last_assessment["novel_chunk_ids"]
+        assert last_assessment["novel_supporting_chunk_ids"] == []
+        assert last_assessment["no_progress_streak"] == 2
 
 
 def test_hop_budget_stops_non_improving_recovery():

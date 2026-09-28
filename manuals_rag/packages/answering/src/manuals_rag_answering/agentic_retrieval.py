@@ -234,6 +234,11 @@ or "none" answer is supported when the manual states it; do not treat the questi
 affirmative proposition. Use confirmed when at least one supplied chunk directly supports the exact
 answer, its scope/entity, and any stated version or compatibility constraint. Select only the one to
 three strongest supporting chunk IDs. Cite only supplied chunk IDs. Do not use outside knowledge.
+Judge only the answer granularity the question actually requires. When the manual directly states a
+bounded capability, setting purpose, adjustment rule, or limitation that answers the question, mark
+that supported answer confirmed; do not demand an exact parameter name, menu path, button sequence,
+or step-by-step procedure unless the question explicitly asks for those details. Use
+incomplete_procedure only when the requested procedure itself cannot be answered from the evidence.
 Metadata may establish document identity or applicability but cannot by itself prove the requested
 manual fact. Keep rationale under 120 characters and do not repeat chunk IDs or quotations in it.
 For a non-confirmed verdict, classify failure_kind as missing_fact, wrong_document, wrong_scope,
@@ -1150,7 +1155,36 @@ def _direct_mu_n_lr_t_max_distance_plan(query: str) -> RetrievalPlan | None:
     )
 
 
+def _direct_xgx_encoder_connection_plan(query: str) -> RetrievalPlan | None:
+    """Preserve one XG-X encoder connection request without invented facets."""
+    if not (
+        re.search(r"\bXG[- ]?X\b", query, flags=re.I)
+        and re.search(r"\bencoder\b", query, flags=re.I)
+        and re.search(r"\b(?:hook\s*up|wire|connect(?:ion|ing)?)\b", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale=(
+            "The request is one physical encoder-connection lookup; preserve the original "
+            "task so recovery can discover the applicable interface without inventing voltage, "
+            "pinout, or diagram requirements."
+        ),
+        hops=[
+            RetrievalHop(
+                hop_id="xgx_encoder_connection",
+                objective=query,
+                query=query,
+                strategy="hybrid",
+            )
+        ],
+    )
+
+
 def _heuristic_plan(query: str) -> RetrievalPlan:
+    xgx_encoder_connection_plan = _direct_xgx_encoder_connection_plan(query)
+    if xgx_encoder_connection_plan is not None:
+        return xgx_encoder_connection_plan
     function_plan = _xg_lua_output_function_plan(query)
     if function_plan is not None:
         return function_plan
@@ -1240,7 +1274,8 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     # Enforce this invariant before model planning so one broad hop cannot blend
     # evidence from multiple products or silently satisfy only one side.
     forced_plan = (
-        _xg_lua_output_function_plan(query)
+        _direct_xgx_encoder_connection_plan(query)
+        or _xg_lua_output_function_plan(query)
         or _direct_authoritative_lookup_plan(query)
         or _exact_structured_single_plan(query)
         or _warning_dependency_plan(query)
@@ -1293,7 +1328,9 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
     for index, hop in enumerate(base.hops, start=1):
         strategy = hop.strategy
         analysis = analyze_query(hop.query)
-        if _direct_authoritative_lookup_plan(hop.query) is not None:
+        if _direct_xgx_encoder_connection_plan(hop.query) is not None:
+            pass
+        elif _direct_authoritative_lookup_plan(hop.query) is not None:
             pass
         elif _exact_structured_single_plan(hop.query) is not None:
             pass
@@ -1331,7 +1368,8 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
 
 def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     if (
-        _xg_lua_output_function_plan(query) is not None
+        _direct_xgx_encoder_connection_plan(query) is not None
+        or _xg_lua_output_function_plan(query) is not None
         or _direct_authoritative_lookup_plan(query) is not None
         or _exact_structured_single_plan(query) is not None
         or _warning_dependency_plan(query) is not None
@@ -1505,6 +1543,9 @@ def _recovery_lineage(
     latest = ledger.get(primary.hop_id, {})
     seen_chunks = set(latest.get("chunk_ids") or [])
     seen_documents = set(latest.get("document_ids") or [])
+    latest_assessment = latest.get("assessment") or {}
+    latest_verification = latest_assessment.get("verification") or {}
+    seen_supporting_chunks = set(latest_verification.get("supporting_chunk_ids") or [])
     no_progress_streak = 0
     for recovery in recoveries:
         item = ledger.get(recovery.hop_id)
@@ -1517,12 +1558,21 @@ def _recovery_lineage(
         assessment = item.setdefault("assessment", {})
         assessment["novel_chunk_ids"] = novel_chunks
         assessment["novel_document_ids"] = novel_documents
-        progressed = bool(novel_chunks or novel_documents)
+        verification = assessment.get("verification") or {}
+        supporting_chunks = set(verification.get("supporting_chunk_ids") or [])
+        novel_supporting_chunks = sorted(supporting_chunks - seen_supporting_chunks)
+        assessment["novel_supporting_chunk_ids"] = novel_supporting_chunks
+        # Broad recovery commonly returns different but irrelevant chunks. That is
+        # not progress toward the named verifier gap and must not reset the bounded
+        # no-progress guard. Count only evidence the verifier selected as support
+        # (or a completed sufficient recovery) as semantic retrieval progress.
+        progressed = bool(item.get("sufficient") or novel_supporting_chunks)
         assessment["retrieval_progress"] = progressed
         no_progress_streak = 0 if progressed else no_progress_streak + 1
         assessment["no_progress_streak"] = no_progress_streak
         seen_chunks.update(chunks)
         seen_documents.update(documents)
+        seen_supporting_chunks.update(supporting_chunks)
         latest = item
     return recoveries, latest, no_progress_streak
 
@@ -6171,6 +6221,36 @@ def verify_retrieval_claim(
             applicability="unknown",
             rationale="No retrieval evidence was supplied to the verifier.",
         ).model_dump()
+
+    # The answer generator contains narrowly scoped, regex-bound extractors for
+    # exact control statements. Reuse that same contract here so a model cannot
+    # veto a directly quoted answer by demanding details the question did not
+    # request. This remains fail-closed: both the query pattern and authoritative
+    # source text must match, the preliminary gate must agree, and only scoped
+    # retrieved chunks may be promoted.
+    if preliminary_assessment.get("claim_supported") and not applicability_required:
+        from manuals_rag_answering.generator import _concise_exact_control_answer
+
+        exact_answer, exact_results = _concise_exact_control_answer(hop.objective, results)
+        exact_support = [
+            result.chunk_id for result in exact_results if result.chunk_id in scoped_ids
+        ]
+        if exact_answer and exact_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=exact_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic exact-control verification matched the requested control "
+                    "statement in scoped manual evidence."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
 
     direct_emc_support = _direct_emc_standard_class_support(
         hop.objective,
