@@ -1,4 +1,8 @@
-from apps.worker_ingest.main import _docling_table_specs, _metadata_extraction_payload
+from apps.worker_ingest.main import (
+    _deferred_document_metadata,
+    _docling_table_specs,
+    _metadata_extraction_payload,
+)
 from manuals_rag_parsers.metadata import DocumentMetadata, METADATA_PIPELINE_VERSION
 from manuals_rag_schemas.enums import DocumentKind
 
@@ -63,3 +67,12 @@ def test_metadata_extraction_payload_persists_claim_ledger_and_pipeline_version(
 
     assert payload["metadata_claims"] == metadata.metadata_claims
     assert payload["metadata_pipeline_version"] == METADATA_PIPELINE_VERSION
+
+
+def test_deferred_metadata_is_explicitly_non_authoritative():
+    metadata = _deferred_document_metadata("Keyence_XGX_User_Manual.pdf")
+
+    assert metadata.title == "Keyence_XGX_User_Manual"
+    assert metadata.manufacturer == ""
+    assert metadata.metadata_claims == []
+    assert metadata.metadata_pipeline_version == "deferred_ocr_repair"

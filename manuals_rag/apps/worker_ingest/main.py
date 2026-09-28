@@ -17,8 +17,8 @@ from manuals_rag_common.storage import ObjectStore
 from manuals_rag_normalizers.normalize import normalize_nodes
 from manuals_rag_observability.metrics import INGEST_DURATION, PARSE_FAILURES
 from manuals_rag_parsers.docling_parser import parse_document
-from manuals_rag_parsers.metadata import MetadataSourceSegment, infer_document_metadata_from_segments
-from manuals_rag_schemas.enums import NodeType
+from manuals_rag_parsers.metadata import DocumentMetadata, MetadataSourceSegment, infer_document_metadata_from_segments
+from manuals_rag_schemas.enums import DocumentKind, NodeType
 
 log = logging.getLogger(__name__)
 PAGE_IMAGE_SCALE = 1.5
@@ -87,6 +87,30 @@ def _metadata_source_segments(nodes: list[object]) -> list[MetadataSourceSegment
         for node in nodes
         if str(getattr(node, "text_normalized", "") or getattr(node, "text_raw", "")).strip()
     ]
+
+
+def _deferred_document_metadata(filename: str) -> DocumentMetadata:
+    """Represent a successful parse whose authoritative metadata is intentionally deferred."""
+    return DocumentMetadata(
+        manufacturer="",
+        companies=[],
+        product_family=None,
+        product_model=None,
+        product_families=[],
+        product_models=[],
+        devices=[],
+        part_numbers=[],
+        protocol_terms=[],
+        settings=[],
+        parameters=[],
+        menu_labels=[],
+        document_topics=[],
+        title=filename.rsplit(".", 1)[0],
+        document_kind=DocumentKind.manual,
+        revision_date=None,
+        effective_date=None,
+        metadata_pipeline_version="deferred_ocr_repair",
+    )
 
 
 def _put_once(store: ObjectStore, bucket: str, object_name: str, data: bytes, content_type: str) -> str:
@@ -257,11 +281,17 @@ def process_job(job: dict[str, str]) -> None:
         current_step = "metadata"
         start_ingestion_step(run_id, current_step)
         table_extraction_used = any(node.node_type == NodeType.table for node in normalized)
-        inferred_metadata = infer_document_metadata_from_segments(
-            document["source_filename"],
-            _metadata_source_segments(normalized),
-            max_segment_chars=settings.metadata_segment_chars,
+        defer_metadata = job.get("defer_metadata") is True
+        inferred_metadata = (
+            _deferred_document_metadata(document["source_filename"])
+            if defer_metadata
+            else infer_document_metadata_from_segments(
+                document["source_filename"],
+                _metadata_source_segments(normalized),
+                max_segment_chars=settings.metadata_segment_chars,
+            )
         )
+        metadata_model = "deferred_ocr_repair" if defer_metadata else settings.ollama_metadata_model
         metadata = {
             "tenant_id": document["tenant_id"],
             "corpus_id": document["corpus_id"],
@@ -311,6 +341,7 @@ def process_job(job: dict[str, str]) -> None:
                 "document_kind": metadata["document_kind"],
                 "part_numbers": inferred_metadata.part_numbers,
                 "topics": inferred_metadata.document_topics,
+                "deferred": defer_metadata,
             },
         )
 
@@ -478,7 +509,7 @@ def process_job(job: dict[str, str]) -> None:
             (
                 document["id"],
                 document["version_id"],
-                settings.ollama_metadata_model,
+                metadata_model,
                 json_dumps(_metadata_extraction_payload(inferred_metadata)),
             ),
         )
