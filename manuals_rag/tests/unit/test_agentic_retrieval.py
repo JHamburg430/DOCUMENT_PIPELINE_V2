@@ -69,10 +69,16 @@ def _result(chunk_id: str, document_id: str, content: str) -> SearchResult:
     )
 
 
-def _invoke(factory, controller, *, max_hops: int = 4):
+def _invoke(
+    factory,
+    controller,
+    *,
+    max_hops: int = 4,
+    query: str = "Compare the corrective actions for ALPHA-1 and BETA-2.",
+):
     return factory(controller=controller).invoke(
         {
-            "query": "Compare the corrective actions for ALPHA-1 and BETA-2.",
+            "query": query,
             "corpus_ids": ["manuals"],
             "filters": {},
             "max_hops": max_hops,
@@ -6707,6 +6713,127 @@ def test_verifier_only_failure_stops_without_futile_retrieval_recovery():
         assert retrieval_calls == 1
         assert output["sufficient"] is False
         assert list(output["evidence_ledger"]) == ["lookup"]
+
+
+def test_structured_verifier_gap_drives_recovery_even_when_preliminary_evidence_looks_sufficient():
+    query = "How do you wire the Keyence encoder for the XG-X?"
+    plan = RetrievalPlan(
+        hops=[RetrievalHop(hop_id="wiring", objective=query, query=query, strategy="hybrid")]
+    )
+    parameter_page = _result(
+        "parameter-page",
+        "xgx-reference",
+        "XG-X encoder hookup and wiring settings: when using the dedicated encoder, set the "
+        "number of pulses for one revolution. See the CA-EN100U Instruction Manual for the "
+        "CA-EN100H connection.",
+    )
+    wiring_page = _result(
+        "wiring-page",
+        "ca-en100u-manual",
+        "Check that power (24 VDC) is not supplied to the CA-EN100U, then connect the "
+        "CA-EN100H encoder head to the encoder connector of the CA-EN100U.",
+    )
+
+    for factory, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        executed_queries: list[str] = []
+
+        def retrieve(retrieval_query, *_args):
+            executed_queries.append(retrieval_query)
+            return [parameter_page] if len(executed_queries) == 1 else [wiring_page]
+
+        def verify(_hop, _executed_query, results, _assessment):
+            if results[0].chunk_id == "parameter-page":
+                return {
+                    "trust_state": "rejected",
+                    "claim_supported": False,
+                    "supporting_chunk_ids": [],
+                    "conflicting_chunk_ids": [],
+                    "applicability": "not_requested",
+                    "scope_entity": "XG-X / CA-EN100U / CA-EN100H",
+                    "failure_kind": "wrong_document",
+                    "missing_evidence": "physical encoder wiring diagram or pinout",
+                    "rationale": "The page covers encoder parameters, not physical wiring.",
+                }
+            return {
+                "trust_state": "confirmed",
+                "claim_supported": True,
+                "supporting_chunk_ids": ["wiring-page"],
+                "conflicting_chunk_ids": [],
+                "applicability": "not_requested",
+                "scope_entity": "CA-EN100U / CA-EN100H",
+                "failure_kind": None,
+                "missing_evidence": "",
+                "rationale": "The wiring page directly states the power-off prerequisite and connection.",
+            }
+
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+            verifier=verify,
+        )
+        output = _invoke(factory, controller, query=query, max_hops=6)
+
+        assert len(executed_queries) == 2
+        assert output["evidence_ledger"]["wiring"]["assessment"]["preliminary_sufficient"] is True
+        assert query in executed_queries[1]
+        assert "What safety step is required before connecting the encoder head" in executed_queries[1]
+        assert "pinout" not in executed_queries[1]
+        assert "CA-EN100U" in executed_queries[1]
+        assert "CA-EN100H" in executed_queries[1]
+        assert "do not substitute encoder parameter configuration" in executed_queries[1]
+        assert output["sufficient"] is True
+        assert output["retrieval_trace"]["required_claim_support"]["wiring"] == ["wiring-page"]
+
+
+def test_recovery_stops_after_two_consecutive_hops_without_new_evidence():
+    query = "How do you wire the Keyence encoder for the XG-X?"
+    plan = RetrievalPlan(
+        hops=[RetrievalHop(hop_id="wiring", objective=query, query=query, strategy="hybrid")]
+    )
+    parameter_page = _result(
+        "same-parameter-page",
+        "xgx-reference",
+        "XG-X encoder wiring parameter: set the number of pulses for one revolution.",
+    )
+
+    for factory, controller_type in (
+        (build_langgraph_agentic_retriever, AgenticRetrievalController),
+        (build_llamaindex_agentic_retriever, LlamaIndexAgenticController),
+    ):
+        retrieval_calls = 0
+
+        def retrieve(*_args):
+            nonlocal retrieval_calls
+            retrieval_calls += 1
+            return [parameter_page]
+
+        controller = controller_type(
+            use_llm=False,
+            planner=lambda _query: plan,
+            retriever=retrieve,
+            verifier=lambda *_args: {
+                "trust_state": "rejected",
+                "claim_supported": False,
+                "supporting_chunk_ids": [],
+                "conflicting_chunk_ids": [],
+                "applicability": "not_requested",
+                "scope_entity": "XG-X",
+                "failure_kind": "wrong_document",
+                "missing_evidence": "physical encoder wiring instructions",
+                "rationale": "Only encoder parameter configuration was retrieved.",
+            },
+        )
+        output = _invoke(factory, controller, query=query, max_hops=6)
+
+        assert retrieval_calls == 3
+        assert output["sufficient"] is False
+        assert output["stop_reason"] == "retrieval_no_progress"
+        last_hop = output["retrieval_trace"]["completed_hops"][-1]
+        assert output["evidence_ledger"][last_hop]["assessment"]["no_progress_streak"] == 2
 
 
 def test_hop_budget_stops_non_improving_recovery():
