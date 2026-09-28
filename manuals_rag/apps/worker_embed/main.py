@@ -13,6 +13,27 @@ from manuals_rag_schemas.documents import RetrievalChunk
 
 log = logging.getLogger(__name__)
 
+DOCUMENT_METADATA_PAYLOAD_FIELDS = (
+    "document_kind", "manufacturer", "companies", "product_family", "product_model",
+    "product_families", "product_models", "devices", "part_numbers", "protocol_terms",
+    "settings", "parameters", "menu_labels", "document_topics", "revision_date",
+    "metadata_schema_version", "metadata_pipeline_version", "normalized_identifier_aliases",
+    "routing_product_models", "routing_part_numbers", "routing_protocol_terms",
+    "firmware_applicability", "software_applicability",
+)
+
+
+def _chunk_metadata_payload(metadata: dict[str, object]) -> dict[str, object]:
+    payload: dict[str, object] = {}
+    for field in DOCUMENT_METADATA_PAYLOAD_FIELDS:
+        key = (
+            "document_protocol_terms" if field == "protocol_terms"
+            else "document_menu_labels" if field == "menu_labels"
+            else field
+        )
+        payload[key] = metadata.get(field)
+    return payload
+
 
 def _fetch_document_metadata_record(document_id: str) -> dict[str, object] | None:
     rows = fetch_all(
@@ -56,52 +77,70 @@ def process_job(job: dict[str, str]) -> None:
     current_step = "index_chunks"
     try:
         start_ingestion_step(job["run_id"], current_step)
-        chunks = fetch_all("select * from retrieval_chunks where document_version_id = %s", (job["version_id"],))
-        if not chunks:
+        count_rows = fetch_all(
+            "select count(*)::int as count from retrieval_chunks where document_version_id = %s",
+            (job["version_id"],),
+        )
+        chunk_count = int(count_rows[0]["count"]) if count_rows else 0
+        if not chunk_count:
             raise ValueError("No chunks available; preserving existing index.")
         document = fetch_all("select corpus_id from source_documents where id = %s", (job["document_id"],))
         if not document:
             raise ValueError("Document missing for embed job.")
         store = QdrantStore(timeout=30)
-        parsed_chunks = [
-            RetrievalChunk.model_validate(
-                {
-                    **chunk,
-                    "document_version_id": str(chunk["document_version_id"]),
-                    "source_document_id": str(chunk["source_document_id"]),
-                    "logical_node_ids_json": chunk["logical_node_ids_json"],
-                    "metadata_json": chunk["metadata_json"],
-                }
+        metadata_record = _fetch_document_metadata_record(job["document_id"])
+        if job.get("metadata_only"):
+            if metadata_record is None:
+                raise ValueError("Document metadata missing for metadata-only refresh.")
+            store.refresh_document_chunk_payload(
+                document[0]["corpus_id"],
+                source_document_id=job["document_id"],
+                payload=_chunk_metadata_payload(dict(metadata_record.get("metadata_json") or {})),
             )
-            for chunk in chunks
-        ]
-        store.upsert_chunks(document[0]["corpus_id"], parsed_chunks)
-        if settings.indexed_bm25_enabled:
-            store.upsert_bm25_chunks(document[0]["corpus_id"], parsed_chunks)
-        # Preserve the working index if embedding/upsert fails. Remove only
-        # obsolete IDs after the replacement points have been accepted.
-        store.delete_document_chunks(
-            document[0]["corpus_id"],
-            source_document_id=job["document_id"],
-            document_version_id=job["version_id"],
-            exclude_chunk_ids=[chunk.id for chunk in parsed_chunks],
-        )
-        if settings.indexed_bm25_enabled:
-            store.delete_bm25_document_chunks(
+        else:
+            chunks = fetch_all("select * from retrieval_chunks where document_version_id = %s", (job["version_id"],))
+            parsed_chunks = [
+                RetrievalChunk.model_validate(
+                    {
+                        **chunk,
+                        "document_version_id": str(chunk["document_version_id"]),
+                        "source_document_id": str(chunk["source_document_id"]),
+                        "logical_node_ids_json": chunk["logical_node_ids_json"],
+                        "metadata_json": chunk["metadata_json"],
+                    }
+                )
+                for chunk in chunks
+            ]
+            store.upsert_chunks(document[0]["corpus_id"], parsed_chunks)
+            if settings.indexed_bm25_enabled:
+                store.upsert_bm25_chunks(document[0]["corpus_id"], parsed_chunks)
+            # Preserve the working index if embedding/upsert fails. Remove only
+            # obsolete IDs after the replacement points have been accepted.
+            store.delete_document_chunks(
                 document[0]["corpus_id"],
                 source_document_id=job["document_id"],
                 document_version_id=job["version_id"],
                 exclude_chunk_ids=[chunk.id for chunk in parsed_chunks],
             )
+            if settings.indexed_bm25_enabled:
+                store.delete_bm25_document_chunks(
+                    document[0]["corpus_id"],
+                    source_document_id=job["document_id"],
+                    document_version_id=job["version_id"],
+                    exclude_chunk_ids=[chunk.id for chunk in parsed_chunks],
+                )
         complete_ingestion_step(
             job["run_id"],
             current_step,
-            details={"corpus_id": document[0]["corpus_id"], "chunks_indexed": len(parsed_chunks)},
+            details={
+                "corpus_id": document[0]["corpus_id"],
+                "chunks_indexed": chunk_count,
+                "metadata_only": bool(job.get("metadata_only")),
+            },
         )
 
         current_step = "index_metadata"
         start_ingestion_step(job["run_id"], current_step)
-        metadata_record = _fetch_document_metadata_record(job["document_id"])
         if metadata_record:
             store.upsert_document_metadata(document[0]["corpus_id"], [metadata_record])
         complete_ingestion_step(
@@ -124,7 +163,7 @@ def process_job(job: dict[str, str]) -> None:
             job["run_id"],
             job["document_id"],
             job["version_id"],
-            len(parsed_chunks),
+            chunk_count,
         )
     except Exception as exc:
         fail_ingestion_step(job["run_id"], current_step, str(exc))

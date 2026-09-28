@@ -272,7 +272,12 @@ def _enqueue_embed_refresh(document: dict[str, Any]) -> tuple[bool, str | None]:
     try:
         enqueue(
             "embed_jobs",
-            {"run_id": run_id, "document_id": str(document["document_id"]), "version_id": str(document["version_id"])},
+            {
+                "run_id": run_id,
+                "document_id": str(document["document_id"]),
+                "version_id": str(document["version_id"]),
+                "metadata_only": True,
+            },
         )
     except Exception as exc:
         return False, f"embedding refresh run {run_id} persisted but enqueue failed: {exc}"

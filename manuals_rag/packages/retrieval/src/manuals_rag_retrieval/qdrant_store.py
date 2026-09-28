@@ -186,6 +186,35 @@ class QdrantStore:
         for index in range(0, len(points), 64):
             self.client.upsert(collection_name(corpus_id), points[index : index + 64])
 
+    def refresh_document_chunk_payload(
+        self,
+        corpus_id: str,
+        *,
+        source_document_id: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Update document-level payload fields without recomputing unchanged vectors."""
+        selector = Filter(
+            must=[
+                FieldCondition(
+                    key="source_document_id",
+                    match=MatchValue(value=source_document_id),
+                )
+            ]
+        )
+        names = [collection_name(corpus_id)]
+        if settings.indexed_bm25_enabled:
+            names.append(bm25_collection_name(corpus_id))
+        for name in names:
+            if not self.client.collection_exists(name):
+                continue
+            self.client.set_payload(
+                collection_name=name,
+                payload=payload,
+                points=selector,
+                wait=True,
+            )
+
     def upsert_bm25_chunks(self, corpus_id: str, chunks: list[RetrievalChunk]) -> None:
         """Index true BM25 vectors in an isolated collection using Qdrant server inference."""
         if not chunks:

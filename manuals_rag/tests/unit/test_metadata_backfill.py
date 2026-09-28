@@ -377,6 +377,7 @@ def test_apply_metadata_commits_document_payload_atomically_before_enqueue(monke
     assert len(connections[0].cursor_instance.queries) == 4
     assert connections[0].commits == 1
     assert queued[0][0] == "embed_jobs"
+    assert queued[0][1]["metadata_only"] is True
 
 
 def test_exact_planned_report_apply_uses_report_metadata_without_reextracting(monkeypatch, tmp_path):
