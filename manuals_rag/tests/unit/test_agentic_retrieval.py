@@ -3586,6 +3586,11 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
             "structural",
         ),
         (
+            "How do I install a new GSDML file for PROFINET communication in the "
+            "Siemens setup software?",
+            "structural",
+        ),
+        (
             "For the CA-H048CX/H048MX cameras, what resolutions and approximate "
             "megapixel counts are listed for the 0.47-megapixel and 0.31-megapixel modes?",
             "structural",
@@ -3635,6 +3640,10 @@ def test_atomic_lookup_shapes_are_lossless_single_hop_for_both_planners(
         (
             "Which screw size is specified for wall-mounting the IV-500C sensor, "
             "and what maximum head thickness is allowed?"
+        ),
+        (
+            "How do I install a new GSDML file for PROFINET communication in the "
+            "Siemens setup software, and how do I configure the device name?"
         ),
     ],
 )

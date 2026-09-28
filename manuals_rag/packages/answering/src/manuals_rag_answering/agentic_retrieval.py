@@ -959,6 +959,13 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     ):
         strategy = "structural"
     elif re.match(
+        r"^\s*how\s+do\s+i\s+install\s+a\s+new\s+GSDML\s+file\s+for\s+"
+        r"PROFINET\s+communication\s+in\s+.+?\s+setup\s+software\s*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
         r"^\s*for\s+.+?\s+cameras?,\s*what\s+resolutions?\s+and\s+"
         r"approximate\s+megapixel\s+counts?\s+are\s+listed\s+for\b.+\bmodes?\s*\?\s*$",
         query,
