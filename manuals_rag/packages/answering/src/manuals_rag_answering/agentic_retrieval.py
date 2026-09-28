@@ -7769,6 +7769,7 @@ def verify_retrieval_claim(
     verification: EvidenceVerification | None = None
     verification_error: Exception | None = None
     judge_attempts: list[dict[str, Any]] = []
+    shown_ids = {item["chunk_id"] for item in evidence_packet["evidence"]}
     for attempt in range(2):
         try:
             payload, _raw = chat_json(
@@ -7950,6 +7951,26 @@ def verify_retrieval_claim(
                     or ""
                 ).strip()
             verification = EvidenceVerification.model_validate(normalized_payload)
+            attempted_support = list(dict.fromkeys(verification.supporting_chunk_ids))
+            attempt_invalid_citations = [
+                chunk_id for chunk_id in attempted_support if chunk_id not in shown_ids
+            ]
+            attempt_out_of_scope = [
+                chunk_id for chunk_id in attempted_support if chunk_id not in scoped_ids
+            ]
+            if attempt == 0 and (attempt_invalid_citations or attempt_out_of_scope):
+                # A structurally valid verifier response can still violate the
+                # citation contract by transcribing a chunk ID incorrectly or
+                # selecting a sibling-scope result. Retry against the exact same
+                # frozen evidence packet before spending a retrieval hop. The
+                # second response still passes through the strict citation and
+                # scope gates below; persistent violations remain fail-closed.
+                judge_attempts[-1]["validation_error"] = {
+                    "invalid_citation_ids": attempt_invalid_citations,
+                    "out_of_scope_chunk_ids": attempt_out_of_scope,
+                }
+                verification = None
+                continue
             break
         except Exception as exc:
             verification_error = exc
@@ -7983,7 +8004,6 @@ def verify_retrieval_claim(
         return fallback
 
     requested_support = list(dict.fromkeys(verification.supporting_chunk_ids))
-    shown_ids = {item["chunk_id"] for item in evidence_packet["evidence"]}
     invalid_citations = [chunk_id for chunk_id in requested_support if chunk_id not in shown_ids]
     out_of_scope = [chunk_id for chunk_id in requested_support if chunk_id not in scoped_ids]
     valid_support = [

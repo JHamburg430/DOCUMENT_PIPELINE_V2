@@ -5511,6 +5511,55 @@ def test_verifier_retries_once_after_malformed_model_response(monkeypatch):
     assert result["judge"]["attempts"][1]["raw_response"] == "{}"
 
 
+def test_verifier_retries_same_evidence_after_invalid_citation_id(monkeypatch):
+    hop = RetrievalHop(
+        hop_id="lookup",
+        objective="Which electronic shutter values are listed for CV-X?",
+        query="Which electronic shutter values are listed for CV-X?",
+    )
+    calls: list[dict] = []
+
+    def flaky_chat_json(**kwargs):
+        calls.append(kwargs)
+        cited = "mistyped-row" if len(calls) == 1 else "exact-row"
+        return (
+            {
+                "trust_state": "confirmed",
+                "claim_supported": True,
+                "supporting_chunk_ids": [cited],
+                "conflicting_chunk_ids": [],
+                "applicability": "not_requested",
+                "scope_entity": "CV-X electronic shutter",
+                "rationale": "The cited row directly lists the requested values.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        flaky_chat_json,
+    )
+    result = verify_retrieval_claim(
+        hop,
+        hop.query,
+        [_result("exact-row", "cv-x-manual", "Electronic shutter: 1/15 through 1/20000.")],
+        {"claim_supported": True, "supporting_chunk_ids": ["exact-row"]},
+    )
+
+    assert len(calls) == 2
+    assert calls[0]["messages"] == calls[1]["messages"]
+    assert result["trust_state"] == "confirmed"
+    assert result["claim_supported"] is True
+    assert result["supporting_chunk_ids"] == ["exact-row"]
+    assert result["invalid_citation_ids"] == []
+    assert result["out_of_scope_chunk_ids"] == []
+    assert result["judge"]["attempts"][0]["validation_error"] == {
+        "invalid_citation_ids": ["mistyped-row"],
+        "out_of_scope_chunk_ids": ["mistyped-row"],
+    }
+    assert result["judge"]["attempts"][1]["raw_response"] == "{}"
+
+
 def test_coordinate_plan_preserves_first_branch_subject_in_second_claim():
     query = (
         "For the controller, which integrated software is listed "
