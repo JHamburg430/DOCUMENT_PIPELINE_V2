@@ -1915,6 +1915,54 @@ def test_claim_id_verdict_rejects_duplicate_decisions(monkeypatch):
         _call_scoped_model('manual.pdf',messages,purpose='metadata_extraction.claim_verification')
 
 
+def test_incomplete_verification_batch_is_bisected_fail_closed(monkeypatch):
+    claims = reconcile_metadata_claims([
+        {
+            "value": value,
+            "kind": "product_model",
+            "relation": "compatible_with",
+            "subject": "Controller",
+            "source_quote": quote,
+            "page_from": page,
+            "page_to": page,
+            "grounded": True,
+        }
+        for value, quote, page in (
+            ("AB-100", "Controller supports AB-100.", 1),
+            ("AB-200", "Controller supports AB-200.", 2),
+        )
+    ])
+    segments = [
+        MetadataSourceSegment(claim["source_quote"], claim["page_from"], claim["page_to"])
+        for claim in claims
+    ]
+    batch_sizes = []
+
+    def fake_chat_json(**kwargs):
+        content = kwargs["messages"][1]["content"]
+        candidates = json.loads(
+            content.split("CLAIMS TO VERIFY:\n", 1)[1].split("\n\n", 1)[0]
+        )
+        batch_sizes.append(len(candidates))
+        decisions = [
+            {
+                "claim_id": candidate["claim_id"],
+                "supported": True,
+                "reason": "The quoted evidence explicitly supports the relationship.",
+            }
+            for candidate in candidates[:1]
+        ]
+        return ({"decisions": decisions}, "{}")
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+
+    verified = verify_metadata_claims("manual.pdf", claims, segments)
+
+    assert batch_sizes == [2, 2, 2, 1, 1]
+    assert len(verified) == 2
+    assert all(item["verification_status"] == "confirmed" for item in verified)
+
+
 def test_scoped_model_rejects_missing_collection(monkeypatch):
     monkeypatch.setattr('manuals_rag_parsers.metadata.chat_json', lambda **kwargs: ({}, '{}'))
     with pytest.raises(MetadataExtractionIncomplete, match='omitted its entities'):

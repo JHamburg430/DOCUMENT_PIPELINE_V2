@@ -2065,10 +2065,31 @@ def verify_metadata_claims(
     segments: list[MetadataSourceSegment],
 ) -> list[dict[str, Any]]:
     """Independently verify typed relationships and derive confidence from evidence."""
+    def verify_batch(batch: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        local_segments = _segments_for_claims(batch, segments)
+        try:
+            extraction = _call_scoped_model(
+                filename,
+                _verification_prompt_messages(filename, batch, local_segments),
+                purpose="metadata_extraction.claim_verification",
+            )
+        except MetadataExtractionIncomplete as exc:
+            if len(batch) == 1:
+                raise MetadataExtractionIncomplete(
+                    f"Independent claim verification did not complete for {filename}: {exc}"
+                ) from exc
+            midpoint = len(batch) // 2
+            logger.warning(
+                "Bisecting incomplete verification batch for %s (%s claims)",
+                filename,
+                len(batch),
+            )
+            return verify_batch(batch[:midpoint]) + verify_batch(batch[midpoint:])
+        return _ground_scoped_candidates(extraction, local_segments)
+
     verified: list[dict[str, Any]] = []
     for offset in range(0, len(claims), CLAIM_VERIFICATION_BATCH_SIZE):
         batch = claims[offset : offset + CLAIM_VERIFICATION_BATCH_SIZE]
-        local_segments = _segments_for_claims(batch, segments)
         accepted: set[tuple[str, str, str, str, str]] = {
             _claim_fingerprint(claim)
             for claim in batch
@@ -2080,23 +2101,9 @@ def verify_metadata_claims(
             or _literal_source_native_identifier_claim_is_confirmed(claim)
         }
         verification_completed = False
-        try:
-            extraction = _call_scoped_model(
-                filename,
-                _verification_prompt_messages(filename, batch, local_segments),
-                purpose="metadata_extraction.claim_verification",
-            )
-            accepted_evidence = _ground_scoped_candidates(extraction, local_segments)
-            accepted.update(_claim_fingerprint(item) for item in accepted_evidence)
-            verification_completed = True
-        except MetadataExtractionIncomplete as exc:
-            # Verification is a publication gate, not a best-effort enrichment step.
-            # Persisting claims from a partially verified document can turn a transient
-            # model failure into authoritative routing metadata. Quarantine the entire
-            # document so a later run can retry it cleanly.
-            raise MetadataExtractionIncomplete(
-                f"Independent claim verification did not complete for {filename}: {exc}"
-            ) from exc
+        accepted_evidence = verify_batch(batch)
+        accepted.update(_claim_fingerprint(item) for item in accepted_evidence)
+        verification_completed = True
 
         # Deterministically harvested title/version claims are especially important to
         # routing and completeness. If a crowded verifier batch omits one, retry that
