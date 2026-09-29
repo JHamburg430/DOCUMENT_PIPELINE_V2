@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import operator
 from typing import Any, Callable
 
@@ -105,11 +106,105 @@ def _observation_text(observations: list[dict[str, Any]]) -> str:
         return "(none)"
     rows = []
     for index, item in enumerate(observations, start=1):
+        result = item.get("result") or {}
+        structured = {
+            key: result.get(key)
+            for key in (
+                "satisfied_claims",
+                "missing_claims",
+                "headings",
+                "discovered_terms",
+                "suggested_queries",
+                "warnings",
+            )
+            if result.get(key)
+        }
+        if result.get("retrieval_trace"):
+            structured["retrieval_trace"] = result.get("retrieval_trace")
         rows.append(
             f"Observation {index} | tool={item['tool']} | input={item['input']}\n"
-            f"status={item.get('status')}\n{str(item.get('summary') or '')[:5000]}"
+            f"status={item.get('status')}\n{str(item.get('summary') or '')[:5000]}\n"
+            f"structured_evidence={json.dumps(structured, ensure_ascii=False)[:5000]}"
         )
     return "\n\n".join(rows)
+
+
+def _deterministic_reformulation(
+    *,
+    original_query: str,
+    observations: list[dict[str, Any]],
+    attempted_queries: set[str],
+    attempt: int,
+    extra_strategy: list[str] | None = None,
+) -> tuple[str, str]:
+    """Create a bounded recovery query when the planner repeats itself.
+
+    A duplicate proposal is a planner error, not evidence that research is
+    complete. Prefer missing claims and terminology returned by the RAG
+    verifier, then fall back to an explicit operation-oriented search.
+    """
+    result = next(
+        (item.get("result") or {} for item in reversed(observations) if item.get("tool") == "manuals_rag"),
+        {},
+    )
+    missing = [str(value).replace("_", " ") for value in result.get("missing_claims", []) if str(value).strip()]
+    terms = [str(value) for value in (result.get("discovered_terms") or result.get("headings") or []) if str(value).strip()]
+    parts = [original_query]
+    strategy = list(extra_strategy or [])
+    if "duplicate_recovery" not in strategy:
+        strategy.append("duplicate_recovery")
+    if missing:
+        parts.extend(missing)
+        strategy.append("missing_claim")
+    if terms:
+        parts.extend(terms[:4])
+        strategy.append("evidence_terminology")
+    elif "evidence_terminology" in strategy:
+        # When the first answer is a viewer/display hit, use the corpus's
+        # authoring vocabulary explicitly instead of asking the planner to
+        # repeat a broad semantic query.
+        parts.extend(["Adding Parts", "Properties", "Results", "Data List"])
+    if not missing and not terms:
+        parts.extend(["setup", "create", "configure", "detailed procedure"])
+        for tag in ("entity_expanded", "deterministic_reformulation"):
+            if tag not in strategy:
+                strategy.append(tag)
+    parts.append(f"recovery search {attempt}")
+    candidate = " ".join(dict.fromkeys(" ".join(parts).split()))
+    if " ".join(candidate.lower().split()) in attempted_queries:
+        candidate = f"{candidate} alternate operation"
+        if "deterministic_reformulation" not in strategy:
+            strategy.append("deterministic_reformulation")
+    return candidate, " ".join(strategy)
+
+
+def _requires_followup(
+    query: str,
+    observations: list[dict[str, Any]],
+    history: list[dict[str, str]] | None = None,
+) -> tuple[bool, list[str]]:
+    """Detect an apparently complete result that cannot satisfy the request."""
+    result = next(
+        (item.get("result") or {} for item in reversed(observations) if item.get("tool") == "manuals_rag"),
+        {},
+    )
+    if not result:
+        return False, []
+    if result.get("insufficient_evidence") or result.get("missing_claims"):
+        return True, ["missing_claim"]
+    query_lower = query.lower()
+    answer_lower = str(result.get("answer") or "").lower()
+    operation_terms = ("setup", "set up", "create", "add", "configure", "install", "replace", "adjust")
+    viewer_terms = ("viewer", "view", "display only", "open the")
+    if any(term in query_lower for term in operation_terms) and any(term in answer_lower for term in viewer_terms):
+        return True, ["operation_object", "evidence_terminology"]
+    context_text = " ".join(
+        str(item.get("content") or "") for item in (history or [])
+    ).lower()
+    correction_terms = ("that is how you view", "not how", "how do you set", "how do i set")
+    if any(term in query_lower or term in context_text for term in correction_terms):
+        return True, ["session_entity", "operation_object", "evidence_terminology"]
+    return False, []
 
 
 def _plan_action(
@@ -191,6 +286,13 @@ def _finalize(
         ("document_id", "version"),
     )
     warnings = list(dict.fromkeys(str(warning) for result in rag_results for warning in result.get("warnings", [])))
+    retrieval_traces = [result.get("retrieval_trace") for result in rag_results if result.get("retrieval_trace")]
+    missing_claims = list(dict.fromkeys(
+        str(claim) for result in rag_results for claim in result.get("missing_claims", [])
+    ))
+    discovered_terms = list(dict.fromkeys(
+        str(term) for result in rag_results for term in result.get("discovered_terms", [])
+    ))
     sufficient = [result for result in rag_results if not result.get("insufficient_evidence")]
     evidence_rows = []
     for result_index, result in enumerate(rag_results, start=1):
@@ -222,6 +324,9 @@ def _finalize(
             "followup_questions": [],
             "insufficient_evidence": True,
             "memory_updates": [],
+            "retrieval_trace": retrieval_traces[-1] if retrieval_traces else {},
+            "missing_claims": missing_claims,
+            "discovered_terms": discovered_terms,
         }
     try:
         payload, _raw = chat_json(
@@ -273,6 +378,9 @@ def _finalize(
             "followup_questions": [str(item) for item in payload.get("followup_questions", [])[:3]],
             "insufficient_evidence": bool(payload.get("insufficient_evidence")),
             "memory_updates": [str(item).strip() for item in payload.get("memory_updates", [])[:4] if str(item).strip()],
+            "retrieval_trace": retrieval_traces[-1] if retrieval_traces else {},
+            "missing_claims": missing_claims,
+            "discovered_terms": discovered_terms,
         }
     except Exception:
         return {
@@ -284,6 +392,9 @@ def _finalize(
             "followup_questions": [],
             "insufficient_evidence": False,
             "memory_updates": [],
+            "retrieval_trace": retrieval_traces[-1] if retrieval_traces else {},
+            "missing_claims": missing_claims,
+            "discovered_terms": discovered_terms,
         }
 
 
@@ -323,8 +434,34 @@ def run_react_agent(
                 "rationale": "Planner fallback",
             }
         if action["action"] == "finish" and observations:
-            emit({"event": "react_finish_selected", "step": step, "rationale": action["rationale"]})
-            break
+            needs_followup, followup_strategy = _requires_followup(query, observations, history)
+            if needs_followup and step < max_tool_calls:
+                recovery_query, recovery_strategy = _deterministic_reformulation(
+                    original_query=query,
+                    observations=observations,
+                    attempted_queries=seen_rag_queries,
+                    attempt=step,
+                    extra_strategy=followup_strategy,
+                )
+                if history or memory:
+                    recovery_strategy = f"session_entity {recovery_strategy}"
+                action = {
+                    "action": "manuals_rag",
+                    "query": recovery_query,
+                    "rationale": f"{recovery_strategy}: planner finish vetoed until evidence gap is resolved",
+                }
+                emit(
+                    {
+                        "event": "react_followup_required",
+                        "step": step,
+                        "strategy": recovery_strategy,
+                        "query": recovery_query,
+                        "reason": "result was insufficient or did not align with the requested operation",
+                    }
+                )
+            else:
+                emit({"event": "react_finish_selected", "step": step, "rationale": action["rationale"]})
+                break
         if action["action"] == "calculator":
             emit({"event": "tool_call_started", "tool": "calculator", "step": step, "input": action["query"]})
             try:
@@ -340,8 +477,35 @@ def run_react_agent(
         rag_query = action["query"] or query
         normalized = " ".join(rag_query.lower().split())
         if normalized in seen_rag_queries and observations:
-            emit({"event": "react_finish_selected", "step": step, "rationale": "Duplicate RAG query avoided"})
-            break
+            recovery_query, recovery_strategy = _deterministic_reformulation(
+                original_query=query,
+                observations=observations,
+                attempted_queries=seen_rag_queries,
+                attempt=step,
+            )
+            recovery_normalized = " ".join(recovery_query.lower().split())
+            emit(
+                {
+                    "event": "rag_query_reformulated",
+                    "step": step,
+                    "from_query": rag_query,
+                    "to_query": recovery_query,
+                    "strategy": recovery_strategy,
+                    "reason": "duplicate planner proposal; continue with a distinct evidence-led search",
+                }
+            )
+            action = {
+                **action,
+                "query": recovery_query,
+                "rationale": f"{action.get('rationale') or ''} {recovery_strategy}".strip(),
+            }
+            rag_query = recovery_query
+            normalized = recovery_normalized
+            # A defensive final suffix guarantees progress even if a malformed
+            # planner proposal exactly repeats the deterministic fallback.
+            if normalized in seen_rag_queries:
+                rag_query = f"{recovery_query} recovery alternative {step}"
+                normalized = " ".join(rag_query.lower().split())
         seen_rag_queries.add(normalized)
         emit({"event": "tool_call_started", "tool": "manuals_rag", "step": step, "input": rag_query})
 

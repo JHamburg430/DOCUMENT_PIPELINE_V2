@@ -3821,14 +3821,21 @@ function renderResearchAgentMatrix(payload) {
     return;
   }
   const reportStatus = report.status || "incomplete";
-  status.textContent = `${reportStatus} · ${summary?.passed || 0}/${summary?.total || 0} passed`;
-  status.className = `status-pill ${reportStatus === "passed" ? "pass" : reportStatus === "failed" ? "fail" : "running"}`;
+  const reportLayer = report.layer || "all";
+  const expectedCases = reportLayer === "all" ? 21 : (summary?.total || 0);
+  const acceptanceOpen = reportStatus === "passed"
+    && reportLayer === "all"
+    && (summary?.total || 0) === expectedCases
+    && (summary?.failed || 0) === 0
+    && (summary?.not_run || 0) === 0;
+  status.textContent = `${reportStatus} · ${summary?.passed || 0}/${summary?.total || 0} passed${reportLayer === "all" ? "" : ` · ${reportLayer}`}`;
+  status.className = `status-pill ${reportStatus === "failed" ? "fail" : acceptanceOpen ? "pass" : "running"}`;
   $("research-agent-matrix-summary").className = "matrix-summary";
   $("research-agent-matrix-summary").innerHTML = `
     <article class="matrix-stat"><span>Total cases</span><strong>${summary?.total || 0}</strong><small>frozen SHA ${escapeHtml(String(report.dataset_sha256 || "").slice(0, 12))}…</small></article>
     <article class="matrix-stat"><span>Controller passed</span><strong>${summary?.passed || 0}</strong><small>${summary?.failed || 0} failed</small></article>
     <article class="matrix-stat"><span>Live not run</span><strong>${summary?.not_run || 0}</strong><small>not counted as passes</small></article>
-    <article class="matrix-stat"><span>Acceptance gate</span><strong>${reportStatus === "passed" ? "OPEN" : "CLOSED"}</strong><small>all cases must be verified</small></article>`;
+    <article class="matrix-stat"><span>Acceptance gate</span><strong>${acceptanceOpen ? "OPEN" : "CLOSED"}</strong><small>${reportLayer === "all" ? "all cases must be verified" : `scope: ${escapeHtml(reportLayer)}`}</small></article>`;
   $("research-agent-matrix-table").innerHTML = `<table class="matrix-grid agent-matrix-grid"><thead><tr><th>Case</th><th>Layer</th><th>Category</th><th>Status</th><th>Observed / failure</th></tr></thead><tbody>${rows.map((row) => {
     const detail = row.failures?.join(", ") || row.reason || `${row.observed?.rag_call_count ?? "—"} RAG calls · ${row.observed?.distinct_rag_queries ?? "—"} distinct queries`;
     return `<tr><td><strong>${escapeHtml(row.case_id)}</strong><small>${escapeHtml(row.title || "")}</small></td><td>${escapeHtml(row.layer || "")}</td><td>${escapeHtml(row.category || "")}</td><td><span class="status-pill ${row.status === "pass" ? "pass" : row.status === "fail" ? "fail" : "idle"}">${escapeHtml(row.status || "unknown")}</span></td><td class="matrix-text-cell">${escapeHtml(detail)}</td></tr>`;

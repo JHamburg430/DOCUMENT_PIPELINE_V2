@@ -1623,10 +1623,16 @@ def _run_research_agent_matrix_job(job_id: str, layer: str) -> None:
             raise RuntimeError((completed.stdout or completed.stderr or f"exit {completed.returncode}")[-4000:])
         with RESEARCH_AGENT_MATRIX_LOCK:
             job = RESEARCH_AGENT_MATRIX_JOBS[job_id]
-            job["status"] = "completed" if completed.returncode in {0, 1} else "failed"
+            # Exit 1 means the matrix ran and found acceptance failures. Keep
+            # that distinct from a clean completed run so the UI cannot imply
+            # that a failed acceptance gate is merely informational.
+            job["status"] = "completed" if completed.returncode == 0 else "failed"
             job["exit_code"] = completed.returncode
             job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             job["report"] = str(RESEARCH_AGENT_MATRIX_REPORT.relative_to(MANUALS_ROOT))
+            if completed.returncode != 0:
+                report = _read_json(RESEARCH_AGENT_MATRIX_REPORT) if RESEARCH_AGENT_MATRIX_REPORT.exists() else {}
+                job["error"] = str(report.get("status") or "matrix acceptance gate failed")
     except Exception as error:
         with RESEARCH_AGENT_MATRIX_LOCK:
             job = RESEARCH_AGENT_MATRIX_JOBS[job_id]

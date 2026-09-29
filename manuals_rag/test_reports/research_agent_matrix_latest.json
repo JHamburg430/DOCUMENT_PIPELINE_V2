@@ -1,17 +1,17 @@
 {
   "dataset": "tests/fixtures/research_agent_validation_matrix_v1.jsonl",
   "dataset_sha256": "29d7ae4f5c318dadb07795df89f3e27cc2aa0e3603da0c908c83bfeb610cba3f",
-  "layer": "all",
+  "layer": "controller_contract",
   "manifest": "tests/fixtures/research_agent_validation_matrix_v1.manifest.json",
   "records": [
     {
       "case_id": "ra-v1-001",
       "category": "entity_resolution",
-      "elapsed_ms": 0.47,
+      "elapsed_ms": 0.58,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
-        "distinct_rag_queries": 2,
+        "distinct_rag_queries": 3,
         "events": [
           {
             "backend": "scripted-validation",
@@ -45,9 +45,29 @@
             "tool": "manuals_rag"
           },
           {
+            "event": "react_followup_required",
+            "query": "How do you setup a custom screen on the VS? Adding Parts Properties Results Data List create configure detailed procedure recovery search 3",
+            "reason": "result was insufficient or did not align with the requested operation",
+            "step": 3,
+            "strategy": "session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "How do you setup a custom screen on the VS? Adding Parts Properties Results Data List create configure detailed procedure recovery search 3",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
             "event": "react_finish_selected",
             "rationale": "all_required_claims_supported",
-            "step": 3
+            "step": 4
           },
           {
             "event": "react_completed",
@@ -60,8 +80,8 @@
                 ],
                 "backend": "scripted-validation",
                 "mode": "react",
-                "rag_call_count": 2,
-                "tool_call_count": 2,
+                "rag_call_count": 3,
+                "tool_call_count": 3,
                 "tool_calls": [
                   {
                     "action": "manuals_rag",
@@ -76,6 +96,13 @@
                     "rationale": "original evidence_terminology: retrieve the next missing evidence",
                     "status": "ok",
                     "step": 2
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "How do you setup a custom screen on the VS? Adding Parts Properties Results Data List create configure detailed procedure recovery search 3",
+                    "rationale": "session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation: planner finish vetoed until evidence gap is resolved",
+                    "status": "ok",
+                    "step": 3
                   }
                 ]
               },
@@ -87,9 +114,21 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [
+                "Adding Parts",
+                "Properties",
+                "Results",
+                "Data List"
+              ],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [
+                "authoring_entry",
+                "add_parts",
+                "configure_parts"
+              ],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -108,8 +147,8 @@
               ],
               "backend": "scripted-validation",
               "mode": "react",
-              "rag_call_count": 2,
-              "tool_call_count": 2,
+              "rag_call_count": 3,
+              "tool_call_count": 3,
               "tool_calls": [
                 {
                   "action": "manuals_rag",
@@ -124,13 +163,20 @@
                   "rationale": "original evidence_terminology: retrieve the next missing evidence",
                   "status": "ok",
                   "step": 2
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "How do you setup a custom screen on the VS? Adding Parts Properties Results Data List create configure detailed procedure recovery search 3",
+                  "rationale": "session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation: planner finish vetoed until evidence gap is resolved",
+                  "status": "ok",
+                  "step": 3
                 }
               ]
             }
           }
         ],
         "insufficient_evidence": false,
-        "rag_call_count": 2,
+        "rag_call_count": 3,
         "tool_calls": [
           {
             "action": "manuals_rag",
@@ -145,6 +191,13 @@
             "rationale": "original evidence_terminology: retrieve the next missing evidence",
             "status": "ok",
             "step": 2
+          },
+          {
+            "action": "manuals_rag",
+            "query": "How do you setup a custom screen on the VS? Adding Parts Properties Results Data List create configure detailed procedure recovery search 3",
+            "rationale": "session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation: planner finish vetoed until evidence gap is resolved",
+            "status": "ok",
+            "step": 3
           }
         ]
       },
@@ -155,11 +208,11 @@
     {
       "case_id": "ra-v1-002",
       "category": "action_object_alignment",
-      "elapsed_ms": 0.31,
+      "elapsed_ms": 0.44,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
-        "distinct_rag_queries": 2,
+        "distinct_rag_queries": 3,
         "events": [
           {
             "backend": "scripted-validation",
@@ -193,9 +246,29 @@
             "tool": "manuals_rag"
           },
           {
+            "event": "react_followup_required",
+            "query": "That is how you view it. How do set one up? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+            "reason": "result was insufficient or did not align with the requested operation",
+            "step": 3,
+            "strategy": "session_entity session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "That is how you view it. How do set one up? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
             "event": "react_finish_selected",
             "rationale": "all_required_claims_supported",
-            "step": 3
+            "step": 4
           },
           {
             "event": "react_completed",
@@ -208,8 +281,8 @@
                 ],
                 "backend": "scripted-validation",
                 "mode": "react",
-                "rag_call_count": 2,
-                "tool_call_count": 2,
+                "rag_call_count": 3,
+                "tool_call_count": 3,
                 "tool_calls": [
                   {
                     "action": "manuals_rag",
@@ -224,6 +297,13 @@
                     "rationale": "evidence_terminology: retrieve the next missing evidence",
                     "status": "ok",
                     "step": 2
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "That is how you view it. How do set one up? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+                    "rationale": "session_entity session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation: planner finish vetoed until evidence gap is resolved",
+                    "status": "ok",
+                    "step": 3
                   }
                 ]
               },
@@ -235,9 +315,15 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [
+                "add_parts",
+                "configure_parts"
+              ],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -256,8 +342,8 @@
               ],
               "backend": "scripted-validation",
               "mode": "react",
-              "rag_call_count": 2,
-              "tool_call_count": 2,
+              "rag_call_count": 3,
+              "tool_call_count": 3,
               "tool_calls": [
                 {
                   "action": "manuals_rag",
@@ -272,13 +358,20 @@
                   "rationale": "evidence_terminology: retrieve the next missing evidence",
                   "status": "ok",
                   "step": 2
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "That is how you view it. How do set one up? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+                  "rationale": "session_entity session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation: planner finish vetoed until evidence gap is resolved",
+                  "status": "ok",
+                  "step": 3
                 }
               ]
             }
           }
         ],
         "insufficient_evidence": false,
-        "rag_call_count": 2,
+        "rag_call_count": 3,
         "tool_calls": [
           {
             "action": "manuals_rag",
@@ -293,6 +386,13 @@
             "rationale": "evidence_terminology: retrieve the next missing evidence",
             "status": "ok",
             "step": 2
+          },
+          {
+            "action": "manuals_rag",
+            "query": "That is how you view it. How do set one up? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+            "rationale": "session_entity session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation: planner finish vetoed until evidence gap is resolved",
+            "status": "ok",
+            "step": 3
           }
         ]
       },
@@ -303,18 +403,11 @@
     {
       "case_id": "ra-v1-003",
       "category": "duplicate_recovery",
-      "elapsed_ms": 0.2,
-      "failures": [
-        "rag_call_count=1 outside expected range",
-        "distinct_rag_queries=1 below minimum",
-        "missing_strategy_tag:missing_claim",
-        "missing_strategy_tag:duplicate_recovery",
-        "supported_case_finished_insufficient",
-        "duplicate_query_terminal"
-      ],
+      "elapsed_ms": 0.4,
+      "failures": [],
       "layer": "controller_contract",
       "observed": {
-        "distinct_rag_queries": 1,
+        "distinct_rag_queries": 3,
         "events": [
           {
             "backend": "scripted-validation",
@@ -335,9 +428,43 @@
             "tool": "manuals_rag"
           },
           {
+            "event": "rag_query_reformulated",
+            "from_query": "add custom screen",
+            "reason": "duplicate planner proposal; continue with a distinct evidence-led search",
+            "step": 2,
+            "strategy": "duplicate_recovery missing_claim evidence_terminology",
+            "to_query": "How do I add and configure parts on a VS custom screen? Properties recovery search 2"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "How do I add and configure parts on a VS custom screen? Properties recovery search 2",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "VS configure properties configure_recovery",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
             "event": "react_finish_selected",
-            "rationale": "Duplicate RAG query avoided",
-            "step": 2
+            "rationale": "all_required_claims_supported",
+            "step": 4
           },
           {
             "event": "react_completed",
@@ -350,8 +477,8 @@
                 ],
                 "backend": "scripted-validation",
                 "mode": "react",
-                "rag_call_count": 1,
-                "tool_call_count": 1,
+                "rag_call_count": 3,
+                "tool_call_count": 3,
                 "tool_calls": [
                   {
                     "action": "manuals_rag",
@@ -359,16 +486,47 @@
                     "rationale": "original: retrieve the next missing evidence",
                     "status": "insufficient",
                     "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "How do I add and configure parts on a VS custom screen? Properties recovery search 2",
+                    "rationale": "original missing_claim: retrieve the next missing evidence duplicate_recovery missing_claim evidence_terminology",
+                    "status": "ok",
+                    "step": 2
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "VS configure properties configure_recovery",
+                    "rationale": "duplicate_recovery: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 3
                   }
                 ]
               },
-              "answer": "Grounded scripted evidence: add_parts",
-              "citations": [],
-              "confidence": "low",
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "vs-properties",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "discovered_terms": [
+                "Properties"
+              ],
               "followup_questions": [],
-              "insufficient_evidence": true,
+              "insufficient_evidence": false,
               "memory_updates": [],
-              "used_documents": [],
+              "missing_claims": [
+                "configure_parts"
+              ],
+              "retrieval_trace": {},
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
               "warnings": []
             },
             "trace": {
@@ -379,8 +537,8 @@
               ],
               "backend": "scripted-validation",
               "mode": "react",
-              "rag_call_count": 1,
-              "tool_call_count": 1,
+              "rag_call_count": 3,
+              "tool_call_count": 3,
               "tool_calls": [
                 {
                   "action": "manuals_rag",
@@ -388,13 +546,27 @@
                   "rationale": "original: retrieve the next missing evidence",
                   "status": "insufficient",
                   "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "How do I add and configure parts on a VS custom screen? Properties recovery search 2",
+                  "rationale": "original missing_claim: retrieve the next missing evidence duplicate_recovery missing_claim evidence_terminology",
+                  "status": "ok",
+                  "step": 2
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "VS configure properties configure_recovery",
+                  "rationale": "duplicate_recovery: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 3
                 }
               ]
             }
           }
         ],
-        "insufficient_evidence": true,
-        "rag_call_count": 1,
+        "insufficient_evidence": false,
+        "rag_call_count": 3,
         "tool_calls": [
           {
             "action": "manuals_rag",
@@ -402,28 +574,35 @@
             "rationale": "original: retrieve the next missing evidence",
             "status": "insufficient",
             "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "How do I add and configure parts on a VS custom screen? Properties recovery search 2",
+            "rationale": "original missing_claim: retrieve the next missing evidence duplicate_recovery missing_claim evidence_terminology",
+            "status": "ok",
+            "step": 2
+          },
+          {
+            "action": "manuals_rag",
+            "query": "VS configure properties configure_recovery",
+            "rationale": "duplicate_recovery: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 3
           }
         ]
       },
-      "passed": false,
-      "status": "fail",
+      "passed": true,
+      "status": "pass",
       "title": "Duplicate planner query causes reformulation instead of termination"
     },
     {
       "case_id": "ra-v1-004",
       "category": "duplicate_recovery",
-      "elapsed_ms": 0.21,
-      "failures": [
-        "rag_call_count=1 outside expected range",
-        "distinct_rag_queries=1 below minimum",
-        "missing_strategy_tag:duplicate_recovery",
-        "missing_strategy_tag:deterministic_reformulation",
-        "supported_case_finished_insufficient",
-        "duplicate_query_terminal"
-      ],
+      "elapsed_ms": 0.43,
+      "failures": [],
       "layer": "controller_contract",
       "observed": {
-        "distinct_rag_queries": 1,
+        "distinct_rag_queries": 4,
         "events": [
           {
             "backend": "scripted-validation",
@@ -444,9 +623,64 @@
             "tool": "manuals_rag"
           },
           {
+            "event": "rag_query_reformulated",
+            "from_query": "properties configure",
+            "reason": "duplicate planner proposal; continue with a distinct evidence-led search",
+            "step": 2,
+            "strategy": "duplicate_recovery missing_claim evidence_terminology",
+            "to_query": "Where do I create the screen and how configure each part? parts Properties recovery search 2"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "Where do I create the screen and how configure each part? parts Properties recovery search 2",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "rag_query_reformulated",
+            "from_query": "Where do I create the screen and how configure each part? parts Properties recovery search 2",
+            "reason": "duplicate planner proposal; continue with a distinct evidence-led search",
+            "step": 3,
+            "strategy": "duplicate_recovery entity_expanded deterministic_reformulation",
+            "to_query": "Where do I create the screen and how configure each part? setup detailed procedure recovery search 3"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "Where do I create the screen and how configure each part? setup detailed procedure recovery search 3",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "error": "controller events must be handled before the RAG double",
+            "event": "tool_call_completed",
+            "status": "error",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "VS properties configure properties_result",
+            "step": 4,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 4,
+            "tool": "manuals_rag"
+          },
+          {
             "event": "react_finish_selected",
-            "rationale": "Duplicate RAG query avoided",
-            "step": 2
+            "rationale": "all_required_claims_supported",
+            "step": 5
           },
           {
             "event": "react_completed",
@@ -459,8 +693,8 @@
                 ],
                 "backend": "scripted-validation",
                 "mode": "react",
-                "rag_call_count": 1,
-                "tool_call_count": 1,
+                "rag_call_count": 4,
+                "tool_call_count": 4,
                 "tool_calls": [
                   {
                     "action": "manuals_rag",
@@ -468,16 +702,54 @@
                     "rationale": "original: retrieve the next missing evidence",
                     "status": "insufficient",
                     "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "Where do I create the screen and how configure each part? parts Properties recovery search 2",
+                    "rationale": "original duplicate_recovery: retrieve the next missing evidence duplicate_recovery missing_claim evidence_terminology",
+                    "status": "ok",
+                    "step": 2
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "Where do I create the screen and how configure each part? setup detailed procedure recovery search 3",
+                    "rationale": "deterministic_reformulation: retrieve the next missing evidence duplicate_recovery entity_expanded deterministic_reformulation",
+                    "status": "error",
+                    "step": 3
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "VS properties configure properties_result",
+                    "rationale": "deterministic_reformulation: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 4
                   }
                 ]
               },
-              "answer": "Grounded scripted evidence: authoring_entry",
-              "citations": [],
-              "confidence": "low",
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "vs-properties",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "discovered_terms": [
+                "Properties"
+              ],
               "followup_questions": [],
-              "insufficient_evidence": true,
+              "insufficient_evidence": false,
               "memory_updates": [],
-              "used_documents": [],
+              "missing_claims": [
+                "configure_parts"
+              ],
+              "retrieval_trace": {},
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
               "warnings": []
             },
             "trace": {
@@ -488,8 +760,8 @@
               ],
               "backend": "scripted-validation",
               "mode": "react",
-              "rag_call_count": 1,
-              "tool_call_count": 1,
+              "rag_call_count": 4,
+              "tool_call_count": 4,
               "tool_calls": [
                 {
                   "action": "manuals_rag",
@@ -497,13 +769,34 @@
                   "rationale": "original: retrieve the next missing evidence",
                   "status": "insufficient",
                   "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "Where do I create the screen and how configure each part? parts Properties recovery search 2",
+                  "rationale": "original duplicate_recovery: retrieve the next missing evidence duplicate_recovery missing_claim evidence_terminology",
+                  "status": "ok",
+                  "step": 2
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "Where do I create the screen and how configure each part? setup detailed procedure recovery search 3",
+                  "rationale": "deterministic_reformulation: retrieve the next missing evidence duplicate_recovery entity_expanded deterministic_reformulation",
+                  "status": "error",
+                  "step": 3
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "VS properties configure properties_result",
+                  "rationale": "deterministic_reformulation: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 4
                 }
               ]
             }
           }
         ],
-        "insufficient_evidence": true,
-        "rag_call_count": 1,
+        "insufficient_evidence": false,
+        "rag_call_count": 4,
         "tool_calls": [
           {
             "action": "manuals_rag",
@@ -511,17 +804,38 @@
             "rationale": "original: retrieve the next missing evidence",
             "status": "insufficient",
             "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "Where do I create the screen and how configure each part? parts Properties recovery search 2",
+            "rationale": "original duplicate_recovery: retrieve the next missing evidence duplicate_recovery missing_claim evidence_terminology",
+            "status": "ok",
+            "step": 2
+          },
+          {
+            "action": "manuals_rag",
+            "query": "Where do I create the screen and how configure each part? setup detailed procedure recovery search 3",
+            "rationale": "deterministic_reformulation: retrieve the next missing evidence duplicate_recovery entity_expanded deterministic_reformulation",
+            "status": "error",
+            "step": 3
+          },
+          {
+            "action": "manuals_rag",
+            "query": "VS properties configure properties_result",
+            "rationale": "deterministic_reformulation: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 4
           }
         ]
       },
-      "passed": false,
-      "status": "fail",
+      "passed": true,
+      "status": "pass",
       "title": "Repeated duplicate proposal triggers deterministic missing-claim query"
     },
     {
       "case_id": "ra-v1-005",
       "category": "claim_coverage",
-      "elapsed_ms": 0.27,
+      "elapsed_ms": 0.29,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -605,9 +919,14 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [
+                "output_current"
+              ],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -671,7 +990,7 @@
     {
       "case_id": "ra-v1-006",
       "category": "evidence_led_recovery",
-      "elapsed_ms": 0.25,
+      "elapsed_ms": 0.3,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -751,9 +1070,19 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [
+                "Properties",
+                "Results",
+                "Data List"
+              ],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [
+                "add_controls",
+                "add_result_data"
+              ],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -817,11 +1146,11 @@
     {
       "case_id": "ra-v1-007",
       "category": "evidence_led_recovery",
-      "elapsed_ms": 0.25,
+      "elapsed_ms": 0.37,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
-        "distinct_rag_queries": 2,
+        "distinct_rag_queries": 3,
         "events": [
           {
             "backend": "scripted-validation",
@@ -855,9 +1184,29 @@
             "tool": "manuals_rag"
           },
           {
+            "event": "react_followup_required",
+            "query": "How do I set up a custom screen? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+            "reason": "result was insufficient or did not align with the requested operation",
+            "step": 3,
+            "strategy": "session_entity session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "How do I set up a custom screen? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
             "event": "react_finish_selected",
             "rationale": "all_required_claims_supported",
-            "step": 3
+            "step": 4
           },
           {
             "event": "react_completed",
@@ -870,8 +1219,8 @@
                 ],
                 "backend": "scripted-validation",
                 "mode": "react",
-                "rag_call_count": 2,
-                "tool_call_count": 2,
+                "rag_call_count": 3,
+                "tool_call_count": 3,
                 "tool_calls": [
                   {
                     "action": "manuals_rag",
@@ -886,6 +1235,13 @@
                     "rationale": "original neighbor_section: retrieve the next missing evidence",
                     "status": "ok",
                     "step": 2
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "How do I set up a custom screen? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+                    "rationale": "session_entity session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation: planner finish vetoed until evidence gap is resolved",
+                    "status": "ok",
+                    "step": 3
                   }
                 ]
               },
@@ -897,9 +1253,17 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [
+                "Adding Parts"
+              ],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [
+                "add_parts",
+                "configure_parts"
+              ],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -916,8 +1280,8 @@
               ],
               "backend": "scripted-validation",
               "mode": "react",
-              "rag_call_count": 2,
-              "tool_call_count": 2,
+              "rag_call_count": 3,
+              "tool_call_count": 3,
               "tool_calls": [
                 {
                   "action": "manuals_rag",
@@ -932,13 +1296,20 @@
                   "rationale": "original neighbor_section: retrieve the next missing evidence",
                   "status": "ok",
                   "step": 2
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "How do I set up a custom screen? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+                  "rationale": "session_entity session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation: planner finish vetoed until evidence gap is resolved",
+                  "status": "ok",
+                  "step": 3
                 }
               ]
             }
           }
         ],
         "insufficient_evidence": false,
-        "rag_call_count": 2,
+        "rag_call_count": 3,
         "tool_calls": [
           {
             "action": "manuals_rag",
@@ -953,6 +1324,13 @@
             "rationale": "original neighbor_section: retrieve the next missing evidence",
             "status": "ok",
             "step": 2
+          },
+          {
+            "action": "manuals_rag",
+            "query": "How do I set up a custom screen? Adding Parts Properties Results Data List setup create configure detailed procedure recovery search 3",
+            "rationale": "session_entity session_entity operation_object evidence_terminology duplicate_recovery entity_expanded deterministic_reformulation: planner finish vetoed until evidence gap is resolved",
+            "status": "ok",
+            "step": 3
           }
         ]
       },
@@ -963,7 +1341,7 @@
     {
       "case_id": "ra-v1-008",
       "category": "contradiction_resolution",
-      "elapsed_ms": 0.25,
+      "elapsed_ms": 0.29,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -1043,9 +1421,16 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [
+                "firmware 2.1"
+              ],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [
+                "version_scoped_value"
+              ],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -1109,7 +1494,7 @@
     {
       "case_id": "ra-v1-009",
       "category": "clarification",
-      "elapsed_ms": 0.2,
+      "elapsed_ms": 0.23,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -1164,9 +1549,16 @@
               "answer": "Grounded scripted evidence: target_product, output_type, configuration_steps",
               "citations": [],
               "confidence": "low",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": true,
               "memory_updates": [],
+              "missing_claims": [
+                "target_product",
+                "output_type",
+                "configuration_steps"
+              ],
+              "retrieval_trace": {},
               "used_documents": [],
               "warnings": []
             },
@@ -1211,7 +1603,7 @@
     {
       "case_id": "ra-v1-010",
       "category": "unsupported",
-      "elapsed_ms": 0.26,
+      "elapsed_ms": 0.3,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -1306,9 +1698,14 @@
               "answer": "Grounded scripted evidence: input_voltage",
               "citations": [],
               "confidence": "low",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": true,
               "memory_updates": [],
+              "missing_claims": [
+                "input_voltage"
+              ],
+              "retrieval_trace": {},
               "used_documents": [],
               "warnings": []
             },
@@ -1381,7 +1778,7 @@
     {
       "case_id": "ra-v1-011",
       "category": "tool_recovery",
-      "elapsed_ms": 0.25,
+      "elapsed_ms": 0.29,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -1461,9 +1858,12 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -1527,7 +1927,7 @@
     {
       "case_id": "ra-v1-012",
       "category": "calculator",
-      "elapsed_ms": 0.27,
+      "elapsed_ms": 0.31,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -1601,9 +2001,14 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [
+                "calculated_power"
+              ],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -1667,7 +2072,7 @@
     {
       "case_id": "ra-v1-013",
       "category": "session_memory",
-      "elapsed_ms": 0.23,
+      "elapsed_ms": 0.26,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -1727,9 +2132,12 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -1779,7 +2187,7 @@
     {
       "case_id": "ra-v1-014",
       "category": "session_memory",
-      "elapsed_ms": 0.17,
+      "elapsed_ms": 0.18,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -1829,9 +2237,15 @@
               "answer": "Grounded scripted evidence: target_product, input_voltage",
               "citations": [],
               "confidence": "low",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": true,
               "memory_updates": [],
+              "missing_claims": [
+                "target_product",
+                "input_voltage"
+              ],
+              "retrieval_trace": {},
               "used_documents": [],
               "warnings": []
             },
@@ -1876,7 +2290,7 @@
     {
       "case_id": "ra-v1-015",
       "category": "claim_coverage",
-      "elapsed_ms": 0.2,
+      "elapsed_ms": 0.23,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -1936,9 +2350,12 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -1988,7 +2405,7 @@
     {
       "case_id": "ra-v1-016",
       "category": "budget_termination",
-      "elapsed_ms": 0.24,
+      "elapsed_ms": 0.29,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -2078,9 +2495,15 @@
               "answer": "Grounded scripted evidence: rollback",
               "citations": [],
               "confidence": "low",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": true,
               "memory_updates": [],
+              "missing_claims": [
+                "activation",
+                "rollback"
+              ],
+              "retrieval_trace": {},
               "used_documents": [],
               "warnings": []
             },
@@ -2153,7 +2576,7 @@
     {
       "case_id": "ra-v1-017",
       "category": "entity_resolution",
-      "elapsed_ms": 0.27,
+      "elapsed_ms": 2.06,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -2237,9 +2660,15 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [
+                "cvx_capability",
+                "comparison"
+              ],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -2303,7 +2732,7 @@
     {
       "case_id": "ra-v1-018",
       "category": "exact_qualifier_preservation",
-      "elapsed_ms": 0.24,
+      "elapsed_ms": 0.26,
       "failures": [],
       "layer": "controller_contract",
       "observed": {
@@ -2363,9 +2792,12 @@
                 }
               ],
               "confidence": "high",
+              "discovered_terms": [],
               "followup_questions": [],
               "insufficient_evidence": false,
               "memory_updates": [],
+              "missing_claims": [],
+              "retrieval_trace": {},
               "used_documents": [
                 {
                   "document_id": "scripted-validation",
@@ -2411,42 +2843,15 @@
       "passed": true,
       "status": "pass",
       "title": "Exact structured lookup preserves all coordinate qualifiers"
-    },
-    {
-      "case_id": "ra-v1-019",
-      "category": "action_object_alignment",
-      "layer": "live_corpus",
-      "passed": false,
-      "reason": "live corpus runner is not attached; not counted as a pass",
-      "status": "not_run",
-      "title": "Live VS custom-screen authoring regression"
-    },
-    {
-      "case_id": "ra-v1-020",
-      "category": "action_object_alignment",
-      "layer": "live_corpus",
-      "passed": false,
-      "reason": "live corpus runner is not attached; not counted as a pass",
-      "status": "not_run",
-      "title": "Live follow-up correction retrieves authoring rather than viewer instructions"
-    },
-    {
-      "case_id": "ra-v1-021",
-      "category": "unsupported",
-      "layer": "live_corpus",
-      "passed": false,
-      "reason": "live corpus runner is not attached; not counted as a pass",
-      "status": "not_run",
-      "title": "Live invented-product request abstains after bounded recovery"
     }
   ],
   "schema": "manuals-rag-research-agent-matrix-result-v1",
-  "status": "failed",
+  "status": "passed",
   "summary": {
-    "failed": 2,
-    "not_run": 3,
-    "passed": 16,
-    "total": 21
+    "failed": 0,
+    "not_run": 0,
+    "passed": 18,
+    "total": 18
   },
   "validation": {
     "case_count": 21,
