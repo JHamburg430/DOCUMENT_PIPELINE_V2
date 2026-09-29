@@ -269,6 +269,54 @@ def test_agentic_query_stream_rejects_baseline():
     assert response.status_code == 422
 
 
+def test_react_agent_stream_accepts_session_memory_and_returns_tool_trace(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "settings",
+        SimpleNamespace(**{**vars(main.settings), "agentic_retrieval_enabled": True}),
+    )
+    captured = {}
+
+    def fake_run_react_agent(**kwargs):
+        captured.update(kwargs)
+        kwargs["event_callback"]({"event": "tool_call_started", "tool": "manuals_rag", "step": 1})
+        return {
+            "answer": "Grounded session answer.",
+            "confidence": "high",
+            "used_documents": [],
+            "citations": [],
+            "warnings": [],
+            "followup_questions": [],
+            "insufficient_evidence": False,
+            "memory_updates": ["Current model is CA-U5."],
+            "agent_trace": {"rag_call_count": 1},
+        }
+
+    monkeypatch.setattr(main, "run_react_agent", fake_run_react_agent)
+    response = client.post(
+        "/agent/stream",
+        headers=USER_HEADERS,
+        json={
+            "query": "What about its input range?",
+            "corpus_ids": ["manuals_vendor_keyence"],
+            "retrieval_orchestrator": "langgraph_agent",
+            "session_id": "session-1",
+            "conversation_history": [{"role": "user", "content": "We are discussing CA-U5."}],
+            "session_memory": ["Current model is CA-U5."],
+            "max_tool_calls": 4,
+        },
+    )
+
+    assert response.status_code == 200
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert events[0]["event"] == "run_started"
+    assert events[1]["event"] == "tool_call_started"
+    assert events[-1]["event"] == "run_completed"
+    assert events[-1]["result"]["agent_trace"]["rag_call_count"] == 1
+    assert captured["history"][0]["content"] == "We are discussing CA-U5."
+    assert captured["memory"] == ["Current model is CA-U5."]
+
+
 def test_agentic_answer_reduces_each_confirmed_required_claim(monkeypatch):
     results = [
         main.SearchResult(

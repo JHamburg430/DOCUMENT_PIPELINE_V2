@@ -116,6 +116,9 @@ AGENT_LIVE_JOBS: dict[str, dict] = {}
 AGENT_LIVE_LOCK = Lock()
 AGENT_LIVE_LATEST_ID: str | None = None
 AGENT_LIVE_JOB_LIMIT = 10
+AGENT_CHAT_SESSIONS: dict[str, dict] = {}
+AGENT_CHAT_SESSION_LOCK = Lock()
+AGENT_CHAT_SESSION_LIMIT = 50
 UI_AUTH_TOKEN = os.getenv("MANUALS_RAG_AUTH_TOKEN", "admin-token")
 RUN_EVENT_REGISTRY = RunRegistry()
 RUN_EVENT_POLL_SECONDS = max(0.05, float(os.getenv("MANUALS_RAG_EVENT_POLL_SECONDS", "0.2")))
@@ -141,6 +144,49 @@ class MatrixJobCancelled(RuntimeError):
 
 class MatrixAnswerFailure(RuntimeError):
     pass
+
+
+def _agent_chat_session(session_id: str | None = None) -> dict:
+    """Return a bounded server-owned chat session; callers receive a copy."""
+    normalized = re.sub(r"[^a-zA-Z0-9_-]", "", str(session_id or ""))[:120]
+    with AGENT_CHAT_SESSION_LOCK:
+        if not normalized or normalized not in AGENT_CHAT_SESSIONS:
+            normalized = normalized or f"agent-session-{uuid.uuid4().hex[:16]}"
+            AGENT_CHAT_SESSIONS[normalized] = {
+                "id": normalized,
+                "history": [],
+                "memory": [],
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+        while len(AGENT_CHAT_SESSIONS) > AGENT_CHAT_SESSION_LIMIT:
+            oldest = next(iter(AGENT_CHAT_SESSIONS))
+            if oldest == normalized:
+                break
+            AGENT_CHAT_SESSIONS.pop(oldest, None)
+        return deepcopy(AGENT_CHAT_SESSIONS[normalized])
+
+
+def _update_agent_chat_session(session_id: str, query: str, result: dict, *, memory_enabled: bool) -> dict:
+    with AGENT_CHAT_SESSION_LOCK:
+        session = AGENT_CHAT_SESSIONS.setdefault(
+            session_id,
+            {"id": session_id, "history": [], "memory": [], "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+        )
+        session["history"] = [
+            *list(session.get("history") or []),
+            {"role": "user", "content": query[:12000]},
+            {"role": "assistant", "content": str(result.get("answer") or "")[:12000]},
+        ][-12:]
+        if memory_enabled:
+            memory = list(session.get("memory") or [])
+            for item in result.get("memory_updates", []) or []:
+                value = str(item).strip()[:500]
+                if value and value not in memory:
+                    memory.append(value)
+            session["memory"] = memory[-20:]
+        session["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        return deepcopy(session)
 
 
 def _ui_event_journal() -> SQLiteEventJournal:
@@ -304,6 +350,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/local/agent-chat/session":
+            self._agent_chat_session_control()
+            return
         if parsed.path == "/local/agent-chat/run":
             self._start_local_agent_chat_run()
             return
@@ -813,6 +862,38 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         except Exception as error:
             payload = dumps({"detail": f"Agent chat failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
             self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _agent_chat_session_control(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+            body = self.rfile.read(content_length) if content_length else b"{}"
+            request = json.loads(body.decode("utf-8") or "{}")
+            action = str(request.get("action") or "new")
+            if action == "new":
+                session = _agent_chat_session()
+            elif action == "clear_memory":
+                session = _agent_chat_session(str(request.get("session_id") or ""))
+                with AGENT_CHAT_SESSION_LOCK:
+                    AGENT_CHAT_SESSIONS[session["id"]]["memory"] = []
+                    AGENT_CHAT_SESSIONS[session["id"]]["updated_at"] = time.strftime(
+                        "%Y-%m-%dT%H:%M:%SZ", time.gmtime()
+                    )
+                    session = deepcopy(AGENT_CHAT_SESSIONS[session["id"]])
+            else:
+                raise ValueError("Agent session action must be new or clear_memory.")
+            payload = json.dumps({"session": session}, default=str).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(400)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
@@ -1422,6 +1503,9 @@ def _start_agent_live_job(payload: dict, *, surface: str = "lab") -> dict:
     if not corpus_ids:
         corpus_ids = [DEFAULT_CORPUS_ID]
     max_hops = _as_positive_int(payload.get("max_retrieval_hops"), 6, maximum=8)
+    max_tool_calls = _as_positive_int(payload.get("max_tool_calls"), 4, maximum=6)
+    memory_enabled = bool(payload.get("memory_enabled", True))
+    session = _agent_chat_session(str(payload.get("session_id") or "")) if surface == "chat" else None
     with AGENT_LIVE_LOCK:
         active = next((job for job in AGENT_LIVE_JOBS.values() if job.get("status") in {"queued", "running"}), None)
         if active:
@@ -1437,6 +1521,10 @@ def _start_agent_live_job(payload: dict, *, surface: str = "lab") -> dict:
             "corpus_ids": corpus_ids,
             "backends": backends,
             "max_retrieval_hops": max_hops,
+            "max_tool_calls": max_tool_calls,
+            "session_id": session["id"] if session else None,
+            "memory_enabled": memory_enabled,
+            "session_memory_count": len(session.get("memory") or []) if session else 0,
             "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started_epoch)),
             "started_at_epoch": started_epoch,
             "completed_at": None,
@@ -1484,8 +1572,9 @@ def _run_agent_live_backend(job_id: str, backend: str, request_payload: dict) ->
         payload={"backend": backend},
     )
     body = json.dumps({**request_payload, "retrieval_orchestrator": backend}).encode("utf-8")
+    endpoint = "/agent/stream" if surface == "chat" else "/query/stream"
     request = Request(
-        f"{API_BASE}/query/stream",
+        f"{API_BASE}{endpoint}",
         data=body,
         headers={
             "Authorization": f"Bearer {UI_AUTH_TOKEN}",
@@ -1577,6 +1666,16 @@ def _run_agent_live_job(job_id: str) -> None:
             "response_mode": "answer_with_citations",
             "max_retrieval_hops": job["max_retrieval_hops"],
         }
+        if job.get("surface") == "chat":
+            session = _agent_chat_session(job.get("session_id"))
+            request_payload.update(
+                {
+                    "session_id": session["id"],
+                    "conversation_history": session.get("history", []),
+                    "session_memory": session.get("memory", []) if job.get("memory_enabled", True) else [],
+                    "max_tool_calls": job.get("max_tool_calls", 4),
+                }
+            )
         backends = list(job["backends"])
         workflow = "agent_chat" if job.get("surface") == "chat" else "agent_lab"
     _try_publish_component_event(
@@ -1606,6 +1705,22 @@ def _run_agent_live_job(job_id: str) -> None:
         failures = [run.get("error") for run in job["runs"].values() if run.get("error")]
         job["error"] = "; ".join(failures) if failures else None
         final_status = job["status"]
+        chat_result = None
+        if job.get("surface") == "chat" and final_status == "completed":
+            for run in job["runs"].values():
+                for event in reversed(run.get("events") or []):
+                    if event.get("event") == "run_completed" and isinstance(event.get("result"), dict):
+                        chat_result = deepcopy(event["result"])
+                        break
+                if chat_result:
+                    break
+        session_id = job.get("session_id")
+        query = job.get("query")
+        memory_enabled = bool(job.get("memory_enabled", True))
+    if chat_result and session_id:
+        session = _update_agent_chat_session(session_id, query, chat_result, memory_enabled=memory_enabled)
+        with AGENT_LIVE_LOCK:
+            AGENT_LIVE_JOBS[job_id]["session_memory_count"] = len(session.get("memory") or [])
     _try_publish_component_event(
         job_id,
         workflow=workflow,

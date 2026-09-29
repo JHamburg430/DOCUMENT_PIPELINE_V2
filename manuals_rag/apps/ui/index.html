@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260929-agent-test-ready" />
+    <link rel="stylesheet" href="/styles.css?v=20260929-react-agent-sessions" />
   </head>
   <body>
     <main class="app-shell">
@@ -204,7 +204,7 @@
           <header class="panel agent-chat-header">
             <div>
               <h2>Manuals Agent</h2>
-              <p class="muted">Ask a technical question and get a grounded answer with source citations. Each question is independently verified against the selected corpus.</p>
+              <p class="muted">A tool-using ReAct agent that can remember session context, call the grounded manuals RAG agent multiple times, calculate from retrieved values, and return source citations.</p>
               <p id="agent-chat-release-status" class="muted">Loading current acceptance and enablement status…</p>
             </div>
             <div class="agent-chat-actions">
@@ -231,6 +231,18 @@
                 Maximum hops
                 <input id="agent-chat-max-hops" type="number" min="1" max="8" value="6" />
               </label>
+              <label>
+                Maximum tool calls
+                <input id="agent-chat-max-tools" type="number" min="1" max="6" value="4" />
+              </label>
+              <label class="inline-check agent-chat-memory-toggle">
+                <input id="agent-chat-memory-enabled" type="checkbox" checked />
+                <span>Use session memory</span>
+              </label>
+              <div class="agent-chat-memory-control">
+                <span id="agent-chat-memory-status" class="model-meta">Session memory empty</span>
+                <button id="agent-chat-clear-memory" class="secondary-button" type="button">Clear memory</button>
+              </div>
               <label class="inline-check agent-chat-trace-toggle">
                 <input id="agent-chat-show-trace" type="checkbox" checked />
                 <span>Show live retrieval trace</span>
@@ -416,6 +428,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260929-agent-test-ready"></script>
+    <script src="/app.js?v=20260929-react-agent-sessions"></script>
   </body>
 </html>

@@ -88,6 +88,24 @@ class QueryRequest(BaseModel):
     include_table_images: bool = False
 
 
+class ConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=12000)
+
+
+class ReactAgentRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=12000)
+    corpus_ids: list[str]
+    filters: dict[str, list[str] | bool | str | int] = Field(default_factory=dict)
+    retrieval_orchestrator: Literal["langgraph_agent", "llamaindex_agent"] = "langgraph_agent"
+    max_retrieval_hops: int = Field(default=6, ge=1, le=8)
+    max_retrieval_seconds: float | None = Field(default=None, ge=5, le=300)
+    max_tool_calls: int = Field(default=4, ge=1, le=6)
+    session_id: str | None = Field(default=None, max_length=120)
+    conversation_history: list[ConversationMessage] = Field(default_factory=list, max_length=12)
+    session_memory: list[str] = Field(default_factory=list, max_length=20)
+
+
 class SearchResult(BaseModel):
     chunk_id: str
     score: float

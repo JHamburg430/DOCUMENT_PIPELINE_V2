@@ -38,6 +38,7 @@ from manuals_rag_answering.agentic_retrieval import (
     visual_evidence_unavailable_answer,
 )
 from manuals_rag_answering.generator import generate_answer, validate_answer
+from manuals_rag_answering.react_agent import run_react_agent
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import execute, fetch_all, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
@@ -64,7 +65,13 @@ from manuals_rag_observability.metrics import (
 from manuals_rag_parsers.metadata import infer_document_metadata
 from manuals_rag_permissions.auth import Principal, require_role
 from manuals_rag_retrieval.retriever import build_filters, retrieve
-from manuals_rag_schemas.documents import AnswerResponse, QueryRequest, SearchResult, SourceDocumentCreate
+from manuals_rag_schemas.documents import (
+    AnswerResponse,
+    QueryRequest,
+    ReactAgentRequest,
+    SearchResult,
+    SourceDocumentCreate,
+)
 
 
 AGENT_CLAIM_ANSWER_SCHEMA = {
@@ -1470,6 +1477,107 @@ def stream_agentic_query(
         raise HTTPException(status_code=422, detail="Live agent trace requires an agentic retrieval orchestrator.")
     return StreamingResponse(
         _stream_agentic_query_events(request),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _stream_react_agent_events(request: ReactAgentRequest):
+    """Run the conversational ReAct controller while retaining the proven RAG agent as tool one."""
+    events: queue.Queue[dict[str, Any] | None] = queue.Queue()
+
+    def emit(event: dict[str, Any]) -> None:
+        events.put(event)
+
+    def run() -> None:
+        orchestrator = request.retrieval_orchestrator
+
+        def rag_tool(query: str, backend: str, relay) -> dict[str, Any]:
+            if query_requires_visual_evidence(query):
+                answer = visual_evidence_unavailable_answer(query).model_dump()
+                answer["retrieval_orchestrator"] = backend
+                answer["retrieval_trace"] = {
+                    "sufficient": False,
+                    "stop_reason": "visual_evidence_not_enabled",
+                    "risk_disposition": "abstain",
+                }
+                return answer
+            factory = (
+                build_langgraph_agentic_retriever
+                if backend == "langgraph_agent"
+                else build_llamaindex_agentic_retriever
+            )
+            result = factory(event_callback=relay).invoke(
+                {
+                    "query": query,
+                    "corpus_ids": request.corpus_ids,
+                    "filters": request.filters,
+                    "max_hops": request.max_retrieval_hops,
+                    "max_seconds": _agentic_max_seconds(request),
+                }
+            )
+            retrieval_results = [
+                SearchResult.model_validate(item)
+                for item in result.get("retrieval_results", [])
+            ]
+            retrieval_trace = dict(result.get("retrieval_trace") or {})
+            _record_agentic_trace(backend, retrieval_trace)
+            answer = (
+                _generate_agentic_answer(query, retrieval_results, retrieval_trace)
+                if result.get("sufficient", retrieval_trace.get("sufficient"))
+                else insufficient_agent_answer(query, retrieval_trace)
+            ).model_dump()
+            answer["retrieval_orchestrator"] = backend
+            answer["retrieval_trace"] = retrieval_trace
+            return answer
+
+        try:
+            emit(
+                {
+                    "event": "run_started",
+                    "mode": "react",
+                    "session_id": request.session_id,
+                    "retrieval_orchestrator": orchestrator,
+                    "query": request.query,
+                    "max_tool_calls": request.max_tool_calls,
+                }
+            )
+            with QUERY_DURATION.labels("full").time(), capture_ollama_usage() as usage_events:
+                result = run_react_agent(
+                    query=request.query,
+                    backend=orchestrator,
+                    rag_tool=rag_tool,
+                    history=[item.model_dump() for item in request.conversation_history],
+                    memory=request.session_memory,
+                    max_tool_calls=request.max_tool_calls,
+                    event_callback=emit,
+                )
+            result["session_id"] = request.session_id
+            result["cost"] = {**summarize_ollama_usage(usage_events), "measured": True}
+            emit({"event": "answer_completed", "answer": result})
+            emit({"event": "run_completed", "result": result})
+        except Exception as error:
+            _record_agentic_failure(orchestrator)
+            emit({"event": "run_failed", "error": f"{error.__class__.__name__}: {error}"})
+        finally:
+            events.put(None)
+
+    Thread(target=run, daemon=True).start()
+    while True:
+        event = events.get()
+        if event is None:
+            break
+        yield json.dumps(event, default=str) + "\n"
+
+
+@app.post("/agent/stream")
+def stream_react_agent(
+    request: ReactAgentRequest,
+    _: Principal = Depends(require_role("end_user", "operator", "admin", "auditor")),
+) -> StreamingResponse:
+    _require_agentic_retrieval_enabled(request)
+    return StreamingResponse(
+        _stream_react_agent_events(request),
         media_type="application/x-ndjson",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

@@ -608,6 +608,17 @@ summary {
   margin: 0;
 }
 
+.agent-chat-memory-control {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  justify-content: space-between;
+}
+
+.agent-chat-memory-control button {
+  white-space: nowrap;
+}
+
 .agent-chat-messages {
   display: grid;
   align-content: start;
@@ -732,6 +743,27 @@ summary {
   gap: 8px;
   margin-top: 12px;
 }
+
+.agent-chat-tool-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.75rem 0;
+}
+
+.agent-chat-tool {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.55rem;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.agent-chat-tool.pass { border-left-color: var(--pass); }
+.agent-chat-tool.fail { border-left-color: var(--fail); }
+.agent-chat-tool span,
+.agent-chat-tool small { color: var(--muted); }
 
 .agent-chat-hop {
   display: grid;

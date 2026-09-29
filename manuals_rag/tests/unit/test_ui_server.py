@@ -403,12 +403,17 @@ def test_agent_chat_page_exposes_grounded_conversation_controls():
     assert 'id="agent-chat-backend"' in index_html
     assert 'id="agent-chat-show-trace"' in index_html
     assert 'id="agent-chat-max-hops" type="number" min="1" max="8" value="6"' in index_html
+    assert 'id="agent-chat-max-tools" type="number" min="1" max="6" value="4"' in index_html
+    assert 'id="agent-chat-memory-enabled" type="checkbox" checked' in index_html
+    assert 'id="agent-chat-clear-memory"' in index_html
     assert 'id="agent-chat-release-status"' in index_html
     assert "What input voltage range does the CA-U5 power supply accept?" in index_html
     assert 'id="agent-max-hops" type="number" min="1" max="8" value="6"' in index_html
     assert "Show live retrieval trace" in index_html
     assert "/local/agent-chat/run" in app_js
     assert "/local/agent-chat/current" in app_js
+    assert "/local/agent-chat/session" in app_js
+    assert 'tool === "manuals_rag" ? "Manuals RAG" : "Calculator"' in app_js
     assert "Accepted ${validation.completed}/${validation.total} on LangGraph and LlamaIndex" in app_js
     assert "sendAgentChatMessage" in app_js
     assert "hydrateAgentChatJob" in app_js
@@ -416,6 +421,52 @@ def test_agent_chat_page_exposes_grounded_conversation_controls():
     assert ".agent-chat-shell" in styles_css
     assert ".agent-chat-composer" in styles_css
     assert "#agent-chat.tab-panel.active" in styles_css
+
+
+def test_agent_chat_session_memory_is_bounded_and_clearable():
+    with ui_server.AGENT_CHAT_SESSION_LOCK:
+        ui_server.AGENT_CHAT_SESSIONS.clear()
+    session = ui_server._agent_chat_session()
+    for index in range(25):
+        session = ui_server._update_agent_chat_session(
+            session["id"],
+            f"question {index}",
+            {"answer": f"answer {index}", "memory_updates": [f"memory {index}"]},
+            memory_enabled=True,
+        )
+
+    assert len(session["history"]) == 12
+    assert len(session["memory"]) == 20
+    assert session["memory"][0] == "memory 5"
+
+
+def test_agent_chat_job_carries_session_and_react_controls(monkeypatch):
+    class NoopThread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            pass
+
+    monkeypatch.setattr(ui_server, "Thread", NoopThread)
+    with ui_server.AGENT_LIVE_LOCK:
+        ui_server.AGENT_LIVE_JOBS.clear()
+    with ui_server.AGENT_CHAT_SESSION_LOCK:
+        ui_server.AGENT_CHAT_SESSIONS.clear()
+
+    job = ui_server._start_agent_live_job(
+        {
+            "query": "Use the manuals to answer this.",
+            "backends": ["langgraph_agent"],
+            "max_tool_calls": 5,
+            "memory_enabled": False,
+        },
+        surface="chat",
+    )
+
+    assert job["session_id"].startswith("agent-session-")
+    assert job["max_tool_calls"] == 5
+    assert job["memory_enabled"] is False
 
 
 def test_agent_chat_and_lab_reattach_to_their_own_latest_jobs():

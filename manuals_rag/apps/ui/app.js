@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260929-agent-test-ready";
+const ASSET_VERSION = "20260929-react-agent-sessions";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -54,6 +54,8 @@ const state = {
     turns: [],
     job: null,
     timer: null,
+    sessionId: null,
+    memoryCount: 0,
   },
   agentMatrix: {
     payload: null,
@@ -2900,6 +2902,11 @@ function agentEventLabel(event) {
     answer_completed: "Answer generated",
     run_completed: "Run complete",
     run_failed: "Run failed",
+    react_started: "ReAct loop started",
+    tool_call_started: "Tool call started",
+    tool_call_completed: "Tool call completed",
+    react_finish_selected: "Agent selected final answer",
+    react_completed: "ReAct loop complete",
   }[event] || event;
 }
 
@@ -3010,6 +3017,17 @@ function renderAgentLab() {
 function applyAgentEvent(run, event, shouldRender = true) {
   event.receivedAt ??= performance.now();
   run.events.push(event);
+  run.toolCalls ??= [];
+  if (event.event === "tool_call_started") {
+    run.toolCalls.push({ ...event, status: "running" });
+  }
+  if (event.event === "tool_call_completed") {
+    const call = [...run.toolCalls].reverse().find((item) => item.step === event.step && item.tool === event.tool);
+    if (call) Object.assign(call, event, { status: event.status === "error" ? "failed" : "completed" });
+  }
+  if (event.event === "rag_tool_event" && event.source) {
+    applyAgentEvent(run, { ...event.source, receivedAt: event.receivedAt, toolStep: event.step }, false);
+  }
   if (event.policy) run.policy = event.policy;
   if (event.event === "plan_completed") run.plan = event.plan;
   if (event.event === "hop_started") {
@@ -3062,6 +3080,7 @@ function agentRunFromJob(job) {
     trace: null,
     answer: null,
     error: snapshot.error || job?.error || null,
+    toolCalls: [],
   };
   (snapshot.events || []).forEach((rawEvent) => {
     const event = { ...rawEvent };
@@ -3077,6 +3096,7 @@ function renderAgentChatTrace(run) {
   if (!$('agent-chat-show-trace').checked) return "";
   const plan = run.plan || {};
   const hops = Object.values(run.hops || {});
+  const toolCalls = run.toolCalls || [];
   return `
     <details class="agent-chat-trace" ${run.status === "running" ? "open" : ""}>
       <summary>${run.status === "running" ? "Live retrieval trace" : "Retrieval trace"} · ${escapeHtml(agentBackendLabel(run.backend))}</summary>
@@ -3086,6 +3106,15 @@ function renderAgentChatTrace(run) {
           <ol>${plan.hops.map((hop) => `<li>${escapeHtml(hop.objective || hop.query || hop.hop_id)} <span class="model-meta">${escapeHtml(hop.strategy || "")}</span></li>`).join("")}</ol>
         </div>
       ` : '<p class="muted">Waiting for the retrieval plan…</p>'}
+      <div class="agent-chat-tool-list">
+        ${toolCalls.map((call) => `
+          <div class="agent-chat-tool ${call.status === "failed" ? "fail" : call.status === "completed" ? "pass" : ""}">
+            <strong>${escapeHtml(call.tool === "manuals_rag" ? "Manuals RAG" : "Calculator")}</strong>
+            <span>Call ${escapeHtml(call.step || "")}</span>
+            <small>${escapeHtml(call.input || call.observation || call.status || "")}</small>
+          </div>
+        `).join("") || '<div class="agent-chat-tool"><span>Preparing first Manuals RAG call…</span></div>'}
+      </div>
       <div class="agent-chat-hop-strip">
         ${hops.map((hop) => `
           <div class="agent-chat-hop ${hop.sufficient === true ? "pass" : hop.sufficient === false ? "fail" : ""}">
@@ -3155,6 +3184,11 @@ function renderAgentChat() {
 function hydrateAgentChatJob(job) {
   if (!job) return;
   state.agentChat.job = job;
+  state.agentChat.sessionId = job.session_id || state.agentChat.sessionId;
+  state.agentChat.memoryCount = Number(job.session_memory_count || 0);
+  $("agent-chat-memory-status").textContent = state.agentChat.memoryCount
+    ? `${state.agentChat.memoryCount} session memor${state.agentChat.memoryCount === 1 ? "y" : "ies"}`
+    : "Session memory empty";
   const run = agentRunFromJob(job);
   let turn = state.agentChat.turns.find((item) => item.jobId === job.id);
   if (!turn) {
@@ -3229,7 +3263,13 @@ function watchAgentChatJob(jobId) {
 
 async function loadAgentChatJob() {
   const payload = await localJson("/local/agent-chat/current");
-  if (!payload.job) return;
+  if (!payload.job) {
+    if (!state.agentChat.sessionId) {
+      const sessionPayload = await localPostJson("/local/agent-chat/session", { action: "new" });
+      state.agentChat.sessionId = sessionPayload.session.id;
+    }
+    return;
+  }
   hydrateAgentChatJob(payload.job);
   if (["queued", "running"].includes(payload.job.status)) watchAgentChatJob(payload.job.id).catch(console.error);
 }
@@ -3250,6 +3290,9 @@ async function sendAgentChatMessage() {
       corpus_ids: splitList($("agent-chat-corpus").value || DEFAULT_CORPUS),
       backends: [$("agent-chat-backend").value],
       max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-chat-max-hops").value || 6))),
+      max_tool_calls: Math.max(1, Math.min(6, Number($("agent-chat-max-tools").value || 4))),
+      session_id: state.agentChat.sessionId,
+      memory_enabled: $("agent-chat-memory-enabled").checked,
     });
     const pending = state.agentChat.turns.find((item) => item.jobId === pendingId);
     if (pending) pending.jobId = job.id;
@@ -3277,16 +3320,30 @@ function setupAgentChatSuggestions() {
   });
 }
 
-function resetAgentChat() {
+async function resetAgentChat() {
   if (state.agentChat.timer) clearTimeout(state.agentChat.timer);
   state.agentChat.timer = null;
   state.agentChat.turns = [];
   state.agentChat.job = null;
+  const payload = await localPostJson("/local/agent-chat/session", { action: "new" });
+  state.agentChat.sessionId = payload.session.id;
+  state.agentChat.memoryCount = 0;
+  $("agent-chat-memory-status").textContent = "Session memory empty";
   $("agent-chat-send").disabled = false;
   $("agent-chat-status").textContent = "Ready";
   $("agent-chat-status").className = "status-pill";
   renderAgentChat();
   $("agent-chat-query").focus();
+}
+
+async function clearAgentChatMemory() {
+  if (!state.agentChat.sessionId) await resetAgentChat();
+  const payload = await localPostJson("/local/agent-chat/session", {
+    action: "clear_memory",
+    session_id: state.agentChat.sessionId,
+  });
+  state.agentChat.memoryCount = (payload.session.memory || []).length;
+  $("agent-chat-memory-status").textContent = "Session memory empty";
 }
 
 function hydrateAgentLiveJob(job) {
@@ -4233,7 +4290,8 @@ async function init() {
       $("agent-chat-form").requestSubmit();
     }
   });
-  $("agent-chat-new").addEventListener("click", resetAgentChat);
+  $("agent-chat-new").addEventListener("click", () => resetAgentChat().catch(console.error));
+  $("agent-chat-clear-memory").addEventListener("click", () => clearAgentChatMemory().catch(console.error));
   $("agent-chat-show-trace").addEventListener("change", renderAgentChat);
   setupAgentChatSuggestions();
   $("run-agent-test").addEventListener("click", () => runAgentTest().catch((error) => {
