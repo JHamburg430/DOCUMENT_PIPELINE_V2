@@ -1721,6 +1721,53 @@ def test_contextual_lexical_terms_expand_verification_to_check():
     assert "check" in terms
 
 
+def test_query_analysis_treats_hyphenated_serial_standard_as_protocol_not_model():
+    analysis = analyze_query(
+        "What numeric value represents RS-232C communication for the OutputFilter devId parameter?"
+    )
+
+    assert analysis.product_identifiers == []
+    assert analysis.product_model is None
+    assert "spec_lookup" in analysis.query_types
+
+
+def test_query_analysis_routes_range_tolerance_to_structured_spec_evidence():
+    analysis = analyze_query("What is the Z range tolerance for model XT-024?")
+
+    assert analysis.product_identifiers == ["XT-024"]
+    assert "spec_lookup" in analysis.query_types
+    assert {"spec_record", "table_record"}.issubset(analysis.preferred_chunk_types)
+
+
+def test_table_lexical_range_tolerance_uses_source_field_label():
+    terms = ["range", "tolerance", "model", "xt024"]
+
+    assert retriever._lexical_table_content_terms(terms) == ["range"]
+
+
+def test_contextual_lexical_devid_lookup_requires_function_and_parameter(monkeypatch):
+    query = (
+        "What numeric value represents RS-232C communication for the OutputFilter "
+        "devId parameter?"
+    )
+    analysis = analyze_query(query)
+
+    def fake_fetch_all(sql, params):
+        assert "coalesce(content, '') ~*" not in sql
+        assert "%outputfilter%" in params
+        assert "%devid%" in params
+        return []
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    assert retriever.run_contextual_lexical_search(
+        query,
+        ["manuals_vendor_keyence"],
+        {},
+        analysis,
+    ) == []
+
+
 def test_contextual_lexical_terms_expand_login_name_to_username():
     analysis = analyze_query("How do I configure the login name for an SFTP server?")
 
@@ -3250,6 +3297,44 @@ def test_named_operation_promotion_retains_behavior_table_row():
 
     assert promoted[0].chunk_id == "reset-count"
     assert promoted[0].metadata["retrieval_stage"] == "named_operation_promoted"
+
+
+def test_function_parameter_mapping_promotion_retains_bounded_outputfilter_evidence():
+    generic = SearchResult(
+        chunk_id="generic",
+        score=1.0,
+        title="SR-2000 Manual",
+        document_version_id="v1",
+        source_document_id="sr2000",
+        pages=[162],
+        section_path=["Communication"],
+        content="RS-232C communication settings.",
+        metadata={"chunk_type": "section_window"},
+    )
+    exact = SearchResult(
+        chunk_id="outputfilter-window",
+        score=0.4,
+        title="SR-2000 Manual",
+        document_version_id="v1",
+        source_document_id="sr2000",
+        pages=[168],
+        section_path=["OutputFilter"],
+        content=(
+            "OutputFilter (devId, str). devId: the device ID. "
+            "2 for RS-232C, and 3 for Ethernet."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    promoted = retriever._promote_function_parameter_mapping_candidates(
+        [generic],
+        [generic, exact],
+        "For OutputFilter, which devId selects RS-232C and what does devId 3 select?",
+        limit=2,
+    )
+
+    assert promoted[0].chunk_id == "outputfilter-window"
+    assert promoted[0].metadata["retrieval_stage"] == "function_parameter_mapping_promoted"
 
 
 def test_wiring_terminal_promotion_retains_exact_physical_terminal_record():

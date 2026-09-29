@@ -146,6 +146,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         "weight",
         "capacity",
         "connector",
+        "tolerance",
     }
     explicit_spec_lookup = (
         "specification" in lowered
@@ -205,12 +206,23 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("general")
     model_match_spans: list[tuple[int, int]] = []
     model_matches: list[tuple[int, str]] = []
+    compact_protocols = {
+        "RS232",
+        "RS232C",
+        "RS485",
+        "TCPIP",
+        "UDPV4",
+        "IPV4",
+        "IPV6",
+        "ETHERNETIP",
+    }
     for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:[-:][A-Z0-9]{1,8})+\b", query):
         if not any(char.isdigit() for char in match.group(0)):
             continue
+        if re.sub(r"[^A-Z0-9]", "", match.group(0).upper()) in compact_protocols:
+            continue
         model_matches.append((match.start(), match.group(0)))
         model_match_spans.append(match.span())
-    compact_protocols = {"RS232", "RS232C", "RS485", "TCPIP", "UDPV4", "IPV4", "IPV6"}
     for match in re.finditer(r"\b[A-Z]{2,5}\d{3,8}[A-Z]?\b", query):
         identifier = match.group(0)
         if identifier in compact_protocols:

@@ -853,6 +853,32 @@ def test_planner_routes_direct_labelled_lookup_to_structural_without_model(monke
         assert plan.hops[0].strategy == "structural"
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Which Windows versions are supported for the SR-H8W *1*2*3 model?",
+        "What design requirements must SRP/CS components meet to withstand expected influence in Category B systems?",
+    ],
+)
+def test_planners_keep_direct_requirements_and_version_lookups_single_structural_hop(
+    monkeypatch,
+    query,
+):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("direct structured lookup must not invoke the planner model")
+        ),
+    )
+
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=True)
+        assert plan.mode == "single"
+        assert len(plan.hops) == 1
+        assert plan.hops[0].query == query
+        assert plan.hops[0].strategy == "structural"
+
+
 def test_planners_keep_shared_indicator_colour_lookup_single_hop(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_answering.agentic_retrieval.chat_json",
@@ -3619,6 +3645,29 @@ def test_controller_image_capacity_requires_complete_two_sided_relation():
     ) == []
 
 
+def test_structured_lookup_uses_operating_system_row_for_supported_windows_query():
+    query = "Which Windows versions are supported for the SR-H8W *1*2*3 model?"
+    model_row = _result(
+        "model-row",
+        "sr-h8w-doc",
+        "Column headers: SR-H8W *1*2*3; Row headers: Model; "
+        "Cell value: SR-H8W *1*2*3; Row: 0; Column: 1",
+    ).model_copy(update={"metadata": {"chunk_type": "table_record"}})
+    operating_system_row = _result(
+        "operating-system-row",
+        "sr-h8w-doc",
+        "Column headers: SR-H8W *1*2*3; Row headers: Operating System; "
+        "Cell value: Windows 10 Pro or later, 32 bit/64 bit Windows 8 Pro or later, "
+        "32 bit/64 bit (excluding Windows RT); Row: 1; Column: 1",
+    ).model_copy(update={"metadata": {"chunk_type": "table_record"}})
+
+    assert _direct_structured_lookup_support(
+        query,
+        [model_row, operating_system_row],
+        {"claim_supported": True, "supporting_chunk_ids": ["model-row", "operating-system-row"]},
+    ) == ["operating-system-row"]
+
+
 @pytest.mark.parametrize(
     ("query", "strategy"),
     [
@@ -6152,6 +6201,23 @@ def test_devid_protocol_mapping_requires_outputfilter_signature_and_complete_row
     assert verdict["trust_state"] == "confirmed"
     assert verdict["claim_supported"] is True
     assert verdict["supporting_chunk_ids"] == ["devid-mapping"]
+
+
+def test_devid_protocol_mapping_accepts_bounded_section_with_signature_and_mapping():
+    query = (
+        "What numeric value represents RS-232C communication for the OutputFilter "
+        "devId parameter?"
+    )
+    section = _result(
+        "devid-section",
+        "lua-doc",
+        (
+            "OutputFilter (devId, str) customizes the result output character string. "
+            "devId: the device ID. 2 for RS-232C, and 3 for Ethernet str: character string"
+        ),
+    ).model_copy(update={"metadata": {"chunk_type": "section_window"}})
+
+    assert _direct_devid_protocol_mapping_support(query, [section]) == ["devid-section"]
 
 
 def test_devid_protocol_mapping_accepts_xg_ethernet_lookup_only_in_lua_manual_scope(

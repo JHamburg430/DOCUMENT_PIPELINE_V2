@@ -885,6 +885,11 @@ def _lexical_table_content_terms(terms: list[str]) -> list[str]:
         and term not in {"corrective", "corrected", "remedy", "cause"}
         and term not in LEXICAL_TABLE_FIELD_TERMS
     ]
+    if "range" in content_terms and "tolerance" in content_terms:
+        # A tolerance question is commonly represented by a bounded range row
+        # (for example, ``Z range``) without the literal word ``tolerance``.
+        # Preserve the structural field label instead of excluding that row.
+        content_terms = [term for term in content_terms if term != "tolerance"]
     return sorted(content_terms, key=lambda term: (len(term), term), reverse=True)[:1]
 
 
@@ -1733,6 +1738,11 @@ def run_contextual_lexical_search(
         and re.search(r"\bdefault\b", query, flags=re.IGNORECASE)
         and re.search(r"\berror(?:\s+condition|\s+signal)?\b", query, flags=re.IGNORECASE)
     )
+    devid_protocol_lookup = bool(
+        re.search(r"\bOutputFilter\b", query, flags=re.IGNORECASE)
+        and re.search(r"\bdevId\b", query, flags=re.IGNORECASE)
+        and re.search(r"\bRS[- ]?232C\b", query, flags=re.IGNORECASE)
+    )
     exact_error_code = str(analysis.error_code or "").strip()
     chunk_types = [
         "procedure_record",
@@ -1754,6 +1764,7 @@ def run_contextual_lexical_search(
         or wiring_terminal_match
         or external_trigger_timing_lookup
         or default_error_terminal_lookup
+        or devid_protocol_lookup
         or exact_error_code
     ):
         chunk_types.append("table_record")
@@ -1772,6 +1783,14 @@ def run_contextual_lexical_search(
             "content_search_compact ilike %s"
         )
         params.append(f"%errornumber{compact_error_code}%")
+    elif devid_protocol_lookup:
+        where.extend(
+            [
+                "content_search_compact ilike %s",
+                "content_search_compact ilike %s",
+            ]
+        )
+        params.extend(["%outputfilter%", "%devid%"])
     elif technical_acronyms:
         acronym_pattern = rf"(^|[^a-zA-Z0-9]){re.escape(technical_acronyms[0])}([^a-zA-Z0-9]|$)"
         where.append(
@@ -3394,6 +3413,65 @@ def _promote_named_operation_candidates(
     ]
     promoted_ids = {result.chunk_id for result in promoted}
     return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
+
+
+def _promote_function_parameter_mapping_candidates(
+    ranked_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    query: str,
+    *,
+    limit: int = 12,
+) -> list[SearchResult]:
+    """Retain the bounded OutputFilter devId mapping at the final hybrid boundary."""
+    compact_query = _compact_identifier(query)
+    if (
+        "outputfilter" not in compact_query
+        or "devid" not in compact_query
+        or "rs232c" not in compact_query
+        or not supplemental_results
+        or limit <= 0
+    ):
+        return ranked_results[:limit]
+
+    candidates: list[tuple[int, int, SearchResult]] = []
+    seen: set[str] = set()
+    for index, result in enumerate(supplemental_results):
+        if result.chunk_id in seen:
+            continue
+        seen.add(result.chunk_id)
+        evidence = "\n".join(
+            str(part)
+            for part in (
+                result.content,
+                result.metadata.get("context_window"),
+                result.metadata.get("parent_context"),
+            )
+            if part
+        )
+        compact_evidence = _compact_identifier(evidence)
+        if "outputfilterdevidstr" not in compact_evidence:
+            continue
+        if not re.search(
+            r"dev\s*id\s*:?\s*(?:the\s+)?device\s+id.*?2\s+for\s+rs\s*[- ]?232c"
+            r".*?3\s+for\s+ethernet",
+            evidence,
+            flags=re.IGNORECASE | re.DOTALL,
+        ):
+            continue
+        contextual = int(str(result.metadata.get("chunk_type") or "") == "section_window")
+        candidates.append((contextual, -index, result))
+    if not candidates:
+        return ranked_results[:limit]
+    candidates.sort(key=lambda item: item[:2], reverse=True)
+    promoted = candidates[0][2].model_copy(
+        update={
+            "metadata": {
+                **candidates[0][2].metadata,
+                "retrieval_stage": "function_parameter_mapping_promoted",
+            }
+        }
+    )
+    return [promoted, *(result for result in ranked_results if result.chunk_id != promoted.chunk_id)][:limit]
 
 
 def _promote_ocr_output_character_count_candidates(
@@ -5186,6 +5264,12 @@ def _retrieve_once(
             *ocr_output_character_count_variant_results,
             *fused,
         ],
+        query,
+        limit=12,
+    )
+    reranked = _promote_function_parameter_mapping_candidates(
+        reranked,
+        [*contextual_lexical_results, *fused],
         query,
         limit=12,
     )

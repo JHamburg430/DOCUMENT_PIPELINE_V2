@@ -506,7 +506,8 @@ def _labelled_lookup_plan(query: str) -> RetrievalPlan | None:
     """Route direct named-field questions to row/cell-preserving retrieval."""
     if not re.search(
         r"\b(?:what|which)\s+[^?]{0,100}\b(?:mode|settings?|option|status|code|"
-        r"address|parameter|rating|range|value|languages?|colou?rs?|frame\s+rate|chart|screen|chapter|section|page)\b",
+        r"address|parameter|rating|range|value|versions?|requirements?|languages?|colou?rs?|"
+        r"frame\s+rate|operating\s+systems?|chart|screen|chapter|section|page)\b",
         query,
         flags=re.IGNORECASE,
     ):
@@ -3347,6 +3348,10 @@ def _direct_structured_lookup_support(
         return normalized
 
     query_terms = terms(query)
+    operating_system_lookup = bool(
+        re.search(r"\b(?:windows|operating\s+systems?|os\s+versions?)\b", query, flags=re.I)
+        and re.search(r"\b(?:supports?|supported|compatib(?:le|ility))\b", query, flags=re.I)
+    )
     query_axes = set(re.findall(r"\b([xyz])\b", query.lower()))
     query_numbers = set(re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])", query))
     detection_distance_range_query = bool(
@@ -3375,11 +3380,21 @@ def _direct_structured_lookup_support(
         value_terms = terms(cell_match.group("value"))
         if not column_terms or not row_terms:
             continue
+        if operating_system_lookup and not (
+            re.search(r"\b(?:operating\s+system|supported\s+os|os\s+version)\b", cell_match.group("row"), flags=re.I)
+            and re.search(r"\bwindows\b", cell_match.group("value"), flags=re.I)
+        ):
+            continue
         column_overlap = len(column_terms.intersection(query_terms))
         required_column_overlap = 1 if len(column_terms) >= 4 else min(2, len(column_terms))
         if column_overlap < required_column_overlap:
             continue
         row_overlap = len(row_terms.intersection(query_terms))
+        if operating_system_lookup:
+            # "Windows versions" and a serialized "Operating System" row are
+            # semantic aliases even though they have no literal row-term
+            # overlap. The guard above already requires Windows in the value.
+            row_overlap = max(row_overlap, 2)
         if detection_distance_range_query:
             if not re.search(
                 r"\bdetect(?:able|ing|ion)?\s+distance\b",
@@ -5115,7 +5130,11 @@ def _direct_devid_protocol_mapping_support(
     matches: list[tuple[int, int, str]] = []
     for index, result in enumerate(results):
         metadata = result.metadata or {}
-        if str(metadata.get("chunk_type") or "") not in {"atomic_text", "spec_record"}:
+        if str(metadata.get("chunk_type") or "") not in {
+            "atomic_text",
+            "section_window",
+            "spec_record",
+        }:
             continue
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
         context = " ".join(
@@ -5128,8 +5147,9 @@ def _direct_devid_protocol_mapping_support(
                 "parent_context",
             )
         )
+        scope_text = f"{content} {context}"
         outputfilter_scope = outputfilter_lookup and re.search(
-            r"\bOutputFilter\s*\(\s*devId\s*,\s*str\s*\)", context, flags=re.I
+            r"\bOutputFilter\s*\(\s*devId\s*,\s*str\s*\)", scope_text, flags=re.I
         )
         xg_manual_scope = xg_controller_lookup and (
             re.search(r"\bXG\s+Series\s+Lua\s+Script\s+Manual\b", context, flags=re.I)
