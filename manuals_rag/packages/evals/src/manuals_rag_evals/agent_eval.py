@@ -594,9 +594,12 @@ def _result_preserves_expected_evidence(
 
     Same-document or term overlap alone is intentionally insufficient. A parent must
     overlap the expected page and either contain the complete normalized snippet or place
-    every value from a structured expected row on one physical row. Long evidence passages
-    copied verbatim into another manual edition are also equivalent; short/generic snippets
-    remain document-scoped so a shared number or label cannot satisfy the contract.
+    every value from a structured expected row on one physical row. A near-verbatim atomic
+    or spec duplicate in the same document may occur on another page after parsing; ordered
+    prefix equivalence admits that duplicate without weakening this to bag-of-words matching.
+    Long evidence passages copied verbatim into another manual edition are also equivalent;
+    short/generic snippets remain document-scoped so a shared number or label cannot satisfy
+    the contract.
     """
     normalized_snippet = _normalized(snippet)
     if not normalized_snippet:
@@ -620,9 +623,18 @@ def _result_preserves_expected_evidence(
             query=query,
         ):
             return True
+        shorter, longer = sorted(
+            (normalized_content, normalized_snippet),
+            key=len,
+        )
+        near_verbatim = bool(
+            len(shorter) >= 30
+            and len(shorter) / max(1, len(longer)) >= 0.8
+            and longer.startswith(shorter)
+        )
         return (
-            chunk_type in {"atomic_text", "warning_record"}
-            and normalized_content == normalized_snippet
+            chunk_type in {"atomic_text", "spec_record"}
+            and (normalized_content == normalized_snippet or near_verbatim)
         )
     if normalized_snippet in normalized_content:
         return True

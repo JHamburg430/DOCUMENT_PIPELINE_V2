@@ -6833,6 +6833,29 @@ def test_pc_to_plc_menu_path_support_requires_literal_transfer_instruction():
     ]
 
 
+def test_pc_to_plc_menu_path_uses_one_deterministic_hop_for_both_backends(monkeypatch):
+    query = (
+        "In the LJ-X8000 EtherNet/IP setup for CompactLogix or ControlLogix, which "
+        "menu path transfers data from the PC to the PLC?"
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("planner must not run")),
+    )
+
+    langgraph_plan = plan_retrieval(query)
+    llamaindex_plan = plan_llamaindex_retrieval(query)
+
+    assert langgraph_plan.mode == "single"
+    assert len(langgraph_plan.hops) == 1
+    assert langgraph_plan.hops[0].query == query
+    assert langgraph_plan.hops[0].strategy == "hybrid"
+    assert llamaindex_plan.mode == "single"
+    assert len(llamaindex_plan.hops) == 1
+    assert llamaindex_plan.hops[0].query == query
+    assert llamaindex_plan.hops[0].strategy == "hybrid"
+
+
 def test_dependent_hop_is_refined_from_prior_evidence():
     plan = RetrievalPlan(
         mode="dependent",

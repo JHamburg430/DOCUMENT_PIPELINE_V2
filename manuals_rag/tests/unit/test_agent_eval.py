@@ -40,6 +40,36 @@ def test_equivalence_rejects_short_cross_document_numeric_match():
     )
 
 
+def test_equivalence_accepts_near_verbatim_same_document_spec_on_another_page():
+    assert _result_preserves_expected_evidence(
+        {
+            "source_document_id": "lr-t-manual",
+            "pages": [23],
+            "content": "Sensor: to-controller cable (4-pin M12 connector type)",
+            "metadata": {"chunk_type": "spec_record"},
+        },
+        source_document_id="lr-t-manual",
+        expected_pages={15},
+        snippet="Sensor-to-controller cable (4-pin M12 connector type models)",
+        query="What connector type is used for the LR-T sensor-to-controller cable?",
+    )
+
+
+def test_equivalence_rejects_reordered_same_document_terms_on_another_page():
+    assert not _result_preserves_expected_evidence(
+        {
+            "source_document_id": "lr-t-manual",
+            "pages": [23],
+            "content": "M12 models use a cable with a 4-pin controller connector.",
+            "metadata": {"chunk_type": "spec_record"},
+        },
+        source_document_id="lr-t-manual",
+        expected_pages={15},
+        snippet="Sensor-to-controller cable (4-pin M12 connector type models)",
+        query="What connector type is used for the LR-T sensor-to-controller cable?",
+    )
+
+
 def test_structured_equivalence_accepts_cross_page_duplicate_cell():
     expected = (
         "Column headers: Scaling Target; Row headers: Position X Minimum.Absolute Measured Value; "

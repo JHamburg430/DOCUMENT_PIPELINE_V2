@@ -820,6 +820,13 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     ):
         strategy = "structural"
     elif re.match(
+        r"^\s*in\s+.+?\bwhich\s+menu\s+path\b.+\btransfers?\s+data\b"
+        r".+\bPC\b.+\bPLC\b.*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    elif re.match(
         r"^\s*how\s+long\s+does\b.+\btake\b.+\b(?:in|at)\b.+\bmode\b.*\?\s*$",
         query,
         flags=re.I,
