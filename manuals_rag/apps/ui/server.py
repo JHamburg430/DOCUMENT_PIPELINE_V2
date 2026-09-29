@@ -134,6 +134,11 @@ UI_EVENT_JOURNAL_MAX_EVENTS = max(100, int(os.getenv("MANUALS_RAG_UI_EVENT_MAX_E
 UI_EVENT_JOURNAL: SQLiteEventJournal | None = None
 UI_EVENT_JOURNAL_LOCK = Lock()
 EXTERNAL_EVAL_RUN_PREFIX = "external-eval-"
+# Legacy evaluators do not publish a durable lock that the UI can inspect.  A
+# partial file is therefore only evidence of an active run while it has been
+# updated recently.  Older partials are historical/incomplete artifacts and
+# must not be presented as a live evaluation.
+EXTERNAL_EVAL_ACTIVE_WINDOW_SECONDS = 15 * 60
 LOCAL_EVENT_RUN_PREFIXES = ("matrix-", "agent-run-", "agent-matrix-", EXTERNAL_EVAL_RUN_PREFIX)
 EXTERNAL_EVAL_OBSERVATIONS: dict[str, tuple[int, str]] = {}
 EXTERNAL_EVAL_FILE_COUNTS: dict[str, tuple[int, int, int]] = {}
@@ -2065,6 +2070,8 @@ def _legacy_external_eval_run(run_id: str | None = None) -> dict | None:
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
+    active_candidates: list[dict] = []
+    completed_candidates: list[dict] = []
     for dataset_path in candidates:
         suffix = _external_eval_suffix(dataset_path)
         if requested_suffix is not None and suffix != requested_suffix:
@@ -2080,7 +2087,7 @@ def _legacy_external_eval_run(run_id: str | None = None) -> dict | None:
             continue
         terminal = paths["results"].exists() and paths["summary"].exists() and completed >= total
         updated_at = max(dataset_path.stat().st_mtime, result_path.stat().st_mtime)
-        return {
+        snapshot = {
             "id": f"{EXTERNAL_EVAL_RUN_PREFIX}{suffix}",
             "artifact_run_id": suffix,
             "run_type": "external_retrieval_eval",
@@ -2094,6 +2101,19 @@ def _legacy_external_eval_run(run_id: str | None = None) -> dict | None:
             "manifest_path": str(paths["manifest"].relative_to(MANUALS_ROOT)) if paths["manifest"].exists() else None,
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(updated_at)),
         }
+        if terminal:
+            completed_candidates.append(snapshot)
+        elif time.time() - updated_at <= EXTERNAL_EVAL_ACTIVE_WINDOW_SECONDS:
+            snapshot["activity_state"] = "recent_partial"
+            active_candidates.append(snapshot)
+
+    # A genuinely active partial run takes precedence over completed history.
+    # Stale partials are deliberately ignored so an abandoned run cannot make
+    # the UI claim that evaluation is still running or replace good results.
+    if active_candidates:
+        return active_candidates[0]
+    if completed_candidates:
+        return completed_candidates[0]
     return None
 
 

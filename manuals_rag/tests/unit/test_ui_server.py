@@ -815,6 +815,48 @@ def test_question_matrix_prefers_current_external_200_question_run(monkeypatch, 
     assert "final_status" not in reconciled["rows"][0]["cells"]["retrieval"]
 
 
+def test_question_matrix_ignores_stale_partial_and_uses_latest_completed_run(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    bank = reports / "bank.jsonl"
+    bank.write_text(ui_server.json.dumps({"case_id": "bank-case", "query": "Bank question?"}) + "\n", encoding="utf-8")
+    (reports / "retrieval_accuracy_question_bank_manifest.json").write_text(
+        ui_server.json.dumps(
+            {"question_bank": {"total_questions": 1, "datasets": [{"path": "test_reports/bank.jsonl", "status": "generated"}]}}
+        ),
+        encoding="utf-8",
+    )
+    stale_cases = [{"case_id": "stale-case", "query": "Abandoned question?"}]
+    stale_dataset = reports / "retrieval_eval_dataset_stale.jsonl"
+    stale_partial = reports / "retrieval_eval_results_stale.partial.jsonl"
+    stale_dataset.write_text(ui_server.json.dumps(stale_cases[0]) + "\n", encoding="utf-8")
+    stale_partial.write_text("", encoding="utf-8")
+    old = 1_600_000_000
+    import os
+    os.utime(stale_dataset, (old, old))
+    os.utime(stale_partial, (old, old))
+
+    completed_cases = [{"case_id": "done-case", "query": "Completed question?"}]
+    completed_dataset = reports / "retrieval_eval_dataset_done.jsonl"
+    completed_results = reports / "retrieval_eval_results_done.jsonl"
+    completed_summary = reports / "retrieval_eval_summary_done.json"
+    completed_dataset.write_text(ui_server.json.dumps(completed_cases[0]) + "\n", encoding="utf-8")
+    completed_results.write_text(
+        ui_server.json.dumps({"case": completed_cases[0], "evaluation": {"passed": True}}) + "\n",
+        encoding="utf-8",
+    )
+    completed_summary.write_text('{"total_queries":1}', encoding="utf-8")
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+
+    payload = ui_server._build_question_matrix()
+
+    assert payload["current_run"]["artifact_run_id"] == "done"
+    assert payload["current_run"]["status"] == "completed"
+    assert payload["rows"][0]["latest_result"]["run_id"] == "done"
+
+
 def test_external_evaluation_progress_events_are_change_driven_and_terminal(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()
