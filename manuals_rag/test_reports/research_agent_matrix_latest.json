@@ -1,0 +1,2478 @@
+{
+  "dataset": "tests/fixtures/research_agent_validation_matrix_v1.jsonl",
+  "dataset_sha256": "29d7ae4f5c318dadb07795df89f3e27cc2aa0e3603da0c908c83bfeb610cba3f",
+  "layer": "all",
+  "manifest": "tests/fixtures/research_agent_validation_matrix_v1.manifest.json",
+  "records": [
+    {
+      "case_id": "ra-v1-001",
+      "category": "entity_resolution",
+      "elapsed_ms": 0.47,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 2,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 4
+          },
+          {
+            "event": "tool_call_started",
+            "input": "vs",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "VS adding parts properties results data list authoring_procedure",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 3
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 2,
+                "tool_call_count": 2,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "vs",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "VS adding parts properties results data list authoring_procedure",
+                    "rationale": "original evidence_terminology: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 2
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "vs-custom-screen-add-parts",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": [
+                "viewer instructions do not perform the requested create_or_configure operation"
+              ]
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 2,
+              "tool_call_count": 2,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "vs",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "VS adding parts properties results data list authoring_procedure",
+                  "rationale": "original evidence_terminology: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 2
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 2,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "vs",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "VS adding parts properties results data list authoring_procedure",
+            "rationale": "original evidence_terminology: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 2
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Known VS product acronym overrides versus heuristic"
+    },
+    {
+      "case_id": "ra-v1-002",
+      "category": "action_object_alignment",
+      "elapsed_ms": 0.31,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 2,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 4
+          },
+          {
+            "event": "tool_call_started",
+            "input": "create set up adding parts",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "VS properties configure creation_steps",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 3
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 2,
+                "tool_call_count": 2,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "create set up adding parts",
+                    "rationale": "operation_object: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "VS properties configure creation_steps",
+                    "rationale": "evidence_terminology: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 2
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "vs-adding-parts",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": [
+                "operation mismatch: view is not create"
+              ]
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 2,
+              "tool_call_count": 2,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "create set up adding parts",
+                  "rationale": "operation_object: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "VS properties configure creation_steps",
+                  "rationale": "evidence_terminology: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 2
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 2,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "create set up adding parts",
+            "rationale": "operation_object: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "VS properties configure creation_steps",
+            "rationale": "evidence_terminology: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 2
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "User correction changes operation from view to create"
+    },
+    {
+      "case_id": "ra-v1-003",
+      "category": "duplicate_recovery",
+      "elapsed_ms": 0.2,
+      "failures": [
+        "rag_call_count=1 outside expected range",
+        "distinct_rag_queries=1 below minimum",
+        "missing_strategy_tag:missing_claim",
+        "missing_strategy_tag:duplicate_recovery",
+        "supported_case_finished_insufficient",
+        "duplicate_query_terminal"
+      ],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 1,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 4
+          },
+          {
+            "event": "tool_call_started",
+            "input": "add custom screen",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "Duplicate RAG query avoided",
+            "step": 2
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 1,
+                "tool_call_count": 1,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "add custom screen",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  }
+                ]
+              },
+              "answer": "Grounded scripted evidence: add_parts",
+              "citations": [],
+              "confidence": "low",
+              "followup_questions": [],
+              "insufficient_evidence": true,
+              "memory_updates": [],
+              "used_documents": [],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 1,
+              "tool_call_count": 1,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "add custom screen",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": true,
+        "rag_call_count": 1,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "add custom screen",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          }
+        ]
+      },
+      "passed": false,
+      "status": "fail",
+      "title": "Duplicate planner query causes reformulation instead of termination"
+    },
+    {
+      "case_id": "ra-v1-004",
+      "category": "duplicate_recovery",
+      "elapsed_ms": 0.21,
+      "failures": [
+        "rag_call_count=1 outside expected range",
+        "distinct_rag_queries=1 below minimum",
+        "missing_strategy_tag:duplicate_recovery",
+        "missing_strategy_tag:deterministic_reformulation",
+        "supported_case_finished_insufficient",
+        "duplicate_query_terminal"
+      ],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 1,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 5
+          },
+          {
+            "event": "tool_call_started",
+            "input": "properties configure",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "Duplicate RAG query avoided",
+            "step": 2
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 1,
+                "tool_call_count": 1,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "properties configure",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  }
+                ]
+              },
+              "answer": "Grounded scripted evidence: authoring_entry",
+              "citations": [],
+              "confidence": "low",
+              "followup_questions": [],
+              "insufficient_evidence": true,
+              "memory_updates": [],
+              "used_documents": [],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 1,
+              "tool_call_count": 1,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "properties configure",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": true,
+        "rag_call_count": 1,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "properties configure",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          }
+        ]
+      },
+      "passed": false,
+      "status": "fail",
+      "title": "Repeated duplicate proposal triggers deterministic missing-claim query"
+    },
+    {
+      "case_id": "ra-v1-005",
+      "category": "claim_coverage",
+      "elapsed_ms": 0.27,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 2,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 4
+          },
+          {
+            "event": "tool_call_started",
+            "input": "voltage",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "CA-U5 current current_only",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 3
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 2,
+                "tool_call_count": 2,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "voltage",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "CA-U5 current current_only",
+                    "rationale": "original missing_claim: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 2
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "ca-u5-voltage",
+                  "document_id": "scripted-validation"
+                },
+                {
+                  "chunk_id": "ca-u5-current",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 2,
+              "tool_call_count": 2,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "voltage",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "CA-U5 current current_only",
+                  "rationale": "original missing_claim: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 2
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 2,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "voltage",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "CA-U5 current current_only",
+            "rationale": "original missing_claim: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 2
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Compound request cannot finish with one unresolved primary claim"
+    },
+    {
+      "case_id": "ra-v1-006",
+      "category": "evidence_led_recovery",
+      "elapsed_ms": 0.25,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 2,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 4
+          },
+          {
+            "event": "tool_call_started",
+            "input": "properties results data list",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "VS properties results data list part_sources",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 3
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 2,
+                "tool_call_count": 2,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "properties results data list",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "VS properties results data list part_sources",
+                    "rationale": "original evidence_terminology: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 2
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "vs-part-sources",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 2,
+              "tool_call_count": 2,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "properties results data list",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "VS properties results data list part_sources",
+                  "rationale": "original evidence_terminology: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 2
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 2,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "properties results data list",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "VS properties results data list part_sources",
+            "rationale": "original evidence_terminology: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 2
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Discovered terminology drives a dependent follow-up retrieval"
+    },
+    {
+      "case_id": "ra-v1-007",
+      "category": "evidence_led_recovery",
+      "elapsed_ms": 0.25,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 2,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 4
+          },
+          {
+            "event": "tool_call_started",
+            "input": "chapter 9 adding parts",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "VS chapter 9 adding parts neighbor_sections",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 3
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 2,
+                "tool_call_count": 2,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "chapter 9 adding parts",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "VS chapter 9 adding parts neighbor_sections",
+                    "rationale": "original neighbor_section: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 2
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "vs-ch9-neighbor",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 2,
+              "tool_call_count": 2,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "chapter 9 adding parts",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "VS chapter 9 adding parts neighbor_sections",
+                  "rationale": "original neighbor_section: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 2
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 2,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "chapter 9 adding parts",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "VS chapter 9 adding parts neighbor_sections",
+            "rationale": "original neighbor_section: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 2
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Promising chapter hit triggers neighbor-section retrieval"
+    },
+    {
+      "case_id": "ra-v1-008",
+      "category": "contradiction_resolution",
+      "elapsed_ms": 0.25,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 2,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 4
+          },
+          {
+            "event": "tool_call_started",
+            "input": "firmware 2.1 version 2.1",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "model X firmware 2.1 version 2.1 version_scoped",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 3
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 2,
+                "tool_call_count": 2,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "firmware 2.1 version 2.1",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "model X firmware 2.1 version 2.1 version_scoped",
+                    "rationale": "original authoritative_scope: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 2
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "model-x-fw21",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 2,
+              "tool_call_count": 2,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "firmware 2.1 version 2.1",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "model X firmware 2.1 version 2.1 version_scoped",
+                  "rationale": "original authoritative_scope: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 2
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 2,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "firmware 2.1 version 2.1",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "model X firmware 2.1 version 2.1 version_scoped",
+            "rationale": "original authoritative_scope: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 2
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Contradictory revisions require authoritative scope recovery"
+    },
+    {
+      "case_id": "ra-v1-009",
+      "category": "clarification",
+      "elapsed_ms": 0.2,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 1,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 2
+          },
+          {
+            "event": "tool_call_started",
+            "input": "ambiguous_outputs",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 2
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 1,
+                "tool_call_count": 1,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "ambiguous_outputs",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  }
+                ]
+              },
+              "answer": "Grounded scripted evidence: target_product, output_type, configuration_steps",
+              "citations": [],
+              "confidence": "low",
+              "followup_questions": [],
+              "insufficient_evidence": true,
+              "memory_updates": [],
+              "used_documents": [],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 1,
+              "tool_call_count": 1,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "ambiguous_outputs",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": true,
+        "rag_call_count": 1,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "ambiguous_outputs",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Material ambiguity ends in targeted clarification"
+    },
+    {
+      "case_id": "ra-v1-010",
+      "category": "unsupported",
+      "elapsed_ms": 0.26,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 3,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 4
+          },
+          {
+            "event": "tool_call_started",
+            "input": "zxq-9999",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "ZXQ-9999 zxq-9999 no_alias_product",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "ZXQ-9999 zxq-9999 no_neighbor_product",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 4
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 3,
+                "tool_call_count": 3,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "zxq-9999",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "ZXQ-9999 zxq-9999 no_alias_product",
+                    "rationale": "original entity_expanded: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 2
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "ZXQ-9999 zxq-9999 no_neighbor_product",
+                    "rationale": "alias_or_neighbor: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 3
+                  }
+                ]
+              },
+              "answer": "Grounded scripted evidence: input_voltage",
+              "citations": [],
+              "confidence": "low",
+              "followup_questions": [],
+              "insufficient_evidence": true,
+              "memory_updates": [],
+              "used_documents": [],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 3,
+              "tool_call_count": 3,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "zxq-9999",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "ZXQ-9999 zxq-9999 no_alias_product",
+                  "rationale": "original entity_expanded: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 2
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "ZXQ-9999 zxq-9999 no_neighbor_product",
+                  "rationale": "alias_or_neighbor: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 3
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": true,
+        "rag_call_count": 3,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "zxq-9999",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "ZXQ-9999 zxq-9999 no_alias_product",
+            "rationale": "original entity_expanded: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 2
+          },
+          {
+            "action": "manuals_rag",
+            "query": "ZXQ-9999 zxq-9999 no_neighbor_product",
+            "rationale": "alias_or_neighbor: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 3
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Unsupported product exhausts distinct strategies then abstains"
+    },
+    {
+      "case_id": "ra-v1-011",
+      "category": "tool_recovery",
+      "elapsed_ms": 0.25,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 2,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 3
+          },
+          {
+            "event": "tool_call_started",
+            "input": "ca-u5 voltage",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "error": "timeout",
+            "event": "tool_call_completed",
+            "status": "error",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "CA-U5 ca-u5 voltage retry_success",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 3
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 2,
+                "tool_call_count": 2,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "ca-u5 voltage",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "error",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "CA-U5 ca-u5 voltage retry_success",
+                    "rationale": "original tool_retry: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 2
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "ca-u5-voltage",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 2,
+              "tool_call_count": 2,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "ca-u5 voltage",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "error",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "CA-U5 ca-u5 voltage retry_success",
+                  "rationale": "original tool_retry: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 2
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 2,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "ca-u5 voltage",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "error",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "CA-U5 ca-u5 voltage retry_success",
+            "rationale": "original tool_retry: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 2
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Transient RAG error retries without discarding prior state"
+    },
+    {
+      "case_id": "ra-v1-012",
+      "category": "calculator",
+      "elapsed_ms": 0.27,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 1,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 2
+          },
+          {
+            "event": "tool_call_started",
+            "input": "voltage current",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "CA-U5 voltage current calculation",
+            "step": 2,
+            "tool": "calculator"
+          },
+          {
+            "event": "tool_call_completed",
+            "observation": "invalid syntax (<unknown>, line 1)",
+            "step": 2,
+            "tool": "calculator"
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 1,
+                "tool_call_count": 2,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "voltage current",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 1
+                  },
+                  {
+                    "action": "calculator",
+                    "query": "CA-U5 voltage current calculation",
+                    "rationale": "original calculator_after_evidence: retrieve the next missing evidence",
+                    "status": "error",
+                    "step": 2
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "ca-u5-electrical",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 1,
+              "tool_call_count": 2,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "voltage current",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 1
+                },
+                {
+                  "action": "calculator",
+                  "query": "CA-U5 voltage current calculation",
+                  "rationale": "original calculator_after_evidence: retrieve the next missing evidence",
+                  "status": "error",
+                  "step": 2
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 1,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "voltage current",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 1
+          },
+          {
+            "action": "calculator",
+            "query": "CA-U5 voltage current calculation",
+            "rationale": "original calculator_after_evidence: retrieve the next missing evidence",
+            "status": "error",
+            "step": 2
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Calculator runs only after grounded numeric retrieval"
+    },
+    {
+      "case_id": "ra-v1-013",
+      "category": "session_memory",
+      "elapsed_ms": 0.23,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 1,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 2
+          },
+          {
+            "event": "tool_call_started",
+            "input": "ca-u5 input voltage",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 2
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 1,
+                "tool_call_count": 1,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "ca-u5 input voltage",
+                    "rationale": "session_entity original: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 1
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "ca-u5-voltage",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 1,
+              "tool_call_count": 1,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "ca-u5 input voltage",
+                  "rationale": "session_entity original: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 1
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 1,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "ca-u5 input voltage",
+            "rationale": "session_entity original: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 1
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Session entity resolves pronoun but facts are retrieved fresh"
+    },
+    {
+      "case_id": "ra-v1-014",
+      "category": "session_memory",
+      "elapsed_ms": 0.17,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 1,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 1
+          },
+          {
+            "event": "tool_call_started",
+            "input": "unresolved_pronoun",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 1,
+                "tool_call_count": 1,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "unresolved_pronoun",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  }
+                ]
+              },
+              "answer": "Grounded scripted evidence: target_product, input_voltage",
+              "citations": [],
+              "confidence": "low",
+              "followup_questions": [],
+              "insufficient_evidence": true,
+              "memory_updates": [],
+              "used_documents": [],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 1,
+              "tool_call_count": 1,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "unresolved_pronoun",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": true,
+        "rag_call_count": 1,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "unresolved_pronoun",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Memory-disabled session does not carry product context"
+    },
+    {
+      "case_id": "ra-v1-015",
+      "category": "claim_coverage",
+      "elapsed_ms": 0.2,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 1,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 2
+          },
+          {
+            "event": "tool_call_started",
+            "input": "ca-u5 voltage",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 2
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 1,
+                "tool_call_count": 1,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "ca-u5 voltage",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 1
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "ca-u5-voltage",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 1,
+              "tool_call_count": 1,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "ca-u5 voltage",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 1
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 1,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "ca-u5 voltage",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 1
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Final synthesis cites only evidence used by supported claims"
+    },
+    {
+      "case_id": "ra-v1-016",
+      "category": "budget_termination",
+      "elapsed_ms": 0.24,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 3,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 3
+          },
+          {
+            "event": "tool_call_started",
+            "input": "setup configuration",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "model X activation activation",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "model X rollback rollback_missing",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 0,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 3,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 3,
+                "tool_call_count": 3,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "setup configuration",
+                    "rationale": "original: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "model X activation activation",
+                    "rationale": "original missing_claim: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 2
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "model X rollback rollback_missing",
+                    "rationale": "missing_claim: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 3
+                  }
+                ]
+              },
+              "answer": "Grounded scripted evidence: rollback",
+              "citations": [],
+              "confidence": "low",
+              "followup_questions": [],
+              "insufficient_evidence": true,
+              "memory_updates": [],
+              "used_documents": [],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 3,
+              "tool_call_count": 3,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "setup configuration",
+                  "rationale": "original: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "model X activation activation",
+                  "rationale": "original missing_claim: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 2
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "model X rollback rollback_missing",
+                  "rationale": "missing_claim: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 3
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": true,
+        "rag_call_count": 3,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "setup configuration",
+            "rationale": "original: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "model X activation activation",
+            "rationale": "original missing_claim: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 2
+          },
+          {
+            "action": "manuals_rag",
+            "query": "model X rollback rollback_missing",
+            "rationale": "missing_claim: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 3
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Budget exhaustion reports exact unresolved claims and attempts"
+    },
+    {
+      "case_id": "ra-v1-017",
+      "category": "entity_resolution",
+      "elapsed_ms": 0.27,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 2,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 4
+          },
+          {
+            "event": "tool_call_started",
+            "input": "vs",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "insufficient",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "tool_call_started",
+            "input": "VS + CV-X cv-x cvx_branch",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 2,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 3
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 2,
+                "tool_call_count": 2,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "vs",
+                    "rationale": "entity_branch: retrieve the next missing evidence",
+                    "status": "insufficient",
+                    "step": 1
+                  },
+                  {
+                    "action": "manuals_rag",
+                    "query": "VS + CV-X cv-x cvx_branch",
+                    "rationale": "comparison_synthesis: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 2
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "vs-capability",
+                  "document_id": "scripted-validation"
+                },
+                {
+                  "chunk_id": "cvx-capability",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 2,
+              "tool_call_count": 2,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "vs",
+                  "rationale": "entity_branch: retrieve the next missing evidence",
+                  "status": "insufficient",
+                  "step": 1
+                },
+                {
+                  "action": "manuals_rag",
+                  "query": "VS + CV-X cv-x cvx_branch",
+                  "rationale": "comparison_synthesis: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 2
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 2,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "vs",
+            "rationale": "entity_branch: retrieve the next missing evidence",
+            "status": "insufficient",
+            "step": 1
+          },
+          {
+            "action": "manuals_rag",
+            "query": "VS + CV-X cv-x cvx_branch",
+            "rationale": "comparison_synthesis: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 2
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Actual versus comparison requires two valid entity branches"
+    },
+    {
+      "case_id": "ra-v1-018",
+      "category": "exact_qualifier_preservation",
+      "elapsed_ms": 0.24,
+      "failures": [],
+      "layer": "controller_contract",
+      "observed": {
+        "distinct_rag_queries": 1,
+        "events": [
+          {
+            "backend": "scripted-validation",
+            "event": "react_started",
+            "max_tool_calls": 2
+          },
+          {
+            "event": "tool_call_started",
+            "input": "cv-x482",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "citation_count": 1,
+            "event": "tool_call_completed",
+            "status": "ok",
+            "step": 1,
+            "tool": "manuals_rag"
+          },
+          {
+            "event": "react_finish_selected",
+            "rationale": "all_required_claims_supported",
+            "step": 2
+          },
+          {
+            "event": "react_completed",
+            "result": {
+              "agent_trace": {
+                "available_tools": [
+                  "manuals_rag",
+                  "calculator",
+                  "session_memory"
+                ],
+                "backend": "scripted-validation",
+                "mode": "react",
+                "rag_call_count": 1,
+                "tool_call_count": 1,
+                "tool_calls": [
+                  {
+                    "action": "manuals_rag",
+                    "query": "cv-x482",
+                    "rationale": "original_qualifiers: retrieve the next missing evidence",
+                    "status": "ok",
+                    "step": 1
+                  }
+                ]
+              },
+              "answer": "Validated grounded answer",
+              "citations": [
+                {
+                  "chunk_id": "cvx-0028-65-6bit",
+                  "document_id": "scripted-validation"
+                }
+              ],
+              "confidence": "high",
+              "followup_questions": [],
+              "insufficient_evidence": false,
+              "memory_updates": [],
+              "used_documents": [
+                {
+                  "document_id": "scripted-validation",
+                  "version": "fixture"
+                }
+              ],
+              "warnings": []
+            },
+            "trace": {
+              "available_tools": [
+                "manuals_rag",
+                "calculator",
+                "session_memory"
+              ],
+              "backend": "scripted-validation",
+              "mode": "react",
+              "rag_call_count": 1,
+              "tool_call_count": 1,
+              "tool_calls": [
+                {
+                  "action": "manuals_rag",
+                  "query": "cv-x482",
+                  "rationale": "original_qualifiers: retrieve the next missing evidence",
+                  "status": "ok",
+                  "step": 1
+                }
+              ]
+            }
+          }
+        ],
+        "insufficient_evidence": false,
+        "rag_call_count": 1,
+        "tool_calls": [
+          {
+            "action": "manuals_rag",
+            "query": "cv-x482",
+            "rationale": "original_qualifiers: retrieve the next missing evidence",
+            "status": "ok",
+            "step": 1
+          }
+        ]
+      },
+      "passed": true,
+      "status": "pass",
+      "title": "Exact structured lookup preserves all coordinate qualifiers"
+    },
+    {
+      "case_id": "ra-v1-019",
+      "category": "action_object_alignment",
+      "layer": "live_corpus",
+      "passed": false,
+      "reason": "live corpus runner is not attached; not counted as a pass",
+      "status": "not_run",
+      "title": "Live VS custom-screen authoring regression"
+    },
+    {
+      "case_id": "ra-v1-020",
+      "category": "action_object_alignment",
+      "layer": "live_corpus",
+      "passed": false,
+      "reason": "live corpus runner is not attached; not counted as a pass",
+      "status": "not_run",
+      "title": "Live follow-up correction retrieves authoring rather than viewer instructions"
+    },
+    {
+      "case_id": "ra-v1-021",
+      "category": "unsupported",
+      "layer": "live_corpus",
+      "passed": false,
+      "reason": "live corpus runner is not attached; not counted as a pass",
+      "status": "not_run",
+      "title": "Live invented-product request abstains after bounded recovery"
+    }
+  ],
+  "schema": "manuals-rag-research-agent-matrix-result-v1",
+  "status": "failed",
+  "summary": {
+    "failed": 2,
+    "not_run": 3,
+    "passed": 16,
+    "total": 21
+  },
+  "validation": {
+    "case_count": 21,
+    "categories": {
+      "action_object_alignment": 3,
+      "budget_termination": 1,
+      "calculator": 1,
+      "claim_coverage": 2,
+      "clarification": 1,
+      "contradiction_resolution": 1,
+      "duplicate_recovery": 2,
+      "entity_resolution": 2,
+      "evidence_led_recovery": 2,
+      "exact_qualifier_preservation": 1,
+      "session_memory": 2,
+      "tool_recovery": 1,
+      "unsupported": 2
+    },
+    "dataset": "tests/fixtures/research_agent_validation_matrix_v1.jsonl",
+    "dataset_sha256": "29d7ae4f5c318dadb07795df89f3e27cc2aa0e3603da0c908c83bfeb610cba3f",
+    "layers": {
+      "controller_contract": 18,
+      "live_corpus": 3
+    },
+    "mandatory_case_count": 6,
+    "manifest": "tests/fixtures/research_agent_validation_matrix_v1.manifest.json",
+    "status": "valid"
+  }
+}

@@ -43,6 +43,7 @@
           </div>
           <nav class="evaluation-jump-links" aria-label="Evaluation workspace sections">
             <a href="#agent-matrix-workspace">Current agent matrix</a>
+            <a href="#research-agent-matrix-workspace">Research-agent acceptance</a>
             <a href="#question-matrix-workspace">Question matrix</a>
             <a href="#agent-lab">Live agent lab</a>
           </nav>
@@ -326,6 +327,19 @@
               <button id="replay-agent-matrix-fixture" class="secondary-button" type="button">Replay Live Fixture</button>
             </div>
           </details>
+        </details>
+        <details id="research-agent-matrix-workspace" class="panel agent-matrix-panel evaluation-section evaluation-disclosure" open>
+          <summary><span>Evidence-Aware Research-Agent Matrix</span><span id="research-agent-matrix-status" class="status-pill">Not run</span></summary>
+          <p class="muted">This is the acceptance matrix for the additional ReAct controller: 18 deterministic controller-contract cases plus 3 live-corpus cases. Contract validation executes the real loop; live rows remain explicitly not-run until both production backends are exercised.</p>
+          <div id="research-agent-matrix-summary" class="matrix-summary empty-state">No research-agent evaluation artifact loaded.</div>
+          <div id="research-agent-matrix-table" class="matrix-table-shell"></div>
+          <div class="matrix-actions">
+            <label>Layer
+              <select id="research-agent-matrix-layer"><option value="all">All 21 cases</option><option value="controller_contract">18 controller cases</option><option value="live_corpus">3 live cases</option></select>
+            </label>
+            <button id="run-research-agent-matrix" type="button">Run Research-Agent Matrix</button>
+            <button id="refresh-research-agent-matrix" type="button">Refresh</button>
+          </div>
         </details>
       </section>
 

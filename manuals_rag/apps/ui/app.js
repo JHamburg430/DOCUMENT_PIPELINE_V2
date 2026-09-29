@@ -3807,6 +3807,68 @@ async function runAgentMatrix() {
   await watchAgentMatrixJob(job.id);
 }
 
+function renderResearchAgentMatrix(payload) {
+  const report = payload.report;
+  const summary = report?.summary;
+  const status = $("research-agent-matrix-status");
+  const rows = report?.records || [];
+  if (!report) {
+    status.textContent = payload.active_job ? payload.active_job.status : "Not run";
+    status.className = `status-pill ${payload.active_job ? "running" : "idle"}`;
+    $("research-agent-matrix-summary").className = "matrix-summary empty-state";
+    $("research-agent-matrix-summary").textContent = "No research-agent evaluation artifact loaded. Run the matrix to generate one.";
+    $("research-agent-matrix-table").innerHTML = "";
+    return;
+  }
+  const reportStatus = report.status || "incomplete";
+  status.textContent = `${reportStatus} · ${summary?.passed || 0}/${summary?.total || 0} passed`;
+  status.className = `status-pill ${reportStatus === "passed" ? "pass" : reportStatus === "failed" ? "fail" : "running"}`;
+  $("research-agent-matrix-summary").className = "matrix-summary";
+  $("research-agent-matrix-summary").innerHTML = `
+    <article class="matrix-stat"><span>Total cases</span><strong>${summary?.total || 0}</strong><small>frozen SHA ${escapeHtml(String(report.dataset_sha256 || "").slice(0, 12))}…</small></article>
+    <article class="matrix-stat"><span>Controller passed</span><strong>${summary?.passed || 0}</strong><small>${summary?.failed || 0} failed</small></article>
+    <article class="matrix-stat"><span>Live not run</span><strong>${summary?.not_run || 0}</strong><small>not counted as passes</small></article>
+    <article class="matrix-stat"><span>Acceptance gate</span><strong>${reportStatus === "passed" ? "OPEN" : "CLOSED"}</strong><small>all cases must be verified</small></article>`;
+  $("research-agent-matrix-table").innerHTML = `<table class="matrix-grid agent-matrix-grid"><thead><tr><th>Case</th><th>Layer</th><th>Category</th><th>Status</th><th>Observed / failure</th></tr></thead><tbody>${rows.map((row) => {
+    const detail = row.failures?.join(", ") || row.reason || `${row.observed?.rag_call_count ?? "—"} RAG calls · ${row.observed?.distinct_rag_queries ?? "—"} distinct queries`;
+    return `<tr><td><strong>${escapeHtml(row.case_id)}</strong><small>${escapeHtml(row.title || "")}</small></td><td>${escapeHtml(row.layer || "")}</td><td>${escapeHtml(row.category || "")}</td><td><span class="status-pill ${row.status === "pass" ? "pass" : row.status === "fail" ? "fail" : "idle"}">${escapeHtml(row.status || "unknown")}</span></td><td class="matrix-text-cell">${escapeHtml(detail)}</td></tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+async function loadResearchAgentMatrix() {
+  const payload = await localJson("/local/research-agent-matrix");
+  renderResearchAgentMatrix(payload);
+  if (payload.active_job && ["queued", "running"].includes(payload.active_job.status)) {
+    $("research-agent-matrix-status").textContent = payload.active_job.status;
+    $("research-agent-matrix-status").className = "status-pill running";
+    setTimeout(() => loadResearchAgentMatrix().catch(console.error), MATRIX_JOB_POLL_MS);
+  }
+}
+
+async function runResearchAgentMatrix() {
+  $("research-agent-matrix-workspace").open = true;
+  $("run-research-agent-matrix").disabled = true;
+  $("research-agent-matrix-status").textContent = "queued";
+  $("research-agent-matrix-status").className = "status-pill running";
+  try {
+    const job = await localPostJson("/local/research-agent-matrix/run", { layer: $("research-agent-matrix-layer").value });
+    const poll = async () => {
+      const current = await localJson(`/local/research-agent-matrix/jobs/${encodeURIComponent(job.id)}`);
+      if (["queued", "running"].includes(current.status)) {
+        setTimeout(() => poll().catch(console.error), MATRIX_JOB_POLL_MS);
+        return;
+      }
+      await loadResearchAgentMatrix();
+      $("run-research-agent-matrix").disabled = false;
+    };
+    await poll();
+  } catch (error) {
+    $("research-agent-matrix-status").textContent = error.message;
+    $("research-agent-matrix-status").className = "status-pill fail";
+    $("run-research-agent-matrix").disabled = false;
+  }
+}
+
 async function loadHistory() {
   const runs = await apiJson("/runs?limit=50&include_result=false");
   $("history-table").innerHTML = `
@@ -4306,6 +4368,8 @@ async function init() {
   }));
   $("refresh-agent-matrix").addEventListener("click", loadAgentMatrix);
   $("replay-agent-matrix-fixture").addEventListener("click", replayAgentMatrixFixture);
+  $("run-research-agent-matrix").addEventListener("click", runResearchAgentMatrix);
+  $("refresh-research-agent-matrix").addEventListener("click", () => loadResearchAgentMatrix().catch(console.error));
   if (["replay", "provisional"].includes(evaluationFixtureMode)) {
     replayAgentMatrixFixture();
   }
@@ -4329,7 +4393,7 @@ async function init() {
     renderIngestion();
   });
   setConnectionStatus("UI ready · synchronizing active views");
-  const initialLoads = evaluationFixtureMode ? [] : [loadProductionReadiness(), loadQuestionMatrix(), loadAgentMatrix(), loadAgentLiveJob(), loadAgentChatJob()];
+  const initialLoads = evaluationFixtureMode ? [] : [loadProductionReadiness(), loadQuestionMatrix(), loadAgentMatrix(), loadResearchAgentMatrix(), loadAgentLiveJob(), loadAgentChatJob()];
   Promise.allSettled(initialLoads).then((results) => {
     const failure = results.find((result) => result.status === "rejected");
     if (failure) {

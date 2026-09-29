@@ -110,8 +110,13 @@ RESULT_STAGE_STEPS = {
     "assemble_context",
 }
 AGENT_MATRIX_REPORT = TEST_REPORTS_DIR / "agent_evaluation_matrix_latest.json"
+RESEARCH_AGENT_MATRIX_REPORT = TEST_REPORTS_DIR / "research_agent_matrix_latest.json"
+RESEARCH_AGENT_MATRIX_DATASET = MANUALS_ROOT / "tests" / "fixtures" / "research_agent_validation_matrix_v1.jsonl"
+RESEARCH_AGENT_MATRIX_MANIFEST = MANUALS_ROOT / "tests" / "fixtures" / "research_agent_validation_matrix_v1.manifest.json"
 AGENT_MATRIX_JOBS: dict[str, dict] = {}
 AGENT_MATRIX_LOCK = Lock()
+RESEARCH_AGENT_MATRIX_JOBS: dict[str, dict] = {}
+RESEARCH_AGENT_MATRIX_LOCK = Lock()
 AGENT_LIVE_JOBS: dict[str, dict] = {}
 AGENT_LIVE_LOCK = Lock()
 AGENT_LIVE_LATEST_ID: str | None = None
@@ -325,6 +330,12 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/local/agent-matrix":
             self._local_agent_matrix()
             return
+        if parsed.path.startswith("/local/research-agent-matrix/jobs/"):
+            self._local_research_agent_matrix_job(parsed.path.rsplit("/", 1)[-1])
+            return
+        if parsed.path == "/local/research-agent-matrix":
+            self._local_research_agent_matrix()
+            return
         if parsed.path.startswith("/local/question-matrix/jobs/"):
             self._local_question_matrix_job(parsed.path.rsplit("/", 1)[-1])
             return
@@ -361,6 +372,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/local/agent-matrix/run":
             self._start_local_agent_matrix_run()
+            return
+        if parsed.path == "/local/research-agent-matrix/run":
+            self._start_local_research_agent_matrix_run()
             return
         if parsed.path == "/local/question-matrix/run":
             self._start_local_question_matrix_run()
@@ -756,6 +770,22 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self._write(payload)
 
+    def _local_research_agent_matrix(self) -> None:
+        try:
+            payload = json.dumps(_build_research_agent_matrix(), default=str).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Research-agent matrix lookup failed: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
     def _local_production_readiness(self) -> None:
         try:
             payload = json.dumps(_build_production_readiness(), default=str).encode("utf-8")
@@ -915,6 +945,19 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self._write(payload)
 
+    def _local_research_agent_matrix_job(self, job_id: str) -> None:
+        with RESEARCH_AGENT_MATRIX_LOCK:
+            job = dict(RESEARCH_AGENT_MATRIX_JOBS.get(job_id) or {})
+        if not job:
+            self.send_error(404, "Research-agent matrix job not found")
+            return
+        payload = json.dumps(job, default=str).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self._write(payload)
+
     def _start_local_agent_matrix_run(self) -> None:
         try:
             content_length = int(self.headers.get("Content-Length") or "0")
@@ -935,6 +978,32 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._write(payload)
         except Exception as error:
             payload = dumps({"detail": f"Agent matrix run failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _start_local_research_agent_matrix_run(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+            body = self.rfile.read(content_length) if content_length else b"{}"
+            job = _start_research_agent_matrix_job(json.loads(body.decode("utf-8") or "{}"))
+            payload = json.dumps(job, default=str).encode("utf-8")
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Research-agent matrix run failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
@@ -1482,6 +1551,83 @@ def _start_agent_matrix_job(payload: dict) -> dict:
     )
     Thread(target=_run_agent_matrix_job, args=(job_id, dataset_path), daemon=True).start()
     return dict(job)
+
+
+def _build_research_agent_matrix() -> dict:
+    report = _read_json(RESEARCH_AGENT_MATRIX_REPORT) if RESEARCH_AGENT_MATRIX_REPORT.exists() else None
+    with RESEARCH_AGENT_MATRIX_LOCK:
+        active = [deepcopy(job) for job in RESEARCH_AGENT_MATRIX_JOBS.values() if job.get("status") in {"queued", "running"}]
+        latest = [deepcopy(job) for job in RESEARCH_AGENT_MATRIX_JOBS.values()]
+    latest_job = max(latest, key=lambda item: str(item.get("started_at") or ""), default=None)
+    return {
+        "schema": "manuals-rag-research-agent-matrix-ui-v1",
+        "dataset": str(RESEARCH_AGENT_MATRIX_DATASET.relative_to(MANUALS_ROOT)),
+        "manifest": str(RESEARCH_AGENT_MATRIX_MANIFEST.relative_to(MANUALS_ROOT)),
+        "contract": {
+            "case_count": 21,
+            "controller_contract_cases": 18,
+            "live_corpus_cases": 3,
+            "live_cases_require_real_corpus_runs": True,
+        },
+        "report": report,
+        "active_job": active[0] if active else None,
+        "latest_job": latest_job,
+    }
+
+
+def _start_research_agent_matrix_job(payload: dict) -> dict:
+    layer = str(payload.get("layer") or "all")
+    if layer not in {"all", "controller_contract", "live_corpus"}:
+        raise ValueError("Research-agent matrix layer must be all, controller_contract, or live_corpus.")
+    with RESEARCH_AGENT_MATRIX_LOCK:
+        active = next((job for job in RESEARCH_AGENT_MATRIX_JOBS.values() if job.get("status") in {"queued", "running"}), None)
+        if active:
+            raise ValueError(f"Research-agent matrix job {active['id']} is already running.")
+        job_id = f"research-agent-matrix-{uuid.uuid4().hex[:12]}"
+        job = {
+            "id": job_id,
+            "status": "queued",
+            "layer": layer,
+            "dataset": str(RESEARCH_AGENT_MATRIX_DATASET.relative_to(MANUALS_ROOT)),
+            "report": str(RESEARCH_AGENT_MATRIX_REPORT.relative_to(MANUALS_ROOT)),
+            "error": None,
+            "started_at": None,
+            "completed_at": None,
+        }
+        RESEARCH_AGENT_MATRIX_JOBS[job_id] = job
+    Thread(target=_run_research_agent_matrix_job, args=(job_id, layer), daemon=True).start()
+    return dict(job)
+
+
+def _run_research_agent_matrix_job(job_id: str, layer: str) -> None:
+    with RESEARCH_AGENT_MATRIX_LOCK:
+        job = RESEARCH_AGENT_MATRIX_JOBS[job_id]
+        job["status"] = "running"
+        job["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    cmd = [
+        sys.executable,
+        str(MANUALS_ROOT / "scripts" / "benchmark" / "run_research_agent_matrix.py"),
+        "--dataset", str(RESEARCH_AGENT_MATRIX_DATASET),
+        "--manifest", str(RESEARCH_AGENT_MATRIX_MANIFEST),
+        "--output", str(RESEARCH_AGENT_MATRIX_REPORT),
+        "--layer", layer,
+    ]
+    try:
+        completed = subprocess.run(cmd, cwd=MANUALS_ROOT, capture_output=True, text=True, timeout=MATRIX_JOB_TIMEOUT_SECONDS)
+        if completed.returncode not in {0, 1}:
+            raise RuntimeError((completed.stdout or completed.stderr or f"exit {completed.returncode}")[-4000:])
+        with RESEARCH_AGENT_MATRIX_LOCK:
+            job = RESEARCH_AGENT_MATRIX_JOBS[job_id]
+            job["status"] = "completed" if completed.returncode in {0, 1} else "failed"
+            job["exit_code"] = completed.returncode
+            job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            job["report"] = str(RESEARCH_AGENT_MATRIX_REPORT.relative_to(MANUALS_ROOT))
+    except Exception as error:
+        with RESEARCH_AGENT_MATRIX_LOCK:
+            job = RESEARCH_AGENT_MATRIX_JOBS[job_id]
+            job["status"] = "failed"
+            job["error"] = f"{error.__class__.__name__}: {error}"
+            job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 def _start_agent_live_job(payload: dict, *, surface: str = "lab") -> dict:

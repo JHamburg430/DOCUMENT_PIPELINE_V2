@@ -176,6 +176,16 @@ docker compose -f infra/compose/docker-compose.yml exec -T api \
   python -m pytest -q tests/unit/test_research_agent_validation_matrix.py
 ```
 
-These commands validate the acceptance contract itself. They do not claim that
-the current research controller passes the 21 behavioral cases; that requires a
-controller runner and the live two-backend executions described above.
+Run the deterministic controller-contract runner and inspect its immutable
+report:
+
+```bash
+python scripts/benchmark/run_research_agent_matrix.py \
+  --output test_reports/research_agent_matrix_latest.json
+```
+
+The runner executes the real bounded ReAct loop with deterministic planner/RAG
+observations. Live-corpus rows are explicitly `not_run` until both production
+backends are exercised against the committed corpus; they are never counted as
+passes. The UI exposes this report under **Evidence-Aware Research-Agent
+Matrix**, separately from the older retrieval matrix.
