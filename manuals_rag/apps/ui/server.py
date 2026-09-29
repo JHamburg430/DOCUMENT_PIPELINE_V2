@@ -131,6 +131,8 @@ EXTERNAL_EVAL_OBSERVATIONS: dict[str, tuple[int, str]] = {}
 EXTERNAL_EVAL_FILE_COUNTS: dict[str, tuple[int, int, int]] = {}
 EXTERNAL_EVAL_LOCK = Lock()
 TERMINAL_RUN_STATUSES = {"completed", "succeeded", "failed", "cancelled", "canceled", "stopped"}
+PRODUCTION_ACCEPTANCE_GLOB = "production_acceptance*.json"
+METADATA_AUDIT_GLOB = "document_metadata_backfill_*literal.audit.json"
 
 
 class MatrixJobCancelled(RuntimeError):
@@ -259,6 +261,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/local/production-readiness":
+            self._local_production_readiness()
+            return
         if parsed.path == "/local/agent-chat/current":
             self._local_current_agent_chat_job()
             return
@@ -696,6 +701,22 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._write(payload)
         except Exception as error:
             payload = dumps({"detail": f"Agent matrix lookup failed: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _local_production_readiness(self) -> None:
+        try:
+            payload = json.dumps(_build_production_readiness(), default=str).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Production readiness lookup failed: {error.__class__.__name__}: {error}"}).encode("utf-8")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
@@ -1195,6 +1216,148 @@ def _build_agent_matrix() -> dict:
             "grounded_answer",
             "latency_token_cost",
         ],
+    }
+
+
+def _latest_json(paths) -> tuple[Path | None, dict]:
+    candidates = []
+    for path in paths:
+        try:
+            candidates.append((path.stat().st_mtime, path))
+        except OSError:
+            continue
+    for _, path in sorted(candidates, reverse=True):
+        try:
+            payload = _read_json(path)
+        except (OSError, json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(payload, dict):
+            return path, payload
+    return None, {}
+
+
+def _build_production_readiness() -> dict:
+    """Return one evidence-backed release path for the top-level UI timeline."""
+    metadata_path, metadata_audit = _latest_json(TEST_REPORTS_DIR.glob(METADATA_AUDIT_GLOB))
+    metadata_documents = metadata_audit.get("documents") or []
+    metadata_passed = bool(metadata_audit.get("checks_passed")) and bool(metadata_documents)
+    metadata_grounded = sum(int(item.get("audited_grounded_items") or 0) for item in metadata_documents if isinstance(item, dict))
+
+    acceptance_dir = TEST_REPORTS_DIR / "retrieval_improvement"
+    acceptance_path, acceptance = _latest_json(acceptance_dir.glob(PRODUCTION_ACCEPTANCE_GLOB))
+    acceptance_dataset = acceptance.get("dataset") or {}
+    acceptance_total = int(acceptance_dataset.get("case_count") or 0)
+    acceptance_passed = bool(acceptance.get("accepted")) and acceptance_total >= 200
+    acceptance_revision = str((acceptance.get("source") or {}).get("revision") or "")
+
+    agent_snapshot = _external_agent_matrix_run()
+    agent_status = "pending"
+    agent_completed = 0
+    agent_total = 200
+    agent_detail = "Waiting for a clean full-matrix run on the current release revision."
+    agent_run_id = None
+    if agent_snapshot:
+        agent_run_id = str(agent_snapshot.get("artifact_run_id") or "")
+        agent_completed = int(agent_snapshot.get("completed") or agent_snapshot.get("completed_questions") or 0)
+        agent_total = int(agent_snapshot.get("total") or agent_snapshot.get("limit") or 200)
+        snapshot_status = str(agent_snapshot.get("status") or "pending").lower()
+        if snapshot_status in {"queued", "running"}:
+            agent_status = "running"
+            agent_detail = f"{agent_completed}/{agent_total} cases complete; results remain provisional until reconciliation."
+        elif snapshot_status == "completed":
+            report = _external_agent_matrix_report(agent_snapshot)
+            summary = report.get("summary") or {}
+            langgraph_passed = int((summary.get("langgraph") or {}).get("agent_matrix_passed") or 0)
+            llamaindex_passed = int((summary.get("llamaindex") or {}).get("agent_matrix_passed") or 0)
+            fully_passed = agent_completed == agent_total and min(langgraph_passed, llamaindex_passed) == agent_total
+            agent_status = "complete" if fully_passed else "blocked"
+            agent_detail = (
+                f"Reconciled {agent_completed}/{agent_total}; LangGraph {langgraph_passed}/{agent_total}, "
+                f"LlamaIndex {llamaindex_passed}/{agent_total}."
+            )
+        else:
+            agent_status = "blocked"
+            agent_detail = f"Latest full-matrix run stopped with status {snapshot_status} at {agent_completed}/{agent_total}."
+
+    agentic_enabled = str(os.getenv("AGENTIC_RETRIEVAL_ENABLED", "false")).strip().lower() in {"1", "true", "yes", "on"}
+    release_gate_status = "pending" if agent_status != "complete" else "running"
+    release_gate_detail = (
+        "Complete and reconcile the full matrix before enabled canary, latency, and rollback checks."
+        if agent_status != "complete"
+        else "Full matrix passed; enabled canary, latency, and rollback-drill evidence is next."
+    )
+    milestones = [
+        {
+            "id": "corpus-metadata",
+            "label": "Corpus + metadata",
+            "status": "complete" if metadata_passed else "blocked",
+            "completed": len(metadata_documents) if metadata_passed else 0,
+            "total": len(metadata_documents) or 8,
+            "detail": (
+                f"{len(metadata_documents)}/{len(metadata_documents)} rollout documents audited; "
+                f"{metadata_grounded:,} grounded items."
+                if metadata_passed
+                else "A passing literal-evidence metadata audit is required."
+            ),
+            "evidence": str(metadata_path.relative_to(MANUALS_ROOT)) if metadata_path else None,
+            "target": "ingestion",
+        },
+        {
+            "id": "heldout-benchmark",
+            "label": "Held-out benchmark",
+            "status": "complete" if acceptance_passed else "blocked",
+            "completed": acceptance_total if acceptance_passed else 0,
+            "total": max(200, acceptance_total),
+            "detail": (
+                f"Accepted {acceptance_total}-case clean benchmark at {acceptance_revision[:7]}."
+                if acceptance_passed
+                else "A clean, independently reconciled 200-case acceptance artifact is required."
+            ),
+            "evidence": str(acceptance_path.relative_to(MANUALS_ROOT)) if acceptance_path else None,
+            "target": "question-matrix-workspace",
+        },
+        {
+            "id": "agent-validation",
+            "label": "Current agent validation",
+            "status": agent_status,
+            "completed": agent_completed,
+            "total": agent_total,
+            "detail": agent_detail,
+            "run_id": agent_run_id,
+            "target": "agent-matrix-workspace",
+        },
+        {
+            "id": "release-gates",
+            "label": "Canary + rollback",
+            "status": release_gate_status,
+            "completed": 0,
+            "total": 3,
+            "detail": release_gate_detail,
+            "target": "agent-matrix-workspace",
+        },
+        {
+            "id": "production-enable",
+            "label": "Production enablement",
+            "status": "complete" if agentic_enabled else "pending",
+            "completed": 1 if agentic_enabled else 0,
+            "total": 1,
+            "detail": (
+                "Agentic retrieval is enabled in the deployed runtime."
+                if agentic_enabled
+                else "Agentic retrieval remains intentionally disabled until every prior gate is verified."
+            ),
+            "target": "agent-chat",
+        },
+    ]
+    complete_count = sum(1 for milestone in milestones if milestone["status"] == "complete")
+    active = next((milestone for milestone in milestones if milestone["status"] != "complete"), milestones[-1])
+    return {
+        "schema": "manuals-rag-production-readiness-v1",
+        "observed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "complete_count": complete_count,
+        "total_count": len(milestones),
+        "active_milestone_id": active["id"],
+        "milestones": milestones,
     }
 
 

@@ -21,6 +21,22 @@ same release revision and production corpus generation.
   substitute for the frozen matrix, full-corpus reconciliation, or rollback
   drill.
 
+## Console readiness timeline
+
+The top-level console timeline is an operational projection of these gates,
+not an independent acceptance record. `GET /local/production-readiness` derives
+its first two milestones from the newest valid literal metadata audit and
+production-acceptance JSON, reads the current Agent Matrix writer and artifacts
+for live case progress, and reads the deployed `AGENTIC_RETRIEVAL_ENABLED`
+setting. Agent Matrix SSE events update the visible case count immediately;
+the endpoint is reloaded on page load, reconnect, and terminal reconciliation.
+
+Keep the projection evidence-driven when this runbook changes: add or revise a
+milestone in `_build_production_readiness`, update its UI contract test, and
+make sure the corresponding gate has a durable artifact or deployed setting.
+Never mark canary, latency, rollback, or rollout complete from prose, a partial
+artifact, or the existence of a flag alone.
+
 ## 1. Frozen matrix acceptance
 
 **Prerequisites.** The evaluator process has exited; its `.exit` file is `0`;

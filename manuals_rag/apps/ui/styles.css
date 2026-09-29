@@ -147,6 +147,196 @@ summary {
   color: var(--muted);
 }
 
+.production-readiness {
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  background: linear-gradient(135deg, #ffffff 0%, #f4f9fa 100%);
+  overflow: hidden;
+}
+
+.production-readiness-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.production-readiness-header h2,
+.production-readiness-header p {
+  margin: 0;
+}
+
+.production-readiness-header h2 {
+  font-size: 1.08rem;
+}
+
+.production-readiness-header p {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.readiness-eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--accent-dark);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.readiness-timeline {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(155px, 1fr));
+  gap: 10px;
+}
+
+.readiness-timeline::before {
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  right: 18px;
+  height: 2px;
+  background: var(--line);
+}
+
+.readiness-step {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  min-height: 116px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.readiness-step:hover {
+  background: transparent;
+}
+
+.readiness-step:focus-visible {
+  outline: 3px solid rgba(18, 108, 131, 0.28);
+  outline-offset: 3px;
+}
+
+.readiness-node {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.readiness-step.complete .readiness-node {
+  border-color: var(--pass);
+  background: var(--pass);
+  color: #fff;
+}
+
+.readiness-step.running .readiness-node {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+  box-shadow: 0 0 0 5px rgba(18, 108, 131, 0.12);
+}
+
+.readiness-step.blocked .readiness-node {
+  border-color: var(--fail);
+  color: var(--fail);
+}
+
+.readiness-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.readiness-copy > strong {
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.readiness-copy small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.32;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.readiness-step-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.readiness-step.running .readiness-step-meta {
+  color: var(--accent-dark);
+}
+
+.readiness-step.complete .readiness-step-meta {
+  color: var(--pass);
+}
+
+.readiness-step.blocked .readiness-step-meta {
+  color: var(--fail);
+}
+
+.readiness-progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5ebef;
+}
+
+.readiness-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 180ms ease;
+}
+
+.readiness-step.complete .readiness-progress > span {
+  background: var(--pass);
+}
+
+.readiness-step.blocked .readiness-progress > span {
+  background: var(--fail);
+}
+
+.readiness-loading {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .tabs {
   display: flex;
   gap: 6px;
@@ -1855,6 +2045,40 @@ dd {
 
   .topbar h1 {
     font-size: 1.25rem;
+  }
+
+  .production-readiness {
+    margin-bottom: 12px;
+    padding: 10px;
+  }
+
+  .production-readiness-header {
+    display: grid;
+    gap: 4px;
+  }
+
+  .production-readiness-header p {
+    text-align: left;
+  }
+
+  .readiness-timeline {
+    display: flex;
+    gap: 12px;
+    margin-right: -10px;
+    padding: 4px 10px 6px 1px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline proximity;
+  }
+
+  .readiness-timeline::before {
+    right: -560px;
+  }
+
+  .readiness-step {
+    flex: 0 0 176px;
+    min-height: 108px;
+    scroll-snap-align: start;
   }
 
   .tabs {

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.client import RemoteDisconnected
-from json import loads
+from json import dumps, loads
 from pathlib import Path
 import os
 import re
@@ -81,6 +81,63 @@ def test_index_cache_buster_matches_app_asset_version():
     asset_version = re.search(r'ASSET_VERSION = "([^"]+)"', app_js).group(1)
     assert f"/app.js?v={asset_version}" in index_html
     assert f"/styles.css?v={asset_version}" in index_html
+
+
+def test_production_readiness_timeline_is_top_level_and_live():
+    app_js = (UI_DIR / "app.js").read_text()
+    index_html = (UI_DIR / "index.html").read_text()
+    styles_css = (UI_DIR / "styles.css").read_text()
+
+    assert index_html.index('class="production-readiness"') < index_html.index('id="evaluation"')
+    assert 'id="production-readiness-timeline"' in index_html
+    assert 'id="production-readiness-summary"' in index_html
+    assert "/local/production-readiness" in app_js
+    assert "renderProductionReadiness" in app_js
+    assert "updateProductionReadinessAgentProgress(job)" in app_js
+    assert "results remain provisional until reconciliation" in app_js
+    assert ".readiness-timeline" in styles_css
+    assert ".readiness-step.running" in styles_css
+    assert "overflow-x: auto" in styles_css
+
+
+def test_production_readiness_snapshot_uses_verified_artifacts_and_live_matrix(tmp_path, monkeypatch):
+    reports = tmp_path / "test_reports"
+    evidence = reports / "retrieval_improvement"
+    evidence.mkdir(parents=True)
+    (reports / "document_metadata_backfill_20260928_v7_literal.audit.json").write_text(dumps({
+        "checks_passed": True,
+        "documents": [
+            {"audited_grounded_items": 12, "checks_passed": True},
+            {"audited_grounded_items": 8, "checks_passed": True},
+        ],
+    }))
+    (evidence / "production_acceptance_test.json").write_text(dumps({
+        "accepted": True,
+        "dataset": {"case_count": 200},
+        "source": {"revision": "abcdef123456"},
+    }))
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "_external_agent_matrix_run", lambda: {
+        "artifact_run_id": "agent-matrix-live",
+        "status": "running",
+        "completed": 81,
+        "total": 200,
+    })
+    monkeypatch.setenv("AGENTIC_RETRIEVAL_ENABLED", "false")
+
+    snapshot = ui_server._build_production_readiness()
+
+    assert snapshot["schema"] == "manuals-rag-production-readiness-v1"
+    assert snapshot["complete_count"] == 2
+    assert snapshot["active_milestone_id"] == "agent-validation"
+    milestones = {item["id"]: item for item in snapshot["milestones"]}
+    assert milestones["corpus-metadata"]["status"] == "complete"
+    assert milestones["heldout-benchmark"]["status"] == "complete"
+    assert milestones["agent-validation"]["status"] == "running"
+    assert milestones["agent-validation"]["completed"] == 81
+    assert milestones["agent-validation"]["total"] == 200
+    assert milestones["production-enable"]["status"] == "pending"
 
 
 def test_progress_steps_have_clickable_detail_disclosures():

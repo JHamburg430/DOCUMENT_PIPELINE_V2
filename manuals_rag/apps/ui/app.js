@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260928-live-results-mobile-nav";
+const ASSET_VERSION = "20260929-production-readiness";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -64,6 +64,7 @@ const state = {
   },
   realtimeStreams: {},
   evalRuntime: null,
+  productionReadiness: null,
 };
 
 const MATRIX_STAGES = [
@@ -197,6 +198,82 @@ function splitList(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function readinessStatusLabel(status) {
+  return ({ complete: "Complete", running: "Live", blocked: "Blocked", pending: "Pending" })[status] || "Pending";
+}
+
+function renderProductionReadiness(payload = state.productionReadiness) {
+  if (!payload) return;
+  state.productionReadiness = payload;
+  const milestones = payload.milestones || [];
+  const completeCount = milestones.filter((item) => item.status === "complete").length;
+  const active = milestones.find((item) => item.id === payload.active_milestone_id)
+    || milestones.find((item) => item.status !== "complete");
+  $("production-readiness-summary").textContent = [
+    `${completeCount}/${milestones.length} gates complete`,
+    active ? `Now: ${active.label}` : "Ready",
+    payload.observed_at ? `updated ${new Date(payload.observed_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "",
+  ].filter(Boolean).join(" · ");
+  $("production-readiness-timeline").innerHTML = milestones.map((milestone, index) => {
+    const completed = Math.max(0, Number(milestone.completed || 0));
+    const total = Math.max(1, Number(milestone.total || 1));
+    const percent = Math.min(100, Math.round((completed / total) * 100));
+    const progressText = total > 1 ? `${completed}/${total}` : readinessStatusLabel(milestone.status);
+    return `
+      <button class="readiness-step ${escapeHtml(milestone.status || "pending")}" type="button"
+        data-readiness-target="${escapeHtml(milestone.target || "evaluation")}" aria-label="Step ${index + 1}: ${escapeHtml(milestone.label)}. ${escapeHtml(readinessStatusLabel(milestone.status))}">
+        <span class="readiness-node" aria-hidden="true">${milestone.status === "complete" ? "✓" : index + 1}</span>
+        <span class="readiness-copy">
+          <span class="readiness-step-meta"><span>${escapeHtml(readinessStatusLabel(milestone.status))}</span><strong>${escapeHtml(progressText)}</strong></span>
+          <strong>${escapeHtml(milestone.label)}</strong>
+          <small>${escapeHtml(milestone.detail || "")}</small>
+          <span class="readiness-progress" aria-hidden="true"><span style="width:${percent}%"></span></span>
+        </span>
+      </button>`;
+  }).join("");
+  document.querySelectorAll("[data-readiness-target]").forEach((node) => node.addEventListener("click", () => {
+    const target = node.dataset.readinessTarget;
+    const tabName = ["ingestion", "agent-chat"].includes(target) ? target : "evaluation";
+    document.querySelector(`.tab[data-tab="${tabName}"]`)?.click();
+    requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }));
+}
+
+async function loadProductionReadiness() {
+  const payload = await localJson("/local/production-readiness");
+  renderProductionReadiness(payload);
+}
+
+function updateProductionReadinessAgentProgress(job, payload = state.agentMatrix.payload) {
+  const readiness = state.productionReadiness;
+  if (!readiness || !job) return;
+  const milestone = (readiness.milestones || []).find((item) => item.id === "agent-validation");
+  if (!milestone) return;
+  const completed = Number(job.completed_questions ?? job.completed ?? 0);
+  const total = Number(job.limit ?? job.total ?? payload?.rows?.length ?? 200);
+  milestone.completed = completed;
+  milestone.total = total;
+  milestone.run_id = job.artifact_run_id || job.id || milestone.run_id;
+  const status = String(job.status || "pending").toLowerCase();
+  if (["queued", "running"].includes(status)) {
+    milestone.status = "running";
+    milestone.detail = `${completed}/${total} cases complete; results remain provisional until reconciliation.`;
+  } else if (status === "completed") {
+    const summary = payload?.summary || {};
+    const langgraphPassed = Number(summary.langgraph?.agent_matrix_passed || 0);
+    const llamaindexPassed = Number(summary.llamaindex?.agent_matrix_passed || 0);
+    const fullyPassed = completed === total && Math.min(langgraphPassed, llamaindexPassed) === total;
+    milestone.status = fullyPassed ? "complete" : "blocked";
+    milestone.detail = `Reconciled ${completed}/${total}; LangGraph ${langgraphPassed}/${total}, LlamaIndex ${llamaindexPassed}/${total}.`;
+  } else if (["failed", "cancelled", "canceled", "stopped"].includes(status)) {
+    milestone.status = "blocked";
+    milestone.detail = `Latest full-matrix run stopped with status ${status} at ${completed}/${total}.`;
+  }
+  readiness.observed_at = new Date().toISOString();
+  readiness.active_milestone_id = (readiness.milestones.find((item) => item.status !== "complete") || readiness.milestones.at(-1))?.id;
+  renderProductionReadiness(readiness);
 }
 
 function sleep(ms) {
@@ -3544,6 +3621,7 @@ async function loadAgentMatrix() {
   try {
     const payload = await localJson("/local/agent-matrix");
     renderAgentMatrix(payload);
+    updateProductionReadinessAgentProgress(payload.active_job || payload.latest_job, payload);
     if (payload.active_job && ["queued", "running"].includes(payload.active_job.status)) {
       $("agent-matrix-workspace").open = true;
       state.agentMatrix.job = payload.active_job;
@@ -3567,6 +3645,7 @@ async function pollAgentMatrixJob(jobId) {
   const job = await localJson(`/local/agent-matrix/jobs/${encodeURIComponent(jobId)}`);
   state.agentMatrix.job = job;
   mergeAgentMatrixJobSnapshot(job);
+  updateProductionReadinessAgentProgress(job);
   if (state.agentMatrix.payload) renderAgentMatrix(state.agentMatrix.payload);
   const status = $("agent-matrix-status");
   status.textContent = [job.status, `${job.completed_questions}/${job.limit}`, job.current_case_id].filter(Boolean).join(" · ");
@@ -3623,6 +3702,7 @@ function applyAgentMatrixEnvelope(envelope) {
   const status = $("agent-matrix-status");
   status.textContent = [job.status, `${job.completed_questions}/${job.limit}`, job.current_case_id, "live"].filter(Boolean).join(" · ");
   status.className = "status-pill running";
+  updateProductionReadinessAgentProgress(job);
   if (envelope.phase === "agent_matrix_progress") loadAgentMatrix().catch(console.error);
 }
 
@@ -3692,6 +3772,7 @@ async function loadHistory() {
 async function recoverAfterPageReturn() {
   if (document.visibilityState && document.visibilityState !== "visible") return;
   try {
+    await loadProductionReadiness();
     const activeTab = document.querySelector(".tab.active")?.dataset.tab;
     if (activeTab === "evaluation") {
       await Promise.all([loadQuestionMatrix(), loadAgentMatrix(), loadAgentLiveJob()]);
@@ -4178,7 +4259,7 @@ async function init() {
     renderIngestion();
   });
   setConnectionStatus("UI ready · synchronizing active views");
-  const initialLoads = evaluationFixtureMode ? [] : [loadQuestionMatrix(), loadAgentMatrix(), loadAgentLiveJob(), loadAgentChatJob()];
+  const initialLoads = evaluationFixtureMode ? [] : [loadProductionReadiness(), loadQuestionMatrix(), loadAgentMatrix(), loadAgentLiveJob(), loadAgentChatJob()];
   Promise.allSettled(initialLoads).then((results) => {
     const failure = results.find((result) => result.status === "rejected");
     if (failure) {
