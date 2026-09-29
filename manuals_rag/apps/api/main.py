@@ -1929,12 +1929,7 @@ def debug_ingestion_status(
             sd.corpus_id,
             sd.source_filename,
             sd.ingest_status,
-            dv.page_count,
-            (
-                select count(*)::int
-                from retrieval_chunks rc
-                where rc.source_document_id = sd.id
-            ) as chunk_count
+            dv.page_count
         from ingestion_runs ir
         join source_documents sd on sd.id = ir.source_document_id
         left join document_versions dv on dv.id = ir.document_version_id
@@ -1964,12 +1959,7 @@ def debug_ingestion_status(
             sd.source_filename,
             sd.ingest_status,
             sd.updated_at,
-            dv.page_count,
-            (
-                select count(*)::int
-                from retrieval_chunks rc
-                where rc.source_document_id = sd.id
-            ) as chunk_count
+            dv.page_count
         from source_documents sd
         left join document_versions dv on dv.id = sd.current_version_id
         {document_where_sql}
@@ -1978,6 +1968,20 @@ def debug_ingestion_status(
         """,
         tuple([*document_params, bounded_limit]),
     )
+    chunk_counts = {
+        str(row["source_document_id"]): int(row["chunk_count"])
+        for row in fetch_all(
+            """
+            select source_document_id, count(*)::int as chunk_count
+            from retrieval_chunks
+            group by source_document_id
+            """
+        )
+    }
+    for row in recent_runs:
+        row["chunk_count"] = chunk_counts.get(str(row["document_id"]), 0)
+    for row in recent_documents:
+        row["chunk_count"] = chunk_counts.get(str(row["document_id"]), 0)
     run_ids = [str(row["run_id"]) for row in recent_runs]
     step_rows = (
         fetch_all(

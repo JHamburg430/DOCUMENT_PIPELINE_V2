@@ -111,6 +111,18 @@ class EvaluationWorkspaceContractTest(unittest.TestCase):
         self.assertIn('status: "provisional"', self.js)
         self.assertIn('label: "LIVE"', self.js)
 
+    def test_completed_live_cells_show_provisional_pass_fail_immediately(self):
+        self.assertIn("function matrixCellClass(cell = {})", self.js)
+        self.assertIn("provisional-${cell.final_status}", self.js)
+        self.assertIn("`${cell.status.toUpperCase()}*`", self.js)
+        self.assertIn(".matrix-cell.provisional.provisional-pass", self.css)
+        self.assertIn(".matrix-cell.provisional.provisional-fail", self.css)
+
+    def test_mobile_navigation_keeps_all_primary_views_visible(self):
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", self.css)
+        self.assertIn('data-tab="ingestion"', self.html)
+        self.assertIn('data-tab="history"', self.html)
+
     def test_expanded_agent_stage_details_have_isolated_responsive_layout(self):
         self.assertIn('class="agent-matrix-stage-details"', self.js)
         self.assertIn(".agent-matrix-stage-details > div", self.css)

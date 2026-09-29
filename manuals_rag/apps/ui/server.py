@@ -1051,7 +1051,7 @@ def _external_agent_matrix_report(snapshot: dict) -> dict:
                         continue
                     cell["final_status"] = cell["status"]
                     cell["status"] = "provisional"
-                    cell["label"] = "LIVE"
+                    cell["label"] = f"{cell['final_status'].upper()}*"
                     cell["detail"] = f"{cell.get('detail') or cell['final_status']} · provisional until terminal reconciliation"
     category_counts: dict[str, int] = {}
     for item in merged_items.values():
@@ -1832,13 +1832,18 @@ def _external_agent_matrix_candidate(launch_path: Path) -> dict | None:
     cohort_prefix = contract["run_id"].split("-", 1)[0]
     report_candidates = list(artifact_dir.glob(f"{cohort_prefix}-*.json")) if cohort_prefix else []
     checkpoint_path: Path | None = None
+    checkpoint_keys: list[str] = []
     checkpoint_mtime = -1.0
     if contract["offset"] > 0 and cohort_prefix:
         try:
             current_launch_mtime = launch_path.stat().st_mtime
         except OSError:
             current_launch_mtime = float("inf")
-        for prior_partial_path in artifact_dir.glob(f"{cohort_prefix}-*.partial.json"):
+        prior_partial_paths = list(artifact_dir.glob(f"{cohort_prefix}-*.partial.json"))
+        exact_cohort_partial = artifact_dir / f"{cohort_prefix}.partial.json"
+        if exact_cohort_partial.exists():
+            prior_partial_paths.append(exact_cohort_partial)
+        for prior_partial_path in prior_partial_paths:
             if prior_partial_path == partial_path:
                 continue
             prior_run_id = prior_partial_path.name.removesuffix(".partial.json")
@@ -1865,6 +1870,10 @@ def _external_agent_matrix_candidate(launch_path: Path) -> dict | None:
             ):
                 continue
             checkpoint_path = prior_partial_path
+            checkpoint_keys = [
+                str(value)
+                for value in prior_partial["provenance"]["dataset"]["ordered_case_keys"]
+            ][: len(prior_partial["items"])]
             checkpoint_mtime = candidate_mtime
     if final_path not in report_candidates:
         report_candidates.append(final_path)
@@ -1890,7 +1899,7 @@ def _external_agent_matrix_candidate(launch_path: Path) -> dict | None:
         current_path = final_path if current is final else partial_path
         if current_path not in report_paths:
             report_paths.append(current_path)
-    completed = len(set(contract["full_keys"]) & set(completed_items))
+    completed = len(set(contract["full_keys"]) & (set(completed_items) | set(checkpoint_keys)))
     result_path = final_path if final is not None and status == "completed" else partial_path
     updated_paths = [launch_path, *(path for path in (partial_path, final_path, exit_path, lock_path) if path.exists())]
     latest_item = current["items"][-1] if current and current.get("items") else None
@@ -2437,7 +2446,7 @@ def _mark_cells_provisional(cells: dict[str, dict[str, str]]) -> dict[str, dict[
             continue
         cell["final_status"] = final_status
         cell["status"] = "provisional"
-        cell["label"] = f"LIVE {final_status.upper()}"
+        cell["label"] = f"{final_status.upper()}*"
         cell["detail"] = f"{cell.get('detail') or final_status} · provisional until terminal reconciliation"
     return marked
 

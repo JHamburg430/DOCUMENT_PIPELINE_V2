@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260928-eval-failure-status";
+const ASSET_VERSION = "20260928-live-results-mobile-nav";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -701,6 +701,14 @@ function matrixStatusLabel(cell = {}) {
   return "";
 }
 
+function matrixCellClass(cell = {}) {
+  const status = cell.status || "blank";
+  const provisionalResult = status === "provisional" && ["pass", "fail"].includes(cell.final_status)
+    ? ` provisional-${cell.final_status}`
+    : "";
+  return `${status}${provisionalResult}`;
+}
+
 function matrixVisibleColumns() {
   return { ...MATRIX_DEFAULT_VISIBLE_COLUMNS, ...(state.matrixVisibleColumns || {}) };
 }
@@ -1065,7 +1073,7 @@ function renderQuestionMatrix(payload) {
                 const stage = column;
                 const cell = cells[stage.key] || matrixCell("blank");
                 const current = activeRow && stage.key === activeStage ? " current-run-cell" : "";
-                return `<td data-label="${escapeHtml(stage.label)}" title="${escapeHtml(cell.detail || stage.description)}"><span class="matrix-cell ${escapeHtml(cell.status)}${current}" data-matrix-stage="${escapeHtml(stage.key)}">${escapeHtml(matrixStatusLabel(cell))}</span></td>`;
+                return `<td data-label="${escapeHtml(stage.label)}" title="${escapeHtml(cell.detail || stage.description)}"><span class="matrix-cell ${escapeHtml(matrixCellClass(cell))}${current}" data-matrix-stage="${escapeHtml(stage.key)}">${escapeHtml(matrixStatusLabel(cell))}</span></td>`;
               }).join("")}
             </tr>
           `;
@@ -1131,7 +1139,7 @@ function updateQuestionMatrixLiveState() {
       const cell = cells[stage.key] || matrixCell("blank");
       const cellElement = rowElement.querySelector(`[data-matrix-stage="${stage.key}"]`);
       if (!cellElement) continue;
-      cellElement.className = `matrix-cell ${cell.status || "blank"}${activeRow && stage.key === activeStage ? " current-run-cell" : ""}`;
+      cellElement.className = `matrix-cell ${matrixCellClass(cell)}${activeRow && stage.key === activeStage ? " current-run-cell" : ""}`;
       cellElement.textContent = matrixStatusLabel(cell);
       cellElement.closest("td")?.setAttribute("title", cell.detail || stage.description);
     }
@@ -1426,7 +1434,8 @@ function applyQuestionMatrixEnvelope(envelope) {
       job.live_cells[caseId][matrixKey] = {
         ...(payload.cell || {}),
         status: "provisional",
-        label: "LIVE",
+        final_status: ["pass", "fail"].includes(payload.cell?.status) ? payload.cell.status : undefined,
+        label: ["pass", "fail"].includes(payload.cell?.status) ? `${payload.cell.status.toUpperCase()}*` : "LIVE",
         detail: `${payload.cell?.detail || payload.cell?.label || matrixKey} · provisional until terminal reconciliation`,
       };
       job.current_row_key = caseId;
@@ -3335,7 +3344,10 @@ function agentMatrixCell(result, layer) {
     const cell = result?.[backend]?.agent_evaluation?.cells?.[layer];
     const status = cell?.status || "blank";
     const checkpoint = result?.artifact_state === "checkpoint";
-    const displayStatus = checkpoint && ["pass", "fail"].includes(status) ? "provisional" : status;
+    const finalStatus = status === "provisional" && ["pass", "fail"].includes(cell?.final_status) ? cell.final_status : "";
+    const displayStatus = checkpoint && ["pass", "fail"].includes(status)
+      ? `provisional provisional-${status}`
+      : `${status}${finalStatus ? ` provisional-${finalStatus}` : ""}`;
     const value = cell?.label || (status === "provisional" ? "LIVE" : "—");
     const displayValue = checkpoint && ["pass", "fail"].includes(status) ? `${value}*` : value;
     const provenance = checkpoint
@@ -3368,7 +3380,7 @@ function applyAgentMatrixLiveCell(event) {
   if (cellElement) {
     const backendLabel = event.backend === "langgraph" ? "LG" : "LI";
     const status = event.cell?.status || "blank";
-    cellElement.className = `matrix-cell ${status}`;
+    cellElement.className = `matrix-cell ${matrixCellClass(event.cell)}`;
     cellElement.textContent = `${backendLabel} ${event.cell?.label || (status === "provisional" ? "LIVE" : "—")}`;
     cellElement.title = event.cell?.detail || `${backendLabel} not evaluated`;
     cellElement.setAttribute("aria-label", `${backendLabel} ${event.cell?.label || status}`);
@@ -3596,7 +3608,8 @@ function applyAgentMatrixEnvelope(envelope) {
           cell: {
             ...cell,
             status: "provisional",
-            label: "LIVE",
+            final_status: ["pass", "fail"].includes(cell.status) ? cell.status : undefined,
+            label: ["pass", "fail"].includes(cell.status) ? `${cell.status.toUpperCase()}*` : "LIVE",
             detail: `${cell.detail || cell.label || layer} · provisional until terminal reconciliation`,
           },
           answer: result.answer,

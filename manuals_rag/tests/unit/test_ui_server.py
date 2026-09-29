@@ -958,7 +958,7 @@ def test_external_agent_matrix_resume_surfaces_predecessor_partial_as_checkpoint
             "llamaindex": {"agent_evaluation": {"passed": True, "cells": ui_server.deepcopy(cells)}},
         }
 
-    predecessor_id = "agent_matrix_v99-interrupted-oldrev"
+    predecessor_id = "agent_matrix_v99"
     predecessor = provenance(predecessor_id, 0, keys, "old-revision")
     (artifacts / f"{predecessor_id}.launch.json").write_text(
         ui_server.json.dumps({**predecessor, "state": "launched"}), encoding="utf-8"
@@ -1004,6 +1004,7 @@ def test_external_agent_matrix_resume_surfaces_predecessor_partial_as_checkpoint
 
     snapshot = ui_server._external_agent_matrix_candidate(current_launch_path)
     assert snapshot["checkpoint_report_path"].endswith(f"{predecessor_id}.partial.json")
+    assert snapshot["completed_questions"] == 5
     report = ui_server._external_agent_matrix_report(snapshot)
     by_case = {item["case_id"]: item for item in report["items"]}
     assert by_case["case-3"]["_ui_artifact_state"] == "checkpoint"

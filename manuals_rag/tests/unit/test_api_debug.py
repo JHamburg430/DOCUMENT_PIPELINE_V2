@@ -1251,6 +1251,44 @@ def test_debug_documents_endpoint_returns_recent_listing(monkeypatch):
     assert captured == {"limit": 5}
 
 
+def test_debug_ingestion_status_aggregates_chunk_counts_once(monkeypatch):
+    queries = []
+
+    def fake_fetch_all(query, params=()):
+        normalized = " ".join(query.split())
+        queries.append(normalized)
+        if "from source_documents group by corpus_id" in normalized:
+            return [{"corpus_id": "manuals", "ingest_status": "indexed", "count": 1}]
+        if "from ingestion_runs group by status" in normalized:
+            return [{"status": "completed", "count": 1}]
+        if "from ingestion_runs ir" in normalized:
+            return [{"run_id": "run-1", "document_id": "doc-1", "status": "completed"}]
+        if "from source_documents sd" in normalized:
+            return [{"document_id": "doc-1", "ingest_status": "indexed"}]
+        if "from retrieval_chunks group by source_document_id" in normalized:
+            return [{"source_document_id": "doc-1", "chunk_count": 42}]
+        if "from ingestion_run_steps" in normalized:
+            return [{"run_id": "run-1", "step_key": "parse", "sequence": 1, "status": "completed"}]
+        raise AssertionError(normalized)
+
+    class FakeRedis:
+        def llen(self, _queue):
+            return 0
+
+    monkeypatch.setattr(main, "ensure_ingestion_step_table", lambda: None)
+    monkeypatch.setattr(main, "fetch_all", fake_fetch_all)
+    monkeypatch.setattr(main, "redis_client", FakeRedis)
+
+    response = client.get("/debug/ingestion-status?limit=200", headers=ADMIN_HEADERS)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["recent_runs"][0]["chunk_count"] == 42
+    assert payload["recent_documents"][0]["chunk_count"] == 42
+    assert payload["recent_runs"][0]["step_count"] == 1
+    assert sum("from retrieval_chunks group by source_document_id" in query for query in queries) == 1
+
+
 def test_debug_document_snapshot_endpoint_returns_extraction_samples(monkeypatch):
     def fake_fetch_one(_query, _params):
         return {
