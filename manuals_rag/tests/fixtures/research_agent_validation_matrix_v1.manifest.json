@@ -1,0 +1,58 @@
+{
+  "schema": "manuals-rag-research-agent-validation-manifest-v1",
+  "dataset": "tests/fixtures/research_agent_validation_matrix_v1.jsonl",
+  "dataset_sha256": "29d7ae4f5c318dadb07795df89f3e27cc2aa0e3603da0c908c83bfeb610cba3f",
+  "case_count": 21,
+  "layers": {
+    "controller_contract": 18,
+    "live_corpus": 3
+  },
+  "categories": {
+    "action_object_alignment": 3,
+    "budget_termination": 1,
+    "calculator": 1,
+    "claim_coverage": 2,
+    "clarification": 1,
+    "contradiction_resolution": 1,
+    "duplicate_recovery": 2,
+    "entity_resolution": 2,
+    "evidence_led_recovery": 2,
+    "exact_qualifier_preservation": 1,
+    "session_memory": 2,
+    "tool_recovery": 1,
+    "unsupported": 2
+  },
+  "mandatory_case_ids": [
+    "ra-v1-001",
+    "ra-v1-002",
+    "ra-v1-003",
+    "ra-v1-019",
+    "ra-v1-020",
+    "ra-v1-021"
+  ],
+  "backend_contract": [
+    "langgraph_agent",
+    "llamaindex_agent"
+  ],
+  "acceptance": {
+    "controller_contract_pass_rate": 1.0,
+    "mandatory_live_pass_rate": 1.0,
+    "required_backend_coverage": 1.0,
+    "allow_duplicate_query_terminal": false,
+    "allow_success_with_missing_required_claims": false,
+    "require_exit_zero": true,
+    "require_clean_committed_revision_for_live": true,
+    "require_structural_audit": true,
+    "require_independent_review": true
+  },
+  "adjudication": {
+    "controller_contract": "deterministic scripted observations; validates controller behavior, not corpus accuracy",
+    "live_corpus": "must be source-backed and validated against persisted corpus evidence",
+    "human_reviewed": false
+  },
+  "notes": [
+    "The VS custom-screen failure and its corrective follow-up are mandatory regressions.",
+    "This matrix complements rather than replaces the frozen 200-case retrieval matrix.",
+    "A passing answer without the required trace behavior is a failed case."
+  ]
+}
