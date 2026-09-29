@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260929-production-readiness" />
+    <link rel="stylesheet" href="/styles.css?v=20260929-agent-test-ready" />
   </head>
   <body>
     <main class="app-shell">
@@ -205,6 +205,7 @@
             <div>
               <h2>Manuals Agent</h2>
               <p class="muted">Ask a technical question and get a grounded answer with source citations. Each question is independently verified against the selected corpus.</p>
+              <p id="agent-chat-release-status" class="muted">Loading current acceptance and enablement status…</p>
             </div>
             <div class="agent-chat-actions">
               <span id="agent-chat-status" class="status-pill">Ready</span>
@@ -242,7 +243,7 @@
               <h3>What do you need to find?</h3>
               <p>Ask about setup, wiring, specifications, troubleshooting, compatibility, or procedures in the indexed manuals.</p>
               <div class="agent-chat-suggestions">
-                <button type="button" data-agent-suggestion="Which cable model connects the LJ-X8000 RS-232C port, and what is its connector orientation?">Find a cable and orientation</button>
+                <button type="button" data-agent-suggestion="What input voltage range does the CA-U5 power supply accept?">Check a power specification</button>
                 <button type="button" data-agent-suggestion="Compare the key commissioning requirements for the SV2 and LJ-S8000 systems.">Compare two products</button>
                 <button type="button" data-agent-suggestion="What should I check when a trigger signal error occurs?">Troubleshoot an error</button>
               </div>
@@ -415,6 +416,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260929-production-readiness"></script>
+    <script src="/app.js?v=20260929-agent-test-ready"></script>
   </body>
 </html>

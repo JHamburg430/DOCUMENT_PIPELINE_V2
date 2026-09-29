@@ -403,10 +403,13 @@ def test_agent_chat_page_exposes_grounded_conversation_controls():
     assert 'id="agent-chat-backend"' in index_html
     assert 'id="agent-chat-show-trace"' in index_html
     assert 'id="agent-chat-max-hops" type="number" min="1" max="8" value="6"' in index_html
+    assert 'id="agent-chat-release-status"' in index_html
+    assert "What input voltage range does the CA-U5 power supply accept?" in index_html
     assert 'id="agent-max-hops" type="number" min="1" max="8" value="6"' in index_html
     assert "Show live retrieval trace" in index_html
     assert "/local/agent-chat/run" in app_js
     assert "/local/agent-chat/current" in app_js
+    assert "Accepted ${validation.completed}/${validation.total} on LangGraph and LlamaIndex" in app_js
     assert "sendAgentChatMessage" in app_js
     assert "hydrateAgentChatJob" in app_js
     assert "renderAgentChatTrace" in app_js

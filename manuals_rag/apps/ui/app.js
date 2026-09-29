@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260929-production-readiness";
+const ASSET_VERSION = "20260929-agent-test-ready";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
@@ -233,6 +233,18 @@ function renderProductionReadiness(payload = state.productionReadiness) {
         </span>
       </button>`;
   }).join("");
+  const agentReleaseStatus = $("agent-chat-release-status");
+  if (agentReleaseStatus) {
+    const validation = milestones.find((item) => item.id === "agent-validation");
+    const enablement = milestones.find((item) => item.id === "production-enable");
+    const releaseGates = milestones.find((item) => item.id === "release-gates");
+    const validationText = validation?.status === "complete"
+      ? `Accepted ${validation.completed}/${validation.total} on LangGraph and LlamaIndex`
+      : validation?.detail || "Agent validation pending";
+    const enablementText = enablement?.status === "complete" ? "Agentic retrieval enabled" : "Agentic retrieval disabled";
+    const releaseText = releaseGates?.status === "complete" ? "Production gates complete" : releaseGates?.detail;
+    agentReleaseStatus.textContent = [validationText, enablementText, releaseText].filter(Boolean).join(" · ");
+  }
   document.querySelectorAll("[data-readiness-target]").forEach((node) => node.addEventListener("click", () => {
     const target = node.dataset.readinessTarget;
     const tabName = ["ingestion", "agent-chat"].includes(target) ? target : "evaluation";
@@ -3104,7 +3116,7 @@ function renderAgentChat() {
         <h3>What do you need to find?</h3>
         <p>Ask about setup, wiring, specifications, troubleshooting, compatibility, or procedures in the indexed manuals.</p>
         <div class="agent-chat-suggestions">
-          <button type="button" data-agent-suggestion="Which cable model connects the LJ-X8000 RS-232C port, and what is its connector orientation?">Find a cable and orientation</button>
+          <button type="button" data-agent-suggestion="What input voltage range does the CA-U5 power supply accept?">Check a power specification</button>
           <button type="button" data-agent-suggestion="Compare the key commissioning requirements for the SV2 and LJ-S8000 systems.">Compare two products</button>
           <button type="button" data-agent-suggestion="What should I check when a trigger signal error occurs?">Troubleshoot an error</button>
         </div>
