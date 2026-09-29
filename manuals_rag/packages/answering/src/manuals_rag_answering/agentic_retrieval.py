@@ -901,6 +901,13 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     ):
         strategy = "structural"
     elif re.match(
+        r"^\s*what\s+.+?\bdisplay\s+ranges?\s+are\s+selectable\s+for\s+"
+        r"the\s+(?:horizontal|vertical)\s+axis\b.+\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "hybrid"
+    elif re.match(
         r"^\s*what\s+is\s+the\s+field\s+of\s+view\b.+\b"
         r"at\s+an\s+installation\s+distance\b.+\?\s*$",
         query,
