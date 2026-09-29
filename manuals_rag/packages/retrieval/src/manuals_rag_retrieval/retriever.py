@@ -3118,6 +3118,10 @@ def _promote_measurement_candidates(
                 r"\b(?:[xyz][ -]?axis\s+)?measurement\s+range\b",
                 r"\bmeasurement\s+range(?:\s*[xyz])?\b|\b[xyz][ -]?axis\s*(?:height|width|length)?\b",
             ),
+            (
+                r"\b(?:near|far)?\s*(?:side\s+)?z\s+range\b",
+                r"\b(?:near|far)?\s*(?:side\s+)?z\s+range\b",
+            ),
             (r"\bdepth\b|\bhow deep\b", r"\bdepth\b"),
             (r"\btorque\b", r"\btorque\b"),
             (r"\bvoltage\b", r"\bvoltage\b|\b\d+(?:\.\d+)?v\b"),
@@ -3158,7 +3162,8 @@ def _promote_measurement_candidates(
     )
     measurement_range_lookup = bool(
         re.search(
-            r"\b(?:[xyz][ -]?axis\s+)?measurement\s+range\b",
+            r"\b(?:[xyz][ -]?axis\s+)?measurement\s+range\b"
+            r"|\b(?:near|far)?\s*(?:side\s+)?z\s+range\b",
             query,
             flags=re.IGNORECASE,
         )
@@ -3366,6 +3371,13 @@ def _promote_named_operation_candidates(
             query,
             flags=re.IGNORECASE,
         )
+    if not operation_match:
+        operation_match = re.search(
+            r"^\s*(?:for\s+.+?,\s*)?what\s+does\s+(?:the\s+)?"
+            r"(?:[A-Z][A-Z0-9-]{2,}\s+)?(?P<label>[A-Za-z][A-Za-z0-9 /-]{1,40}?\s+input)\s+do\b",
+            query,
+            flags=re.IGNORECASE,
+        )
     if not operation_match or not supplemental_results or limit <= 0:
         return ranked_results[:limit]
     label = re.sub(r"\s+", " ", operation_match.group("label")).strip(" .?:")
@@ -3393,7 +3405,7 @@ def _promote_named_operation_candidates(
         behavior = int(
             bool(
                 re.search(
-                    r"\b(?:resets?|clears?|starts?|stops?|changes?|reads?|writes?|saves?|loads?)\b",
+                    r"\b(?:allows?|sets?|resets?|clears?|starts?|stops?|changes?|reads?|writes?|saves?|loads?)\b",
                     evidence,
                     flags=re.IGNORECASE,
                 )

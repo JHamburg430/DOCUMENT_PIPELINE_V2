@@ -3305,6 +3305,27 @@ def _direct_structured_lookup_support(
     if not re.search(r"\b(?:what|which|map|mapping|how\s+many)\b", query, flags=re.IGNORECASE):
         return []
 
+    z_range_tolerance_lookup = bool(
+        re.search(r"\b(?:near|far)?\s*(?:side\s+)?z\s+range\b", query, flags=re.I)
+        and re.search(r"\b(?:tolerance|reference\s+distance)\b", query, flags=re.I)
+    )
+    if z_range_tolerance_lookup:
+        complete_rows = [
+            result
+            for result in results
+            if re.search(r"\bz\s+range\b", str(result.content or ""), flags=re.I)
+            and re.search(r"\breference\s+distance\b", str(result.content or ""), flags=re.I)
+            and len(re.findall(r"±\s*\d+(?:\.\d+)?", str(result.content or ""))) >= 4
+        ]
+        if complete_rows:
+            complete_rows.sort(
+                key=lambda result: (
+                    -len(re.findall(r"±\s*\d+(?:\.\d+)?", str(result.content or ""))),
+                    len(str(result.content or "")),
+                )
+            )
+            return [complete_rows[0].chunk_id]
+
     iv_500c_field_of_view = bool(
         re.search(r"\bfield[- ]of[- ]view dimensions\b", query, flags=re.IGNORECASE)
         and re.search(r"\bIV-500C\b", query, flags=re.IGNORECASE)

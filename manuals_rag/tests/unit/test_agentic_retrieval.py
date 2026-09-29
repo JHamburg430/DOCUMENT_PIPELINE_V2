@@ -3668,6 +3668,30 @@ def test_structured_lookup_uses_operating_system_row_for_supported_windows_query
     ) == ["operating-system-row"]
 
 
+def test_structured_lookup_prefers_complete_z_range_tolerance_row():
+    query = (
+        "What is the Far Side Z Range tolerance for the 60 mm 2.36 model "
+        "via reference distance?"
+    )
+    malformed = _result(
+        "malformed-z-range",
+        "vision-doc",
+        'Column headers: XT-060 60 mm 2.36" type; Row headers: Near Reference '
+        'distance Far Z range; Cell value: 200 mm 7.87"; Row: 13; Column: 2',
+    ).model_copy(update={"metadata": {"chunk_type": "table_record"}})
+    complete = _result(
+        "complete-z-range",
+        "3d-vision-doc",
+        'Far Side Z Range (via Reference Distance) | ±2 mm ±0.08" | ±6 mm ±0.24"',
+    ).model_copy(update={"metadata": {"chunk_type": "section_window"}})
+
+    assert _direct_structured_lookup_support(
+        query,
+        [malformed, complete],
+        {"claim_supported": True, "supporting_chunk_ids": ["malformed-z-range"]},
+    ) == ["complete-z-range"]
+
+
 @pytest.mark.parametrize(
     ("query", "strategy"),
     [

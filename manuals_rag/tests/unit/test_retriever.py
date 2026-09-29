@@ -3299,6 +3299,86 @@ def test_named_operation_promotion_retains_behavior_table_row():
     assert promoted[0].metadata["retrieval_stage"] == "named_operation_promoted"
 
 
+def test_named_operation_promotion_retains_named_input_effect():
+    wrong = SearchResult(
+        chunk_id="test-terminal",
+        score=1.0,
+        title="LJ-X8000 Manual",
+        document_version_id="v-wrong",
+        source_document_id="d-wrong",
+        pages=[595],
+        section_path=["TEST"],
+        content="Used to suspend the status output for a trial run.",
+        metadata={"chunk_type": "table_record", "product_model": "LJ-X8000"},
+    )
+    exact = SearchResult(
+        chunk_id="one-shot-input",
+        score=0.5,
+        title="LJ-X8000 Controller Manual",
+        document_version_id="v-exact",
+        source_document_id="d-exact",
+        pages=[34],
+        section_path=["24 VDC power supply"],
+        content=(
+            "The one shot input allows the output status of all the current results "
+            "to be set to the normal state."
+        ),
+        metadata={"chunk_type": "atomic_text", "product_model": "LJ-X8000"},
+    )
+
+    promoted = retriever._promote_named_operation_candidates(
+        [wrong, exact],
+        [wrong, exact],
+        "What does the LJ-X8000 one shot input do to the output status of current results?",
+    )
+
+    assert promoted[0].chunk_id == "one-shot-input"
+    assert promoted[0].metadata["retrieval_stage"] == "named_operation_promoted"
+
+
+def test_measurement_promotion_prefers_complete_far_side_z_range_row():
+    analysis = analyze_query(
+        "What is the Far Side Z Range tolerance for the 60 mm 2.36 model via reference distance?"
+    )
+    malformed = SearchResult(
+        chunk_id="malformed",
+        score=1.0,
+        title="Vision Manual",
+        document_version_id="v-wrong",
+        source_document_id="d-wrong",
+        pages=[31],
+        section_path=["Specifications"],
+        content=(
+            'Column headers: XT-060 60 mm 2.36" type; Row headers: Near Reference '
+            'distance Far Z range; Cell value: 200 mm 7.87"'
+        ),
+        metadata={"chunk_type": "table_record", "product_model": '60 mm 2.36"'},
+    )
+    complete = SearchResult(
+        chunk_id="complete-z-range",
+        score=0.5,
+        title="3D Vision Specifications",
+        document_version_id="v-exact",
+        source_document_id="d-exact",
+        pages=[14],
+        section_path=["Specifications"],
+        content=(
+            'Far Side Z Range (via Reference Distance) | ±2 mm ±0.08" | ±6 mm ±0.24"'
+        ),
+        metadata={"chunk_type": "table_record", "product_model": "XT-060"},
+    )
+
+    promoted = retriever._promote_measurement_candidates(
+        [malformed, complete],
+        [malformed, complete],
+        analysis.raw_query,
+        analysis=analysis,
+    )
+
+    assert promoted[0].chunk_id == "complete-z-range"
+    assert promoted[0].metadata["retrieval_stage"] == "measurement_promoted"
+
+
 def test_function_parameter_mapping_promotion_retains_bounded_outputfilter_evidence():
     generic = SearchResult(
         chunk_id="generic",
