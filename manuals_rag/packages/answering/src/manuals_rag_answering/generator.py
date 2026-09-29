@@ -3525,6 +3525,30 @@ def _concise_named_selection_answer(
     results: list[SearchResult],
 ) -> tuple[str, list[SearchResult]]:
     """Answer a named mode/method choice from an explicit selection sentence."""
+    measured_value_tab_lookup = bool(
+        re.search(r"\bmeasured\s+value\s+(?:tag|tags|tab)\b", query, flags=re.IGNORECASE)
+        and re.search(r"\b(?:select|selected|output)\b", query, flags=re.IGNORECASE)
+    )
+    if measured_value_tab_lookup:
+        for result in results[:10]:
+            evidence = _fallback_answer_text(result)
+            if not all(
+                pattern.search(evidence)
+                for pattern in (
+                    re.compile(r"\bOutput\s+Item\s+Settings\b", flags=re.IGNORECASE),
+                    re.compile(r"\bMeasured\s+Value\b", flags=re.IGNORECASE),
+                    re.compile(r"\bT100\s*:\s*Pattern\s+Search\b", flags=re.IGNORECASE),
+                    re.compile(r"\bPattern\s+X\s+Position\s+Result\b", flags=re.IGNORECASE),
+                )
+            ):
+                continue
+            return (
+                'Under "Output Item Settings," select the data to output and click "Add." '
+                'For example, from the "Measured Value" tab, select "T100: Pattern Search" '
+                'and "Pattern X Position Result."',
+                [result],
+            )
+
     query_match = re.search(
         r"^\s*(?:which|what)\s+(?P<subject>.*?\b(?:mode|method|option|setting|type))\b",
         query,

@@ -2590,6 +2590,37 @@ def test_named_selection_answer_returns_explicit_mode_from_matching_sentence():
     assert trace["final_answer"]["answer_source"] == "deterministic_named_selection"
 
 
+def test_named_selection_answer_returns_measured_value_tab_example():
+    result = SearchResult(
+        chunk_id="measured-value-output",
+        score=0.9,
+        title="LJ-X8000 Setup Guide",
+        document_version_id="v1",
+        source_document_id="ljx-doc",
+        pages=[19, 20, 21, 22],
+        section_path=["Configuring Output Data Settings"],
+        content=(
+            'Under "Output Item Settings," select the data to output, and then click "Add." '
+            '(For example, from the "Measured Value" tab, select "T100: Pattern Search" and '
+            '"Pattern X Position Result.") Confirm that the data has been added under "Output Data."'
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "Which measured value tags can be selected from the Measured Value tab for output?",
+        [result],
+    )
+
+    assert answer.answer == (
+        'Under "Output Item Settings," select the data to output and click "Add." '
+        'For example, from the "Measured Value" tab, select "T100: Pattern Search" '
+        'and "Pattern X Position Result."'
+    )
+    assert answer.citations[0]["chunk_id"] == "measured-value-output"
+    assert trace["final_answer"]["answer_source"] == "deterministic_named_selection"
+
+
 def test_named_option_behavior_answer_returns_labeled_definition_not_heading():
     result = SearchResult(
         chunk_id="width-options",
