@@ -4283,11 +4283,18 @@ function setupEvaluationWorkspace() {
   if (!workspace || !agentLab || agentLab.parentElement === workspace) return;
   const questionMatrix = $("question-matrix-workspace");
   const agentMatrix = $("agent-matrix-workspace");
+  const researchAgentMatrix = $("research-agent-matrix-workspace");
   agentLab.classList.remove("tab-panel");
   agentLab.classList.add("evaluation-agent-lab");
-  if (agentMatrix && questionMatrix) {
-    agentMatrix.open = true;
-    workspace.insertBefore(agentMatrix, questionMatrix);
+  if (questionMatrix) {
+    if (researchAgentMatrix) {
+      researchAgentMatrix.open = true;
+      workspace.insertBefore(researchAgentMatrix, questionMatrix);
+    }
+    if (agentMatrix) {
+      agentMatrix.open = true;
+      workspace.insertBefore(agentMatrix, questionMatrix);
+    }
   }
   workspace.appendChild(agentLab);
 }
