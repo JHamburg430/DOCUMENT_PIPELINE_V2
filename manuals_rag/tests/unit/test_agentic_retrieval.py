@@ -8070,3 +8070,104 @@ def test_single_hop_execution_rejects_unvalidated_planner_rewrite():
     )
 
     assert _single_hop_execution_query(query, hop) == query
+
+
+def test_verifier_confirms_w500_saturated_registration_display_without_llm(monkeypatch):
+    query = (
+        "When does the W500 sensor flash 'SET' and '---' alternately during master calibration?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query, strategy="hybrid")
+    unrelated = _result(
+        "w500-add",
+        "w500-doc",
+        "During master calibration, press SET to add another registration sample.",
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text", "product_model": "W500"}})
+    supported = _result(
+        "w500-saturated",
+        "w500-doc",
+        "When the registration state is saturated, ' SEt ' and ' ---' flash alternately. "
+        "< Precautions for master calibration>",
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text", "product_model": "W500"}})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("LLM verifier must not run")),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [unrelated, supported],
+        {"claim_supported": True, "supporting_chunk_ids": [supported.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["w500-saturated"]
+
+
+def test_optical_axis_installation_adjustment_stays_single_hop_and_verifies_without_llm(
+    monkeypatch,
+):
+    query = (
+        "How should I adjust the sensor position if the view and optical axis differ "
+        "during installation?"
+    )
+    supported = _result(
+        "optical-axis-adjustment",
+        "camera-manual",
+        "View and optical axis have individual differences. Adjust the position by checking "
+        "the actual image at the time of installation.",
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text"}})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("deterministic optical-axis path must not call a model")
+        ),
+    )
+
+    for plan in (
+        plan_retrieval(query, use_llm=True),
+        plan_llamaindex_retrieval(query, use_llm=True),
+    ):
+        assert plan.mode == "single"
+        assert [hop.query for hop in plan.hops] == [query]
+        assert [hop.strategy for hop in plan.hops] == ["structural"]
+
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query, strategy="structural")
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [supported],
+        {"claim_supported": True, "supporting_chunk_ids": [supported.chunk_id]},
+    )
+
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["optical-axis-adjustment"]
+
+
+def test_optical_axis_installation_verifier_rejects_generic_alignment_advice(monkeypatch):
+    query = (
+        "How should I adjust the sensor position if the view and optical axis differ "
+        "during installation?"
+    )
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query, strategy="structural")
+    generic = _result(
+        "generic-alignment",
+        "camera-manual",
+        "Adjust the sensor position until the optical axis is centered.",
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text"}})
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            {"claim_supported": False, "supporting_chunk_ids": [], "rationale": "not exact"},
+            "{}",
+        ),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [generic],
+        {"claim_supported": True, "supporting_chunk_ids": [generic.chunk_id]},
+    )
+
+    assert output["claim_supported"] is False

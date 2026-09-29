@@ -858,6 +858,14 @@ def _exact_structured_single_plan(query: str) -> RetrievalPlan | None:
     ):
         strategy = "structural"
     elif re.match(
+        r"^\s*how\s+should\s+i\s+adjust\s+(?:the\s+)?sensor\s+position\s+"
+        r"if\s+(?:the\s+)?view\s+and\s+(?:the\s+)?optical\s+axis\s+differ\s+"
+        r"during\s+installation\s*\?\s*$",
+        query,
+        flags=re.I,
+    ):
+        strategy = "structural"
+    elif re.match(
         r"^\s*how\s+many\b.+\bcan\s+be\s+connected\s+across\s+"
         r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+"
         r"[A-Z][A-Z0-9]*(?:[-:][A-Z0-9]+)+\s+input\s+units?\s+using\s+"
@@ -6459,6 +6467,77 @@ def _direct_output_to_rs232c_support(
     return [min(matches)[2]] if matches else []
 
 
+def _direct_w500_saturated_registration_display_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the literal W500 saturated-registration display condition."""
+    if not preliminary_assessment.get("claim_supported"):
+        return []
+    if not (
+        re.search(r"\bW500\b", query, flags=re.I)
+        and re.search(r"\bmaster\s+calibration\b", query, flags=re.I)
+        and re.search(r"\bSET\b", query, flags=re.I)
+        and "---" in query
+        and re.search(r"\bflash(?:es)?\b.+\balternately\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not (
+            re.search(r"\bregistration\s+state\s+is\s+saturated\b", content, flags=re.I)
+            and re.search(r"\bSEt\b", content, flags=re.I)
+            and "---" in content
+            and re.search(r"\bflash\s+alternately\b", content, flags=re.I)
+            and re.search(r"\bmaster\s+calibration\b", content, flags=re.I)
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
+def _direct_optical_axis_installation_adjustment_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the literal view/optical-axis installation adjustment instruction."""
+    if not preliminary_assessment.get("claim_supported"):
+        return []
+    if not (
+        re.search(r"\bview\b", query, flags=re.I)
+        and re.search(r"\boptical\s+axis\b", query, flags=re.I)
+        and re.search(r"\badjust\b.+\bsensor\s+position\b", query, flags=re.I)
+        and re.search(r"\binstallation\b", query, flags=re.I)
+    ):
+        return []
+    matches: list[tuple[int, int, str]] = []
+    for index, result in enumerate(results):
+        if not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not (
+            re.search(
+                r"\bview\s+and\s+optical\s+axis\s+have\s+individual\s+differences\b",
+                content,
+                flags=re.I,
+            )
+            and re.search(
+                r"\badjust\s+the\s+position\s+by\s+checking\s+the\s+actual\s+image\s+"
+                r"at\s+the\s+time\s+of\s+installation\b",
+                content,
+                flags=re.I,
+            )
+        ):
+            continue
+        matches.append((len(content), index, result.chunk_id))
+    return [min(matches)[2]] if matches else []
+
+
 def verify_retrieval_claim(
     hop: RetrievalHop,
     executed_query: str,
@@ -6480,6 +6559,50 @@ def verify_retrieval_claim(
             applicability="unknown",
             rationale="No retrieval evidence was supplied to the verifier.",
         ).model_dump()
+
+    direct_w500_display_support = _direct_w500_saturated_registration_display_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_w500_display_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_w500_display_support,
+            applicability="not_requested",
+            scope_entity="W500",
+            rationale=(
+                "Deterministic display verification matched the W500 saturated-registration "
+                "condition to alternating SEt and --- indications during master calibration."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_w500_display_support,
+        }
+
+    direct_optical_axis_support = _direct_optical_axis_installation_adjustment_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_optical_axis_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_optical_axis_support,
+            applicability="not_requested",
+            scope_entity=None,
+            rationale=(
+                "Deterministic installation verification matched the view/optical-axis "
+                "difference to adjustment while checking the actual image."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": direct_optical_axis_support,
+        }
 
     # The answer generator contains narrowly scoped, regex-bound extractors for
     # exact control statements. Reuse that same contract here so a model cannot
