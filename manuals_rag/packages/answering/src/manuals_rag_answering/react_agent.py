@@ -142,7 +142,13 @@ def _deterministic_reformulation(
     A duplicate proposal is a planner error, not evidence that research is
     complete. Prefer missing claims and terminology returned by the RAG
     verifier, then fall back to an explicit operation-oriented search.
+    Include the first manuals_rag observation input when it differs from
+    original_query so context-resolved anchors survive deterministic retries.
     """
+    first_manuals_input = next(
+        (item.get("input") or "" for item in observations if item.get("tool") == "manuals_rag"),
+        "",
+    )
     result = next(
         (item.get("result") or {} for item in reversed(observations) if item.get("tool") == "manuals_rag"),
         {},
@@ -153,6 +159,10 @@ def _deterministic_reformulation(
     strategy = list(extra_strategy or [])
     if "duplicate_recovery" not in strategy:
         strategy.append("duplicate_recovery")
+    if first_manuals_input and first_manuals_input != original_query:
+        parts.insert(0, first_manuals_input)
+        if "context_anchored" not in strategy:
+            strategy.append("context_anchored")
     if missing:
         parts.extend(missing)
         strategy.append("missing_claim")
@@ -190,12 +200,15 @@ def _requires_followup(
     )
     if not result:
         return False, []
-    if result.get("insufficient_evidence") or result.get("missing_claims"):
-        return True, ["missing_claim"]
     query_lower = query.lower()
     answer_lower = str(result.get("answer") or "").lower()
     operation_terms = ("setup", "set up", "create", "add", "configure", "install", "replace", "adjust")
     viewer_terms = ("viewer", "view", "display only", "open the")
+    if result.get("insufficient_evidence") or result.get("missing_claims"):
+        strategy = ["missing_claim"]
+        if any(term in query_lower for term in operation_terms):
+            strategy.extend(["operation_object", "evidence_terminology"])
+        return True, strategy
     if any(term in query_lower for term in operation_terms) and any(term in answer_lower for term in viewer_terms):
         return True, ["operation_object", "evidence_terminology"]
     context_text = " ".join(

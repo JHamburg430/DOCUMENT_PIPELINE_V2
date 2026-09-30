@@ -103,3 +103,36 @@ def test_calculator_rejects_code_execution():
         assert "arithmetic" in str(error)
     else:
         raise AssertionError("Unsafe calculator input was accepted")
+
+
+def test_react_insufficient_operation_query_requests_targeted_recovery():
+    observations = [{
+        "tool": "manuals_rag",
+        "input": "How do I add and setup a graph on the VS camera custom screen?",
+        "result": {"insufficient_evidence": True},
+    }]
+
+    assert react_agent._requires_followup(
+        "How do I add and setup a graph as well?", observations
+    ) == (True, ["missing_claim", "operation_object", "evidence_terminology"])
+
+
+def test_react_recovery_preserves_contextual_query_and_authoring_terms():
+    contextual_query = "How do I add and setup a graph on the VS camera custom screen?"
+    observations = [{
+        "tool": "manuals_rag",
+        "input": contextual_query,
+        "result": {"insufficient_evidence": True},
+    }]
+
+    query, strategy = react_agent._deterministic_reformulation(
+        original_query="How do I add and setup a graph as well?",
+        observations=observations,
+        attempted_queries={contextual_query.lower()},
+        attempt=2,
+        extra_strategy=["missing_claim", "operation_object", "evidence_terminology"],
+    )
+
+    assert contextual_query in query
+    assert all(term in query for term in ("Adding Parts", "Properties", "Results", "Data List"))
+    assert "context_anchored" in strategy
