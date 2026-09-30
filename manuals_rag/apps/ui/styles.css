@@ -688,6 +688,18 @@ summary {
   border-color: #efb8b4;
 }
 
+.agent-repair-handoff {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, #dce3eb);
+}
+
+.agent-repair-handoff small { color: var(--muted, #667085); }
+
 .agent-chat-role {
   display: block;
   margin-bottom: 7px;

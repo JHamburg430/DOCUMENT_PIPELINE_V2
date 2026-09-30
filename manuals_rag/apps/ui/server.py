@@ -56,6 +56,7 @@ POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://manuals:manuals@postgres:
 STATIC_DIR = Path(__file__).resolve().parent
 MANUALS_ROOT = STATIC_DIR.parents[1]
 TEST_REPORTS_DIR = MANUALS_ROOT / "test_reports"
+AGENT_REPAIR_REQUESTS_DIR = TEST_REPORTS_DIR / "agent_repair_requests"
 DEFAULT_CORPUS_ID = os.getenv("MANUALS_RAG_DEFAULT_CORPUS", "manuals_vendor_keyence")
 MATRIX_JOB_TIMEOUT_SECONDS = int(os.getenv("MATRIX_JOB_TIMEOUT_SECONDS", "7200"))
 DEFAULT_QUESTION_GENERATION_TIMEOUT_SECONDS = int(os.getenv("OLLAMA_EVAL_QUESTION_TIMEOUT_SECONDS", "180"))
@@ -154,6 +155,60 @@ class MatrixJobCancelled(RuntimeError):
 
 class MatrixAnswerFailure(RuntimeError):
     pass
+
+
+def _agent_repair_request_path(job_id: str) -> Path:
+    if not re.fullmatch(r"agent-run-[a-f0-9]{12}", job_id):
+        raise ValueError("A valid Agent run ID is required.")
+    return AGENT_REPAIR_REQUESTS_DIR / f"repair-{job_id}.json"
+
+
+def _read_agent_repair_request(job_id: str) -> dict | None:
+    path = _agent_repair_request_path(job_id)
+    if not path.is_file():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _save_agent_repair_request(job_id: str) -> dict:
+    """Freeze the server-owned run as a durable gateway diagnostic handoff."""
+    path = _agent_repair_request_path(job_id)
+    existing = _read_agent_repair_request(job_id)
+    if existing:
+        return existing
+    with AGENT_LIVE_LOCK:
+        job = deepcopy(AGENT_LIVE_JOBS.get(job_id))
+    if not job or job.get("surface") != "chat":
+        raise ValueError("Agent run not found. Only Agent page runs can be sent for repair.")
+    if job.get("status") in {"queued", "running"}:
+        raise ValueError("Wait for the Agent run to finish before sending it for repair.")
+    request = {
+        "schema": "manuals-rag-agent-repair-request-v1",
+        "request_id": f"repair-{job_id}",
+        "status": "saved_for_gateway_diagnosis",
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "source_run_id": job_id,
+        "source_status": job.get("status"),
+        "repository": str(MANUALS_ROOT.parent),
+        "run": job,
+        "instruction": "Diagnose this exact Manuals RAG Agent run and repair the underlying issue in this gateway. Verify the fix; preserve the original run as evidence. Do not treat this request as proof a repair has started.",
+    }
+    AGENT_REPAIR_REQUESTS_DIR.mkdir(parents=True, exist_ok=True)
+    # Publish atomically: readers never see a partially written diagnostic packet.
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with open(temporary, "x", encoding="utf-8") as output:
+            json.dump(request, output, indent=2, default=str)
+            output.write("\n")
+            output.flush()
+            os.fsync(output.fileno())
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            return _read_agent_repair_request(job_id) or request
+    finally:
+        temporary.unlink(missing_ok=True)
+    return request
 
 
 def _agent_chat_session(session_id: str | None = None) -> dict:
@@ -317,6 +372,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/local/agent-runs/repair-requests/"):
+            self._local_agent_repair_request(parsed.path.rsplit("/", 1)[-1])
+            return
         if parsed.path == "/local/production-readiness":
             self._local_production_readiness()
             return
@@ -366,6 +424,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/local/agent-runs/repair-requests":
+            self._create_agent_repair_request()
+            return
         if parsed.path == "/local/agent-chat/session":
             self._agent_chat_session_control()
             return
@@ -849,6 +910,41 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self._write(payload)
+
+    def _local_agent_repair_request(self, job_id: str) -> None:
+        try:
+            request = _read_agent_repair_request(job_id)
+        except ValueError as error:
+            self._send_json_error(400, str(error))
+            return
+        if request is None:
+            self._send_json_error(404, "No repair request is saved for this run.")
+            return
+        self._send_json_response(200, {key: request[key] for key in ("request_id", "status", "created_at", "source_run_id")})
+
+    def _create_agent_repair_request(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+            if content_length < 1 or content_length > 4096:
+                raise ValueError("A small JSON request body is required.")
+            body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            request = _save_agent_repair_request(str(body.get("run_id") or ""))
+            self._send_json_response(201, {key: request[key] for key in ("request_id", "status", "created_at", "source_run_id")})
+        except (ValueError, json.JSONDecodeError) as error:
+            self._send_json_error(400, str(error))
+        except OSError as error:
+            self._send_json_error(500, f"Could not save repair request: {error}")
+
+    def _send_json_response(self, status: int, data: dict) -> None:
+        payload = json.dumps(data).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self._write(payload)
+
+    def _send_json_error(self, status: int, detail: str) -> None:
+        self._send_json_response(status, {"detail": detail})
 
     def _start_local_agent_live_run(self) -> None:
         try:

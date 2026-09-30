@@ -18,3 +18,4 @@ manuals_rag/test_reports/*.jsonl
 manuals_rag/test_reports/.question_matrix_jobs.json
 
 .DS_Store
+manuals_rag/test_reports/agent_repair_requests/

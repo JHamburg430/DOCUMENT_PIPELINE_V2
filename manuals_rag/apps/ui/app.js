@@ -56,6 +56,7 @@ const state = {
     timer: null,
     sessionId: null,
     memoryCount: 0,
+    repairRequests: {},
   },
   agentMatrix: {
     payload: null,
@@ -3175,10 +3176,38 @@ function renderAgentChat() {
             ${answer.warnings?.length ? `<div class="warning-box">${renderList(answer.warnings)}</div>` : ""}
           ` : (!running && !error ? '<div class="warning-box">The agent completed without a grounded answer.</div>' : "")}
           ${run ? renderAgentChatTrace(run) : ""}
+          ${!running && run && !String(turn.jobId).startsWith("pending-") ? `
+            <div class="agent-repair-handoff">
+              <button type="button" class="secondary-button" data-send-agent-repair="${escapeHtml(turn.jobId)}" ${state.agentChat.repairRequests[turn.jobId]?.pending || state.agentChat.repairRequests[turn.jobId]?.request ? "disabled" : ""}>${state.agentChat.repairRequests[turn.jobId]?.pending ? "Saving…" : state.agentChat.repairRequests[turn.jobId]?.request ? "Sent for repair" : "Send for repair"}</button>
+              <small role="status">${state.agentChat.repairRequests[turn.jobId]?.error ? escapeHtml(state.agentChat.repairRequests[turn.jobId].error) : state.agentChat.repairRequests[turn.jobId]?.request ? `Saved for gateway diagnosis · ${escapeHtml(state.agentChat.repairRequests[turn.jobId].request.request_id)}` : "Save this run and its trace for diagnosis in this gateway."}</small>
+            </div>` : ""}
         </div>
       </article>`;
   }).join("");
+  node.querySelectorAll("[data-send-agent-repair]").forEach((button) => button.addEventListener("click", () => sendAgentRunForRepair(button.dataset.sendAgentRepair)));
   node.scrollTop = node.scrollHeight;
+}
+
+async function loadAgentRepairRequest(jobId) {
+  try {
+    const request = await localJson(`/local/agent-runs/repair-requests/${encodeURIComponent(jobId)}`);
+    state.agentChat.repairRequests[jobId] = { request };
+    renderAgentChat();
+  } catch (error) {
+    if (!/404/.test(String(error.message || ""))) console.error(error);
+  }
+}
+
+async function sendAgentRunForRepair(jobId) {
+  state.agentChat.repairRequests[jobId] = { pending: true };
+  renderAgentChat();
+  try {
+    const request = await localPostJson("/local/agent-runs/repair-requests", { run_id: jobId });
+    state.agentChat.repairRequests[jobId] = { request };
+  } catch (error) {
+    state.agentChat.repairRequests[jobId] = { error: error.message || "Could not save the run." };
+  }
+  renderAgentChat();
 }
 
 function hydrateAgentChatJob(job) {
@@ -3271,6 +3300,7 @@ async function loadAgentChatJob() {
     return;
   }
   hydrateAgentChatJob(payload.job);
+  if (!["queued", "running"].includes(payload.job.status)) loadAgentRepairRequest(payload.job.id).catch(console.error);
   if (["queued", "running"].includes(payload.job.status)) watchAgentChatJob(payload.job.id).catch(console.error);
 }
 
