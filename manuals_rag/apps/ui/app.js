@@ -3137,6 +3137,15 @@ function agentUserError(message) {
   return String(message || "The request failed. No answer was generated.");
 }
 
+function agentRepairStatusLabel(request) {
+  const replay = request.latest_regression?.status;
+  if (replay === "passed") return "Fix verified by regression replay";
+  if (replay === "failed") return "Regression check failed";
+  if (replay === "blocked") return "Regression check blocked";
+  if (request.latest_fix) return "Fix recorded; regression check pending";
+  return "Saved in app database for gateway diagnosis";
+}
+
 function renderAgentChat() {
   const node = $("agent-chat-messages");
   const turns = state.agentChat.turns;
@@ -3179,7 +3188,7 @@ function renderAgentChat() {
           ${!running && run && !String(turn.jobId).startsWith("pending-") ? `
             <div class="agent-repair-handoff">
               <button type="button" class="secondary-button" data-send-agent-repair="${escapeHtml(turn.jobId)}" ${state.agentChat.repairRequests[turn.jobId]?.pending || state.agentChat.repairRequests[turn.jobId]?.request ? "disabled" : ""}>${state.agentChat.repairRequests[turn.jobId]?.pending ? "Saving…" : state.agentChat.repairRequests[turn.jobId]?.request ? "Sent for repair" : "Send for repair"}</button>
-              <small role="status">${state.agentChat.repairRequests[turn.jobId]?.error ? escapeHtml(state.agentChat.repairRequests[turn.jobId].error) : state.agentChat.repairRequests[turn.jobId]?.request ? `Saved for gateway diagnosis · ${escapeHtml(state.agentChat.repairRequests[turn.jobId].request.request_id)}` : "Save this run and its trace for diagnosis in this gateway."}</small>
+              <small role="status">${state.agentChat.repairRequests[turn.jobId]?.error ? escapeHtml(state.agentChat.repairRequests[turn.jobId].error) : state.agentChat.repairRequests[turn.jobId]?.request ? `${escapeHtml(agentRepairStatusLabel(state.agentChat.repairRequests[turn.jobId].request))} · ${escapeHtml(state.agentChat.repairRequests[turn.jobId].request.request_id)}` : "Save this run and its trace for diagnosis in this gateway."}</small>
             </div>` : ""}
         </div>
       </article>`;

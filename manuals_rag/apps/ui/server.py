@@ -28,6 +28,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 try:
+    from .repair_store import get_case as _db_get_agent_repair_case, save_case as _db_save_agent_repair_case
     from .durable_journal import ProgressJsonlBridge, SQLiteEventJournal
     from .run_registry import RunRegistry
     from .sse_replay import (
@@ -39,6 +40,7 @@ try:
         parse_replay_cursor,
     )
 except ImportError:  # pragma: no cover - direct ``python apps/ui/server.py`` execution
+    from repair_store import get_case as _db_get_agent_repair_case, save_case as _db_save_agent_repair_case
     from durable_journal import ProgressJsonlBridge, SQLiteEventJournal
     from run_registry import RunRegistry
     from sse_replay import (
@@ -56,7 +58,6 @@ POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://manuals:manuals@postgres:
 STATIC_DIR = Path(__file__).resolve().parent
 MANUALS_ROOT = STATIC_DIR.parents[1]
 TEST_REPORTS_DIR = MANUALS_ROOT / "test_reports"
-AGENT_REPAIR_REQUESTS_DIR = TEST_REPORTS_DIR / "agent_repair_requests"
 DEFAULT_CORPUS_ID = os.getenv("MANUALS_RAG_DEFAULT_CORPUS", "manuals_vendor_keyence")
 MATRIX_JOB_TIMEOUT_SECONDS = int(os.getenv("MATRIX_JOB_TIMEOUT_SECONDS", "7200"))
 DEFAULT_QUESTION_GENERATION_TIMEOUT_SECONDS = int(os.getenv("OLLAMA_EVAL_QUESTION_TIMEOUT_SECONDS", "180"))
@@ -157,22 +158,12 @@ class MatrixAnswerFailure(RuntimeError):
     pass
 
 
-def _agent_repair_request_path(job_id: str) -> Path:
-    if not re.fullmatch(r"agent-run-[a-f0-9]{12}", job_id):
-        raise ValueError("A valid Agent run ID is required.")
-    return AGENT_REPAIR_REQUESTS_DIR / f"repair-{job_id}.json"
-
-
 def _read_agent_repair_request(job_id: str) -> dict | None:
-    path = _agent_repair_request_path(job_id)
-    if not path.is_file():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    return _db_get_agent_repair_case(POSTGRES_DSN, job_id)
 
 
 def _save_agent_repair_request(job_id: str) -> dict:
-    """Freeze the server-owned run as a durable gateway diagnostic handoff."""
-    path = _agent_repair_request_path(job_id)
+    """Freeze the server-owned run in the app database for gateway repair."""
     existing = _read_agent_repair_request(job_id)
     if existing:
         return existing
@@ -180,35 +171,7 @@ def _save_agent_repair_request(job_id: str) -> dict:
         job = deepcopy(AGENT_LIVE_JOBS.get(job_id))
     if not job or job.get("surface") != "chat":
         raise ValueError("Agent run not found. Only Agent page runs can be sent for repair.")
-    if job.get("status") in {"queued", "running"}:
-        raise ValueError("Wait for the Agent run to finish before sending it for repair.")
-    request = {
-        "schema": "manuals-rag-agent-repair-request-v1",
-        "request_id": f"repair-{job_id}",
-        "status": "saved_for_gateway_diagnosis",
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "source_run_id": job_id,
-        "source_status": job.get("status"),
-        "repository": str(MANUALS_ROOT.parent),
-        "run": job,
-        "instruction": "Diagnose this exact Manuals RAG Agent run and repair the underlying issue in this gateway. Verify the fix; preserve the original run as evidence. Do not treat this request as proof a repair has started.",
-    }
-    AGENT_REPAIR_REQUESTS_DIR.mkdir(parents=True, exist_ok=True)
-    # Publish atomically: readers never see a partially written diagnostic packet.
-    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        with open(temporary, "x", encoding="utf-8") as output:
-            json.dump(request, output, indent=2, default=str)
-            output.write("\n")
-            output.flush()
-            os.fsync(output.fileno())
-        try:
-            os.link(temporary, path)
-        except FileExistsError:
-            return _read_agent_repair_request(job_id) or request
-    finally:
-        temporary.unlink(missing_ok=True)
-    return request
+    return _db_save_agent_repair_case(POSTGRES_DSN, job)
 
 
 def _agent_chat_session(session_id: str | None = None) -> dict:
@@ -917,10 +880,13 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         except ValueError as error:
             self._send_json_error(400, str(error))
             return
+        except psycopg.Error as error:
+            self._send_json_error(503, f"Repair database unavailable: {error.__class__.__name__}")
+            return
         if request is None:
             self._send_json_error(404, "No repair request is saved for this run.")
             return
-        self._send_json_response(200, {key: request[key] for key in ("request_id", "status", "created_at", "source_run_id")})
+        self._send_json_response(200, request)
 
     def _create_agent_repair_request(self) -> None:
         try:
@@ -929,11 +895,11 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                 raise ValueError("A small JSON request body is required.")
             body = json.loads(self.rfile.read(content_length).decode("utf-8"))
             request = _save_agent_repair_request(str(body.get("run_id") or ""))
-            self._send_json_response(201, {key: request[key] for key in ("request_id", "status", "created_at", "source_run_id")})
+            self._send_json_response(201, request)
         except (ValueError, json.JSONDecodeError) as error:
             self._send_json_error(400, str(error))
-        except OSError as error:
-            self._send_json_error(500, f"Could not save repair request: {error}")
+        except psycopg.Error as error:
+            self._send_json_error(503, f"Repair database unavailable: {error.__class__.__name__}")
 
     def _send_json_response(self, status: int, data: dict) -> None:
         payload = json.dumps(data).encode("utf-8")

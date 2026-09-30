@@ -1,16 +1,11 @@
-import json
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import patch
 
-from apps.ui import server
+from apps.ui import repair_store, server
 
 
 class AgentRepairRequestTest(unittest.TestCase):
     def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp_dir.cleanup)
         self.job_id = "agent-run-012345abcdef"
         self.job = {
             "id": self.job_id,
@@ -19,34 +14,41 @@ class AgentRepairRequestTest(unittest.TestCase):
             "query": "Why did this fail?",
             "runs": {"langgraph_agent": {"error": "test failure", "events": [{"event": "run_failed"}]}},
         }
-        self.path_patch = patch.object(server, "AGENT_REPAIR_REQUESTS_DIR", Path(self.temp_dir.name))
         self.jobs_patch = patch.dict(server.AGENT_LIVE_JOBS, {self.job_id: self.job}, clear=True)
-        self.path_patch.start()
         self.jobs_patch.start()
-        self.addCleanup(self.path_patch.stop)
         self.addCleanup(self.jobs_patch.stop)
 
-    def test_saves_exact_run_and_repeated_submission_is_idempotent(self):
-        first = server._save_agent_repair_request(self.job_id)
-        saved = json.loads(server._agent_repair_request_path(self.job_id).read_text())
-        self.assertEqual(saved["source_run_id"], self.job_id)
-        self.assertEqual(saved["run"]["runs"]["langgraph_agent"]["events"][0]["event"], "run_failed")
-        self.assertEqual(first, saved)
-        self.job["query"] = "changed later"
-        self.assertEqual(server._save_agent_repair_request(self.job_id), first)
+    @patch.object(server, "_db_save_agent_repair_case")
+    @patch.object(server, "_db_get_agent_repair_case", return_value=None)
+    def test_saves_server_owned_run_in_database(self, _read, save):
+        save.return_value = {"request_id": f"repair-{self.job_id}"}
+        result = server._save_agent_repair_request(self.job_id)
+        self.assertEqual(result["request_id"], f"repair-{self.job_id}")
+        self.assertEqual(save.call_args.args[1]["runs"]["langgraph_agent"]["events"][0]["event"], "run_failed")
 
-    def test_rejects_running_or_unrelated_jobs(self):
-        self.job["status"] = "running"
-        with self.assertRaisesRegex(ValueError, "finish"):
-            server._save_agent_repair_request(self.job_id)
-        self.job["status"] = "failed"
+    @patch.object(server, "_db_get_agent_repair_case", return_value={"request_id": "existing"})
+    def test_repeated_submission_is_idempotent(self, _read):
+        self.assertEqual(server._save_agent_repair_request(self.job_id), {"request_id": "existing"})
+
+    @patch.object(server, "_db_get_agent_repair_case", return_value=None)
+    def test_rejects_unrelated_jobs(self, _read):
         self.job["surface"] = "lab"
         with self.assertRaisesRegex(ValueError, "Agent page"):
             server._save_agent_repair_request(self.job_id)
 
     def test_rejects_invalid_id(self):
         with self.assertRaisesRegex(ValueError, "valid Agent run ID"):
-            server._save_agent_repair_request("../../etc/passwd")
+            repair_store.validate_run_id("../../etc/passwd")
+
+    def test_regression_contract_requires_measurable_assertion(self):
+        with self.assertRaises(ValueError):
+            repair_store.validate_regression_spec({})
+        with self.assertRaises(ValueError):
+            repair_store.validate_regression_spec({"required_answer_terms": []})
+        self.assertEqual(
+            repair_store.validate_regression_spec({"expect_abstention": False, "required_answer_terms": ["24 VDC"]}),
+            {"expect_abstention": False, "required_answer_terms": ["24 VDC"]},
+        )
 
 
 if __name__ == "__main__":
