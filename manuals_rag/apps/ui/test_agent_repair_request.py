@@ -26,9 +26,11 @@ class AgentRepairRequestTest(unittest.TestCase):
         self.assertEqual(result["request_id"], f"repair-{self.job_id}")
         self.assertEqual(save.call_args.args[1]["runs"]["langgraph_agent"]["events"][0]["event"], "run_failed")
 
+    @patch.object(server, "_db_enqueue_agent_repair_handoff", return_value={"request_id": "existing", "gateway_handoff_status": "sent"})
     @patch.object(server, "_db_get_agent_repair_case", return_value={"request_id": "existing"})
-    def test_repeated_submission_is_idempotent(self, _read):
-        self.assertEqual(server._save_agent_repair_request(self.job_id), {"request_id": "existing"})
+    def test_repeated_submission_is_idempotent(self, _read, enqueue):
+        self.assertEqual(server._save_agent_repair_request(self.job_id)["gateway_handoff_status"], "sent")
+        enqueue.assert_called_once_with(server.POSTGRES_DSN, self.job_id)
 
     @patch.object(server, "_db_get_agent_repair_case", return_value=None)
     def test_rejects_unrelated_jobs(self, _read):

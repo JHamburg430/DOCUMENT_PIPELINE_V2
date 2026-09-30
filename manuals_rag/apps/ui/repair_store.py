@@ -29,6 +29,9 @@ def _public_case(row: dict[str, Any]) -> dict[str, Any]:
         "source_run_id": row["source_run_id"],
         "status": row["status"],
         "created_at": row["created_at"].isoformat(),
+        "gateway_session_key": row.get("gateway_session_key"),
+        "gateway_handoff_status": row.get("gateway_handoff_status"),
+        "gateway_handoff_error": row.get("gateway_handoff_error"),
         "latest_fix": row.get("latest_fix"),
         "latest_regression": row.get("latest_regression"),
     }
@@ -39,7 +42,8 @@ def get_case(dsn: str, run_id: str, *, include_snapshot: bool = False) -> dict[s
     snapshot_column = ", c.run_snapshot" if include_snapshot else ""
     with psycopg.connect(dsn, row_factory=dict_row) as conn:
         row = conn.execute(
-            f"""select c.request_id, c.source_run_id, c.status, c.created_at{snapshot_column},
+            f"""select c.request_id, c.source_run_id, c.status, c.created_at,
+                c.gateway_session_key, c.gateway_handoff_status, c.gateway_handoff_error{snapshot_column},
                 (select jsonb_build_object('id', f.id, 'commit_sha', f.commit_sha,
                     'fix_summary', f.fix_summary, 'created_at', f.created_at)
                  from agent_repair_fixes f where f.request_id = c.request_id
@@ -70,14 +74,32 @@ def save_case(dsn: str, job: dict[str, Any]) -> dict[str, Any]:
     request_id = f"repair-{run_id}"
     with psycopg.connect(dsn, row_factory=dict_row) as conn:
         conn.execute(
-            """insert into agent_repair_cases (request_id, source_run_id, run_snapshot)
-               values (%s, %s, %s) on conflict (source_run_id) do nothing""",
+            """insert into agent_repair_cases
+               (request_id, source_run_id, run_snapshot, gateway_handoff_status)
+               values (%s, %s, %s, 'pending') on conflict (source_run_id) do nothing""",
             (request_id, run_id, Jsonb(job)),
         )
     saved = get_case(dsn, run_id)
     if saved is None:
         raise RuntimeError("Inserted Agent repair case was not readable.")
     return saved
+
+
+def enqueue_handoff(dsn: str, run_id: str) -> dict[str, Any]:
+    """Retry a failed/legacy case without starting a second Gateway session."""
+    validate_run_id(run_id)
+    with psycopg.connect(dsn) as conn:
+        conn.execute(
+            """update agent_repair_cases set gateway_handoff_status = 'pending',
+               gateway_handoff_error = null, updated_at = now()
+               where source_run_id = %s and gateway_handoff_status is distinct from 'sent'
+                 and gateway_handoff_status is distinct from 'pending'""",
+            (run_id,),
+        )
+    case = get_case(dsn, run_id)
+    if case is None:
+        raise ValueError("No saved repair case exists for this run.")
+    return case
 
 
 def validate_regression_spec(spec: dict[str, Any]) -> dict[str, Any]:

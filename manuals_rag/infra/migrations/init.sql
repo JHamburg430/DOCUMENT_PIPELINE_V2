@@ -206,6 +206,9 @@ create table if not exists agent_repair_cases (
     status text not null default 'saved_for_gateway_diagnosis'
         check (status in ('saved_for_gateway_diagnosis', 'diagnosing', 'fixed', 'verified', 'closed')),
     run_snapshot jsonb not null,
+    gateway_session_key text,
+    gateway_handoff_status text check (gateway_handoff_status in ('pending', 'sent', 'failed')),
+    gateway_handoff_error text,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );

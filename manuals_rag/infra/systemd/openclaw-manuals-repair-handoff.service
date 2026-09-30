@@ -1,0 +1,15 @@
+[Unit]
+Description=Manuals RAG repair case Gateway handoff
+After=openclaw-manuals-rag.service openclaw-gateway.service
+Wants=openclaw-manuals-rag.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/john/Desktop/Programming/Document_Pipeline_V2_release_20260919
+Environment=PATH=/home/john/nodejs/bin:/usr/local/bin:/usr/bin
+ExecStart=/home/john/.local/share/manuals-repair-handoff-venv/bin/python /home/john/Desktop/Programming/Document_Pipeline_V2_release_20260919/manuals_rag/scripts/agent_repair_gateway_handoff.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

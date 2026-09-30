@@ -3143,7 +3143,19 @@ function agentRepairStatusLabel(request) {
   if (replay === "failed") return "Regression check failed";
   if (replay === "blocked") return "Regression check blocked";
   if (request.latest_fix) return "Fix recorded; regression check pending";
-  return "Saved in app database for gateway diagnosis";
+  if (request.gateway_handoff_status === "failed") return "Gateway handoff failed; retry available";
+  if (request.gateway_handoff_status === "pending") return "Saved; opening Gateway repair session…";
+  if (request.gateway_handoff_status === "sent") return "Gateway repair session opened";
+  return "Saved in app database; Gateway handoff not requested";
+}
+
+const agentRepairPollTimers = new Map();
+function scheduleAgentRepairRefresh(jobId, request) {
+  clearTimeout(agentRepairPollTimers.get(jobId));
+  agentRepairPollTimers.delete(jobId);
+  if (request?.gateway_handoff_status === "pending") {
+    agentRepairPollTimers.set(jobId, setTimeout(() => loadAgentRepairRequest(jobId), 2000));
+  }
 }
 
 function renderAgentChat() {
@@ -3187,8 +3199,8 @@ function renderAgentChat() {
           ${run ? renderAgentChatTrace(run) : ""}
           ${!running && run && !String(turn.jobId).startsWith("pending-") ? `
             <div class="agent-repair-handoff">
-              <button type="button" class="secondary-button" data-send-agent-repair="${escapeHtml(turn.jobId)}" ${state.agentChat.repairRequests[turn.jobId]?.pending || state.agentChat.repairRequests[turn.jobId]?.request ? "disabled" : ""}>${state.agentChat.repairRequests[turn.jobId]?.pending ? "Saving…" : state.agentChat.repairRequests[turn.jobId]?.request ? "Sent for repair" : "Send for repair"}</button>
-              <small role="status">${state.agentChat.repairRequests[turn.jobId]?.error ? escapeHtml(state.agentChat.repairRequests[turn.jobId].error) : state.agentChat.repairRequests[turn.jobId]?.request ? `${escapeHtml(agentRepairStatusLabel(state.agentChat.repairRequests[turn.jobId].request))} · ${escapeHtml(state.agentChat.repairRequests[turn.jobId].request.request_id)}` : "Save this run and its trace for diagnosis in this gateway."}</small>
+              <button type="button" class="secondary-button" data-send-agent-repair="${escapeHtml(turn.jobId)}" ${state.agentChat.repairRequests[turn.jobId]?.pending || ["pending", "sent"].includes(state.agentChat.repairRequests[turn.jobId]?.request?.gateway_handoff_status) ? "disabled" : ""}>${state.agentChat.repairRequests[turn.jobId]?.pending ? "Saving…" : state.agentChat.repairRequests[turn.jobId]?.request?.gateway_handoff_status === "failed" ? "Retry Gateway handoff" : state.agentChat.repairRequests[turn.jobId]?.request?.gateway_handoff_status === "pending" ? "Opening Gateway session…" : state.agentChat.repairRequests[turn.jobId]?.request?.gateway_handoff_status === "sent" ? "Sent for repair" : "Send for repair"}</button>
+              <small role="status">${state.agentChat.repairRequests[turn.jobId]?.error ? escapeHtml(state.agentChat.repairRequests[turn.jobId].error) : state.agentChat.repairRequests[turn.jobId]?.request ? `${escapeHtml(agentRepairStatusLabel(state.agentChat.repairRequests[turn.jobId].request))} · ${escapeHtml(state.agentChat.repairRequests[turn.jobId].request.request_id)}${state.agentChat.repairRequests[turn.jobId].request.gateway_handoff_error ? ` · ${escapeHtml(state.agentChat.repairRequests[turn.jobId].request.gateway_handoff_error)}` : ""}${state.agentChat.repairRequests[turn.jobId].request.gateway_session_key ? ` · <a href="https://${escapeHtml(window.location.hostname)}/chat/main/manuals-repair/${escapeHtml(turn.jobId)}" target="_blank" rel="noopener noreferrer">Open Gateway session</a>` : ""}` : "Send this run and its trace to a visible Gateway repair session."}</small>
             </div>` : ""}
         </div>
       </article>`;
@@ -3201,6 +3213,7 @@ async function loadAgentRepairRequest(jobId) {
   try {
     const request = await localJson(`/local/agent-runs/repair-requests/${encodeURIComponent(jobId)}`);
     state.agentChat.repairRequests[jobId] = { request };
+    scheduleAgentRepairRefresh(jobId, request);
     renderAgentChat();
   } catch (error) {
     if (!/404/.test(String(error.message || ""))) console.error(error);
@@ -3213,6 +3226,7 @@ async function sendAgentRunForRepair(jobId) {
   try {
     const request = await localPostJson("/local/agent-runs/repair-requests", { run_id: jobId });
     state.agentChat.repairRequests[jobId] = { request };
+    scheduleAgentRepairRefresh(jobId, request);
   } catch (error) {
     state.agentChat.repairRequests[jobId] = { error: error.message || "Could not save the run." };
   }

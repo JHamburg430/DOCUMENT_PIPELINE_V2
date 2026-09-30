@@ -28,7 +28,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 try:
-    from .repair_store import get_case as _db_get_agent_repair_case, save_case as _db_save_agent_repair_case
+    from .repair_store import get_case as _db_get_agent_repair_case, save_case as _db_save_agent_repair_case, enqueue_handoff as _db_enqueue_agent_repair_handoff
     from .durable_journal import ProgressJsonlBridge, SQLiteEventJournal
     from .run_registry import RunRegistry
     from .sse_replay import (
@@ -40,7 +40,7 @@ try:
         parse_replay_cursor,
     )
 except ImportError:  # pragma: no cover - direct ``python apps/ui/server.py`` execution
-    from repair_store import get_case as _db_get_agent_repair_case, save_case as _db_save_agent_repair_case
+    from repair_store import get_case as _db_get_agent_repair_case, save_case as _db_save_agent_repair_case, enqueue_handoff as _db_enqueue_agent_repair_handoff
     from durable_journal import ProgressJsonlBridge, SQLiteEventJournal
     from run_registry import RunRegistry
     from sse_replay import (
@@ -166,7 +166,7 @@ def _save_agent_repair_request(job_id: str) -> dict:
     """Freeze the server-owned run in the app database for gateway repair."""
     existing = _read_agent_repair_request(job_id)
     if existing:
-        return existing
+        return _db_enqueue_agent_repair_handoff(POSTGRES_DSN, job_id)
     with AGENT_LIVE_LOCK:
         job = deepcopy(AGENT_LIVE_JOBS.get(job_id))
     if not job or job.get("surface") != "chat":

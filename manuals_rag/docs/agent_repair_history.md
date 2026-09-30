@@ -1,6 +1,8 @@
 # Agent repair history and regression gate
 
-The Agent page's **Send for repair** button stores the complete server-owned run snapshot in PostgreSQL `agent_repair_cases`. Repeated clicks reuse the same case. It does not automatically change code or launch a repair agent.
+The Agent page's **Send for repair** button stores the complete server-owned run snapshot in PostgreSQL `agent_repair_cases` and queues one visible Gateway diagnosis session per case. The host-side `openclaw-manuals-repair-handoff.service` creates it using the Gateway's built-in `sessions.create` RPC; the UI container never receives Gateway credentials. Repeated clicks reuse the same case and session. The UI shows pending, sent, or failed delivery, offers retry after failure, and links to the session after delivery. Session creation does not itself mean a fix was made or verified.
+
+On upgraded deployments, apply `infra/migrations/20260930_gateway_repair_handoff.sql`, then install and enable `infra/systemd/openclaw-manuals-repair-handoff.service` as a user service. Its Python environment needs `psycopg[binary]==3.3.3`; the service uses the Gateway operator identity already configured for the host's `openclaw` CLI. New cases are queued by PostgreSQL state, so an interrupted dispatcher resumes them. Existing pre-upgrade cases remain unqueued until **Send for repair** is clicked again. Check `systemctl --user status openclaw-manuals-repair-handoff.service` and the case's `gateway_handoff_status` when delivery is not visible.
 
 The gateway operator can inspect cases from the running UI container:
 
