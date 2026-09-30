@@ -180,6 +180,7 @@ def analyze_query(query: str) -> QueryAnalysis:
     if re.search(r"\b(?:compare|difference|versus)\b", lowered) or (
         re.search(r"\bvs\.?\b", lowered)
         and not re.search(r"\bvs\.?\s+series\b", lowered)
+        and not re.search(r"\bvs\.?\s+(?:camera|creator|viewer|system)\b", lowered)
         and not re.search(r"\bvs[-:][a-z0-9]", lowered)
     ):
         types.append("comparison")

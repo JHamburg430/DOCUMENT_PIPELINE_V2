@@ -49,6 +49,16 @@ def test_vs_model_prefix_is_not_treated_as_comparison_operator():
     assert "VS-C160M" in analysis.product_identifiers
 
 
+def test_vs_camera_procedure_is_not_treated_as_comparison():
+    analysis = analyze_query("How do you setup a custom screen on the VS camera?")
+
+    assert "how_to" in analysis.query_types
+    assert "comparison" not in analysis.query_types
+    assert "comparison_sides" not in retriever._requested_evidence_facets(
+        analysis.raw_query, analysis
+    )
+
+
 def test_substage_timings_are_persisted_with_result_counts():
     with retriever.capture_retrieval_stages() as snapshots:
         result = retriever._measure_substage("metadata_selection", "setup query", lambda: [1, 2])
