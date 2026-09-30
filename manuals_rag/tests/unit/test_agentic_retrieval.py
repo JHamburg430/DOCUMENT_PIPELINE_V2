@@ -7787,6 +7787,132 @@ def test_verifier_packet_budget_omits_whole_oversized_source():
     assert len(json.dumps(packet, ensure_ascii=False).encode('utf-8')) <= 1000
 
 
+def test_verifier_receives_original_operation_and_source_linked_leads(monkeypatch):
+    from manuals_rag_answering.agentic_retrieval import _intent_contract
+    captured = {}
+
+    def fake_chat_json(**kwargs):
+        captured.update(kwargs)
+        return ({
+            "trust_state": "unresolved", "claim_supported": False,
+            "supporting_chunk_ids": [], "conflicting_chunk_ids": [],
+            "applicability": "not_requested", "scope_entity": None,
+            "failure_kind": "incomplete_procedure", "missing_evidence": "creation steps",
+            "rationale": "Only display instructions were supplied.",
+        }, "{}")
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", fake_chat_json)
+    question = "How do I create a custom screen on a VS camera?"
+    hop = RetrievalHop(hop_id="screen", objective="Find custom screen steps", query="VS custom screen")
+    result = _result("viewer", "vs-manual", "Display an existing custom screen in the viewer.")
+    note = {"chunk_id": "adding-pages", "document_id": "vs-manual", "section": "Custom Screen > Adding Pages", "classification": "partial_lead"}
+    verdict = verify_retrieval_claim(hop, hop.query, [result], {
+        "intent_contract": _intent_contract(question), "prior_evidence_notebook": [note],
+    })
+    prompt = captured["messages"][1]["content"]
+    assert question in prompt
+    assert '"requested_operation_hint": "create"' in prompt
+    assert "adding-pages" in prompt
+    assert "leads only; not proof" in prompt
+    assert verdict["claim_supported"] is False
+
+
+def test_unconfirmed_notebook_lead_cannot_become_answer_support():
+    from manuals_rag_answering.agentic_retrieval import _notebook_entries
+    result = _result("adding-pages", "vs-manual", "In Custom Screen, click Add to create a page.")
+    assessment = {
+        "trust_state": "probable", "supporting_chunk_ids": [],
+        "result_assessments": [{"chunk_id": result.chunk_id, "scope_supported": True, "term_coverage": 0.5}],
+    }
+    notes = _notebook_entries("screen", [result], assessment)
+    assert notes[0]["chunk_id"] == "adding-pages"
+    assert notes[0]["classification"] == "partial_lead"
+    assert notes[0]["document_id"] == "vs-manual"
+
+
+def test_verifier_sanitizes_model_proposed_leads_without_promoting_them(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: ({
+            "trust_state": "probable", "claim_supported": False,
+            "supporting_chunk_ids": [], "conflicting_chunk_ids": [],
+            "lead_chunk_ids": ["adding-pages", "invented"],
+            "applicability": "not_requested", "scope_entity": None,
+            "failure_kind": "incomplete_procedure", "missing_evidence": "remaining steps",
+            "rationale": "This passage begins the procedure.",
+        }, "{}"),
+    )
+    question = "How do I create a custom screen on a VS camera?"
+    result = _result("adding-pages", "vs-manual", "Custom Screen: Add a page with Create New.")
+    verdict = verify_retrieval_claim(
+        RetrievalHop(hop_id="screen", objective=question, query=question),
+        question, [result], {"claim_supported": False},
+    )
+    assert verdict["lead_chunk_ids"] == ["adding-pages"]
+    assert verdict["supporting_chunk_ids"] == []
+    assert verdict["claim_supported"] is False
+
+
+def test_recovery_preserves_question_without_inventing_safety_prerequisite():
+    from manuals_rag_answering.agentic_retrieval import _recovery_query
+    question = "How do I create a custom screen on a VS camera?"
+    hop = RetrievalHop(hop_id="screen", objective=question, query=question)
+    source = {"assessment": {
+        "verification": {"failure_kind": "incomplete_procedure", "missing_evidence": "steps for adding a page"},
+        "notebook_entries": [{"classification": "partial_lead", "section": "Custom Screen > Adding Pages"}],
+    }}
+    query = _recovery_query(question, hop, source)
+    assert question in query
+    assert "Custom Screen > Adding Pages" in query
+    assert "safety prerequisite" not in query
+
+
+def test_dependent_hop_receives_prior_source_linked_notebook():
+    question = "How do I create a custom screen on a VS camera?"
+    plan = RetrievalPlan(mode="dependent", hops=[
+        RetrievalHop(hop_id="locate", objective="Locate custom screen instructions", query="VS custom screen"),
+        RetrievalHop(hop_id="steps", objective=question, query="VS create custom screen steps", depends_on=["locate"]),
+    ])
+    observed = {}
+
+    def retrieve(_query, _corpus_ids, _filters, _strategy, _limit):
+        return [_result("adding-pages", "vs-manual", "Custom Screen: Add a page with Create New.")]
+
+    def verify(hop, _query, _results, assessment):
+        if hop.hop_id == "steps":
+            observed.update(assessment)
+        return {
+            "trust_state": "unresolved", "claim_supported": False,
+            "supporting_chunk_ids": [], "missing_evidence": "more steps",
+        }
+
+    controller = AgenticRetrievalController(
+        use_llm=False, planner=lambda _query: plan,
+        retriever=retrieve, refiner=lambda hop, _results: hop.query, verifier=verify,
+    )
+    output = _invoke(build_langgraph_agentic_retriever, controller, query=question, max_hops=2)
+    prior = observed["prior_evidence_notebook"]
+    assert observed["intent_contract"]["original_question"] == question
+    assert prior[0]["chunk_id"] == "adding-pages"
+    assert prior[0]["classification"] == "partial_lead"
+    assert output["sufficient"] is False
+    assert output["retrieval_trace"]["required_claim_support"] == {"locate": [], "steps": []}
+
+
+def test_parallel_notebook_merge_uses_plan_order():
+    from manuals_rag_answering.agentic_retrieval import _merge_ready_hop_states
+    state = {"pending_hop_ids": ["first", "second"], "completed_hop_ids": [],
+             "hop_results": {}, "evidence_ledger": {}, "evidence_notebook": []}
+    completed = [
+        {"completed_hop_ids": [hop_id], "hop_results": {}, "evidence_ledger": {
+            hop_id: {"assessment": {"notebook_entries": [{"chunk_id": chunk_id}]}}
+        }}
+        for hop_id, chunk_id in [("first", "a"), ("second", "b")]
+    ]
+    merged = _merge_ready_hop_states(state, ["first", "second"], completed)
+    assert [item["chunk_id"] for item in merged["evidence_notebook"]] == ["a", "b"]
+
+
 def test_dependency_plan_cannot_silently_lose_links():
     import pytest
     from manuals_rag_answering.agentic_retrieval import _validate_plan
