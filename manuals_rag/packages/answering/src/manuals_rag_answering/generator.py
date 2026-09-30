@@ -3017,6 +3017,70 @@ def _concise_instruction_answer(
     return answer_text, [result]
 
 
+def _concise_ui_creation_steps_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    """Keep labeled creation controls and their dialog step together."""
+    if not (
+        re.search(r"\b(?:how\s+(?:do|can|to)|steps?\s+(?:to|for)|set\s*up)\b", query, re.I)
+        and re.search(r"\b(?:create|add|build|set\s*up)\b", query, re.I)
+    ):
+        return "", []
+    for result in results[:10]:
+        lines = [re.sub(r"\s+", " ", line).strip() for line in result.content.splitlines()]
+        entry_lines = [
+            line for line in lines
+            if re.search(
+                r"\b(?:click|press|select|choose)\s+(?:the\s+)?"
+                r"(?:\[(?:add|new|create)[^\]]*\]|\((?:add|new|create)[^)]*\))",
+                line, re.I,
+            )
+        ]
+        dialog_line = next(
+            (
+                line for line in lines
+                if re.search(r"\[(?:create|new)[^\]]*\].*\b(?:set|enter)\b", line, re.I)
+            ),
+            "",
+        )
+        if not entry_lines or not dialog_line:
+            continue
+        steps = []
+        entry_actions = []
+        for line in entry_lines[:2]:
+            action = re.search(r"\b(?:click|press|select|choose)\b.*", line, re.I)
+            if action:
+                entry_actions.append(action.group(0).rstrip(". ") + ".")
+        if len(entry_actions) > 1 and re.search(r"one of the following ways|or click|either", result.content, re.I):
+            steps.append(
+                entry_actions[0].rstrip(". ") + "; alternatively, "
+                + entry_actions[1][:1].lower() + entry_actions[1][1:]
+            )
+        else:
+            steps.extend(entry_actions)
+        dialog = re.search(r"\[([^\]]*(?:create|new)[^\]]*)\]", dialog_line, re.I)
+        setting = re.search(r"\b(?:set|enter)\b[^.]*\.", dialog_line, re.I)
+        if dialog and setting:
+            steps.append(f"In [{dialog.group(1)}], {setting.group(0)[:1].lower() + setting.group(0)[1:]}")
+        if len(steps) < 2:
+            continue
+        parts = next(
+            (
+                line for line in lines
+                if re.search(r"right[- :]?click\b.*\bparts?\b|\bparts?\b.*right[- :]?click", line, re.I)
+                and "[Add]" in line
+            ),
+            "",
+        )
+        if parts:
+            part_action = re.search(r"\bRight[- :]?click\b.*", parts, re.I)
+            if part_action:
+                steps.append(part_action.group(0).split(".", 1)[0].rstrip(". ") + ".")
+        return "\n".join(f"{index}. {step}" for index, step in enumerate(steps, 1)), [result]
+    return "", []
+
+
 def _concise_contamination_action_answer(
     query: str,
     results: list[SearchResult],
@@ -8139,6 +8203,21 @@ def generate_answer_with_trace(
                 "answer_source": "deterministic_exact_control_answer",
             }
         )
+        return answer, trace
+    creation_answer, creation_results = _concise_ui_creation_steps_answer(
+        query, prioritized_results or results,
+    )
+    if creation_answer:
+        answer = validate_answer(
+            _fallback_answer(query, creation_results), creation_results, query=query,
+        )
+        answer.answer = creation_answer
+        answer.insufficient_evidence = False
+        trace["final_answer"].update({
+            "provider": "deterministic", "model": None,
+            "prompt_kind": "ui_creation_steps", "num_predict": None,
+            "used_fallback": False, "answer_source": "deterministic_ui_creation_steps",
+        })
         return answer, trace
     instruction_answer, instruction_results = _concise_instruction_answer(
         query,

@@ -7743,6 +7743,18 @@ def test_verifier_packet_preserves_late_condition_and_complete_row():
     assert packet['omitted_count'] == 0
 
 
+def test_procedure_verifier_packet_prioritizes_actionable_source_over_overview():
+    from manuals_rag_answering.agentic_retrieval import _verification_evidence
+    overview = _result('overview', 'vs-manual', 'Custom screen display features and descriptions.')
+    steps = _result('steps', 'vs-manual',
+                    'Click [Add Page] in [Custom Screen]. Set the ID and name in [Create New].')
+    packet = _verification_evidence(
+        [overview, steps], query='How do I create a custom screen?',
+        preferred_chunk_ids=['overview', 'steps'], actionable_procedure=True,
+    )
+    assert packet['evidence'][0]['chunk_id'] == 'steps'
+
+
 def test_verifier_packet_selects_relevant_evidence_beyond_rank_four():
     from manuals_rag_answering.agentic_retrieval import _verification_evidence
     results = [_result(str(i), 'd1', 'Unrelated background') for i in range(5)]
@@ -7812,6 +7824,7 @@ def test_verifier_receives_original_operation_and_source_linked_leads(monkeypatc
     prompt = captured["messages"][1]["content"]
     assert question in prompt
     assert '"requested_operation_hint": "create"' in prompt
+    assert '"requested_answer_detail": "actionable_procedure"' in prompt
     assert "adding-pages" in prompt
     assert "leads only; not proof" in prompt
     assert verdict["claim_supported"] is False
@@ -7851,6 +7864,70 @@ def test_verifier_sanitizes_model_proposed_leads_without_promoting_them(monkeypa
     assert verdict["lead_chunk_ids"] == ["adding-pages"]
     assert verdict["supporting_chunk_ids"] == []
     assert verdict["claim_supported"] is False
+
+
+def test_procedure_recheck_uses_verbatim_actions_and_revalidates_citation(monkeypatch):
+    from manuals_rag_answering.agentic_retrieval import _assess_hop_evidence, _intent_contract
+    question = "How do I create a custom screen on a VS camera?"
+    result = _result(
+        "adding-pages", "vs-manual",
+        "Click [Add Page] in [Custom Screen].\nClick [Add] in [Page List].\n"
+        "In [Create New], set the page ID and name.",
+    )
+    prompts = []
+
+    def fake_chat_json(**kwargs):
+        prompts.append(kwargs["messages"][1]["content"])
+        common = {
+            "supporting_chunk_ids": ["adding-pages"], "conflicting_chunk_ids": [],
+            "applicability": "not_requested", "scope_entity": None,
+        }
+        if len(prompts) == 1:
+            return ({**common, "trust_state": "probable", "claim_supported": False,
+                     "failure_kind": "incomplete_procedure", "missing_evidence": "steps missing",
+                     "rationale": "Overview only."}, "{}")
+        return ({**common, "trust_state": "confirmed", "claim_supported": True,
+                 "failure_kind": None, "missing_evidence": "", "rationale": "Actions supplied."}, "{}")
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", fake_chat_json)
+    _, assessment = _assess_hop_evidence(question, [result])
+    assessment["intent_contract"] = _intent_contract(question)
+    verdict = verify_retrieval_claim(
+        RetrievalHop(hop_id="screen", objective=question, query=question),
+        question, [result], assessment,
+    )
+    assert len(prompts) == 2
+    assert "verbatim_action_lines" in prompts[1]
+    assert "Click [Add Page]" in prompts[1]
+    assert verdict["claim_supported"] is True
+    assert verdict["supporting_chunk_ids"] == ["adding-pages"]
+
+
+def test_procedure_recheck_rejects_unlabeled_creation_button():
+    from manuals_rag_answering.agentic_retrieval import _focused_procedure_evidence
+    packet = {"evidence": [{
+        "chunk_id": "screen-details", "document_id": "vs-manual", "title": "VS Manual",
+        "pages": [1237], "section_path": ["Screen Details"],
+        "content": "Click this button to display [Create New].\nSet the page name and click [OK].",
+    }]}
+    assert _focused_procedure_evidence(
+        packet, ["screen-details"], requested_operation_hint="create",
+    ) is None
+
+
+def test_recovery_ignores_identifiers_not_grounded_in_notebook():
+    from manuals_rag_answering.agentic_retrieval import _recovery_query
+    question = "How do I create a custom screen on a VS camera?"
+    hop = RetrievalHop(hop_id="screen", objective=question, query=question)
+    source = {"assessment": {
+        "verification": {"failure_kind": "incomplete_procedure", "missing_evidence": "creation controls"},
+        "discovered_identifiers": ["CG-LC100"],
+        "notebook_entries": [{"classification": "partial_lead", "section": "#I001",
+                              "source_excerpt": "Create a screen by adding pages and placing items."}],
+    }}
+    recovery = _recovery_query(question, hop, source)
+    assert "CG-LC100" not in recovery
+    assert "adding pages" in recovery
 
 
 def test_recovery_preserves_question_without_inventing_safety_prerequisite():

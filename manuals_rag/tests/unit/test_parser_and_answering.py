@@ -8274,6 +8274,48 @@ def test_instruction_answer_keeps_character_limit_setup_sequence_and_exact_produ
     assert trace["final_answer"]["answer_source"] == "deterministic_instruction"
 
 
+def test_creation_answer_uses_source_controls_instead_of_see_method_above():
+    source = SearchResult(
+        chunk_id="adding-pages", score=1.0, title="VS User Manual",
+        document_version_id="v1", source_document_id="vs-doc", pages=[1238, 1239],
+        section_path=["Custom Screen", "Adding Pages"],
+        content=(
+            "Right-click the page to add and set parts from [Add] in the context menu.\n"
+            "Add pages in one of the following ways. Click the (Add Page) icon on the toolbar of the [Custom Screen] view.\n"
+            "Click the [Add] button in [Page List].\n"
+            "Click the icons or buttons above to display the [Create New] dialog. "
+            "Set the ID and name of the page to be created.\n"
+            "Add a page using the method above to set a custom screen."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    answer, trace = generate_answer_with_trace(
+        "How do I create a custom screen on a VS camera?", [source],
+    )
+    assert "(Add Page)" in answer.answer
+    assert "[Page List]" in answer.answer
+    assert "alternatively" in answer.answer
+    assert "[Create New]" in answer.answer
+    assert "ID and name" in answer.answer
+    assert answer.citations[0]["chunk_id"] == "adding-pages"
+    assert trace["final_answer"]["answer_source"] == "deterministic_ui_creation_steps"
+
+
+def test_creation_answer_does_not_promote_viewer_overview_to_steps():
+    viewer = SearchResult(
+        chunk_id="viewer", score=1.0, title="VS Brochure",
+        document_version_id="v1", source_document_id="vs-doc", pages=[138],
+        section_path=["Viewer"],
+        content="You can display an existing custom screen in the web browser.",
+        metadata={"chunk_type": "table_record"},
+    )
+    extracted, used = generator_module._concise_ui_creation_steps_answer(
+        "How do I create a custom screen on a VS camera?", [viewer],
+    )
+    assert extracted == ""
+    assert used == []
+
+
 def test_display_location_fact_returns_named_ui_field():
     exact = SearchResult(
         chunk_id="vs-current-value",

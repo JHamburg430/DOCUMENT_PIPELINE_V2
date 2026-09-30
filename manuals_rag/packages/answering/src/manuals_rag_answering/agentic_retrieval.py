@@ -260,7 +260,23 @@ conflicting when supplied evidence disagrees or applicability conflicts, and rej
 is unrelated. Preserve unknown applicability as unknown; never infer that unknown means compatible.
 The original user question is authoritative. Distinguish the requested operation from a related
 one (for example creating a screen versus displaying an existing screen). Prior notebook entries
-are search leads only, not evidence for this verdict; cite only the current supplied evidence.
+may clarify terminology and point to a section, but are not proof for this verdict; cite only the
+current supplied evidence. When a prior source defines an operation in terms of sub-actions,
+evaluate whether the current evidence gives executable instructions for those sub-actions.
+For requested_answer_detail=actionable_procedure, a feature overview or statement that something
+can be created is only a lead. Confirm only when the supplied source tells the user what concrete
+actions to take (and in what order when order matters), with the controls, location, or equipment
+steps needed to execute the task. If it only says to "add pages" without explaining how, return
+probable/incomplete_procedure and put the overview chunk in lead_chunk_ids.
+Conversely, when the source provides concrete controls or equipment actions for the requested
+operation, use those steps. Do not demand unrequested navigation into the starting view, every
+optional setting, or a complete GUI tutorial before confirming an answerable procedure.
+Calibration examples (apply by task structure, not by product name):
+- Asked "How do I create an item?"; source only says "Items can be created by adding pages."
+  Verdict: probable/incomplete_procedure; keep that source as a lead.
+- Asked "How do I create an item?"; source says "In [Items], click [Add]. In [Create New],
+  enter the ID and name." Verdict: confirmed with that source ID. Do not demand an unrelated
+  Save command or instructions for opening [Items] unless the source says those are required.
 Do not require a safety prerequisite or extra procedural detail unless the question requests it
 or the supplied manual explicitly makes it a necessary step of the requested task.
 When the claim does not ask about compatibility, version, or applicability, return
@@ -1652,6 +1668,11 @@ def _intent_contract(question: str) -> dict[str, Any]:
     return {
         "original_question": question,
         "requested_operation_hint": operation.group(0).casefold() if operation else "",
+        "requested_answer_detail": (
+            "actionable_procedure"
+            if re.search(r"\b(?:how\s+(?:do|can|to)|steps?\s+(?:to|for)|set\s*up|setup|procedure\s+for)\b", question, re.I)
+            else "direct_fact"
+        ),
         "product_identifiers": sorted(analysis.product_identifiers),
         "query_types": sorted(analysis.query_types),
     }
@@ -1669,6 +1690,10 @@ def _notebook_entries(
         else set()
     )
     lead_ids = set((assessment.get("verification") or {}).get("lead_chunk_ids") or [])
+    if not verified_ids:
+        # A verifier may select a useful passage but decline the complete claim.
+        # Keep that source as a lead, never as confirmed answer support.
+        lead_ids.update(assessment.get("supporting_chunk_ids") or [])
     keep_heuristic_leads = (
         assessment.get("trust_state") in {"probable", "unresolved", "confirmed"}
         and assessment.get("verification_failure_kind") not in {"wrong_document", "wrong_scope"}
@@ -1686,12 +1711,26 @@ def _notebook_entries(
         key=lambda result: (
             result.chunk_id in verified_ids,
             result.chunk_id in lead_ids,
+            str((result.metadata or {}).get("chunk_type") or "")
+            in {"procedure_record", "section_window", "parent_section"},
             float(candidates.get(result.chunk_id, {}).get("term_coverage") or 0),
         ),
         reverse=True,
     )
     entries = []
+    seen_excerpts: set[str] = set()
+    operation = str((assessment.get("intent_contract") or {}).get("requested_operation_hint") or "")
     for result in ranked[:3]:
+        content = re.sub(r"\s+", " ", result.content).strip()
+        sentences = re.split(r"(?<=[.!?])\s+", content)
+        focused = next(
+            (sentence for sentence in sentences if operation and re.search(rf"\b{re.escape(operation)}\b", sentence, re.I)),
+            content,
+        )
+        excerpt_key = re.sub(r"\W+", "", focused.casefold())[:180]
+        if excerpt_key in seen_excerpts:
+            continue
+        seen_excerpts.add(excerpt_key)
         entries.append({
             "hop_id": hop_id,
             "chunk_id": result.chunk_id,
@@ -1700,7 +1739,7 @@ def _notebook_entries(
             "section": " > ".join(result.section_path),
             "pages": result.pages,
             "classification": "direct_support" if result.chunk_id in verified_ids else "partial_lead",
-            "source_excerpt": re.sub(r"\s+", " ", result.content).strip()[:220],
+            "source_excerpt": focused[:400],
         })
     return entries
 
@@ -1784,6 +1823,17 @@ def _recovery_query(
             identifiers.index(identifier),
         ),
     )
+    grounded_text = " ".join(
+        [original_query, *[
+            str(note.get("source_excerpt") or "")
+            for note in assessment.get("notebook_entries") or []
+        ]]
+    )
+    if assessment.get("notebook_entries"):
+        identifiers = [
+            identifier for identifier in identifiers
+            if re.search(rf"(?<![A-Za-z0-9]){re.escape(identifier)}(?![A-Za-z0-9])", grounded_text, re.I)
+        ]
     encoder_unit = next(
         (
             identifier
@@ -1823,14 +1873,22 @@ def _recovery_query(
         for note in assessment.get("notebook_entries") or []
         if note.get("classification") in {"partial_lead", "direct_support"}
         and str(note.get("section") or "").strip()
+        and len(re.findall(r"[A-Za-z]{3,}", str(note.get("section") or ""))) >= 2
     ]
     section_clause = (
         f" Inspect these source sections or adjacent pages: {', '.join(dict.fromkeys(notebook_leads[:3]))}."
         if notebook_leads else ""
     )
+    source_clues = [
+        str(note.get("source_excerpt") or "").strip()
+        for note in assessment.get("notebook_entries") or []
+        if note.get("classification") == "partial_lead"
+        and str(note.get("source_excerpt") or "").strip()
+    ]
+    clue_clause = f" Follow this manual-defined subtask: {source_clues[0][:180]}." if source_clues else ""
     return (
         f"Original question: {original_query.strip()}{identifier_clause} "
-        f"Required evidence ({failure_kind}): {gap}.{scope_clause}{section_clause} "
+        f"Required evidence ({failure_kind}): {gap}.{scope_clause}{section_clause}{clue_clause} "
         "Find only the detail needed to answer the original task. Preserve the requested operation "
         "and product scope; do not substitute a related operation or specification fact."
     )
@@ -2787,6 +2845,8 @@ def _verification_evidence(
     query: str = "",
     max_bytes: int = 6000,
     preferred_chunk_ids: Iterable[str] | None = None,
+    actionable_procedure: bool = False,
+    requested_operation_hint: str = "",
 ) -> dict[str, Any]:
     evidence: list[dict[str, Any]] = []
     # Preserve complete evidence units. UTF-8 bytes conservatively bound token
@@ -2797,12 +2857,38 @@ def _verification_evidence(
         chunk_id: len(preferred_ids) - index
         for index, chunk_id in enumerate(preferred_ids)
     }
+    operation_candidate = re.search(
+        r"\b(create|add|build|configure|display|connect|wire|install|set)\b", query, re.I
+    )
+    operation = requested_operation_hint or (operation_candidate.group(0) if operation_candidate else "")
+    def explicit_control_count(result: SearchResult) -> int:
+        return len(re.findall(
+            r"\b(?:click|press|select|choose)\s+(?:the\s+)?(?:\[[^\]]+\]|\([^)]+\))",
+            str(result.content or ""), re.I,
+        ))
+
+    def operation_match(result: SearchResult) -> bool:
+        return bool(
+            actionable_procedure and operation
+            and re.search(rf"\b{re.escape(operation)}\w*\b", str(result.content or ""), re.I)
+        )
     indexed_results = list(enumerate(results))
     ranked = [
         result
         for _index, result in sorted(
             indexed_results,
             key=lambda item: (
+                operation_match(item[1]),
+                min(4, explicit_control_count(item[1])) if operation_match(item[1]) else 0,
+                (
+                    min(6, len(re.findall(
+                        r"\b(?:click|press|select|choose|enter|type|open|set|turn|connect|insert|"
+                        r"right[- ]click|navigate)\b",
+                        str(item[1].content or ""), flags=re.I,
+                    )))
+                    + min(3, len(re.findall(r"\[[^\]]{1,40}\]", str(item[1].content or ""))))
+                    if operation_match(item[1]) else 0
+                ),
                 preferred_priority.get(item[1].chunk_id, 0),
                 len(
                     terms
@@ -2848,6 +2934,52 @@ def _verification_evidence(
             evidence.pop()
             omitted_count += 1
     return {"evidence": evidence, "omitted_count": omitted_count}
+
+
+def _focused_procedure_evidence(
+    packet: dict[str, Any], selected_ids: Iterable[str], *, requested_operation_hint: str = "",
+) -> dict[str, Any] | None:
+    """Make exact action lines visible for one bounded recheck; never invent steps."""
+    selected = set(selected_ids)
+    focused: list[dict[str, Any]] = []
+    for item in packet.get("evidence") or []:
+        if item.get("chunk_id") not in selected:
+            continue
+        lines = [line.strip() for line in re.split(r"\n+", str(item.get("content") or ""))]
+        action_lines = [
+            line for line in lines
+            if re.search(r"\b(?:click|press|select|choose|enter|type|open|set|turn|connect|insert|right[- ]click)\b", line, re.I)
+        ]
+        if len(action_lines) < 2:
+            continue
+        # UI prose such as "click this button" is not an executable control
+        # instruction when the source never identifies which button to click.
+        control_labels = re.findall(
+            r"\b(?:click|press|select|choose)\s+(?:the\s+)?(?:\[([^\]]+)\]|\(([^)]+)\))",
+            str(item.get("content") or ""), re.I,
+        )
+        if "[" in str(item.get("content") or "") and not control_labels:
+            continue
+        if requested_operation_hint in {"create", "add", "build"} and control_labels and not any(
+            re.search(r"\b(?:add|new|create|insert)\b|\+", " ".join(label), re.I)
+            for label in control_labels
+        ):
+            continue
+        ranked = sorted(
+            enumerate(action_lines),
+            key=lambda pair: (len(re.findall(r"\[[^\]]+\]", pair[1])), -pair[0]),
+            reverse=True,
+        )[:6]
+        excerpts = [line[:350] for _index, line in sorted(ranked)]
+        focused.append({
+            "chunk_id": item["chunk_id"],
+            "document_id": item["document_id"],
+            "title": item["title"],
+            "pages": item["pages"],
+            "section_path": item["section_path"],
+            "verbatim_action_lines": excerpts,
+        })
+    return {"evidence": focused, "omitted_count": 0} if focused else None
 
 
 def _claim_requires_applicability(hop: RetrievalHop, executed_query: str) -> bool:
@@ -8312,6 +8444,13 @@ def verify_retrieval_claim(
         results,
         query=f"{preliminary_assessment.get('intent_contract', {}).get('original_question', '')} {hop.objective} {executed_query}",
         preferred_chunk_ids=preliminary_assessment.get("supporting_chunk_ids") or [],
+        actionable_procedure=(
+            preliminary_assessment.get("intent_contract", {}).get("requested_answer_detail")
+            == "actionable_procedure"
+        ),
+        requested_operation_hint=str(
+            preliminary_assessment.get("intent_contract", {}).get("requested_operation_hint") or ""
+        ),
     )
     if not evidence_packet["evidence"]:
         return EvidenceVerification(
@@ -8323,8 +8462,16 @@ def verify_retrieval_claim(
     verification_error: Exception | None = None
     judge_attempts: list[dict[str, Any]] = []
     shown_ids = {item["chunk_id"] for item in evidence_packet["evidence"]}
+    focused_packet: dict[str, Any] | None = None
     for attempt in range(2):
         try:
+            packet_for_attempt = focused_packet or evidence_packet
+            recheck_instruction = (
+                "Procedure recheck: the prior verdict selected this source but said actionable "
+                "steps were missing. Read these exact source action lines together with the "
+                "prior terminology clue; do not demand an unrequested starting-view or Save step.\n"
+                if focused_packet else ""
+            )
             payload, _raw = chat_json(
                 model=settings.ollama_retrieval_verifier_model,
                 messages=[
@@ -8337,8 +8484,9 @@ def verify_retrieval_claim(
                             f"Executed retrieval query: {executed_query}\n"
                             "Prior source-linked notebook (search leads only; not proof for this verdict): "
                             f"{json.dumps((preliminary_assessment.get('prior_evidence_notebook') or [])[-9:], ensure_ascii=False)}\n"
+                            f"{recheck_instruction}"
                             f"Evidence (omitted sources are unavailable, not negative evidence): "
-                            f"{json.dumps(evidence_packet, ensure_ascii=False)}"
+                            f"{json.dumps(packet_for_attempt, ensure_ascii=False)}"
                         ),
                     },
                 ],
@@ -8527,6 +8675,24 @@ def verify_retrieval_claim(
                 }
                 verification = None
                 continue
+            if (
+                attempt == 0
+                and preliminary_assessment.get("intent_contract", {}).get("requested_answer_detail") == "actionable_procedure"
+                and verification.trust_state in {"probable", "unresolved"}
+                and verification.failure_kind == "incomplete_procedure"
+                and attempted_support
+            ):
+                focused_packet = _focused_procedure_evidence(
+                    evidence_packet,
+                    [chunk_id for chunk_id in attempted_support if chunk_id in shown_ids and chunk_id in scoped_ids],
+                    requested_operation_hint=str(
+                        preliminary_assessment.get("intent_contract", {}).get("requested_operation_hint") or ""
+                    ),
+                )
+                if focused_packet:
+                    judge_attempts[-1]["procedure_recheck"] = True
+                    verification = None
+                    continue
             break
         except Exception as exc:
             verification_error = exc
