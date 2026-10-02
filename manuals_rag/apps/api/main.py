@@ -1527,6 +1527,17 @@ def _stream_react_agent_events(request: ReactAgentRequest):
                 if result.get("sufficient", retrieval_trace.get("sufficient"))
                 else insufficient_agent_answer(query, retrieval_trace)
             ).model_dump()
+            if settings.agent_evidence_gate_enabled:
+                cited_ids = {
+                    str(citation.get("chunk_id") or "")
+                    for citation in answer.get("citations") or []
+                }
+                # Internal only: finalization needs the actual indexed passage,
+                # not just a prior answer's prose and an opaque citation ID.
+                answer["evidence_results"] = [
+                    item.model_dump() for item in retrieval_results
+                    if item.chunk_id in cited_ids
+                ]
             answer["retrieval_orchestrator"] = backend
             answer["retrieval_trace"] = retrieval_trace
             return answer
