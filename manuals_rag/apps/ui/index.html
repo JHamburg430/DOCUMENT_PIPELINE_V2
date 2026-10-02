@@ -44,6 +44,7 @@
           <nav class="evaluation-jump-links" aria-label="Evaluation workspace sections">
             <a href="#agent-matrix-workspace">Current agent matrix</a>
             <a href="#research-agent-matrix-workspace">Research-agent acceptance</a>
+            <a href="#onsite-agent-eval">Keyence onsite evaluation</a>
             <a href="#question-matrix-workspace">Question matrix</a>
             <a href="#agent-lab">Live agent lab</a>
           </nav>
@@ -345,6 +346,18 @@
 
       <section id="search" class="tab-panel">
         <section class="split">
+        <details id="onsite-agent-eval" class="panel agent-matrix-panel evaluation-section evaluation-disclosure" open>
+          <summary><span>Keyence Onsite Agent Evaluation</span><span id="onsite-agent-eval-status" class="status-pill">Not run</span></summary>
+          <p class="muted">Source-anchored installation, setup, troubleshooting, and integration questions run through the same ReAct Agent endpoint as the Agent page. Both retrieval backends are scored for a grounded answer and a citation to the expected manual. This suite is separate from the existing matrices.</p>
+          <div id="onsite-agent-eval-summary" class="matrix-summary empty-state">Loading onsite question bank…</div>
+          <div class="matrix-actions">
+            <label>Questions <input id="onsite-agent-eval-limit" type="number" min="1" value="20" /></label>
+            <button id="run-onsite-agent-eval" type="button">Run Onsite Evaluation</button>
+            <button id="refresh-onsite-agent-eval" type="button">Refresh</button>
+          </div>
+          <div id="onsite-agent-eval-table" class="matrix-table-shell"></div>
+          <div id="onsite-agent-eval-detail"></div>
+        </details>
           <div class="panel">
             <h2>Search</h2>
             <label>

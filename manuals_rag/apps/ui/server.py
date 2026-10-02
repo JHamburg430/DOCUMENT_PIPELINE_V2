@@ -113,6 +113,10 @@ RESULT_STAGE_STEPS = {
 }
 AGENT_MATRIX_REPORT = TEST_REPORTS_DIR / "agent_evaluation_matrix_latest.json"
 RESEARCH_AGENT_MATRIX_REPORT = TEST_REPORTS_DIR / "research_agent_matrix_latest.json"
+ONSITE_AGENT_EVAL_DATASET = MANUALS_ROOT / "tests" / "fixtures" / "keyence_onsite_agent_eval_v2.jsonl"
+ONSITE_AGENT_EVAL_MANIFEST = MANUALS_ROOT / "tests" / "fixtures" / "keyence_onsite_agent_eval_v2.manifest.json"
+ONSITE_AGENT_EVAL_JOBS: dict[str, dict] = {}
+ONSITE_AGENT_EVAL_LOCK = Lock()
 RESEARCH_AGENT_MATRIX_DATASET = MANUALS_ROOT / "tests" / "fixtures" / "research_agent_validation_matrix_v1.jsonl"
 RESEARCH_AGENT_MATRIX_MANIFEST = MANUALS_ROOT / "tests" / "fixtures" / "research_agent_validation_matrix_v1.manifest.json"
 AGENT_MATRIX_JOBS: dict[str, dict] = {}
@@ -362,6 +366,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/local/research-agent-matrix":
             self._local_research_agent_matrix()
             return
+        if parsed.path == "/local/onsite-agent-eval":
+            self._send_json_response(200, _build_onsite_agent_eval())
+            return
         if parsed.path.startswith("/local/question-matrix/jobs/"):
             self._local_question_matrix_job(parsed.path.rsplit("/", 1)[-1])
             return
@@ -404,6 +411,14 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/local/research-agent-matrix/run":
             self._start_local_research_agent_matrix_run()
+            return
+        if parsed.path == "/local/onsite-agent-eval/run":
+            try:
+                content_length = int(self.headers.get("Content-Length") or "0")
+                body = self.rfile.read(content_length) if content_length else b"{}"
+                self._send_json_response(202, _start_onsite_agent_eval(json.loads(body.decode("utf-8") or "{}")))
+            except ValueError as error:
+                self._send_json_error(400, str(error))
             return
         if parsed.path == "/local/question-matrix/run":
             self._start_local_question_matrix_run()
@@ -1618,6 +1633,92 @@ def _start_agent_matrix_job(payload: dict) -> dict:
     )
     Thread(target=_run_agent_matrix_job, args=(job_id, dataset_path), daemon=True).start()
     return dict(job)
+
+
+def _build_onsite_agent_eval() -> dict:
+    manifest = _read_json(ONSITE_AGENT_EVAL_MANIFEST) if ONSITE_AGENT_EVAL_MANIFEST.exists() else {}
+    cases = _read_jsonl(ONSITE_AGENT_EVAL_DATASET) if ONSITE_AGENT_EVAL_DATASET.exists() else []
+    with ONSITE_AGENT_EVAL_LOCK:
+        jobs = [deepcopy(job) for job in ONSITE_AGENT_EVAL_JOBS.values()]
+    active = next((job for job in jobs if job["status"] in {"queued", "running"}), None)
+    reports = sorted(
+        (path for path in TEST_REPORTS_DIR.glob("keyence_onsite_agent_eval_*.json") if re.fullmatch(r"keyence_onsite_agent_eval_\d{8}T\d{6}Z_[0-9a-f]{8}\.json", path.name)),
+        key=lambda path: path.stat().st_mtime, reverse=True,
+    )
+    latest = _read_json(reports[0]) if reports else None
+    if active:
+        partial_path = TEST_REPORTS_DIR / f"{active['id']}.partial.json"
+        if partial_path.exists():
+            latest = _read_json(partial_path)
+    return {
+        "schema": "manuals-rag-onsite-agent-eval-ui-v1",
+        "manifest": manifest,
+        "cases": cases,
+        "active_job": active,
+        "latest_report": latest,
+    }
+
+
+def _start_onsite_agent_eval(payload: dict) -> dict:
+    if not ONSITE_AGENT_EVAL_DATASET.exists() or not ONSITE_AGENT_EVAL_MANIFEST.exists():
+        raise ValueError("Onsite evaluation bank is unavailable")
+    total = len(_read_jsonl(ONSITE_AGENT_EVAL_DATASET))
+    limit = int(payload.get("limit") or total)
+    if limit < 1 or limit > total:
+        raise ValueError(f"Question limit must be between 1 and {total}")
+    with ONSITE_AGENT_EVAL_LOCK:
+        if any(job["status"] in {"queued", "running"} for job in ONSITE_AGENT_EVAL_JOBS.values()):
+            raise ValueError("An onsite evaluation is already running")
+        job_id = f"keyence_onsite_agent_eval_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{uuid.uuid4().hex[:8]}"
+        job = {"id": job_id, "status": "queued", "completed_cells": 0, "total_cells": limit * 2, "limit": limit, "error": None}
+        ONSITE_AGENT_EVAL_JOBS[job_id] = job
+    Thread(target=_run_onsite_agent_eval, args=(job_id,), daemon=True).start()
+    return deepcopy(job)
+
+
+def _run_onsite_agent_eval(job_id: str) -> None:
+    with ONSITE_AGENT_EVAL_LOCK:
+        job = ONSITE_AGENT_EVAL_JOBS[job_id]
+        job["status"] = "running"
+        job["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        limit = job["limit"]
+    output = TEST_REPORTS_DIR / f"{job_id}.json"
+    command = [sys.executable, str(MANUALS_ROOT / "scripts/benchmark/run_onsite_agent_eval.py"),
+               "--dataset", str(ONSITE_AGENT_EVAL_DATASET), "--manifest", str(ONSITE_AGENT_EVAL_MANIFEST),
+               "--output", str(output), "--limit", str(limit)]
+    try:
+        process = subprocess.Popen(command, cwd=MANUALS_ROOT, env={**os.environ, "MANUALS_RAG_API_BASE": API_BASE},
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        assert process.stdout is not None
+        for line in process.stdout:
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("event") == "onsite_cell_completed":
+                with ONSITE_AGENT_EVAL_LOCK:
+                    job = ONSITE_AGENT_EVAL_JOBS[job_id]
+                    job["completed_cells"] += 1
+                    job["last_case_id"] = event.get("case_id")
+                    job["last_backend"] = event.get("backend")
+                    job["last_status"] = event.get("status")
+            elif event.get("event") == "onsite_failed":
+                with ONSITE_AGENT_EVAL_LOCK:
+                    ONSITE_AGENT_EVAL_JOBS[job_id]["error"] = event.get("error")
+        exit_code = process.wait(timeout=MATRIX_JOB_TIMEOUT_SECONDS)
+        with ONSITE_AGENT_EVAL_LOCK:
+            job = ONSITE_AGENT_EVAL_JOBS[job_id]
+            job["exit_code"] = exit_code
+            job["status"] = "completed" if output.exists() else "failed"
+            job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            if not output.exists() and not job["error"]:
+                job["error"] = f"Evaluator exited {exit_code} without a final artifact"
+    except Exception as error:
+        with ONSITE_AGENT_EVAL_LOCK:
+            job = ONSITE_AGENT_EVAL_JOBS[job_id]
+            job["status"] = "failed"
+            job["error"] = f"{type(error).__name__}: {error}"
+            job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 def _build_research_agent_matrix() -> dict:
