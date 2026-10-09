@@ -93,6 +93,97 @@ def _invoke(
     )
 
 
+def _verifier_payload(
+    supporting_chunk_ids: list[str],
+    verbatim_support_quotes: dict[str, str],
+) -> dict:
+    return {
+        "trust_state": "confirmed",
+        "claim_supported": True,
+        "supporting_chunk_ids": supporting_chunk_ids,
+        "verbatim_support_quotes": verbatim_support_quotes,
+        "conflicting_chunk_ids": [],
+        "lead_chunk_ids": [],
+        "applicability": "not_requested",
+        "scope_entity": None,
+        "failure_kind": None,
+        "missing_evidence": "",
+        "rationale": "Each requested value is present in its cited source chunk.",
+    }
+
+
+def test_verifier_requires_each_support_id_to_carry_its_own_verbatim_quote(monkeypatch):
+    query = "What values are listed for Alpha mode and Beta mode in the setup notes?"
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query)
+    alpha = _result("alpha", "setup-notes", "Alpha mode uses value 17.")
+    beta = _result("beta", "setup-notes", "Beta mode uses value 29.")
+    calls = []
+
+    def verifier(**_kwargs):
+        calls.append(True)
+        return (
+            _verifier_payload(
+                ["alpha", "beta"],
+                {
+                    # The quote is real, but it belongs to beta rather than alpha.
+                    "alpha": "Beta mode uses value 29.",
+                    "beta": "Beta mode uses value 29.",
+                },
+            ),
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", verifier)
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [alpha, beta],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha", "beta"]},
+    )
+
+    assert len(calls) == 2
+    assert output["claim_supported"] is False
+    assert output["trust_state"] == "unresolved"
+    assert output["supporting_chunk_ids"] == ["beta"]
+    assert output["invalid_support_quote_ids"] == ["alpha"]
+    assert output["judge"]["attempts"][0]["validation_error"][
+        "invalid_support_quote_ids"
+    ] == ["alpha"]
+
+
+def test_verifier_accepts_support_ids_with_quotes_from_their_own_chunks(monkeypatch):
+    query = "What values are listed for Alpha mode and Beta mode in the setup notes?"
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query)
+    alpha = _result("alpha", "setup-notes", "Alpha mode uses value 17.")
+    beta = _result("beta", "setup-notes", "Beta mode uses value 29.")
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            _verifier_payload(
+                ["alpha", "beta"],
+                {
+                    "alpha": "Alpha mode uses value 17.",
+                    "beta": "Beta mode uses value 29.",
+                },
+            ),
+            "{}",
+        ),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [alpha, beta],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha", "beta"]},
+    )
+
+    assert output["claim_supported"] is True
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["alpha", "beta"]
+    assert output["invalid_support_quote_ids"] == []
+
+
 def test_visual_dependency_router_is_conservative_for_spatial_manual_questions():
     assert query_requires_visual_evidence("Which pin in the wiring diagram carries output 4?") is True
     assert query_requires_visual_evidence("Which wire goes to pin 3 on the connector face?") is True
@@ -2460,6 +2551,10 @@ def test_verifier_fails_closed_when_out_of_scope_citation_accompanies_scoped_sup
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["iv4-temperature", "sibling-temperature"],
+                "verbatim_support_quotes": {
+                    "iv4-temperature": "IV4-400MA operating ambient temperature: 0 to +50 C (no freezing).",
+                    "sibling-temperature": "Another model supports operation below freezing.",
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "unknown",
                 "scope_entity": "IV4-400MA",
@@ -5322,6 +5417,7 @@ def test_verifier_normalizes_single_list_wrapped_object(monkeypatch):
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "conflicting_chunk_ids": [],
                 "applicability": "not_requested",
                 "scope_entity": "ALPHA-1",
@@ -5355,6 +5451,7 @@ def test_verifier_normalizes_compact_supported_response(monkeypatch):
             {
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "reasoning": "The cited chunk directly states the action.",
             },
             "{}",
@@ -5388,6 +5485,7 @@ def test_verifier_reconciles_internally_inconsistent_affirmative_response(monkey
                 "trust_state": "unresolved",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "conflicting_chunk_ids": [],
                 "applicability": "not_requested",
                 "scope_entity": "ALPHA-1",
@@ -5421,6 +5519,7 @@ def test_verifier_normalizes_verdict_alias_response(monkeypatch):
             {
                 "verdict": "confirmed",
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "reasoning": "The cited chunk directly supports the claim.",
             },
             "{}",
@@ -5451,6 +5550,7 @@ def test_verifier_normalizes_verified_and_chunk_ids_aliases(monkeypatch):
             {
                 "verified": True,
                 "chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "evidence_support": "The cited chunk directly states the action.",
             },
             "{}",
@@ -5482,6 +5582,7 @@ def test_verifier_normalizes_claim_verified_and_supporting_evidence_aliases(monk
             {
                 "claim_verified": True,
                 "supporting_evidence": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
             },
             "{}",
         ),
@@ -5512,6 +5613,7 @@ def test_verifier_normalizes_verified_trust_and_confirmed_applicability(monkeypa
                 "trust_state": "verified",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "conflicting_chunk_ids": [],
                 "applicability": "confirmed",
                 "scope_entity": "ALPHA-1",
@@ -5546,6 +5648,7 @@ def test_verifier_conservatively_normalizes_domain_in_applicability_field(monkey
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "ALPHA-1 integrated software: Control Suite."},
                 "conflicting_chunk_ids": [],
                 "applicability": "software",
                 "scope_entity": "ALPHA-1",
@@ -5614,6 +5717,7 @@ def test_verifier_accepts_explicit_firmware_applicability(monkeypatch):
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "ALPHA-1 requires firmware 6.0 or later."},
                 "conflicting_chunk_ids": [],
                 "applicability": "applicable",
                 "scope_entity": "ALPHA-1",
@@ -5648,6 +5752,9 @@ def test_verifier_ignores_spurious_applicability_conflict_for_direct_fact(monkey
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["terminal-map"],
+                "verbatim_support_quotes": {
+                    "terminal-map": "Connect cable no. 10 (SG) to the 0 V OUT terminal"
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "conflicting",
                 "scope_entity": "image processing system controller",
@@ -5695,6 +5802,7 @@ def test_verifier_retries_once_after_malformed_model_response(monkeypatch):
             {
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "reasoning": "The cited chunk directly supports the claim.",
             },
             "{}",
@@ -5734,6 +5842,9 @@ def test_verifier_retries_same_evidence_after_invalid_citation_id(monkeypatch):
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": [cited],
+                "verbatim_support_quotes": {
+                    cited: "Electronic shutter: 1/15 through 1/20000."
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "not_requested",
                 "scope_entity": "CV-X electronic shutter",
@@ -5763,6 +5874,7 @@ def test_verifier_retries_same_evidence_after_invalid_citation_id(monkeypatch):
     assert result["judge"]["attempts"][0]["validation_error"] == {
         "invalid_citation_ids": ["mistyped-row"],
         "out_of_scope_chunk_ids": ["mistyped-row"],
+            "invalid_support_quote_ids": [],
     }
     assert result["judge"]["attempts"][1]["raw_response"] == "{}"
 
@@ -5793,6 +5905,7 @@ def test_verifier_treats_attributed_support_list_as_compact_affirmative_verdict(
         lambda **_kwargs: (
             {
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "reasoning": "The cited chunk directly supports the claim.",
             },
             "{}",
@@ -5854,6 +5967,9 @@ def test_verifier_promotes_attributed_support_when_model_marks_it_probable(monke
                 "trust_state": "probable",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["stb"],
+                "verbatim_support_quotes": {
+                    "stb": "STB: Illuminates green when receiving stable light."
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "unknown",
                 "scope_entity": "W500",
@@ -5921,6 +6037,9 @@ def test_verifier_prompt_judges_negative_answers_as_supported_and_omits_prelimin
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["limit"],
+                "verbatim_support_quotes": {
+                    "limit": "The secondary module cannot run without the primary module."
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "unknown",
                 "scope_entity": None,
@@ -7880,6 +7999,9 @@ def test_procedure_recheck_uses_verbatim_actions_and_revalidates_citation(monkey
         prompts.append(kwargs["messages"][1]["content"])
         common = {
             "supporting_chunk_ids": ["adding-pages"], "conflicting_chunk_ids": [],
+            "verbatim_support_quotes": {
+                "adding-pages": "Click [Add Page] in [Custom Screen]."
+            },
             "applicability": "not_requested", "scope_entity": None,
         }
         if len(prompts) == 1:

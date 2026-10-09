@@ -82,6 +82,9 @@ def test_gate_accepts_cited_complete_answer(monkeypatch):
     }, ""))
     result = evidence_gate.gate_agent_answer("Where does the 24 VDC supply connect?", answer, observations)
     assert result["evidence_gate"]["status"] == "accepted"
+    assert result["evidence_gate"]["verifier"]["status"] == "checked"
+    assert result["evidence_gate"]["verifier"]["normalized_verdict"]["supported"] is True
+    assert len(result["evidence_gate"]["verifier"]["passage_sha256"]["source-1"]) == 64
     assert result["insufficient_evidence"] is False
     assert result["citations"] == answer["citations"]
 
@@ -101,6 +104,8 @@ def test_gate_fails_closed_when_verifier_unavailable(monkeypatch):
     result = evidence_gate.gate_agent_answer("Where does it connect?", answer, observations)
     assert result["insufficient_evidence"] is True
     assert result["evidence_gate"]["reason"] == "verifier unavailable or malformed"
+    assert result["evidence_gate"]["verifier"]["status"] == "unchecked"
+    assert result["evidence_gate"]["verifier"]["error"].startswith("TimeoutError:")
 
 
 def test_gate_rejects_passage_for_different_model(monkeypatch):

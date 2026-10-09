@@ -66,6 +66,13 @@ class EvidenceVerification(BaseModel):
     failure_kind: VerificationFailureKind | None = None
     missing_evidence: str = ""
     rationale: str = ""
+    verbatim_support_quotes: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Exact verbatim text bound to each supporting_chunk_id; prevents reliance "
+            "on adjacent rerank context."
+        ),
+    )
 
 
 VISUAL_DEPENDENCY_RE = re.compile(
@@ -191,6 +198,11 @@ EVIDENCE_VERIFICATION_SCHEMA: dict[str, Any] = {
         },
         "claim_supported": {"type": "boolean"},
         "supporting_chunk_ids": {"type": "array", "items": {"type": "string"}},
+        "verbatim_support_quotes": {
+            "type": "object",
+            "description": "Exact verbatim text bound to each supporting chunk ID.",
+            "additionalProperties": {"type": "string"},
+        },
         "conflicting_chunk_ids": {"type": "array", "items": {"type": "string"}},
         "lead_chunk_ids": {"type": "array", "items": {"type": "string"}},
         "applicability": {
@@ -217,6 +229,7 @@ EVIDENCE_VERIFICATION_SCHEMA: dict[str, Any] = {
         "trust_state",
         "claim_supported",
         "supporting_chunk_ids",
+        "verbatim_support_quotes",
         "conflicting_chunk_ids",
         "applicability",
         "scope_entity",
@@ -231,9 +244,13 @@ EVIDENCE_VERIFIER_PROMPT = """
 You independently verify whether technical-manual evidence is sufficient to answer one retrieval
 question. Return only JSON.
 Use these keys and do not rename them: trust_state, claim_supported,
-supporting_chunk_ids, conflicting_chunk_ids, lead_chunk_ids, applicability, scope_entity,
-failure_kind, missing_evidence, rationale.
+supporting_chunk_ids, verbatim_support_quotes, conflicting_chunk_ids, lead_chunk_ids,
+applicability, scope_entity, failure_kind, missing_evidence, rationale.
 supporting_chunk_ids and conflicting_chunk_ids must contain only supplied chunk_id strings.
+For every supporting_chunk_id, verbatim_support_quotes must map that exact chunk ID to a short,
+verbatim quote copied from that chunk's own content that proves its part of the answer. Never bind
+a quote from an adjacent or sibling chunk to a supporting chunk ID. Return an empty object when
+there are no supporting chunks.
 lead_chunk_ids may contain up to three supplied chunk IDs with partial procedural clues or
 promising section pointers, even when the full claim is unresolved. They are not citations or
 proof. Exclude wrong-product, wrong-operation, and conflicting passages from lead_chunk_ids.
@@ -283,6 +300,11 @@ When the claim does not ask about compatibility, version, or applicability, retu
 applicability=not_requested. Never use applicability=conflicting to report a factual source
 conflict; use trust_state, conflicting_chunk_ids, and failure_kind=source_conflict instead.
 """.strip()
+
+
+def _normalized_verbatim_text(value: str) -> str:
+    """Normalize only whitespace/case while retaining punctuation and values."""
+    return re.sub(r"\s+", " ", value).strip().casefold()
 
 
 PLANNER_PROMPT = """
@@ -8643,6 +8665,7 @@ def verify_retrieval_claim(
                 )
             normalized_payload.setdefault("claim_supported", False)
             normalized_payload["supporting_chunk_ids"] = selected_support
+            normalized_payload.setdefault("verbatim_support_quotes", {})
             normalized_payload["conflicting_chunk_ids"] = conflicts
             normalized_payload.setdefault("applicability", "not_requested")
             normalized_payload.setdefault("scope_entity", None)
@@ -8662,7 +8685,24 @@ def verify_retrieval_claim(
             attempt_out_of_scope = [
                 chunk_id for chunk_id in attempted_support if chunk_id not in scoped_ids
             ]
-            if attempt == 0 and (attempt_invalid_citations or attempt_out_of_scope):
+            attempt_invalid_quotes = [
+                chunk_id
+                for chunk_id in attempted_support
+                if verification.claim_supported
+                and chunk_id in allowed_results
+                and (
+                    not str(verification.verbatim_support_quotes.get(chunk_id) or "").strip()
+                    or _normalized_verbatim_text(
+                        str(verification.verbatim_support_quotes.get(chunk_id) or "")
+                    )
+                    not in _normalized_verbatim_text(
+                        str(allowed_results[chunk_id].content or "")
+                    )
+                )
+            ]
+            if attempt == 0 and (
+                attempt_invalid_citations or attempt_out_of_scope or attempt_invalid_quotes
+            ):
                 # A structurally valid verifier response can still violate the
                 # citation contract by transcribing a chunk ID incorrectly or
                 # selecting a sibling-scope result. Retry against the exact same
@@ -8672,6 +8712,7 @@ def verify_retrieval_claim(
                 judge_attempts[-1]["validation_error"] = {
                     "invalid_citation_ids": attempt_invalid_citations,
                     "out_of_scope_chunk_ids": attempt_out_of_scope,
+                    "invalid_support_quote_ids": attempt_invalid_quotes,
                 }
                 verification = None
                 continue
@@ -8728,10 +8769,27 @@ def verify_retrieval_claim(
     requested_support = list(dict.fromkeys(verification.supporting_chunk_ids))
     invalid_citations = [chunk_id for chunk_id in requested_support if chunk_id not in shown_ids]
     out_of_scope = [chunk_id for chunk_id in requested_support if chunk_id not in scoped_ids]
-    valid_support = [
+    candidate_support = [
         chunk_id
         for chunk_id in requested_support
         if chunk_id in allowed_results and chunk_id in scoped_ids
+    ]
+    invalid_support_quotes = [
+        chunk_id
+        for chunk_id in candidate_support
+        if (
+            not str(verification.verbatim_support_quotes.get(chunk_id) or "").strip()
+            or _normalized_verbatim_text(
+                str(verification.verbatim_support_quotes.get(chunk_id) or "")
+            )
+            not in _normalized_verbatim_text(str(allowed_results[chunk_id].content or ""))
+        )
+    ]
+    # Fail closed when the verifier cannot prove that each promoted ID carries
+    # its own answer-bearing text. This blocks support borrowed from neighboring
+    # chunks in the verifier packet while preserving whitespace-only differences.
+    valid_support = [
+        chunk_id for chunk_id in candidate_support if chunk_id not in invalid_support_quotes
     ]
     confirmed = (
         verification.trust_state == "confirmed"
@@ -8744,6 +8802,7 @@ def verify_retrieval_claim(
             (allowed_results[chunk_id].metadata or {}).get("query_applicability", {}).get("state") == "conflicting"
             for chunk_id in valid_support
         )
+        and not invalid_support_quotes
         and not verification.conflicting_chunk_ids
         and verification.applicability != "conflicting"
         and (not applicability_required or verification.applicability == "applicable")
@@ -8763,6 +8822,7 @@ def verify_retrieval_claim(
     output = verification.model_dump()
     output["invalid_citation_ids"] = invalid_citations
     output["out_of_scope_chunk_ids"] = out_of_scope
+    output["invalid_support_quote_ids"] = invalid_support_quotes
     output["scope_candidate_chunk_ids"] = sorted(scoped_ids)
     output["verification_evidence_chunk_ids"] = sorted(shown_ids)
     output["verification_evidence_omitted_count"] = evidence_packet["omitted_count"]

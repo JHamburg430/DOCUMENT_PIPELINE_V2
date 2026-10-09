@@ -9,6 +9,7 @@ evaluation demonstrates acceptable coverage and latency.
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 from typing import Any
 
@@ -72,7 +73,12 @@ def _model_ids(text: str) -> set[str]:
     }
 
 
-def _reject(answer: dict[str, Any], reason: str) -> dict[str, Any]:
+def _reject(
+    answer: dict[str, Any],
+    reason: str,
+    *,
+    verifier: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     return {
         **answer,
         "answer": "I could not verify a complete answer against the retrieved manual passages.",
@@ -81,7 +87,11 @@ def _reject(answer: dict[str, Any], reason: str) -> dict[str, Any]:
         "used_documents": [],
         "insufficient_evidence": True,
         "warnings": [*answer.get("warnings", []), "The retrieved excerpts did not verify every requested detail."],
-        "evidence_gate": {"status": "rejected", "reason": reason},
+        "evidence_gate": {
+            "status": "rejected",
+            "reason": reason,
+            **({"verifier": verifier} if verifier else {}),
+        },
     }
 
 
@@ -160,6 +170,14 @@ def gate_agent_answer(
         {"chunk_id": chunk_id, "content": content[:3500]}
         for chunk_id, content in list(selected.items())[:8]
     ]
+    verifier_trace = {
+        "status": "unchecked",
+        "selected_chunk_ids": list(selected),
+        "passage_sha256": {
+            chunk_id: hashlib.sha256(content.encode()).hexdigest()
+            for chunk_id, content in selected.items()
+        },
+    }
     try:
         verdict, _raw = chat_json(
             model=settings.ollama_retrieval_verifier_model,
@@ -182,20 +200,36 @@ def gate_agent_answer(
             num_ctx=16384,
             purpose="react_agent.evidence_gate",
         )
-    except Exception:
-        return _reject(answer, "verifier unavailable or malformed")
+        verifier_trace.update({
+            "status": "checked",
+            "raw_response": _raw,
+            "normalized_verdict": verdict,
+        })
+    except Exception as error:
+        verifier_trace.update({
+            "status": "unchecked",
+            "error": f"{type(error).__name__}: {error}",
+        })
+        return _reject(answer, "verifier unavailable or malformed", verifier=verifier_trace)
     if not isinstance(verdict, dict) or not isinstance(verdict.get("supported"), bool) or not isinstance(verdict.get("complete"), bool):
-        return _reject(answer, "invalid verifier verdict")
+        return _reject(answer, "invalid verifier verdict", verifier=verifier_trace)
     quotes = verdict.get("evidence_quotes")
     if not isinstance(quotes, list) or not quotes:
-        return _reject(answer, "verifier supplied no source quotes")
+        return _reject(answer, "verifier supplied no source quotes", verifier=verifier_trace)
     for item in quotes:
         if not isinstance(item, dict):
-            return _reject(answer, "invalid verifier quote")
+            return _reject(answer, "invalid verifier quote", verifier=verifier_trace)
         chunk_id, quote = str(item.get("chunk_id") or ""), str(item.get("quote") or "").strip()
         if not quote or chunk_id not in selected or _normalized(quote) not in _normalized(selected[chunk_id]):
-            return _reject(answer, "verifier quote is absent from cited passage")
+            return _reject(answer, "verifier quote is absent from cited passage", verifier=verifier_trace)
     if (not verdict["supported"] or not verdict["complete"]
             or verdict.get("unsupported_claims") or verdict.get("missing_requirements")):
-        return _reject(answer, "unsupported claim or unanswered requirement")
-    return {**answer, "evidence_gate": {"status": "accepted", "verified_quote_count": len(quotes)}}
+        return _reject(answer, "unsupported claim or unanswered requirement", verifier=verifier_trace)
+    return {
+        **answer,
+        "evidence_gate": {
+            "status": "accepted",
+            "verified_quote_count": len(quotes),
+            "verifier": verifier_trace,
+        },
+    }
