@@ -4337,6 +4337,71 @@ async function maybePollIngestion() {
   }
 }
 
+async function loadOnsiteAgentEval() {
+  const payload = await localJson("/local/onsite-agent-eval");
+  const cases = payload.cases || [];
+  const report = payload.latest_report;
+  const active = payload.active_job;
+  const status = $("onsite-agent-eval-status");
+  const limit = $("onsite-agent-eval-limit");
+  limit.max = String(cases.length || 1);
+  if (Number(limit.value) > cases.length) limit.value = String(cases.length || 1);
+  const summary = report?.summary || {};
+  const records = new Map((report?.records || []).map((row) => [row.case_id, row]));
+  const observedCells = (report?.records || []).flatMap((row) => Object.values(row.backends || {}));
+  const observedCounts = Object.fromEntries(["pass", "fail", "error"].map((kind) => [kind, observedCells.filter((cell) => cell.status === kind).length]));
+  if (active) {
+    status.textContent = `Running · ${active.completed_cells}/${active.total_cells} cells`;
+    status.className = "status-pill running";
+  } else if (report?.status === "completed") {
+    status.textContent = `Passed · ${summary.passed}/${summary.total}`;
+    status.className = "status-pill pass";
+  } else if (report?.status === "failed") {
+    status.textContent = `Failed · ${summary.passed}/${summary.total} passed`;
+    status.className = "status-pill fail";
+  } else {
+    status.textContent = "Not run";
+    status.className = "status-pill idle";
+  }
+  $("run-onsite-agent-eval").disabled = Boolean(active) || !cases.length;
+  $("onsite-agent-eval-summary").className = "matrix-summary";
+  $("onsite-agent-eval-summary").innerHTML = `
+    <article class="matrix-stat"><span>Source-backed questions</span><strong>${cases.length}</strong><small>${escapeHtml(payload.manifest?.corpus || "")}</small></article>
+    <article class="matrix-stat"><span>Completed cells</span><strong>${active?.completed_cells ?? (report?.records?.length || 0) * 2}</strong><small>of ${active?.total_cells ?? summary.total ?? cases.length * 2} selected backend cells</small></article>
+    <article class="matrix-stat"><span>Passed</span><strong>${report ? observedCounts.pass : "—"}</strong><small>${report?.status === "running" ? "Provisional; terminal reconciliation pending" : escapeHtml(report?.run_id || "No run yet")}</small></article>
+    <article class="matrix-stat"><span>Failed / errored</span><strong>${report ? `${observedCounts.fail} / ${observedCounts.error}` : "—"}</strong><small>Distinct answer failures and stream errors</small></article>`;
+  $("onsite-agent-eval-table").innerHTML = `<table class="matrix-grid agent-matrix-grid"><thead><tr><th>#</th><th>Area</th><th>Question / source</th><th>LangGraph</th><th>LlamaIndex</th></tr></thead><tbody>${cases.map((item, index) => {
+    const record = records.get(item.case_id);
+    const cell = (backend) => {
+      const value = record?.backends?.[backend]?.status || (active && index < active.limit ? "pending" : "not run");
+      return `<span class="status-pill ${value === "pass" ? "pass" : value === "fail" || value === "error" ? "fail" : "idle"}">${escapeHtml(value)}</span>`;
+    };
+    return `<tr class="clickable" data-onsite-case="${escapeHtml(item.case_id)}"><td>${index + 1}</td><td>${escapeHtml(item.category || "onsite")}</td><td class="matrix-text-cell"><strong>${escapeHtml(item.question)}</strong><small>${escapeHtml(item.source_filename || "")} · p. ${escapeHtml(item.page || "?")}</small></td><td>${cell("langgraph_agent")}</td><td>${cell("llamaindex_agent")}</td></tr>`;
+  }).join("")}</tbody></table>`;
+  document.querySelectorAll("[data-onsite-case]").forEach((node) => node.addEventListener("click", () => {
+    const item = cases.find((candidate) => candidate.case_id === node.dataset.onsiteCase);
+    const record = records.get(item.case_id);
+    $("onsite-agent-eval-detail").innerHTML = `<section class="panel"><h3>${escapeHtml(item.question)}</h3><p class="muted">Source: ${escapeHtml(item.source_filename)} · p. ${escapeHtml(item.page)} · chunk ${escapeHtml(item.source_chunk_id)}</p><p><strong>Expected:</strong> ${escapeHtml(item.expected_answer || "See source-backed facets")}</p>${["langgraph_agent", "llamaindex_agent"].map((backend) => {
+      const result = record?.backends?.[backend];
+      return `<h4>${escapeHtml(backend)} · ${escapeHtml(result?.status || "not run")}</h4><p>${escapeHtml(result?.answer || result?.error || "No answer yet")}</p><small>${escapeHtml(result?.checks ? Object.entries(result.checks).map(([key, passed]) => `${key}: ${passed ? "pass" : "fail"}`).join(" · ") : "")}</small>`;
+    }).join("")}</section>`;
+  }));
+  if (active) setTimeout(() => loadOnsiteAgentEval().catch(console.error), MATRIX_JOB_POLL_MS);
+}
+
+async function runOnsiteAgentEval() {
+  const button = $("run-onsite-agent-eval");
+  button.disabled = true;
+  try {
+    await localPostJson("/local/onsite-agent-eval/run", { limit: Number($("onsite-agent-eval-limit").value) });
+    await loadOnsiteAgentEval();
+  } catch (error) {
+    $("onsite-agent-eval-status").textContent = error.message;
+    $("onsite-agent-eval-status").className = "status-pill fail";
+    button.disabled = false;
+  }
+}
+
 function setupEvaluationWorkspace() {
   const workspace = $("evaluation");
   const agentLab = $("agent-lab");
@@ -4344,6 +4409,7 @@ function setupEvaluationWorkspace() {
   const questionMatrix = $("question-matrix-workspace");
   const agentMatrix = $("agent-matrix-workspace");
   const researchAgentMatrix = $("research-agent-matrix-workspace");
+  const onsiteAgentEval = $("onsite-agent-eval");
   agentLab.classList.remove("tab-panel");
   agentLab.classList.add("evaluation-agent-lab");
   if (questionMatrix) {
@@ -4351,6 +4417,7 @@ function setupEvaluationWorkspace() {
       researchAgentMatrix.open = true;
       workspace.insertBefore(researchAgentMatrix, questionMatrix);
     }
+    if (onsiteAgentEval) workspace.insertBefore(onsiteAgentEval, questionMatrix);
     if (agentMatrix) {
       agentMatrix.open = true;
       workspace.insertBefore(agentMatrix, questionMatrix);
@@ -4369,6 +4436,7 @@ function setupTabs() {
       if (tab.dataset.tab === "evaluation") {
         loadQuestionMatrix();
         loadAgentMatrix();
+        loadOnsiteAgentEval().catch(console.error);
         loadAgentLiveJob().catch(console.error);
       }
       if (tab.dataset.tab === "agent-chat") loadAgentChatJob().catch(console.error);
@@ -4437,6 +4505,8 @@ async function init() {
   $("replay-agent-matrix-fixture").addEventListener("click", replayAgentMatrixFixture);
   $("run-research-agent-matrix").addEventListener("click", runResearchAgentMatrix);
   $("refresh-research-agent-matrix").addEventListener("click", () => loadResearchAgentMatrix().catch(console.error));
+  $("run-onsite-agent-eval").addEventListener("click", runOnsiteAgentEval);
+  $("refresh-onsite-agent-eval").addEventListener("click", () => loadOnsiteAgentEval().catch(console.error));
   if (["replay", "provisional"].includes(evaluationFixtureMode)) {
     replayAgentMatrixFixture();
   }
@@ -4460,7 +4530,7 @@ async function init() {
     renderIngestion();
   });
   setConnectionStatus("UI ready · synchronizing active views");
-  const initialLoads = evaluationFixtureMode ? [] : [loadProductionReadiness(), loadQuestionMatrix(), loadAgentMatrix(), loadResearchAgentMatrix(), loadAgentLiveJob(), loadAgentChatJob()];
+  const initialLoads = evaluationFixtureMode ? [] : [loadProductionReadiness(), loadQuestionMatrix(), loadAgentMatrix(), loadResearchAgentMatrix(), loadOnsiteAgentEval(), loadAgentLiveJob(), loadAgentChatJob()];
   Promise.allSettled(initialLoads).then((results) => {
     const failure = results.find((result) => result.status === "rejected");
     if (failure) {

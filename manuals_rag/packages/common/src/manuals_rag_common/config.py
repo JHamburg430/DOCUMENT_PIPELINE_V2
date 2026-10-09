@@ -70,6 +70,7 @@ class Settings:
     ollama_answer_model: str = os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b")
     ollama_answer_num_predict: int = int(os.getenv("OLLAMA_ANSWER_NUM_PREDICT", "1024"))
     agentic_retrieval_enabled: bool = _as_bool(os.getenv("AGENTIC_RETRIEVAL_ENABLED"), False)
+    agent_evidence_gate_enabled: bool = _as_bool(os.getenv("AGENT_EVIDENCE_GATE_ENABLED"), False)
     agentic_hop_max_concurrency: int = max(
         1,
         int(os.getenv("AGENTIC_HOP_MAX_CONCURRENCY", "2")),

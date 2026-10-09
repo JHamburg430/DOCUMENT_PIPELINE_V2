@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from manuals_rag_common.config import settings
 from manuals_rag_common.ollama import chat_json
+from manuals_rag_answering.evidence_gate import gate_agent_answer
 
 
 EventCallback = Callable[[dict[str, Any]], None]
@@ -380,7 +381,7 @@ def _finalize(
             for index in payload.get("citation_indices", [])
             if isinstance(index, int) and 1 <= index <= len(citations)
         ]
-        if not selected:
+        if not selected and not settings.agent_evidence_gate_enabled:
             selected = citations
         return {
             "answer": str(payload.get("answer") or "").strip(),
@@ -566,6 +567,8 @@ def run_react_agent(
         )
 
     final = _finalize(query=query, history=history, memory=memory, observations=observations)
+    if settings.agent_evidence_gate_enabled:
+        final = gate_agent_answer(query, final, observations)
     final["agent_trace"] = {
         "mode": "react",
         "backend": backend,
