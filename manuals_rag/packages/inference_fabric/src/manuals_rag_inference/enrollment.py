@@ -58,6 +58,7 @@ class EnrolledNode:
     enrollment_method: str = "pairing"
     identity_subject: str = ""
     identity_tenant: str = ""
+    allowed_applications: tuple[str, ...] = ()
 
 
 class EnrollmentManager:
@@ -71,6 +72,7 @@ class EnrollmentManager:
         self._lock = threading.RLock()
         self._tokens: dict[str, dict[str, Any]] = {}
         self._nodes: dict[str, EnrolledNode] = {}
+        self._inference_nonces: dict[str, float] = {}
         self._load()
 
     @staticmethod
@@ -82,6 +84,7 @@ class EnrollmentManager:
             return
         payload = json.loads(self.state_path.read_text())
         self._tokens = dict(payload.get("tokens") or {})
+        self._inference_nonces = dict(payload.get("inference_nonces") or {})
         self._nodes = {
             node_id: EnrolledNode(**record)
             for node_id, record in (payload.get("nodes") or {}).items()
@@ -94,6 +97,7 @@ class EnrollmentManager:
         temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
         temporary.write_text(json.dumps({
             "tokens": self._tokens,
+            "inference_nonces": self._inference_nonces,
             "nodes": {node_id: asdict(node) for node_id, node in self._nodes.items()},
         }, sort_keys=True))
         temporary.chmod(0o600)
@@ -122,6 +126,7 @@ class EnrollmentManager:
         enrollment_method: str = "pairing",
         identity_subject: str = "",
         identity_tenant: str = "",
+        allowed_applications: tuple[str, ...] = (),
     ) -> EnrolledNode:
         if not NODE_ID_PATTERN.fullmatch(node_id):
             raise ValueError("invalid node_id")
@@ -152,6 +157,7 @@ class EnrollmentManager:
                 enrollment_method=enrollment_method,
                 identity_subject=identity_subject,
                 identity_tenant=identity_tenant,
+                allowed_applications=allowed_applications,
             )
             record["used"] = True
             self._nodes[node_id] = node
@@ -161,6 +167,19 @@ class EnrollmentManager:
     def nodes(self) -> tuple[EnrolledNode, ...]:
         with self._lock:
             return tuple(self._nodes.values())
+
+    def claim_inference_request(self, node_id: str, request_id: str, issued_at: float) -> None:
+        """Persist accepted nonces so a service restart cannot permit replay."""
+        with self._lock:
+            now = self._clock()
+            self._inference_nonces = {key: stamp for key, stamp in self._inference_nonces.items() if stamp >= now - 60}
+            key = json.dumps([node_id, request_id], separators=(",", ":"))
+            if key in self._inference_nonces:
+                raise PermissionError("replayed node inference request")
+            if len(self._inference_nonces) >= 10000:
+                raise PermissionError("node inference nonce capacity exceeded")
+            self._inference_nonces[key] = issued_at
+            self._persist()
 
     def revoke(self, node_id: str) -> bool:
         with self._lock:
