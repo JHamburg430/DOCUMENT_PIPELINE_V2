@@ -1,0 +1,23 @@
+[Unit]
+Description=Central application-aware Ollama inference gateway
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/manuals-rag-inference
+EnvironmentFile=/etc/manuals-rag/inference-gateway.env
+Environment=PYTHONPATH=/opt/manuals-rag-inference/manuals_rag/packages/inference_fabric/src
+ExecStartPre=/opt/manuals-rag-inference/.venv/bin/python /opt/manuals-rag-inference/manuals_rag/scripts/check_inference_fabric_config.py
+ExecStart=/opt/manuals-rag-inference/.venv/bin/python /opt/manuals-rag-inference/manuals_rag/scripts/run_inference_gateway.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/manuals-rag-inference
+
+[Install]
+WantedBy=multi-user.target
