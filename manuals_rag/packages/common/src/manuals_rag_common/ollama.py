@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from manuals_rag_common.config import settings
+from manuals_rag_common import inference_gateway
 
 logger = logging.getLogger(__name__)
 DEFAULT_KEEP_ALIVE = "10m"
@@ -440,6 +441,13 @@ def chat_json(
     num_ctx: int | None = None,
     num_batch: int | None = None,
 ) -> tuple[dict[str, Any] | list[Any], str]:
+    if inference_gateway.enabled():
+        body = inference_gateway.chat(model=model, messages=messages, purpose=purpose, json_schema=json_schema, think=think, timeout=timeout, keep_alive=keep_alive, temperature=temperature, seed=seed, num_predict=num_predict, num_ctx=num_ctx, num_batch=num_batch)
+        _record_call({"kind": "chat_response", "model": model, "purpose": purpose, "status": "ok", "routing": body.get("_inference_routing"), "via": "inference_gateway"})
+        content = extract_chat_content(body)
+        if not content.strip():
+            raise ValueError("inference gateway returned empty structured output")
+        return parse_json_content(content), content
     with httpx.Client(base_url=settings.ollama_url, timeout=load_timeout) as client:
         ensure_model_loaded(
             client=client,
@@ -520,6 +528,14 @@ def chat_json_stream(
     num_predict: int | None = None,
     num_ctx: int | None = None,
 ) -> tuple[dict[str, Any] | list[Any], str]:
+    if inference_gateway.enabled():
+        body = inference_gateway.chat(model=model, messages=messages, purpose=purpose, json_schema=json_schema, think=think, timeout=timeout, keep_alive=keep_alive, num_predict=num_predict, num_ctx=num_ctx)
+        content = extract_chat_content(body)
+        if on_token is not None and content:
+            on_token(content)
+        if not content.strip():
+            raise ValueError("inference gateway returned empty structured output")
+        return parse_json_content(content), content
     with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
         ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose, num_ctx=num_ctx)
         body = _post_chat_stream(
@@ -552,6 +568,12 @@ def chat_text(
     num_predict: int | None = None,
     num_ctx: int | None = None,
 ) -> tuple[str, dict[str, Any]]:
+    if inference_gateway.enabled():
+        body = inference_gateway.chat(model=model, messages=messages, purpose=purpose, think=think, timeout=timeout, keep_alive=keep_alive, num_predict=num_predict, num_ctx=num_ctx)
+        content = extract_chat_content(body)
+        if not content.strip():
+            raise ValueError("inference gateway returned empty text output")
+        return content, body
     with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
         ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose, num_ctx=num_ctx)
         try:
