@@ -9,6 +9,8 @@ Tailscale key, or repository secrets.
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import shutil
 import tempfile
 import zipfile
@@ -40,6 +42,7 @@ if (-not $Python) {
 if (-not $Python) { throw "Python 3.10 or newer is required. Install it from python.org, then run this file again." }
 $env:PYTHONPATH = Join-Path $Root "src"
 $env:INFERENCE_NODE_CONFIG_PATH = Join-Path $env:LOCALAPPDATA "ProVIS\inference-node.json"
+$env:PROVIS_NODE_BOOTSTRAP_CONFIG = Join-Path $Root "provis-node-config.json"
 Write-Host "Starting the PROVIS Inference Node desktop client"
 Write-Host "Microsoft 365 sign-in is used for enrollment; tokens are not stored by this bundle."
 & $Python.Source @Args
@@ -157,8 +160,9 @@ It uses Python's standard library and does not install packages at runtime.
 - The machine is already joined to the organization's Tailscale network.
 - Ollama is installed and running locally at `http://127.0.0.1:11434`.
 - Python 3.10 or newer is installed on Windows (the `py` launcher is preferred).
+- The administrator has built this bundle with the managed PROVIS gateway URL.
 - The PROVIS gateway has an Entra app registration configured for device-code
-  sign-in, including its tenant ID, public client ID, and API scope.
+  sign-in.
 
 Microsoft 365/Entra credentials are used only to approve enrollment. They are
 not embedded in this bundle, stored in the node configuration, or used as the
@@ -169,9 +173,10 @@ node's permanent machine secret.
 1. Extract this folder outside a temporary download directory.
 2. Double-click `start-node-setup.cmd`, or run
    `start-node-setup.ps1` from PowerShell.
-3. Use **Sign in with Microsoft 365** to enter the gateway URL, tenant ID,
-   public client ID, API scope, unique node name, and gateway-approved
-   application list. The app opens Microsoft's device sign-in page.
+3. Click **Sign in with Microsoft 365**. The app discovers the tenant, public
+   client, API scope, node identity, Tailscale endpoint, and approved
+   application policy automatically, then opens Microsoft's device sign-in
+   page.
 4. Use **Enable inference**, **Disable inference**, and **Disconnect safely**
    from the same window. The activity table shows routing operations, model,
    status, duration, and sanitized error type.
@@ -189,6 +194,18 @@ Tkinter, then rerun the builder.
 The client automatically proposes the machine's Tailscale IPv4 address as the
 advertised node endpoint. Keep that value unless the gateway administrator
 gave you a different tailnet address. Do not expose port 8765 publicly.
+
+The administrator embeds the gateway URL when building the bundle:
+
+```bash
+python3 manuals_rag/scripts/build_inference_node_bundle.py \
+  --gateway-url https://<managed-provis-gateway> \
+  --output /tmp/provis-inference-node.zip
+```
+
+Employees do not enter the gateway URL, tenant ID, client ID, scope, node
+name, or application allowlist. If the bundle has no managed gateway URL, it
+fails closed and asks for the managed installer.
 
 ## Safety boundaries
 
@@ -208,7 +225,7 @@ def _write_text(root: Path, relative: str, content: str) -> None:
     destination.write_text(content, encoding="utf-8", newline="\n")
 
 
-def build(output: Path) -> Path:
+def build(output: Path, *, gateway_url: str = "") -> Path:
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="provis-inference-node-") as temporary:
@@ -227,6 +244,7 @@ def build(output: Path) -> Path:
         _write_text(stage, "start-node-setup.cmd", WINDOWS_SETUP_CMD)
         _write_text(stage, "start-node-agent.cmd", WINDOWS_AGENT_CMD)
         _write_text(stage, "build-node-exe.ps1", WINDOWS_EXE_BUILD)
+        _write_text(stage, "provis-node-config.json", json.dumps({"gateway_url": gateway_url.strip()}, indent=2) + "\n")
         _write_text(stage, "README.md", README)
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for item in sorted(stage.rglob("*")):
@@ -242,8 +260,13 @@ def main() -> None:
         type=Path,
         default=REPO_ROOT / "manuals_rag/dist/provis-inference-node.zip",
     )
+    parser.add_argument(
+        "--gateway-url",
+        default=os.getenv("PROVIS_INFERENCE_GATEWAY_URL", ""),
+        help="Managed gateway URL embedded for employees; tenant/client/scope are discovered from the gateway",
+    )
     args = parser.parse_args()
-    print(build(args.output))
+    print(build(args.output, gateway_url=args.gateway_url))
 
 
 if __name__ == "__main__":

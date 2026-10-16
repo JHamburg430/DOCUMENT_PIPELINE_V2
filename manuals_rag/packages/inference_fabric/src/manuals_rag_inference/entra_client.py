@@ -8,6 +8,16 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
+def fetch_enrollment_config(*, gateway_url: str) -> dict:
+    request = Request(f"{gateway_url.rstrip('/')}/v1/node/enrollment-config", method="GET")
+    with urlopen(request, timeout=10) as response:
+        result = json.loads(response.read().decode())
+    required = ("tenant_id", "client_id", "scope")
+    if not all(str(result.get(key) or "").strip() for key in required):
+        raise RuntimeError("gateway returned incomplete enrollment configuration")
+    return result
+
+
 def _post_form(url: str, values: dict[str, str], *, timeout: float = 10.0) -> dict:
     request = Request(
         url,

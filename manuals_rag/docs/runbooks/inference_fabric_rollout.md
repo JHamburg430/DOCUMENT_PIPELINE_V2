@@ -98,9 +98,10 @@ sudo systemctl enable --now inference-fabric-gateway.service
 curl --fail http://127.0.0.1:8780/health
 ```
 
-Distribute the **PROVIS Inference Node** bundle. The operator enters the
-gateway URL, tenant ID, public client ID, and API scope, then completes the
-Microsoft device sign-in. The short-lived access token is used only for the
+Distribute a managed **PROVIS Inference Node** bundle containing the gateway
+URL. The employee completes only the Microsoft device sign-in; the app
+discovers the tenant, public client, API scope, node identity, and approved
+application policy. The short-lived access token is used only for the
 enrollment request and is never saved. Configure each node with:
 
 ```text

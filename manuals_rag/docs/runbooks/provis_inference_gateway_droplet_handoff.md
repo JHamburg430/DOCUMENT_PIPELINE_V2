@@ -67,6 +67,11 @@ INFERENCE_ENTRA_TENANT_ID=<directory tenant ID>
 INFERENCE_ENTRA_AUDIENCE=<gateway API audience>
 INFERENCE_ENTRA_ALLOWED_ROLES=<approved enrollment app role>
 INFERENCE_ENTRA_ALLOWED_GROUPS=<approved enrollment group IDs if used>
+INFERENCE_ENTRA_CLIENT_ID=<public client application ID>
+INFERENCE_ENTRA_SCOPE=<gateway API scope>
+INFERENCE_NODE_DEFAULT_TAILNET=<tailnet name>
+INFERENCE_NODE_DEFAULT_APPLICATIONS=manuals_rag,provis_employee_agent,openclaw
+INFERENCE_NODE_DEFAULT_PORT=8765
 ```
 
 Use at least one of the approved Entra role/group restrictions. Do not set the
@@ -106,8 +111,10 @@ Tailscale Serve/Service policy. Do not bind `0.0.0.0` or open a public port.
 
 ## 6. Verify node enrollment
 
-Use the PROVIS Inference Node bundle. The operator signs in with Microsoft 365
-using the registered public client/device-code flow. Confirm the gateway
+Use the managed PROVIS Inference Node bundle. Employees should see only the
+Microsoft 365 sign-in action; the app discovers the public client/tenant/scope
+from `GET /v1/node/enrollment-config` and auto-configures node settings.
+Confirm the gateway
 returns a node secret and stores only the enrollment audit subject/tenant; the
 access token must not be written to the node config.
 

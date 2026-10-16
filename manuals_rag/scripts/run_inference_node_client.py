@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import platform
 import queue
+import re
 import threading
 import time
 import tkinter as tk
@@ -22,6 +23,7 @@ from manuals_rag_inference.node_agent import (
 )
 from manuals_rag_inference.entra_client import (
     enroll_node_with_entra,
+    fetch_enrollment_config,
     poll_device_token,
     request_device_code,
 )
@@ -31,6 +33,18 @@ def _default_config_path() -> str:
     if os.name == "nt" and os.getenv("LOCALAPPDATA"):
         return str(Path(os.environ["LOCALAPPDATA"]) / "ProVIS" / "inference-node.json")
     return str(Path.home() / ".config/ProVIS/inference-node.json")
+
+
+def _bootstrap_config_path() -> str:
+    configured = os.getenv("PROVIS_NODE_BOOTSTRAP_CONFIG", "").strip()
+    if configured:
+        return configured
+    return str(Path(__file__).with_name("provis-node-config.json"))
+
+
+def _default_node_id() -> str:
+    value = re.sub(r"[^A-Za-z0-9._-]+", "-", platform.node()).strip("-")
+    return value or "provis-inference-node"
 
 
 class InferenceNodeClient(tk.Tk):
@@ -45,7 +59,14 @@ class InferenceNodeClient(tk.Tk):
         self.agent = None
         self.gateway_url = ""
         self.worker_queue: queue.Queue[tuple[str, object]] = queue.Queue()
-        self.fields: dict[str, tk.StringVar] = {}
+        self.fields: dict[str, tk.StringVar] = {
+            key: tk.StringVar()
+            for key in (
+                "gateway_url", "entra_tenant_id", "entra_client_id", "entra_scope",
+                "pairing_token", "node_id", "agent_url", "ollama_url", "tailnet_name",
+                "allowed_applications", "port",
+            )
+        }
         self.status_var = tk.StringVar(value="Not connected")
         self.inference_var = tk.StringVar(value="Inference disabled")
         self._build_ui()
@@ -61,32 +82,10 @@ class InferenceNodeClient(tk.Tk):
 
         connection = ttk.LabelFrame(root, text="Connect / login", padding=10)
         connection.pack(fill="x")
-        rows = (
-            ("gateway_url", "Gateway URL"),
-            ("entra_tenant_id", "Microsoft tenant ID"),
-            ("entra_client_id", "Microsoft app client ID"),
-            ("entra_scope", "Gateway API scope"),
-            ("pairing_token", "Legacy pairing token (optional)"),
-            ("node_id", "Node name"),
-            ("agent_url", "Advertised node URL"),
-            ("ollama_url", "Local Ollama URL"),
-            ("tailnet_name", "Tailnet name"),
-            ("allowed_applications", "Allowed applications"),
-            ("port", "Node port"),
-        )
-        for index, (key, label) in enumerate(rows):
-            self.fields[key] = tk.StringVar()
-            ttk.Label(connection, text=label).grid(row=index // 2, column=(index % 2) * 2, sticky="w", padx=(0, 6), pady=4)
-            entry = ttk.Entry(connection, textvariable=self.fields[key], show="*" if key == "pairing_token" else "")
-            entry.grid(row=index // 2, column=(index % 2) * 2 + 1, sticky="ew", padx=(0, 14), pady=4)
-        connection.columnconfigure(1, weight=1)
-        connection.columnconfigure(3, weight=1)
-        action_row = (len(rows) + 1) // 2
+        ttk.Label(connection, text="This device is preconfigured by PROVIS. Sign in with Microsoft 365 to enroll it; node settings are discovered automatically.").grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))
         self.entra_button = ttk.Button(connection, text="Sign in with Microsoft 365", command=self._entra_connect)
-        self.entra_button.grid(row=action_row, column=0, sticky="w", pady=(8, 0))
-        self.connect_button = ttk.Button(connection, text="Connect saved enrollment", command=self._connect)
-        self.connect_button.grid(row=action_row, column=2, sticky="w", pady=(8, 0))
-        ttk.Label(connection, textvariable=self.status_var).grid(row=action_row + 1, column=0, columnspan=4, sticky="w", pady=(8, 0))
+        self.entra_button.grid(row=1, column=0, sticky="w", pady=(4, 0))
+        ttk.Label(connection, textvariable=self.status_var).grid(row=1, column=1, columnspan=3, sticky="w", pady=(4, 0))
 
         controls = ttk.LabelFrame(root, text="Node controls", padding=10)
         controls.pack(fill="x", pady=(12, 0))
@@ -114,15 +113,16 @@ class InferenceNodeClient(tk.Tk):
 
     def _load_saved_values(self) -> None:
         config = _load_node_config(self.config_path)
+        bootstrap = _load_node_config(_bootstrap_config_path())
         tailscale_ipv4 = _detect_tailscale_ipv4()
         port = str(config.get("port") or os.getenv("INFERENCE_NODE_PORT", "8765"))
         values = {
-            "gateway_url": config.get("gateway_url") or os.getenv("INFERENCE_GATEWAY_URL", ""),
+            "gateway_url": config.get("gateway_url") or os.getenv("PROVIS_INFERENCE_GATEWAY_URL", "") or os.getenv("INFERENCE_GATEWAY_URL", "") or bootstrap.get("gateway_url", ""),
             "entra_tenant_id": config.get("entra_tenant_id") or os.getenv("INFERENCE_ENTRA_TENANT_ID", ""),
             "entra_client_id": config.get("entra_client_id") or os.getenv("INFERENCE_ENTRA_CLIENT_ID", ""),
             "entra_scope": config.get("entra_scope") or os.getenv("INFERENCE_ENTRA_SCOPE", "api://provis-inference-gateway/.default"),
             "pairing_token": "",
-            "node_id": config.get("node_id") or platform.node().replace(" ", "-") or "inference-node",
+            "node_id": config.get("node_id") or _default_node_id(),
             "agent_url": config.get("agent_url") or (f"http://{tailscale_ipv4}:{port}" if tailscale_ipv4 else ""),
             "ollama_url": config.get("endpoint") or "http://127.0.0.1:11434",
             "tailnet_name": config.get("tailnet_name") or os.getenv("TAILNET_NAME", "provisusa.com"),
@@ -132,21 +132,46 @@ class InferenceNodeClient(tk.Tk):
         for key, value in values.items():
             self.fields[key].set(str(value))
         if config.get("shared_secret"):
-            self.status_var.set("Saved enrollment found; press Connect to resume")
+            self.status_var.set("Saved enrollment found; reconnecting automatically")
+            self.after(600, self._resume_saved_enrollment)
 
     def _values(self) -> dict[str, str]:
         return {key: variable.get().strip() for key, variable in self.fields.items()}
 
-    def _connect(self) -> None:
-        self.connect_button.configure(state="disabled")
-        self.status_var.set("Connecting and checking Ollama...")
-        threading.Thread(target=self._connect_worker, args=(self._values(),), daemon=True).start()
+    def _resume_saved_enrollment(self) -> None:
+        if self.agent is None:
+            self.status_var.set("Reconnecting saved enrollment...")
+            threading.Thread(target=self._connect_worker, args=(self._values(),), daemon=True).start()
 
     def _entra_connect(self) -> None:
         self.entra_button.configure(state="disabled")
-        self.connect_button.configure(state="disabled")
         self.status_var.set("Starting Microsoft 365 device sign-in...")
         threading.Thread(target=self._entra_connect_worker, args=(self._values(),), daemon=True).start()
+
+    def _resolve_values(self, values: dict[str, str]) -> dict[str, str]:
+        config = _load_node_config(self.config_path)
+        bootstrap = _load_node_config(_bootstrap_config_path())
+        gateway_url = values.get("gateway_url") or config.get("gateway_url") or os.getenv("PROVIS_INFERENCE_GATEWAY_URL", "") or os.getenv("INFERENCE_GATEWAY_URL", "") or bootstrap.get("gateway_url", "")
+        if not gateway_url:
+            raise RuntimeError("this PROVIS build has no gateway address; ask the administrator for the managed installer")
+        discovered = fetch_enrollment_config(gateway_url=gateway_url)
+        tailscale_ipv4 = _detect_tailscale_ipv4()
+        port = str(config.get("port") or discovered.get("port") or 8765)
+        values.update({
+            "gateway_url": gateway_url,
+            "entra_tenant_id": str(discovered["tenant_id"]),
+            "entra_client_id": str(discovered["client_id"]),
+            "entra_scope": str(discovered["scope"]),
+            "node_id": str(config.get("node_id") or values.get("node_id") or _default_node_id()),
+            "agent_url": str(config.get("agent_url") or values.get("agent_url") or (f"http://{tailscale_ipv4}:{port}" if tailscale_ipv4 else "")),
+            "ollama_url": str(config.get("endpoint") or values.get("ollama_url") or "http://127.0.0.1:11434"),
+            "tailnet_name": str(config.get("tailnet_name") or discovered.get("tailnet_name") or ""),
+            "allowed_applications": ",".join(config.get("allowed_applications") or discovered.get("allowed_applications") or ("provis_employee_agent",)),
+            "port": port,
+        })
+        if not values["agent_url"]:
+            raise RuntimeError("Tailscale is not available; the node cannot advertise its inference endpoint")
+        return values
 
     def _persist_and_start(self, config: dict, values: dict[str, str]) -> tuple[object, object, str]:
         config.update({
@@ -189,9 +214,7 @@ class InferenceNodeClient(tk.Tk):
 
     def _entra_connect_worker(self, values: dict[str, str]) -> None:
         try:
-            required = (values["gateway_url"], values["entra_tenant_id"], values["entra_client_id"], values["entra_scope"])
-            if not all(required):
-                raise RuntimeError("gateway URL, tenant ID, client ID, and gateway API scope are required")
+            values = self._resolve_values(values)
             device = request_device_code(
                 tenant_id=values["entra_tenant_id"],
                 client_id=values["entra_client_id"],
@@ -266,7 +289,6 @@ class InferenceNodeClient(tk.Tk):
                         self._update_controls()
                 elif event == "error":
                     self.status_var.set(f"Connection failed: {value}")
-                    self.connect_button.configure(state="normal")
                     self.entra_button.configure(state="normal")
                 elif event == "entra_prompt":
                     self.status_var.set(f"Microsoft sign-in: {value}")
@@ -276,7 +298,6 @@ class InferenceNodeClient(tk.Tk):
 
     def _update_controls(self) -> None:
         connected = self.agent is not None
-        self.connect_button.configure(state="disabled" if connected else "normal")
         self.entra_button.configure(state="disabled" if connected else "normal")
         state = "normal" if connected else "disabled"
         self.enable_button.configure(state=state)

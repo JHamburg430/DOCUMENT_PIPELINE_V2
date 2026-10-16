@@ -51,7 +51,7 @@ def validate_gateway_runtime_security(
 class InferenceGateway:
     """Registry, admission, and forwarding boundary for Ollama requests."""
 
-    def __init__(self, scheduler: InferenceScheduler | None = None, *, node_secrets: dict[str, bytes] | None = None, node_agent_urls: dict[str, str] | None = None, gateway_token: str | None = None, post: Callable[..., dict[str, Any]] | None = None, enrollment: EnrollmentManager | None = None, require_node_agents: bool = False, model_catalog: dict[str, ModelSpec] | None = None, require_model_catalog: bool = False, application_tokens: dict[str, str] | None = None, require_application_identity: bool = False, entra_validator: EntraTokenValidator | None = None, require_entra_enrollment: bool = False) -> None:
+    def __init__(self, scheduler: InferenceScheduler | None = None, *, node_secrets: dict[str, bytes] | None = None, node_agent_urls: dict[str, str] | None = None, gateway_token: str | None = None, post: Callable[..., dict[str, Any]] | None = None, enrollment: EnrollmentManager | None = None, require_node_agents: bool = False, model_catalog: dict[str, ModelSpec] | None = None, require_model_catalog: bool = False, application_tokens: dict[str, str] | None = None, require_application_identity: bool = False, entra_validator: EntraTokenValidator | None = None, require_entra_enrollment: bool = False, entra_client_id: str = "", entra_scope: str = "", node_default_tailnet: str = "", node_default_applications: tuple[str, ...] = (), node_default_port: int = 8765) -> None:
         self.scheduler = scheduler or InferenceScheduler()
         self.node_secrets = node_secrets or {}
         self.node_agent_urls = node_agent_urls or {}
@@ -63,6 +63,11 @@ class InferenceGateway:
         self.require_application_identity = require_application_identity
         self.entra_validator = entra_validator
         self.require_entra_enrollment = require_entra_enrollment
+        self.entra_client_id = entra_client_id.strip()
+        self.entra_scope = entra_scope.strip()
+        self.node_default_tailnet = node_default_tailnet.strip()
+        self.node_default_applications = tuple(item for item in node_default_applications if item)
+        self.node_default_port = int(node_default_port)
         self._heartbeat_lock = threading.Lock()
         self._last_heartbeat_observed: dict[str, float] = {}
         self._post = post or self._post_json
@@ -128,6 +133,19 @@ class InferenceGateway:
             "agent_url": node.agent_url,
             "tailnet_name": node.tailnet_name,
             "enrollment_method": node.enrollment_method,
+        }
+
+    def enrollment_config(self) -> dict[str, Any]:
+        """Return non-secret bootstrap settings needed by the desktop client."""
+        if self.entra_validator is None or not self.entra_client_id or not self.entra_scope:
+            raise RuntimeError("Entra enrollment bootstrap is not configured")
+        return {
+            "tenant_id": self.entra_validator.config.tenant_id,
+            "client_id": self.entra_client_id,
+            "scope": self.entra_scope,
+            "tailnet_name": self.node_default_tailnet,
+            "allowed_applications": list(self.node_default_applications),
+            "port": self.node_default_port,
         }
 
     def revoke_node(self, node_id: str) -> dict[str, Any]:
@@ -373,6 +391,11 @@ def create_gateway_handler(gateway: InferenceGateway):
         def do_GET(self) -> None:  # noqa: N802
             if self.path == "/health":
                 self._send(200, {"status": "ok", "nodes": len(gateway.scheduler.snapshots())})
+            elif self.path == "/v1/node/enrollment-config":
+                try:
+                    self._send(200, gateway.enrollment_config())
+                except RuntimeError as error:
+                    self._send(503, {"detail": str(error)})
             elif self.path == "/v1/nodes":
                 gateway.authorize_client(self.headers.get("X-Gateway-Token"))
                 self._send(200, {"nodes": [node.to_dict() for node in gateway.scheduler.snapshots()]})
@@ -509,6 +532,15 @@ def run_gateway() -> None:
     require_entra_enrollment = os.getenv("INFERENCE_GATEWAY_REQUIRE_ENTRA_ENROLLMENT", "false").lower() == "true"
     entra_configured = bool(os.getenv("INFERENCE_ENTRA_TENANT_ID", "").strip() or os.getenv("INFERENCE_ENTRA_AUDIENCE", "").strip())
     entra_validator = EntraTokenValidator.from_env() if (require_entra_enrollment or entra_configured) else None
+    entra_client_id = os.getenv("INFERENCE_ENTRA_CLIENT_ID", "").strip()
+    entra_scope = os.getenv("INFERENCE_ENTRA_SCOPE", "").strip()
+    if not entra_scope and os.getenv("INFERENCE_ENTRA_AUDIENCE", "").strip():
+        entra_scope = os.getenv("INFERENCE_ENTRA_AUDIENCE", "").strip().rstrip("/") + "/.default"
+    node_default_applications = tuple(
+        item.strip()
+        for item in os.getenv("INFERENCE_NODE_DEFAULT_APPLICATIONS", "manuals_rag,provis_employee_agent,openclaw").split(",")
+        if item.strip()
+    )
     gateway = InferenceGateway(
         scheduler=InferenceScheduler(
             policy=SchedulerPolicy(
@@ -525,6 +557,11 @@ def run_gateway() -> None:
         require_application_identity=require_application_identity,
         entra_validator=entra_validator,
         require_entra_enrollment=require_entra_enrollment,
+        entra_client_id=entra_client_id,
+        entra_scope=entra_scope,
+        node_default_tailnet=os.getenv("INFERENCE_NODE_DEFAULT_TAILNET", "").strip(),
+        node_default_applications=node_default_applications,
+        node_default_port=int(os.getenv("INFERENCE_NODE_DEFAULT_PORT", "8765")),
         enrollment=EnrollmentManager(
             enrollment_path,
             allowed_host_suffixes=tuple(

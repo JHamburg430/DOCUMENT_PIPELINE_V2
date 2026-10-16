@@ -134,13 +134,15 @@ use the machine's `tailscale ip -4` result when it is a valid
 advertised URL and never accept a public address. The application then uses the
 private tailnet path to pair with the droplet:
 
-1. The downloaded PROVIS Inference Node is given the droplet gateway address,
-   tenant ID, public client ID, API scope, node name, and its
-   Tailscale-advertised agent address.
-2. The user clicks **Sign in with Microsoft 365** and completes Microsoft's
-   device-code flow. The short-lived access token is sent only to the Entra
-   enrollment endpoint.
-3. The gateway returns a unique node secret. The app stores it in a local
+1. An administrator builds the managed PROVIS Inference Node bundle with the
+   gateway URL. The bundle contains no tenant secret, client secret, or node
+   credential.
+2. The employee clicks **Sign in with Microsoft 365**. The app fetches the
+   public tenant/client/scope and node policy from the gateway, auto-detects
+   the hostname, Tailscale endpoint, local Ollama endpoint, and node ID, then
+   completes Microsoft's device-code flow.
+3. The short-lived access token is sent only to the Entra enrollment endpoint.
+   The gateway returns a unique node secret, which the app stores in a local
    mode-`0600` configuration file and uses it for signed heartbeats, inference,
    and control commands on later starts.
 4. An administrator can revoke a node. Its secret is removed from the gateway
@@ -183,7 +185,7 @@ an arbitrary ID token, validate only its email claim, or use a shared Microsoft
 
 The reference desktop client is the **PROVIS Inference Node** at
 `manuals_rag/scripts/run_inference_node_client.py`. It provides the Microsoft
-365 sign-in form, explicit **Enable inference**, **Disable inference**, and
+365 sign-in action, explicit **Enable inference**, **Disable inference**, and
 **Disconnect safely** controls, plus a bounded activity monitor that records
 operation, model, status, duration, and sanitized error type without prompts or
 credentials. Disabling inference is carried in the signed heartbeat and is

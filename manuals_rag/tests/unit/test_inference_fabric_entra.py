@@ -6,6 +6,7 @@ from urllib.request import Request, urlopen
 import pytest
 
 from manuals_rag_inference.enrollment import EnrollmentManager
+from manuals_rag_inference.entra import EntraTokenValidator, EntraValidatorConfig
 from manuals_rag_inference.gateway import InferenceGateway, create_gateway_handler
 from manuals_rag_inference.preflight import validate_gateway_environment
 
@@ -101,6 +102,32 @@ def test_http_entra_enrollment_uses_bearer_token():
         thread.join(timeout=2)
 
 
+def test_public_enrollment_config_contains_only_bootstrap_values():
+    validator = EntraTokenValidator(EntraValidatorConfig(
+        tenant_id="tenant-1",
+        audience="api://provis-gateway",
+        issuer="https://login.microsoftonline.com/tenant-1/v2.0",
+        jwks_url="https://login.microsoftonline.com/tenant-1/discovery/v2.0/keys",
+    ))
+    gateway = InferenceGateway(
+        entra_validator=validator,
+        entra_client_id="public-client-id",
+        entra_scope="api://provis-gateway/.default",
+        node_default_tailnet="provis-tailnet",
+        node_default_applications=("provis_employee_agent",),
+    )
+    config = gateway.enrollment_config()
+    assert config == {
+        "tenant_id": "tenant-1",
+        "client_id": "public-client-id",
+        "scope": "api://provis-gateway/.default",
+        "tailnet_name": "provis-tailnet",
+        "allowed_applications": ["provis_employee_agent"],
+        "port": 8765,
+    }
+    assert "secret" not in json.dumps(config).lower()
+
+
 def test_preflight_requires_restricted_entra_configuration():
     result = validate_gateway_environment(_environment(
         INFERENCE_GATEWAY_REQUIRE_ENTRA_ENROLLMENT="true",
@@ -114,6 +141,7 @@ def test_preflight_requires_restricted_entra_configuration():
         INFERENCE_GATEWAY_REQUIRE_ENTRA_ENROLLMENT="true",
         INFERENCE_ENTRA_TENANT_ID="tenant-id",
         INFERENCE_ENTRA_AUDIENCE="api://provis-gateway",
+        INFERENCE_ENTRA_CLIENT_ID="public-client-id",
         INFERENCE_ENTRA_ALLOWED_ROLES="Provis.InferenceNode.Enroll",
     ))
     assert accepted.ok
