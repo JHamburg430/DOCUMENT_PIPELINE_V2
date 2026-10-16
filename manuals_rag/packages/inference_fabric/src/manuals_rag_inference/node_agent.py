@@ -15,6 +15,7 @@ from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 from .control import ControlPolicy, verify_command
 from .gateway import heartbeat_signature, node_request_signature
@@ -75,6 +76,7 @@ def _detect_tailscale_ipv4() -> str | None:
             capture_output=True,
             text=True,
             timeout=2,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -93,6 +95,7 @@ def _gpu_snapshots() -> tuple[GpuSnapshot, ...]:
         completed = subprocess.run(
             ["nvidia-smi", "--query-gpu=index,name,memory.total,memory.used,utilization.gpu,temperature.gpu", "--format=csv,noheader,nounits"],
             check=True, capture_output=True, text=True, timeout=2,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
     except (OSError, subprocess.SubprocessError):
         return ()
@@ -123,6 +126,15 @@ class OllamaNode:
         self._seen_inference_requests: dict[str, float] = {}
         self._inference_enabled = True
         self._activity: deque[dict[str, object]] = deque(maxlen=200)
+        self._probe_health: dict[str, tuple[str, str]] = {}
+
+    def _record_probe(self, operation: str, status: str, error: str = "") -> None:
+        state = (status, error)
+        with self._request_lock:
+            if self._probe_health.get(operation) == state:
+                return
+            self._probe_health[operation] = state
+        self._record_activity(operation, "", status, error=error)
 
     @property
     def inference_enabled(self) -> bool:
@@ -163,15 +175,20 @@ class OllamaNode:
                     active_requests = self._active_by_model.get(model, 0)
                     last_used = self._last_used_by_model.get(model, 0.0)
                 loaded.append(LoadedModel(model, int(item.get("size_vram") or item.get("size") or 0), tuple(str(item.get("gpu_id")) for _ in [0] if item.get("gpu_id")), last_used, active_requests))
-        except Exception:
+        except Exception as error:
             ollama_healthy = False
+            self._record_probe("ollama", "failed", error.__class__.__name__)
+        if ollama_healthy:
+            self._record_probe("ollama", "healthy")
+        gpus = _gpu_snapshots()
+        self._record_probe("gpu", "detected" if gpus else "unavailable", "" if gpus else "gpu_probe_unavailable")
         with self._request_lock:
             active_requests = sum(self._active_by_model.values())
         return NodeSnapshot(
             self.node_id,
             self.endpoint,
             self.tailnet_name,
-            _gpu_snapshots(),
+            gpus,
             tuple(loaded),
             active_requests=active_requests,
             allowed_applications=self.allowed_applications,
@@ -271,6 +288,7 @@ class OllamaNode:
         raise PermissionError("unsupported node command")
 
     def publish_heartbeat(self, gateway_url: str) -> dict:
+        started_at = time.time()
         payload = json.dumps(asdict(self.snapshot()), sort_keys=True, separators=(",", ":")).encode()
         request = Request(
             f"{gateway_url.rstrip('/')}/v1/nodes/heartbeat",
@@ -278,8 +296,15 @@ class OllamaNode:
             method="POST",
             headers={"Content-Type": "application/json", "X-Node-Signature": heartbeat_signature(payload, self.secret)},
         )
-        with urlopen(request, timeout=5) as response:
-            return json.loads(response.read().decode())
+        try:
+            with urlopen(request, timeout=5) as response:
+                result = json.loads(response.read().decode())
+        except Exception as error:
+            category = f"HTTP_{error.code}" if isinstance(error, HTTPError) else error.__class__.__name__
+            self._record_activity("heartbeat", "", "failed", started_at=started_at, error=category)
+            raise
+        self._record_activity("heartbeat", "", "accepted", started_at=started_at)
+        return result
 
 
 def create_handler(agent: OllamaNode, *, local_control_token: str = ""):
