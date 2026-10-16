@@ -47,10 +47,12 @@ INFERENCE_GATEWAY_REQUIRE_ENTRA_ENROLLMENT=true
 INFERENCE_GATEWAY_ALLOW_PUBLIC_BIND=false
 INFERENCE_MODEL_CATALOG_JSON=<approved JSON catalog>
 INFERENCE_APPLICATION_TOKENS_JSON=<secret-manager supplied application-token map>
-INFERENCE_ENTRA_TENANT_ID=<directory-tenant-id>
-INFERENCE_ENTRA_AUDIENCE=<gateway-api-application-id-or-audience>
-INFERENCE_ENTRA_ALLOWED_ROLES=<approved-app-role>
-INFERENCE_ENTRA_ALLOWED_GROUPS=<approved-group-id>
+INFERENCE_ENTRA_TENANT_ID=b97c06d3-1cd7-47cf-a95a-380d4dd2eb72
+INFERENCE_ENTRA_AUDIENCE=fab62a38-0489-4d21-b8d1-63645712d271
+INFERENCE_ENTRA_CLIENT_ID=68cfe37b-6fbe-4a73-8df0-db29dd8cd690
+INFERENCE_ENTRA_SCOPE=api://fab62a38-0489-4d21-b8d1-63645712d271/Node.Enroll
+INFERENCE_ENTRA_ALLOWED_ROLES=InferenceNode.Enroll
+INFERENCE_ENTRA_ALLOWED_GROUPS=<approved-group-id-if-used>
 ```
 
 The gateway may be exposed to approved tailnet clients through Tailscale

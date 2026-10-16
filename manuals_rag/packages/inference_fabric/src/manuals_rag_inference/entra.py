@@ -18,6 +18,8 @@ class EntraValidatorConfig:
     audience: str
     issuer: str
     jwks_url: str
+    client_id: str = ""
+    required_scope: str = ""
     allowed_roles: tuple[str, ...] = ()
     allowed_groups: tuple[str, ...] = ()
 
@@ -35,9 +37,11 @@ class EntraTokenValidator:
             raise RuntimeError("INFERENCE_ENTRA_TENANT_ID and INFERENCE_ENTRA_AUDIENCE are required")
         issuer = str(env.get("INFERENCE_ENTRA_ISSUER") or f"https://login.microsoftonline.com/{tenant_id}/v2.0").strip().rstrip("/")
         jwks_url = str(env.get("INFERENCE_ENTRA_JWKS_URL") or f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys").strip()
+        client_id = str(env.get("INFERENCE_ENTRA_CLIENT_ID") or "").strip()
+        required_scope = str(env.get("INFERENCE_ENTRA_SCOPE") or "").strip()
         allowed_roles = tuple(item.strip() for item in str(env.get("INFERENCE_ENTRA_ALLOWED_ROLES") or "").split(",") if item.strip())
         allowed_groups = tuple(item.strip() for item in str(env.get("INFERENCE_ENTRA_ALLOWED_GROUPS") or "").split(",") if item.strip())
-        return cls(EntraValidatorConfig(tenant_id, audience, issuer, jwks_url, allowed_roles, allowed_groups))
+        return cls(EntraValidatorConfig(tenant_id, audience, issuer, jwks_url, client_id, required_scope, allowed_roles, allowed_groups))
 
     def validate(self, access_token: str) -> dict[str, Any]:
         token = str(access_token or "").strip()
@@ -62,6 +66,15 @@ class EntraTokenValidator:
             raise PermissionError("invalid Entra access token") from error
         if str(claims.get("tid") or "") != self.config.tenant_id:
             raise PermissionError("Entra token tenant mismatch")
+        if self.config.client_id:
+            authorized_party = str(claims.get("azp") or claims.get("appid") or "")
+            if authorized_party != self.config.client_id:
+                raise PermissionError("Entra token client mismatch")
+        if self.config.required_scope:
+            scopes = {item.strip() for item in str(claims.get("scp") or "").split() if item.strip()}
+            required_scope = self.config.required_scope.rstrip("/").rsplit("/", 1)[-1]
+            if not scopes.intersection({self.config.required_scope, required_scope}):
+                raise PermissionError("Entra token lacks the required delegated enrollment scope")
         roles = {str(item) for item in (claims.get("roles") or [])}
         groups = {str(item) for item in (claims.get("groups") or [])}
         if self.config.allowed_roles and not roles.intersection(self.config.allowed_roles):

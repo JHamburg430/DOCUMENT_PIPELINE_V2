@@ -128,6 +128,28 @@ def test_public_enrollment_config_contains_only_bootstrap_values():
     assert "secret" not in json.dumps(config).lower()
 
 
+def test_operator_rollout_auth_does_not_require_application_identity():
+    gateway = InferenceGateway(
+        gateway_token="operator-token",
+        application_tokens={"manuals_rag": "application-token"},
+        require_application_identity=True,
+    )
+    server = ThreadingHTTPServer(("127.0.0.1", 0), create_gateway_handler(gateway))
+    thread = _start(server)
+    try:
+        request = Request(
+            f"http://127.0.0.1:{server.server_port}/v1/nodes",
+            headers={"X-Gateway-Token": "operator-token"},
+        )
+        with urlopen(request, timeout=5) as response:
+            assert response.status == 200
+            assert json.loads(response.read().decode()) == {"nodes": []}
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
 def test_preflight_requires_restricted_entra_configuration():
     result = validate_gateway_environment(_environment(
         INFERENCE_GATEWAY_REQUIRE_ENTRA_ENROLLMENT="true",
@@ -142,6 +164,7 @@ def test_preflight_requires_restricted_entra_configuration():
         INFERENCE_ENTRA_TENANT_ID="tenant-id",
         INFERENCE_ENTRA_AUDIENCE="api://provis-gateway",
         INFERENCE_ENTRA_CLIENT_ID="public-client-id",
+        INFERENCE_ENTRA_SCOPE="api://provis-gateway/Node.Enroll",
         INFERENCE_ENTRA_ALLOWED_ROLES="Provis.InferenceNode.Enroll",
     ))
     assert accepted.ok

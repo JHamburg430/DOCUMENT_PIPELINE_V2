@@ -15,6 +15,7 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -82,6 +83,13 @@ pause
 
 WINDOWS_EXE_BUILD = r'''$ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ManagedConfig = Join-Path $Root "provis-node-config.json"
+if (-not (Test-Path $ManagedConfig -PathType Leaf)) { throw "Managed configuration is missing: $ManagedConfig" }
+$Managed = Get-Content -Raw -LiteralPath $ManagedConfig | ConvertFrom-Json
+$GatewayUri = [Uri]([string]$Managed.gateway_url)
+if ($GatewayUri.Scheme -ne "https" -or -not $GatewayUri.Host -or $GatewayUri.UserInfo -or $GatewayUri.Query -or $GatewayUri.Fragment) {
+    throw "Managed gateway_url must be a valid HTTPS URL without credentials, query, or fragment."
+}
 $env:PYTHONHOME = $null
 $env:PYTHONPATH = $null
 $Candidates = @()
@@ -139,6 +147,7 @@ if ($LASTEXITCODE -ne 0) {
     --workpath (Join-Path $Root "build") `
     --specpath $Root `
     --paths (Join-Path $Root "src") `
+    --add-data ((Join-Path $Root "provis-node-config.json") + ";.") `
     (Join-Path $Root "src\run_inference_node_client.py")
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 $Output = Join-Path $Root "dist\PROVISInferenceNode.exe"
@@ -195,13 +204,23 @@ The client automatically proposes the machine's Tailscale IPv4 address as the
 advertised node endpoint. Keep that value unless the gateway administrator
 gave you a different tailnet address. Do not expose port 8765 publicly.
 
-The administrator embeds the gateway URL when building the bundle:
+The administrator embeds the verified HTTPS gateway URL when building the
+bundle. The builder rejects empty, non-HTTPS, credential-bearing, query-bearing,
+or fragment-bearing URLs:
 
 ```bash
 python3 manuals_rag/scripts/build_inference_node_bundle.py \
   --gateway-url https://<managed-provis-gateway> \
   --output /tmp/provis-inference-node.zip
 ```
+
+The source launcher contract is an explicit `PROVIS_NODE_BOOTSTRAP_CONFIG`
+path, followed by the bundle's root `provis-node-config.json`; it never uses
+the current working directory. The installed executable can use an
+administrator-controlled `provis-node-config.json` beside the executable, and
+the one-file executable loads the same nonsecret JSON embedded with
+PyInstaller. A managed executable therefore works without Python, developer
+environment variables, or a special working directory.
 
 Employees do not enter the gateway URL, tenant ID, client ID, scope, node
 name, or application allowlist. If the bundle has no managed gateway URL, it
@@ -225,7 +244,17 @@ def _write_text(root: Path, relative: str, content: str) -> None:
     destination.write_text(content, encoding="utf-8", newline="\n")
 
 
+def _validate_managed_gateway_url(value: str) -> str:
+    parsed = urlparse(str(value or "").strip())
+    if parsed.scheme.lower() != "https" or not parsed.hostname:
+        raise ValueError("--gateway-url must be a non-empty HTTPS URL with a hostname")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("--gateway-url must not contain credentials, query parameters, or a fragment")
+    return parsed.geturl().rstrip("/")
+
+
 def build(output: Path, *, gateway_url: str = "") -> Path:
+    gateway_url = _validate_managed_gateway_url(gateway_url)
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="provis-inference-node-") as temporary:
@@ -244,7 +273,7 @@ def build(output: Path, *, gateway_url: str = "") -> Path:
         _write_text(stage, "start-node-setup.cmd", WINDOWS_SETUP_CMD)
         _write_text(stage, "start-node-agent.cmd", WINDOWS_AGENT_CMD)
         _write_text(stage, "build-node-exe.ps1", WINDOWS_EXE_BUILD)
-        _write_text(stage, "provis-node-config.json", json.dumps({"gateway_url": gateway_url.strip()}, indent=2) + "\n")
+        _write_text(stage, "provis-node-config.json", json.dumps({"gateway_url": gateway_url}, indent=2) + "\n")
         _write_text(stage, "README.md", README)
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for item in sorted(stage.rglob("*")):

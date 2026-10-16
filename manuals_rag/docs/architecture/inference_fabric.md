@@ -201,6 +201,15 @@ python3 manuals_rag/scripts/build_inference_node_bundle.py \
   --output /tmp/provis-inference-node.zip
 ```
 
+Managed gateway configuration is loaded by contract, not from the current
+working directory: a source launcher may name an administrator-controlled
+`PROVIS_NODE_BOOTSTRAP_CONFIG`; the portable bundle checks its own root beside
+`src/`; an installed executable checks a sidecar beside the executable; and a
+PyInstaller one-file executable reads the same nonsecret JSON from its bundled
+data directory. A managed build rejects an empty or non-HTTPS gateway URL.
+Only the gateway URL is packaged. Operator/application tokens, node secrets,
+and Microsoft access tokens are never packaged.
+
 On Windows, `build-node-exe.ps1` in that bundle creates a no-console
 `PROVISInferenceNode.exe` using a build-only PyInstaller install. The
 bundle contains only the standard-library node client and does not include the

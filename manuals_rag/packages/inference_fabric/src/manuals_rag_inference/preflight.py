@@ -93,14 +93,18 @@ def validate_gateway_environment(env: Mapping[str, str]) -> PreflightResult:
     require_entra = str(env.get("INFERENCE_GATEWAY_REQUIRE_ENTRA_ENROLLMENT") or "false").lower() == "true"
     entra_tenant = str(env.get("INFERENCE_ENTRA_TENANT_ID") or "").strip()
     entra_audience = str(env.get("INFERENCE_ENTRA_AUDIENCE") or "").strip()
+    entra_client_id = str(env.get("INFERENCE_ENTRA_CLIENT_ID") or "").strip()
+    entra_scope = str(env.get("INFERENCE_ENTRA_SCOPE") or "").strip()
     if require_entra and (not entra_tenant or not entra_audience):
         errors.append("INFERENCE_ENTRA_TENANT_ID and INFERENCE_ENTRA_AUDIENCE are required when Entra enrollment is required")
     if bool(entra_tenant) != bool(entra_audience):
         errors.append("INFERENCE_ENTRA_TENANT_ID and INFERENCE_ENTRA_AUDIENCE must be configured together")
     if require_entra and not str(env.get("INFERENCE_ENTRA_ALLOWED_ROLES") or "").strip() and not str(env.get("INFERENCE_ENTRA_ALLOWED_GROUPS") or "").strip():
         errors.append("INFERENCE_ENTRA_ALLOWED_ROLES or INFERENCE_ENTRA_ALLOWED_GROUPS must restrict Entra enrollment")
-    if (require_entra or entra_tenant or entra_audience) and not str(env.get("INFERENCE_ENTRA_CLIENT_ID") or "").strip():
+    if (require_entra or entra_tenant or entra_audience) and not entra_client_id:
         errors.append("INFERENCE_ENTRA_CLIENT_ID is required when Microsoft Entra enrollment is configured")
+    if require_entra and not entra_scope:
+        errors.append("INFERENCE_ENTRA_SCOPE is required when Microsoft Entra enrollment is required")
     if require_entra or entra_tenant or entra_audience:
         try:
             import jwt  # noqa: F401

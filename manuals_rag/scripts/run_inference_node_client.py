@@ -7,12 +7,14 @@ import os
 import platform
 import queue
 import re
+import sys
 import threading
 import time
 import tkinter as tk
 import webbrowser
 from pathlib import Path
 from tkinter import messagebox, ttk
+from urllib.parse import urlparse
 
 from manuals_rag_inference.node_agent import (
     _detect_tailscale_ipv4,
@@ -35,11 +37,57 @@ def _default_config_path() -> str:
     return str(Path.home() / ".config/ProVIS/inference-node.json")
 
 
-def _bootstrap_config_path() -> str:
-    configured = os.getenv("PROVIS_NODE_BOOTSTRAP_CONFIG", "").strip()
-    if configured:
-        return configured
-    return str(Path(__file__).with_name("provis-node-config.json"))
+def _is_managed_gateway_url(value: object) -> bool:
+    parsed = urlparse(str(value or "").strip())
+    return parsed.scheme.lower() == "https" and bool(parsed.hostname) and not any(
+        (parsed.username, parsed.password, parsed.query, parsed.fragment)
+    )
+
+
+def _managed_config_candidates() -> tuple[Path, ...]:
+    """Return deterministic managed-config locations, never based on cwd.
+
+    Source launchers may explicitly provide ``PROVIS_NODE_BOOTSTRAP_CONFIG``.
+    Frozen builds use PyInstaller's extracted data directory first, then an
+    administrator-controlled sidecar beside the executable.  The source/bundle
+    layout checks both the script directory and its parent because the source
+    launcher lives under ``src/`` while the managed JSON is at bundle root.
+    """
+    candidates: list[Path] = []
+    frozen = bool(getattr(sys, "frozen", False))
+    if not frozen:
+        configured = os.getenv("PROVIS_NODE_BOOTSTRAP_CONFIG", "").strip()
+        if configured:
+            candidates.append(Path(configured).expanduser())
+    if frozen:
+        meipass = getattr(sys, "_MEIPASS", "")
+        if meipass:
+            candidates.append(Path(str(meipass)) / "provis-node-config.json")
+        candidates.append(Path(sys.executable).resolve().with_name("provis-node-config.json"))
+    script_dir = Path(__file__).resolve().parent
+    candidates.extend((script_dir / "provis-node-config.json", script_dir.parent / "provis-node-config.json"))
+    unique: list[Path] = []
+    for candidate in candidates:
+        if candidate not in unique:
+            unique.append(candidate)
+    return tuple(unique)
+
+
+def _load_managed_gateway_url() -> str:
+    for candidate in _managed_config_candidates():
+        try:
+            config = _load_node_config(str(candidate))
+        except (OSError, ValueError, TypeError):
+            continue
+        gateway_url = str(config.get("gateway_url") or "").strip()
+        if _is_managed_gateway_url(gateway_url):
+            return gateway_url.rstrip("/")
+    if not getattr(sys, "frozen", False):
+        for variable in ("PROVIS_INFERENCE_GATEWAY_URL", "INFERENCE_GATEWAY_URL"):
+            gateway_url = os.getenv(variable, "").strip()
+            if _is_managed_gateway_url(gateway_url):
+                return gateway_url.rstrip("/")
+    return ""
 
 
 def _default_node_id() -> str:
@@ -113,11 +161,10 @@ class InferenceNodeClient(tk.Tk):
 
     def _load_saved_values(self) -> None:
         config = _load_node_config(self.config_path)
-        bootstrap = _load_node_config(_bootstrap_config_path())
         tailscale_ipv4 = _detect_tailscale_ipv4()
         port = str(config.get("port") or os.getenv("INFERENCE_NODE_PORT", "8765"))
         values = {
-            "gateway_url": config.get("gateway_url") or os.getenv("PROVIS_INFERENCE_GATEWAY_URL", "") or os.getenv("INFERENCE_GATEWAY_URL", "") or bootstrap.get("gateway_url", ""),
+            "gateway_url": _load_managed_gateway_url() or str(config.get("gateway_url") or ""),
             "entra_tenant_id": config.get("entra_tenant_id") or os.getenv("INFERENCE_ENTRA_TENANT_ID", ""),
             "entra_client_id": config.get("entra_client_id") or os.getenv("INFERENCE_ENTRA_CLIENT_ID", ""),
             "entra_scope": config.get("entra_scope") or os.getenv("INFERENCE_ENTRA_SCOPE", "api://provis-inference-gateway/.default"),
@@ -150,9 +197,8 @@ class InferenceNodeClient(tk.Tk):
 
     def _resolve_values(self, values: dict[str, str]) -> dict[str, str]:
         config = _load_node_config(self.config_path)
-        bootstrap = _load_node_config(_bootstrap_config_path())
-        gateway_url = values.get("gateway_url") or config.get("gateway_url") or os.getenv("PROVIS_INFERENCE_GATEWAY_URL", "") or os.getenv("INFERENCE_GATEWAY_URL", "") or bootstrap.get("gateway_url", "")
-        if not gateway_url:
+        gateway_url = _load_managed_gateway_url() or str(config.get("gateway_url") or "").strip()
+        if not _is_managed_gateway_url(gateway_url):
             raise RuntimeError("this PROVIS build has no gateway address; ask the administrator for the managed installer")
         discovered = fetch_enrollment_config(gateway_url=gateway_url)
         tailscale_ipv4 = _detect_tailscale_ipv4()

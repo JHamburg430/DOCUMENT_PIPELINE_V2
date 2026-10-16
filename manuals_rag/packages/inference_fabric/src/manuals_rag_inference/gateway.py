@@ -26,6 +26,14 @@ from .enrollment import EnrollmentManager
 from .entra import EntraTokenValidator
 
 
+class AuthenticationError(PermissionError):
+    """The caller did not present valid operator/application credentials."""
+
+
+class AuthorizationError(PermissionError):
+    """The caller is authenticated but is not allowed for the operation."""
+
+
 def heartbeat_signature(payload: bytes, secret: bytes) -> str:
     return hmac.new(secret, payload, hashlib.sha256).hexdigest()
 
@@ -173,13 +181,20 @@ class InferenceGateway:
         self._last_heartbeat_observed.pop(node_id, None)
         return {"node_id": node_id, "disconnected": True, "revoked": False}
 
-    def authorize_client(self, token: str | None, *, application: str | None = None, application_token: str | None = None) -> None:
+    def authorize_operator(self, token: str | None) -> None:
         if self.gateway_token is not None and not hmac.compare_digest(self.gateway_token, token or ""):
-            raise PermissionError("invalid gateway client token")
+            raise AuthenticationError("gateway operator authentication required")
+
+    def authorize_inference(self, token: str | None, *, application: str | None = None, application_token: str | None = None) -> None:
+        self.authorize_operator(token)
         if self.require_application_identity:
             expected = self.application_tokens.get(str(application or ""))
             if expected is None or not hmac.compare_digest(expected, application_token or ""):
-                raise PermissionError("invalid application identity")
+                raise AuthenticationError("valid application identity required for inference")
+
+    def authorize_client(self, token: str | None, *, application: str | None = None, application_token: str | None = None) -> None:
+        """Backward-compatible name for inference authorization."""
+        self.authorize_inference(token, application=application, application_token=application_token)
 
     def register_heartbeat(self, snapshot: NodeSnapshot, raw_body: bytes, signature: str) -> None:
         secret = self.node_secrets.get(snapshot.node_id)
@@ -397,7 +412,7 @@ def create_gateway_handler(gateway: InferenceGateway):
                 except RuntimeError as error:
                     self._send(503, {"detail": str(error)})
             elif self.path == "/v1/nodes":
-                gateway.authorize_client(self.headers.get("X-Gateway-Token"))
+                gateway.authorize_operator(self.headers.get("X-Gateway-Token"))
                 self._send(200, {"nodes": [node.to_dict() for node in gateway.scheduler.snapshots()]})
             else:
                 self._send(404, {"detail": "not found"})
@@ -444,12 +459,12 @@ def create_gateway_handler(gateway: InferenceGateway):
                     self._send(200, result)
                     return
                 if self.path == "/v1/nodes/pairing-token":
-                    gateway.authorize_client(self.headers.get("X-Gateway-Token"))
+                    gateway.authorize_operator(self.headers.get("X-Gateway-Token"))
                     result = gateway.create_pairing_token(ttl_seconds=int(payload.get("ttl_seconds") or 600))
                     self._send(200, result)
                     return
                 if self.path == "/v1/nodes/revoke":
-                    gateway.authorize_client(self.headers.get("X-Gateway-Token"))
+                    gateway.authorize_operator(self.headers.get("X-Gateway-Token"))
                     result = gateway.revoke_node(str(payload["node_id"]))
                     self._send(200, result)
                     return
@@ -464,12 +479,12 @@ def create_gateway_handler(gateway: InferenceGateway):
                     self._send(200, result)
                     return
                 if self.path == "/v1/node-command":
-                    gateway.authorize_client(self.headers.get("X-Gateway-Token"))
+                    gateway.authorize_operator(self.headers.get("X-Gateway-Token"))
                     result = gateway.issue_node_command(node_id=str(payload["node_id"]), action=str(payload["action"]), model=str(payload["model"]), size_bytes=int(payload.get("size_bytes") or 0), timeout_seconds=int(payload.get("timeout_seconds") or 900))
                     self._send(200, result)
                     return
                 if self.path == "/v1/maintenance/evict-idle":
-                    gateway.authorize_client(self.headers.get("X-Gateway-Token"))
+                    gateway.authorize_operator(self.headers.get("X-Gateway-Token"))
                     result = gateway.evict_idle_models(
                         max_items=int(payload.get("max_items") or 10),
                         maintenance_approved=payload.get("maintenance_approved") is True,
@@ -477,6 +492,10 @@ def create_gateway_handler(gateway: InferenceGateway):
                     self._send(200, result)
                     return
                 self._send(404, {"detail": "not found"})
+            except AuthenticationError as error:
+                self._send(401, {"detail": str(error)})
+            except AuthorizationError as error:
+                self._send(403, {"detail": str(error)})
             except PermissionError as error:
                 self._send(403, {"detail": str(error)})
             except (KeyError, ValueError, json.JSONDecodeError) as error:
