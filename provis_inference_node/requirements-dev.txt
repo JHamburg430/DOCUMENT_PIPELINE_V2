@@ -1,0 +1,3 @@
+# Runtime dependencies are intentionally empty. These are optional test/build tools.
+pytest>=8.4,<10
+pyinstaller>=6.11,<7

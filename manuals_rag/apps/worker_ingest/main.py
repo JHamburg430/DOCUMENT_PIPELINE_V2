@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from urllib.parse import urlparse
 
 import fitz
@@ -18,6 +19,7 @@ from manuals_rag_normalizers.normalize import normalize_nodes
 from manuals_rag_observability.metrics import INGEST_DURATION, PARSE_FAILURES
 from manuals_rag_parsers.docling_parser import parse_document
 from manuals_rag_parsers.metadata import DocumentMetadata, MetadataSourceSegment, infer_document_metadata_from_segments
+from manuals_rag_retrieval.graph_enrichment import enrich_graph_with_model
 from manuals_rag_schemas.enums import DocumentKind, NodeType
 
 log = logging.getLogger(__name__)
@@ -87,6 +89,106 @@ def _metadata_source_segments(nodes: list[object]) -> list[MetadataSourceSegment
         for node in nodes
         if str(getattr(node, "text_normalized", "") or getattr(node, "text_raw", "")).strip()
     ]
+
+
+def _build_procedure_evidence_graph(
+    *,
+    chunks: list[object],
+    metadata: dict[str, object],
+) -> dict[str, object]:
+    """Build a bounded, source-grounded procedure graph during ingestion.
+
+    This graph is metadata context, not an answer cache. Every procedure/facet
+    edge points to an indexed chunk and carries its page/section provenance.
+    No model-generated relationship is persisted as a fact.
+    """
+    nodes: list[dict[str, object]] = [{
+        "id": "document",
+        "type": "document",
+        "title": metadata.get("title"),
+        "source_filename": metadata.get("source_filename"),
+        "product_model": metadata.get("product_model"),
+    }]
+    edges: list[dict[str, object]] = []
+    seen_sections: set[str] = set()
+    facet_patterns = (
+        ("prerequisite", r"position a workpiece|before|prerequisite|starting"),
+        ("entry", r"menu|setup|setting screen|button for 3 seconds|hold.*seconds"),
+        ("action", r"press|hold|scan|sampling|registration"),
+        ("release", r"release|scan is complete"),
+        ("success", r"successful|flashes|completion|green light"),
+        ("result", r"setting value|references are added|registered"),
+    )
+    # These identity nodes let retrieval expand from a model/accessory/settings
+    # hit to the source document without relying on a generated relationship.
+    for kind, values in (
+        ("product_model", metadata.get("product_models") or [metadata.get("product_model")]),
+        ("product_family", metadata.get("product_families") or [metadata.get("product_family")]),
+        ("part_number", metadata.get("part_numbers")),
+        ("protocol", metadata.get("protocol_terms")),
+        ("setting", metadata.get("settings")),
+    ):
+        for value in values or []:
+            if not value:
+                continue
+            entity_id = f"entity:{kind}:{re.sub(r'[^a-z0-9]+', '-', str(value).lower()).strip('-')}"
+            nodes.append({"id": entity_id, "type": kind, "value": str(value), "source": "document_metadata"})
+            edges.append({"from": "document", "to": entity_id, "relation": "identifies"})
+    for index, chunk in enumerate(chunks):
+        content = " ".join((
+            str(getattr(chunk, "content", "") or ""),
+            str(getattr(chunk, "content_for_rerank", "") or ""),
+        ))
+        chunk_type = getattr(chunk, "chunk_type", None)
+        chunk_type = getattr(chunk_type, "value", chunk_type)
+        is_structural = chunk_type in {"table_record", "procedure_record", "spec_record"}
+        is_procedure = re.search(r"master\s+addition\s+calibration|added\s+registration", content, flags=re.I)
+        if not (is_structural or is_procedure):
+            continue
+        chunk_id = str(getattr(chunk, "id", "") or f"chunk-{index}")
+        section = " > ".join(str(value) for value in (getattr(chunk, "section_path_text", "") or "").split(" > ") if value) or "unknown"
+        section_id = f"section:{section}"
+        if section_id not in seen_sections:
+            nodes.append({"id": section_id, "type": "section", "section": section, "source": "indexed_section_path"})
+            edges.append({"from": "document", "to": section_id, "relation": "contains"})
+            seen_sections.add(section_id)
+        evidence_id = f"evidence:{chunk_id}"
+        nodes.append({
+            "id": evidence_id,
+            "type": "evidence",
+            "chunk_id": chunk_id,
+            "pages": [getattr(chunk, "page_from", None), getattr(chunk, "page_to", None)],
+            "section": section,
+            "source": "indexed_chunk",
+        })
+        edges.extend([
+            {"from": section_id, "to": evidence_id, "relation": "contains_evidence"},
+            {"from": evidence_id, "to": "document", "relation": "from_document"},
+        ])
+        for kind, values in (
+            ("product_model", metadata.get("product_models") or [metadata.get("product_model")]),
+            ("product_family", metadata.get("product_families") or [metadata.get("product_family")]),
+        ):
+            for value in values or []:
+                if value:
+                    entity_id = f"entity:{kind}:{re.sub(r'[^a-z0-9]+', '-', str(value).lower()).strip('-')}"
+                    edges.append({"from": entity_id, "to": evidence_id, "relation": "has_evidence"})
+        for facet_id, pattern in facet_patterns:
+            if re.search(pattern, content, flags=re.I):
+                facet_node = f"facet:{facet_id}"
+                if not any(node["id"] == facet_node for node in nodes):
+                    nodes.append({"id": facet_node, "type": "facet", "facet_id": facet_id, "source": "source_text_pattern"})
+                edges.append({"from": facet_node, "to": evidence_id, "relation": "supported_by"})
+    if not any(node["type"] == "facet" for node in nodes):
+        return {"schema": "procedure-evidence-graph-v1", "scope": "document", "nodes": [], "edges": [], "source_grounded": True}
+    return {
+        "schema": "procedure-evidence-graph-v1",
+        "scope": "document",
+        "source_grounded": True,
+        "model_edges_allowed": False,
+        "nodes": nodes[:120],
+        "edges": edges[:240],
+    }
 
 
 def _deferred_document_metadata(filename: str) -> DocumentMetadata:
@@ -295,6 +397,8 @@ def process_job(job: dict[str, str]) -> None:
         metadata = {
             "tenant_id": document["tenant_id"],
             "corpus_id": document["corpus_id"],
+            "title": document["title"],
+            "source_filename": document["source_filename"],
             "document_kind": inferred_metadata.document_kind.value,
             # Schema-v2 identity is a verified projection. Never refill an unresolved
             # value from upload-time/legacy metadata, which may itself be an example
@@ -354,6 +458,17 @@ def process_job(job: dict[str, str]) -> None:
             nodes=normalized,
             metadata=metadata,
         )
+        procedure_graph = _build_procedure_evidence_graph(chunks=chunks, metadata=metadata)
+        if settings.metadata_graph_enrichment_enabled and procedure_graph.get("nodes"):
+            procedure_graph = enrich_graph_with_model(
+                graph=procedure_graph,
+                chunks=chunks,
+                model=settings.ollama_metadata_model,
+                timeout=settings.metadata_graph_enrichment_timeout_seconds,
+            )
+        metadata["procedure_evidence_graph"] = procedure_graph
+        for chunk in chunks:
+            chunk.metadata_json["procedure_evidence_graph"] = procedure_graph
         chunk_types: dict[str, int] = {}
         for chunk in chunks:
             chunk_types[chunk.chunk_type.value] = chunk_types.get(chunk.chunk_type.value, 0) + 1

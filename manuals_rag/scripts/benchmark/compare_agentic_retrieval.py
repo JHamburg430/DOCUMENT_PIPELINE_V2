@@ -272,6 +272,21 @@ def _evaluate_case(
         top_k=10,
     )
     baseline_sufficiency = assess_evidence_sufficiency(case.query, baseline_results)
+    def controller_progress(event: dict[str, Any]) -> None:
+        safe = {
+            key: event[key]
+            for key in (
+                "backend", "event", "hop_id", "objective", "planned_query", "executed_query",
+                "planned_strategy", "strategy", "depends_on", "dependency_anchors", "recovery_for",
+                "attempt", "missing_facets", "sufficient", "stop_reason", "max_hops", "max_seconds",
+            )
+            if key in event
+        }
+        _emit_progress(
+            getattr(args, "progress_jsonl", False),
+            {"event": "controller_stage", "case_id": case.case_id, "stage": event.get("event"), **safe},
+        )
+
     comparison = compare_agentic_backends(
         case.query,
         args.corpus_id,
@@ -279,6 +294,7 @@ def _evaluate_case(
         max_hops=args.max_hops,
         use_llm=not args.no_llm,
         backend_concurrency=max(1, int(getattr(args, "backend_concurrency", 1))),
+        event_callback=controller_progress,
     )
     item: dict[str, Any] = {
         "case_id": case.case_id,

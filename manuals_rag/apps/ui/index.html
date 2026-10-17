@@ -14,13 +14,34 @@
           <p id="connection-status">Connecting to API...</p>
         </div>
         <nav class="tabs" aria-label="Views">
-          <button class="tab active" data-tab="evaluation">Evaluation</button>
+          <button class="tab active" data-tab="overview">Overview</button>
+          <button class="tab" data-tab="evaluation">Evaluation</button>
           <button class="tab" data-tab="agent-chat">Agent</button>
           <button class="tab" data-tab="search">Search</button>
           <button class="tab" data-tab="ingestion">Ingestion</button>
           <button class="tab" data-tab="history">Run History</button>
         </nav>
       </header>
+
+      <section id="overview" class="tab-panel active">
+        <header class="panel evaluation-workspace-header">
+          <div><h2>Activity overview</h2><p class="muted">One live view of ingestion, metadata recovery, evaluations, and agent tests.</p></div>
+          <span id="overview-updated" class="muted">Waiting for live state…</span>
+        </header>
+        <section class="panel">
+          <div id="overview-activity" class="metrics overview-activity-grid" aria-live="polite"><div class="empty-state">Synchronizing active processes…</div></div>
+        </section>
+        <section class="panel"><div class="section-heading"><h2>Live structured model output</h2><span class="muted">Recent parsed responses; hidden reasoning is not shown</span></div><pre id="overview-model-output" class="overview-model-output" aria-live="polite">Waiting for structured model output…</pre></section>
+        <section class="panel"><div class="section-heading"><h2>Agent improvement loop</h2><span class="muted">Reviewed failure clusters and Codex handoffs</span></div><div id="overview-improvement-loop" class="overview-list" aria-live="polite">No improvement records yet.</div></section>
+        <section class="panel">
+          <div class="section-heading"><h2>Current runs</h2><span class="muted">Each setup remains isolated</span></div>
+          <div id="overview-runs" class="matrix-table-shell" aria-live="polite"></div>
+        </section>
+        <section class="panel">
+          <div class="section-heading"><h2>Central activity log</h2><span class="muted">Durable events used for regression review</span></div>
+          <div id="overview-log" class="overview-log" aria-live="polite"></div>
+        </section>
+      </section>
 
       <section class="production-readiness" aria-labelledby="production-readiness-heading">
         <header class="production-readiness-header">
@@ -35,30 +56,50 @@
         </div>
       </section>
 
+      <section id="verification-ledger" class="tab-panel">
+        <header class="panel evaluation-workspace-header">
+          <div>
+            <h2>Controller Verification Ledger</h2>
+            <p class="muted">Facet-by-facet evidence state from the latest agent retrieval run. Synthesis is allowed only when every required facet is confirmed.</p>
+          </div>
+          <span id="verification-ledger-status" class="status-pill">No run loaded</span>
+        </header>
+        <section class="panel ledger-summary-panel">
+          <div id="verification-ledger-summary" class="matrix-summary empty-state">Run a question from the Evaluation → Live Agent Retrieval Lab to populate this page.</div>
+        </section>
+        <section class="panel">
+          <div class="section-heading"><h2>Required facets</h2><span class="muted">Controller-owned completion state</span></div>
+          <div id="verification-ledger-table" class="matrix-table-shell"></div>
+        </section>
+        <section class="panel">
+          <div class="section-heading"><h2>Evidence and contradictions</h2><span class="muted">Evidence retained for answer synthesis</span></div>
+          <div id="verification-ledger-details" class="ledger-details"></div>
+        </section>
+      </section>
+
       <section id="evaluation" class="tab-panel active">
         <header class="panel evaluation-workspace-header">
           <div>
             <h2>Evaluation workspace</h2>
-            <p class="muted">Question-bank diagnostics, live agent traces, and agent scoring in one workspace.</p>
+            <p class="muted">Batch benchmark, single-question trace, question-bank management, and acceptance suites.</p>
           </div>
-          <nav class="evaluation-jump-links" aria-label="Evaluation workspace sections">
-            <a href="#agent-matrix-workspace">Current agent matrix</a>
-            <a href="#research-agent-matrix-workspace">Research-agent acceptance</a>
-            <a href="#onsite-agent-eval">Keyence onsite evaluation</a>
-            <a href="#question-matrix-workspace">Question matrix</a>
-            <a href="#agent-lab">Live agent lab</a>
+          <nav class="evaluation-subtabs" aria-label="Agent evaluation setups">
+            <button class="evaluation-subtab active" data-eval-view="agent-matrix-workspace">Batch Benchmark</button>
+            <button class="evaluation-subtab" data-eval-view="agent-lab">Single-Question Trace</button>
+            <button class="evaluation-subtab" data-eval-view="question-matrix-workspace">Full Evaluation Matrix</button>
+            <button class="evaluation-subtab" data-eval-view="research-agent-matrix-workspace">Research-Agent Acceptance</button>
           </nav>
         </header>
         <section id="question-matrix-workspace" class="panel evaluation-section">
           <div class="section-heading">
-            <h2>Eval Matrix</h2>
+            <h2>Full Evaluation Matrix &amp; Question Bank</h2>
             <span id="matrix-run-id" class="muted">Loading question-bank matrix...</span>
           </div>
           <section id="matrix-run-overview" class="matrix-run-overview idle" aria-live="polite">
             <div>
               <span class="run-overview-eyebrow">Current activity</span>
               <strong>No evaluation is running</strong>
-              <small>Start a matrix run or refresh to synchronize.</small>
+            <small>This is the live 100-question answer/citation evaluation. The separate 48-question Batch Benchmark is historical.</small>
             </div>
           </section>
           <details class="evaluation-disclosure matrix-run-controls">
@@ -310,8 +351,8 @@
           </section>
         </details>
         <details id="agent-matrix-workspace" class="panel agent-matrix-panel evaluation-section evaluation-disclosure" open>
-          <summary><span>Current Agent Evaluation Matrix</span><span id="agent-matrix-status" class="status-pill">Loading</span></summary>
-          <p class="muted">Each row is a test question. Columns isolate tool routing, retrieval coverage, reasoning dependencies, evidence sufficiency, grounded synthesis, and operating cost.</p>
+          <summary><span>Agent Retrieval Batch Benchmark</span><span id="agent-matrix-status" class="status-pill">Loading</span></summary>
+          <p class="muted">Frozen question-bank comparison of LangGraph and LlamaIndex retrieval, evidence coverage, grounded answers, and cost.</p>
           <div id="agent-matrix-summary" class="matrix-summary empty-state">No agent evaluation loaded.</div>
           <div id="agent-matrix-table" class="matrix-table-shell"></div>
           <div id="agent-matrix-detail"></div>
@@ -323,14 +364,14 @@
               <label>Max hops <input id="agent-matrix-hops" type="number" min="1" max="8" value="6" /></label>
               <label>Corpus <input id="agent-matrix-corpus" value="manuals_vendor_keyence" /></label>
               <label class="inline-check"><input id="agent-matrix-no-llm" type="checkbox" /><span>Deterministic planners</span></label>
-              <button id="run-agent-matrix" type="button">Run Agent Matrix</button>
+              <button id="run-agent-matrix" type="button">Run Batch Benchmark</button>
               <button id="refresh-agent-matrix" type="button">Refresh</button>
               <button id="replay-agent-matrix-fixture" class="secondary-button" type="button">Replay Live Fixture</button>
             </div>
           </details>
         </details>
         <details id="research-agent-matrix-workspace" class="panel agent-matrix-panel evaluation-section evaluation-disclosure" open>
-          <summary><span>Evidence-Aware Research-Agent Matrix</span><span id="research-agent-matrix-status" class="status-pill">Not run</span></summary>
+          <summary><span>Research-Agent Acceptance Suite</span><span id="research-agent-matrix-status" class="status-pill">Not run</span></summary>
           <p class="muted">This is the acceptance matrix for the additional ReAct controller: 18 deterministic controller-contract cases plus 3 live-corpus cases. Contract validation executes the real loop; live rows remain explicitly not-run until both production backends are exercised.</p>
           <div id="research-agent-matrix-summary" class="matrix-summary empty-state">No research-agent evaluation artifact loaded.</div>
           <div id="research-agent-matrix-table" class="matrix-table-shell"></div>
@@ -338,7 +379,7 @@
             <label>Layer
               <select id="research-agent-matrix-layer"><option value="all">All 21 cases</option><option value="controller_contract">18 controller cases</option><option value="live_corpus">3 live cases</option></select>
             </label>
-            <button id="run-research-agent-matrix" type="button">Run Research-Agent Matrix</button>
+            <button id="run-research-agent-matrix" type="button">Run Acceptance Suite</button>
             <button id="refresh-research-agent-matrix" type="button">Refresh</button>
           </div>
         </details>
@@ -346,18 +387,6 @@
 
       <section id="search" class="tab-panel">
         <section class="split">
-        <details id="onsite-agent-eval" class="panel agent-matrix-panel evaluation-section evaluation-disclosure" open>
-          <summary><span>Keyence Onsite Agent Evaluation</span><span id="onsite-agent-eval-status" class="status-pill">Not run</span></summary>
-          <p class="muted">Source-anchored installation, setup, troubleshooting, and integration questions run through the same ReAct Agent endpoint as the Agent page. Both retrieval backends are scored for a grounded answer and a citation to the expected manual. This suite is separate from the existing matrices.</p>
-          <div id="onsite-agent-eval-summary" class="matrix-summary empty-state">Loading onsite question bank…</div>
-          <div class="matrix-actions">
-            <label>Questions <input id="onsite-agent-eval-limit" type="number" min="1" value="20" /></label>
-            <button id="run-onsite-agent-eval" type="button">Run Onsite Evaluation</button>
-            <button id="refresh-onsite-agent-eval" type="button">Refresh</button>
-          </div>
-          <div id="onsite-agent-eval-table" class="matrix-table-shell"></div>
-          <div id="onsite-agent-eval-detail"></div>
-        </details>
           <div class="panel">
             <h2>Search</h2>
             <label>
@@ -455,6 +484,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260929-agent-repair-handoff"></script>
+    <script src="/app.js?v=20261015-live-output-1"></script>
   </body>
 </html>

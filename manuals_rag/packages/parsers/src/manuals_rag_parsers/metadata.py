@@ -106,10 +106,10 @@ PRIMARY_ENTITY_MIN_CONFIDENCE = 0.8
 TITLE_PAGE_LIMIT = 2
 TITLE_SOURCE_MAX_CHARS = 12000
 CLAIM_VERIFICATION_BATCH_SIZE = 8
-# Ollama seeded generation is not reproducible when metadata map calls overlap
-# on the same local model. Metadata is a durable routing contract, so serialize
-# these calls even though it makes backfills slower.
-METADATA_MAP_MAX_CONCURRENCY = 1
+# Keep concurrency bounded and configurable. The hard cap prevents a metadata
+# backfill from overwhelming the local model; default 1 preserves deterministic
+# seeded extraction, while GPU-capable hosts may explicitly opt into 2.
+METADATA_MAP_MAX_CONCURRENCY = settings.metadata_map_max_concurrency
 MAX_HARVESTED_CANDIDATES = 80
 METADATA_SCOPED_NUM_PREDICT = 5000
 IDENTIFIER_CANDIDATE_PATTERN = re.compile(
@@ -220,7 +220,13 @@ class MetadataClaim(BaseModel):
     value: str
     normalized_value: str
     kind: str
+    type: str | None = None
     relation: str
+    claim_type: Literal[
+        "identity", "literal_value", "applicability", "compatibility",
+        "requirement", "revision_history", "example", "unknown"
+    ] = "unknown"
+    promotion: Literal["routing", "evidence_only", "reject"] = "evidence_only"
     subject: str | None = None
     source_quote: str
     page_from: int | None = None
@@ -236,6 +242,7 @@ class MetadataClaim(BaseModel):
 class ScopedMetadataCandidate(BaseModel):
     value: str
     kind: str
+    type: Literal["hardware", "software", "both"] | None = None
     relation: str = "mentioned"
     subject: str | None = None
     source_quote: str
@@ -250,6 +257,11 @@ class ScopedMetadataCandidate(BaseModel):
     def _accept_entity_type_alias(cls, value: Any) -> Any:
         if isinstance(value, dict):
             normalized = dict(value)
+            # `type` historically meant the entity kind. Preserve that input
+            # shape while reserving hardware/software/both for version claims.
+            if normalized.get("type") not in {None, "hardware", "software", "both"}:
+                normalized.setdefault("kind", normalized["type"])
+                normalized.pop("type", None)
             if "value" not in normalized:
                 for alias in (
                     "name",
@@ -1020,7 +1032,13 @@ def _extract_metadata_with_model(filename: str, text: str) -> MetadataExtraction
 
 
 def _to_document_metadata(filename: str, text: str, extraction: MetadataExtraction) -> DocumentMetadata:
-    companies = _dedupe_preserve_order(extraction.companies)
+    source = _source_text(filename, text)
+    # A model can return a plausible company from a neighboring manual.  Never
+    # promote an ungrounded company to the document's routing manufacturer.
+    companies = _dedupe_preserve_order(
+        value for value in extraction.companies
+        if _value_is_grounded(value, source)
+    )
     manufacturer = companies[0] if companies else None
     if manufacturer is None and extraction.manufacturer:
         candidate = extraction.manufacturer.strip()
@@ -1032,6 +1050,8 @@ def _to_document_metadata(filename: str, text: str, extraction: MetadataExtracti
         ):
             manufacturer = candidate
     manufacturer = manufacturer or "Unknown"
+    # Product identities may come from the scoped page-aware extraction pass;
+    # that pass is validated later against its own quoted source segment.
     product_models = _dedupe_preserve_order(extraction.product_models)
     product_model = product_models[0] if product_models else None
     if (
@@ -1408,6 +1428,55 @@ def _deterministic_version_evidence(
             re.IGNORECASE,
         )
     recovered: list[dict[str, Any]] = []
+    # Compatibility tables commonly use a `Firmware version` column header and
+    # put values such as `Ver. 2 or later` on subsequent rows. Treat those as
+    # literal firmware mentions, without inventing the model they apply to.
+    if "firmware_version" in expected_kinds:
+        for segment in segments:
+            if not re.search(r"\bfirmware\s+version\b", segment.text, re.I):
+                continue
+            lines = segment.text.splitlines()
+            if len(lines) < 2:
+                continue
+            header_cells = [cell.strip() for cell in lines[0].split("|")]
+            firmware_columns = [
+                index for index, cell in enumerate(header_cells)
+                if re.search(r"\bfirmware\s+version\b", cell, re.I)
+            ]
+            for line in lines:
+                if re.search(r"\bfirmware\s+version\b", line, re.I):
+                    continue
+                # In a pipe table, inspect only the firmware column. Scanning
+                # the whole row can misclassify an adjacent software version
+                # (for example `Sysmac Studio | ver.1.15`) as firmware.
+                candidates = (
+                    [line.split("|")[firmware_columns[0]]]
+                    if firmware_columns and len(line.split("|")) > firmware_columns[0]
+                    else [line]
+                )
+                match = re.search(
+                    r"\b(?:v|ver(?:sion)?)[. ]*([0-9]+(?:\.[0-9]+){0,3})\b",
+                    candidates[0],
+                    re.I,
+                )
+                if match:
+                    value = match.group(1)
+                    range_claim = bool(re.search(r"\b(?:or\s+later|or\s+newer|minimum|at\s+least|requires?)\b", line, re.I))
+                    recovered.append({
+                        "value": value,
+                        "kind": "firmware_version",
+                        "relation": "applies_to" if range_claim else "mentioned",
+                        "subject": "firmware",
+                        "source_quote": line.strip(),
+                        "page_from": segment.page_from,
+                        "page_to": segment.page_to,
+                        "section_path": list(segment.section_path),
+                        "source": "deterministic_explicit_version",
+                        "claim_type": "applicability" if range_claim else "literal_value",
+                        "promotion": "evidence_only" if range_claim else "routing",
+                        "confidence": 0.9,
+                        "grounded": True,
+                    })
     for segment in segments:
         for raw_line in segment.text.splitlines():
             line = raw_line.strip()
@@ -1427,11 +1496,18 @@ def _deterministic_version_evidence(
                     line,
                     re.IGNORECASE,
                 ):
+                    range_claim = bool(
+                        re.search(
+                            r"\b(?:or\s+later|or\s+newer|minimum|at\s+least|requires?)\b",
+                            line,
+                            re.IGNORECASE,
+                        )
+                    )
                     recovered.append(
                         {
                             "value": match.group("version"),
                             "kind": "firmware_version",
-                            "relation": "mentioned",
+                            "relation": "applies_to" if range_claim else "mentioned",
                             "subject": match.group("subject"),
                             "source_quote": line,
                             "page_from": segment.page_from,
@@ -1440,9 +1516,19 @@ def _deterministic_version_evidence(
                             "confidence": 0.95,
                             "grounded": True,
                             "source": "deterministic_explicit_version",
+                            "claim_type": "applicability" if range_claim else "literal_value",
+                            "promotion": "evidence_only" if range_claim else "routing",
                         }
                     )
             for kind, pattern in patterns.items():
+                if kind == "software_version" and not re.search(
+                    r"\b(?:software|application|tool|studio|explorer|runtime|interpreter|version|ver\.?)\b",
+                    line,
+                    re.IGNORECASE,
+                ):
+                    # Numeric suffixes in function names, menu labels, and page
+                    # references are not software versions.
+                    continue
                 for match in pattern.finditer(line):
                     subject = " ".join(match.group("subject").split()).strip(" |,;:")
                     version = match.group("version")
@@ -1532,6 +1618,17 @@ def _call_scoped_model(
                 parsed = {"entities": accepted}
             normalized = _normalize_object_response(parsed, collection_key="entities")
             if "entities" not in normalized:
+                # Some local models return an empty object when a batch has no
+                # scoped entities. Treat that as an empty extraction; the
+                # deterministic version pass below still enforces required
+                # firmware/software evidence. Do not apply this fallback to a
+                # verifier, where omitted decisions are unsafe.
+                if not verification_candidates and isinstance(normalized, dict):
+                    logger.warning(
+                        "Scoped metadata model omitted entities for %s; treating batch as empty evidence",
+                        filename,
+                    )
+                    return ScopedMetadataExtraction(entities=[])
                 raise ValueError("Scoped response omitted its entities or decisions collection")
             return ScopedMetadataExtraction.model_validate(normalized)
         except Exception as exc:
@@ -1563,6 +1660,12 @@ def _ground_scoped_candidates(
         value = candidate.value.strip()
         quote = candidate.source_quote.strip()
         kind = candidate.kind.strip().lower()
+        version_type = candidate.type or ("hardware" if kind == "firmware_version" else "software" if kind == "software_version" else None)
+        if kind == "version":
+            if version_type == "software":
+                kind = "software_version"
+            elif version_type in {"hardware", "both"}:
+                kind = "firmware_version"
         relation = candidate.relation.strip().lower()
         literal_location = _literal_quote_location(quote, segments)
         located = literal_location[0] if literal_location is not None else None
@@ -1643,6 +1746,7 @@ def _ground_scoped_candidates(
             {
                 "value": value,
                 "kind": kind,
+                "type": version_type,
                 "relation": relation,
                 "subject": subject,
                 # Grounding was checked against this entire quote. Truncating it
@@ -1998,7 +2102,6 @@ def _literal_deterministic_version_claim_is_confirmed(claim: dict[str, Any]) -> 
     if (
         claim.get("source_method") != "deterministic_explicit_version"
         or claim.get("kind") not in {"firmware_version", "software_version"}
-        or claim.get("relation") != "mentioned"
         or claim.get("grounded") is not True
     ):
         return False
@@ -2006,6 +2109,13 @@ def _literal_deterministic_version_claim_is_confirmed(claim: dict[str, Any]) -> 
     value = " ".join(str(claim.get("value") or "").split())
     quote = " ".join(str(claim.get("source_quote") or "").split())
     if not subject or not value or not quote:
+        return False
+    if claim.get("relation") in {"compatible_with", "applies_to"}:
+        return (
+            claim.get("claim_type") == "applicability"
+            and _compact_identifier(value) in _compact_identifier(quote)
+        )
+    if claim.get("relation") != "mentioned":
         return False
     if claim.get("kind") == "software_version" and (subject, value) in _parenthesized_version_mentions(quote):
         return True
@@ -2029,6 +2139,30 @@ def _literal_deterministic_version_claim_is_confirmed(claim: dict[str, Any]) -> 
         quote,
         re.IGNORECASE,
     ) is not None
+
+
+def _infer_claim_type(claim: dict[str, Any]) -> str:
+    """Classify evidence semantics without promoting every numeric mention.
+
+    This is intentionally relation- and wording-driven rather than a catalog
+    of product-specific phrases.  The value remains source evidence; only a
+    later policy may promote it to a routing field.
+    """
+    relation = str(claim.get("relation") or "mentioned").casefold()
+    quote = " ".join(str(claim.get("source_quote") or "").split()).casefold()
+    if relation in {"primary_product", "document_revision"}:
+        return "identity"
+    if relation in {"compatible_with", "applies_to"}:
+        if re.search(r"\b(?:requires?|minimum|at least|or later|or newer|and later|supported)\b", quote):
+            return "applicability"
+        return "compatibility"
+    if relation == "external_reference":
+        return "example"
+    if re.search(r"\b(?:requires?|must|shall|do not|warning|caution)\b", quote):
+        return "requirement"
+    if claim.get("kind") in {"firmware_version", "software_version", "document_revision"}:
+        return "literal_value"
+    return "unknown"
 
 
 def _literal_compatible_model_column_claim_is_confirmed(
@@ -2116,6 +2250,12 @@ def _canonical_source_native_claims(
                 f"{_claim_fingerprint(claim)!r}"
             )
         item = dict(claim)
+        item.setdefault("claim_type", _infer_claim_type(item))
+        item.setdefault(
+            "promotion",
+            "routing" if item.get("relation") in {"primary_product", "document_revision"}
+            else "evidence_only",
+        )
         score = 0.80
         if len(item.get("support_pages") or []) > 1:
             score += 0.05
@@ -2536,6 +2676,22 @@ def _values_for_routing(
         ):
             # Models found deep in compatibility/accessory tables are useful
             # searchable metadata, but they are not safe document-scope keys.
+            continue
+        if (
+            kind == "product_family"
+            and item.get("relation") == "primary_product"
+            and int(item.get("page_from") or 10**9) > 3
+        ):
+            # Deep compatibility/catalog mentions remain evidence, not
+            # document-scope routing keys.
+            continue
+        if (
+            kind == "device"
+            and item.get("relation") == "mentioned"
+            and int(item.get("page_from") or 10**9) > 3
+        ):
+            # A device mentioned in a deep manual section is searchable
+            # evidence, but not automatically applicable to this document.
             continue
         if (
             kind == "part_number"
@@ -3138,14 +3294,19 @@ def _prepare_metadata_workflow(state: MetadataWorkflowState) -> dict[str, Any]:
     selected_title, printed_title_evidence = _select_document_title(
         state["filename"], base.title, segments
     )
+    batches = pack_metadata_source_segments(
+        _scoped_model_segments(segments), max_chars=state["max_segment_chars"]
+    )
+    logger.info(
+        "metadata_prepare filename=%s segments=%d model_batches=%d max_segment_chars=%d",
+        state["filename"], len(segments), len(batches), state["max_segment_chars"],
+    )
     return {
         "segments": segments,
         "base": base,
         "selected_title": selected_title,
         "printed_title_evidence": printed_title_evidence,
-        "batches": pack_metadata_source_segments(
-            _scoped_model_segments(segments), max_chars=state["max_segment_chars"]
-        ),
+        "batches": batches,
         "mapped_evidence": [],
     }
 
@@ -3158,6 +3319,11 @@ def _dispatch_metadata_batches(state: MetadataWorkflowState) -> list[Send]:
 
 
 def _map_metadata_batch(state: MetadataWorkflowState) -> dict[str, Any]:
+    pages = sorted({segment.page_from for segment in state["batch"] if segment.page_from is not None})
+    logger.info(
+        "metadata_batch_start filename=%s segments=%d pages=%s",
+        state["filename"], len(state["batch"]), pages[:2] + (["..."] if len(pages) > 2 else []),
+    )
     return {
         "mapped_evidence": _extract_scoped_metadata(state["filename"], state["batch"])
     }

@@ -89,6 +89,28 @@ def test_gate_accepts_cited_complete_answer(monkeypatch):
     assert result["citations"] == answer["citations"]
 
 
+def test_gate_normalizes_extracted_control_glyphs_and_passes_source_context(monkeypatch):
+    passage = "W500 master addition calibration: press and hold the [SET] and [\uf071] buttons."
+    answer, observations = _input("Press and hold the [SET] and [symbol] buttons.", passage)
+    observations[0]["result"]["evidence_results"][0].update({
+        "title": "LR-W500 instruction manual",
+        "metadata": {"source_filename": "LR-W500_manual.pdf", "product_model": "W500"},
+        "section_path": ["950"],
+        "pages": [2],
+    })
+    captured = {}
+    def verify(**kwargs):
+        captured["messages"] = kwargs["messages"]
+        return ({
+            "supported": True, "complete": True, "unsupported_claims": [], "missing_requirements": [],
+            "evidence_quotes": [{"chunk_id": "source-1", "quote": "press and hold the [SET] and [\ufffd] buttons"}],
+        }, "")
+    monkeypatch.setattr(evidence_gate, "chat_json", verify)
+    result = evidence_gate.gate_agent_answer("How do I perform master addition calibration on the W500 sensor?", answer, observations)
+    assert result["evidence_gate"]["status"] == "accepted"
+    assert "LR-W500_manual.pdf" in captured["messages"][1]["content"]
+
+
 def test_gate_never_accepts_a_pooled_citation_without_a_passage(monkeypatch):
     answer, observations = _input("Connect to terminal 1.", "Connect to terminal 1.")
     answer["citations"].append({"chunk_id": "unseen", "document_id": "manual-1"})

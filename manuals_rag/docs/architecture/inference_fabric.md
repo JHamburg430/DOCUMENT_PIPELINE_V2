@@ -239,6 +239,11 @@ evaluation question generator and operator model-prompt endpoint therefore
 participate in the same admission, VRAM, model-pull, and node-failover policy
 when the gateway is enabled. If the gateway URL is unset, the current direct-
 Ollama behavior remains unchanged.
+When `INFERENCE_GATEWAY_FALLBACK_ENABLED=true`, only transport failures and
+gateway 502/503/504 responses fall back to the configured local Ollama URL;
+401/403, catalog, validation, and model errors remain fail-closed. This keeps
+the gateway as the normal policy boundary without masking configuration or
+authorization defects.
 
 ## Model lifecycle
 

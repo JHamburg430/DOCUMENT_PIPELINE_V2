@@ -45,6 +45,7 @@ class NodeSnapshot:
     healthy: bool = True
     request_accounting_available: bool = False
     inference_enabled: bool = True
+    installed_models: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

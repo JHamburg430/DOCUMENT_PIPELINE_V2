@@ -1477,7 +1477,10 @@ def main() -> int:
                     )
             search_results = search_payload.get("top_results", [])
             eval_case = RetrievalEvalCase(**case)
-            evaluation = score_search_results(eval_case, search_results)
+            # Score the configured retrieval result set.  The prior default of
+            # five hid candidates that the production retriever returns in its
+            # ten-result budget.
+            evaluation = score_search_results(eval_case, search_results, top_k=10)
             evaluation["elapsed_seconds"] = round(time.time() - start_time, 3)
             if args.response_mode == "answer_with_citations":
                 answer = dict(search_payload.get("answer") or {})

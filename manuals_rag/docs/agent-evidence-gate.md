@@ -5,7 +5,7 @@ finalizer saw their answer prose and pooled citation IDs but not the source
 passages. This allowed a rephrased claim to inherit a citation without proving
 that the cited passage supported that claim.
 
-`AGENT_EVIDENCE_GATE_ENABLED` (default `false`) adds a fail-closed check to
+`AGENT_EVIDENCE_GATE_ENABLED` (default `true`) adds a fail-closed check to
 `/agent/stream` for both LangGraph and LlamaIndex. The API carries bounded
 retrieved passage text internally with each successful RAG tool answer. Before
 completion, the gate requires:

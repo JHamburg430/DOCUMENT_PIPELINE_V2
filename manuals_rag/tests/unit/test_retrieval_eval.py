@@ -21,12 +21,97 @@ from manuals_rag_evals.retrieval_eval import (
     _answer_scoring_terms,
     _configuration_location_answer_completeness,
     _question_generation_trace_fields,
+    _question_quality_static_check,
+    _post_ollama_generate_with_optional_trace,
+    _request_generated_queries,
     _safe_query_label,
     _short_answer_anchor,
     _structured_eval_input,
     _troubleshooting_query_qualifier,
     _troubleshooting_row_identifier,
 )
+
+
+def test_question_generation_uses_inference_gateway_when_enabled(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.inference_gateway.enabled",
+        lambda: True,
+    )
+
+    def fake_generate(**kwargs):
+        captured.update(kwargs)
+        return {"response": "NONE", "_inference_routing": {"node_id": "gpu-a"}}
+
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.inference_gateway.generate",
+        fake_generate,
+    )
+    result = _post_ollama_generate_with_optional_trace(
+        client=None,  # gateway path must not touch the direct client
+        request_payload={
+            "model": "qwen3.5:27b",
+            "prompt": "generate one question",
+            "stream": False,
+            "think": False,
+            "options": {"num_ctx": 32768, "num_predict": 700},
+        },
+        trace_event="question_generation_model_stream",
+        trace_fields={"chunk_id": "gateway-route-1"},
+        timeout_seconds=180,
+    )
+    assert result == "NONE"
+    assert captured["model"] == "qwen3.5:27b"
+    assert captured["purpose"] == "question_generation_model_stream"
+    assert captured["options"]["num_ctx"] == 32768
+
+
+def test_question_quality_static_check_rejects_concatenated_source_fragments():
+    result = _question_quality_static_check(
+        "When Mounting the Head Mounting the Head, what warning should be followed?",
+        "Mounting the Head. Read the installation cautions carefully.",
+    )
+    assert result is not None
+    assert result[0] == "mechanical_source_copy"
+
+
+def test_question_quality_static_check_accepts_novice_support_question():
+    assert _question_quality_static_check(
+        "What power voltage does the CV-X482 need?",
+        "Power supply voltage: 24 VDC.",
+    ) is None
+
+
+def test_question_generation_prompt_includes_dynamic_background_and_bias_rules(monkeypatch):
+    captured = {}
+
+    def fake_post(**kwargs):
+        captured.update(kwargs["request_payload"])
+        return "NONE"
+
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval._post_ollama_generate_with_optional_trace",
+        fake_post,
+    )
+    chunk = {
+        "id": "prompt-context-1",
+        "content": "Power supply voltage: 24 VDC.",
+        "source_filename": "device.pdf",
+        "document_title": "Device User Manual",
+        "section_path_text": "Power",
+        "product_model": "MODEL-A",
+        "metadata_json": {
+            "document_kind": "manual",
+            "parent_context": "This section covers powering MODEL-A during installation.",
+            "table_row_headers": ["Power supply voltage"],
+        },
+    }
+    _request_generated_queries(chunk, anchors=["power", "voltage"], previous_questions=[])
+    prompt = captured["prompt"]
+    assert "generation_context" in prompt
+    assert "Power supply voltage: 24 VDC." in prompt
+    assert "Use only user-known discriminators" in prompt
+    assert "not like a benchmark template" in prompt
 
 
 @pytest.mark.parametrize(

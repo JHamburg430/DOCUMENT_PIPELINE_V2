@@ -7,6 +7,7 @@ import json
 import re
 import signal
 import shutil
+import select
 import subprocess
 import sys
 import time
@@ -21,8 +22,8 @@ from threading import Lock
 from threading import Thread
 from urllib.error import HTTPError
 from urllib.error import URLError
-from urllib.request import Request, urlopen
-from urllib.parse import parse_qs, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
+from urllib.parse import parse_qs, quote, urlparse
 
 import psycopg
 from psycopg.rows import dict_row
@@ -61,6 +62,20 @@ TEST_REPORTS_DIR = MANUALS_ROOT / "test_reports"
 DEFAULT_CORPUS_ID = os.getenv("MANUALS_RAG_DEFAULT_CORPUS", "manuals_vendor_keyence")
 MATRIX_JOB_TIMEOUT_SECONDS = int(os.getenv("MATRIX_JOB_TIMEOUT_SECONDS", "7200"))
 DEFAULT_QUESTION_GENERATION_TIMEOUT_SECONDS = int(os.getenv("OLLAMA_EVAL_QUESTION_TIMEOUT_SECONDS", "180"))
+
+
+def _improvement_actions(summary: dict[str, Any]) -> list[dict[str, str]]:
+    """Build the next-turn choices from the observed failure clusters."""
+    clusters = summary.get("failure_classes") or {}
+    actions = [{"id": "review_traces", "label": "Review failure traces", "description": "Inspect representative failed runs before changing the harness."}]
+    if clusters.get("retrieval_recall"):
+        actions.append({"id": "target_retrieval", "label": "Test retrieval recall", "description": "Create focused recall regressions and run the UI-visible retrieval test."})
+    if clusters.get("grounded_answer"):
+        actions.append({"id": "target_grounding", "label": "Test grounded answers", "description": "Review citations and answer-support failures with the evaluator."})
+    if clusters.get("evidence_sufficiency"):
+        actions.append({"id": "target_evidence", "label": "Test evidence sufficiency", "description": "Check ledger completeness and multi-hop evidence retention."})
+    actions.append({"id": "generate_regressions", "label": "Generate regression cases", "description": "Turn approved failure patterns into durable tests."})
+    return actions
 
 MATRIX_JOBS: dict[str, dict] = {}
 MATRIX_PROCESSES: dict[str, subprocess.Popen] = {}
@@ -354,6 +369,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/local/agent-runs/current":
             self._local_current_agent_live_job()
             return
+        if parsed.path == "/local/ingestion-runs":
+            self._local_ingestion_runs()
+            return
         if parsed.path.startswith("/local/agent-matrix/jobs/"):
             self._local_agent_matrix_job(parsed.path.rsplit("/", 1)[-1])
             return
@@ -376,10 +394,46 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._local_ingestion_run_stream(parsed.path.split("/")[-2])
             return
         if parsed.path == "/local/question-matrix":
-            self._local_question_matrix()
+            if parse_qs(parsed.query).get("summary") == ["1"]:
+                self._local_question_matrix_summary()
+            else:
+                self._local_question_matrix()
             return
         if parsed.path.startswith("/local/run-events"):
             self._local_run_events()
+            return
+        if parsed.path == "/local/activity-log":
+            events = _ui_event_journal().recent(limit=200)
+            self._send_json_response(200, {"events": [event.to_dict() for event in events]})
+            return
+        if parsed.path == "/local/model-output":
+            path = TEST_REPORTS_DIR / "ollama_events.jsonl"
+            events = []
+            if path.exists():
+                for line in path.read_text(encoding="utf-8", errors="replace").splitlines()[-100:]:
+                    try: events.append(json.loads(line))
+                    except json.JSONDecodeError: continue
+            self._send_json_response(200, {"events": events})
+            return
+        if parsed.path == "/local/improvement-loop":
+            directory = TEST_REPORTS_DIR / "improvement_loop"
+            records = []
+            if directory.exists():
+                for path in sorted(directory.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)[:20]:
+                    if path.name.endswith(".review.json") or path.name.endswith(".codex-next.json"):
+                        continue
+                    try:
+                        payload = json.loads(path.read_text(encoding="utf-8"))
+                    except (OSError, json.JSONDecodeError):
+                        continue
+                    summary = payload.get("summary") or {}
+                    handoff = payload.get("handoff") or {}
+                    handoff.setdefault("available_actions", _improvement_actions(summary))
+                    records.append({"run_id": payload.get("run_id"), "dataset": payload.get("dataset"), "created_at": payload.get("created_at"), "summary": summary, "review": payload.get("review") or {}, "handoff": handoff, "path": path.name})
+            self._send_json_response(200, {"records": records, "updated_at": time.time()})
+            return
+        if parsed.path == "/local/source-page":
+            self._local_source_page(parsed)
             return
         if self.path.startswith("/api/"):
             self._proxy()
@@ -397,6 +451,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/local/agent-runs/repair-requests":
             self._create_agent_repair_request()
             return
+        if parsed.path == "/local/improvement-loop/review":
+            self._review_improvement_loop()
+            return
         if parsed.path == "/local/agent-chat/session":
             self._agent_chat_session_control()
             return
@@ -405,6 +462,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/local/agent-runs/run":
             self._start_local_agent_live_run()
+            return
+        if parsed.path == "/local/ingestion-runs/run":
+            self._start_local_ingestion_runs()
             return
         if parsed.path == "/local/agent-matrix/run":
             self._start_local_agent_matrix_run()
@@ -442,6 +502,29 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._proxy()
             return
         self.send_error(404, "Not found")
+
+    def _start_local_ingestion_runs(self) -> None:
+        """Queue selected documents through the UI-owned ingestion boundary."""
+        try:
+            length = int(self.headers.get("Content-Length") or "0")
+            body = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+            document_ids = [str(value) for value in body.get("document_ids") or [] if str(value).strip()]
+            if not document_ids or len(document_ids) > 50:
+                raise ValueError("document_ids must contain between 1 and 50 documents")
+            queued, failures = [], []
+            for document_id in document_ids:
+                try:
+                    request = Request(
+                        f"{API_BASE}/documents/{quote(document_id, safe='')}/ingest",
+                        data=b"{}", headers={"Content-Type": "application/json"}, method="POST"
+                    )
+                    with urlopen(request, timeout=30) as response:
+                        queued.append(json.loads(response.read().decode("utf-8")))
+                except Exception as error:
+                    failures.append({"document_id": document_id, "error": error.__class__.__name__})
+            self._send_json_response(202, {"queued": queued, "failures": failures})
+        except (ValueError, json.JSONDecodeError) as error:
+            self._send_json_error(400, str(error))
 
     def _proxy(self) -> None:
         upstream_path = self.path.removeprefix("/api")
@@ -563,6 +646,7 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self._write(payload)
+
         except Exception as error:
             payload = dumps({"detail": f"Local run event lookup failed: {error.__class__.__name__}: {error}"}).encode("utf-8")
             self.send_response(500)
@@ -570,6 +654,43 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self._write(payload)
+
+    def _local_source_page(self, parsed) -> None:
+        """Stream an authenticated PDF source page to browser navigation."""
+        params = parse_qs(parsed.query)
+        document_id = str((params.get("document_id") or [""])[0])
+        page = str((params.get("page") or [""])[0])
+        source_filename = str((params.get("source_filename") or [""])[0])
+        if not document_id or not page:
+            self.send_error(400, "document_id and page are required")
+            return
+        query = f"page={quote(page)}"
+        if source_filename:
+            query += f"&source_filename={quote(source_filename)}"
+        request = Request(
+            f"{API_BASE}/documents/{quote(document_id, safe='')}/source/page-image?{query}",
+            headers={"Authorization": f"Bearer {UI_AUTH_TOKEN}"},
+        )
+        try:
+            with urlopen(request, timeout=120) as response:
+                data = response.read()
+                content_type = response.headers.get("Content-Type", "image/png")
+        except HTTPError as error:
+            self.send_response(error.code)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self._write(error.read())
+            return
+        except (ConnectionError, SocketTimeout, URLError, TimeoutError, OSError) as error:
+            self.send_error(502, f"Source PDF proxy failed: {error}")
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition", "inline")
+        self.send_header("X-Page-Cache", "object-store")
+        self.end_headers()
+        self._write(data)
 
     def _query_run_events(self, run_id: str, *, after: int, limit: int) -> list[dict]:
         """Read the inspected application-owned event schema without mutating it."""
@@ -634,6 +755,36 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                 )
                 snapshot["steps"] = [dict(step) for step in cur.fetchall()]
                 return snapshot
+
+    def _local_ingestion_runs(self) -> None:
+        """Return recent ingestion runs for the unified activity overview."""
+        try:
+            with psycopg.connect(POSTGRES_DSN, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        select ir.id as run_id, ir.status, ir.failure_class,
+                               ir.failure_reason, ir.created_at, ir.updated_at,
+                               sd.id as document_id, sd.corpus_id,
+                               sd.source_filename, sd.ingest_status
+                        from ingestion_runs ir
+                        left join source_documents sd on sd.id = ir.source_document_id
+                        order by ir.updated_at desc nulls last, ir.created_at desc
+                        limit 25
+                        """
+                    )
+                    runs = [dict(row) for row in cur.fetchall()]
+            latest = runs[0] if runs else None
+            # An old queued row can remain after a worker or compose project
+            # was replaced.  It must not mask a newer terminal result.
+            active = (
+                latest
+                if latest and str(latest.get("status") or "").lower() in {"queued", "running"}
+                else None
+            )
+            self._send_json_response(200, {"active_run": active, "latest_run": latest, "runs": runs})
+        except Exception as error:
+            self._send_json_response(503, {"active_run": None, "latest_run": None, "runs": [], "detail": f"ingestion status unavailable: {error.__class__.__name__}"})
 
     def _local_ingestion_run_stream(self, run_id: str) -> None:
         try:
@@ -798,6 +949,20 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self._write(payload)
 
+    def _local_question_matrix_summary(self) -> None:
+        try:
+            active_job = None
+            job_id = _active_question_matrix_job_id()
+            if job_id:
+                active_job = _question_matrix_job_snapshot(job_id)
+            job = active_job or {}
+            self._send_json_response(200, {
+                "active_job": job,
+                "current_run": {"id": job.get("id"), "status": job.get("status"), "updated_at": job.get("updated_at")} if job else None,
+                "loaded_questions": job.get("total_questions") or job.get("total") or None,
+            })
+        except Exception as error:
+            self._send_json_error(500, f"Question matrix summary lookup failed: {error.__class__.__name__}")
     def _local_agent_matrix(self) -> None:
         try:
             payload = json.dumps(_build_agent_matrix(), default=str).encode("utf-8")
@@ -917,12 +1082,57 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._send_json_error(503, f"Repair database unavailable: {error.__class__.__name__}")
 
     def _send_json_response(self, status: int, data: dict) -> None:
-        payload = json.dumps(data).encode("utf-8")
+        # API/database responses may contain UUID and datetime values.  They
+        # are safe display values for the UI and must not make status polling
+        # fail with a serialization TypeError.
+        payload = json.dumps(data, default=str).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self._write(payload)
+
+    def _review_improvement_loop(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+            if content_length < 1 or content_length > 16384:
+                raise ValueError("A bounded review JSON body is required.")
+            body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            run_id = str(body.get("run_id") or "")
+            if not re.fullmatch(r"[A-Za-z0-9._:-]{1,160}", run_id):
+                raise ValueError("Invalid improvement run_id")
+            path = TEST_REPORTS_DIR / "improvement_loop" / f"{run_id}.json"
+            if not path.exists():
+                self._send_json_error(404, "Improvement record not found")
+                return
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            review = payload.setdefault("review", {})
+            review["status"] = str(body.get("status") or "pending")
+            review["approved_changes"] = [str(item)[:500] for item in (body.get("approved_changes") or [])][:20]
+            review["approved_regressions"] = [str(item)[:160] for item in (body.get("approved_regressions") or [])][:50]
+            review["reviewer_notes"] = [str(item)[:1000] for item in (body.get("reviewer_notes") or [])][:20]
+            available_actions = _improvement_actions(payload.get("summary") or {})
+            action_ids = {item["id"] for item in available_actions}
+            selected_action = str(body.get("selected_action") or "")
+            if selected_action and selected_action not in action_ids:
+                raise ValueError("selected_action is not available for this improvement record")
+            review["selected_action"] = selected_action or None
+            review["updated_at"] = time.time()
+            if review["status"] == "approved":
+                payload.setdefault("handoff", {})["status"] = "approved_for_next_pass"
+                payload["handoff"]["next_action"] = "Generate focused regressions from the approved failure clusters, then run the targeted UI-visible evaluation."
+                payload["handoff"]["available_actions"] = available_actions
+            elif review["status"] == "rejected":
+                payload.setdefault("handoff", {})["status"] = "rejected"
+                payload["handoff"]["next_action"] = "No automated action; revise the review decision or add reviewer notes."
+            temporary = path.with_suffix(".json.tmp")
+            temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+            temporary.replace(path)
+            handoff_path = path.with_name(f"{path.stem}.codex-next.json")
+            handoff_path.write_text(json.dumps({"schema": "rag-codex-next-action.v1", "run_id": run_id, "selected_action": selected_action or None, "review_status": review["status"], "available_actions": available_actions, "next_action": (payload.get("handoff") or {}).get("next_action") or (payload.get("handoff") or {}).get("recommended_next_step"), "source_record": path.name, "created_at": time.time()}, indent=2) + "\n", encoding="utf-8")
+            self._send_json_response(200, {"status": "saved", "run_id": run_id, "review": review, "codex_received": True, "codex_handoff": handoff_path.name})
+        except (ValueError, json.JSONDecodeError) as error:
+            self._send_json_error(400, str(error))
 
     def _send_json_error(self, status: int, detail: str) -> None:
         self._send_json_response(status, {"detail": detail})
@@ -1363,11 +1573,13 @@ def _agent_matrix_ui_result(item: dict | None) -> dict | None:
 
 def _build_agent_matrix() -> dict:
     external_snapshot = _external_agent_matrix_run()
-    report = (
-        _external_agent_matrix_report(external_snapshot)
-        if external_snapshot is not None
-        else (_read_json(AGENT_MATRIX_REPORT) if AGENT_MATRIX_REPORT.exists() else {})
-    )
+    if external_snapshot is not None:
+        report = _external_agent_matrix_report(external_snapshot)
+    else:
+        report_candidates = [AGENT_MATRIX_REPORT, *TEST_REPORTS_DIR.glob("agent_evaluation_matrix_agent-matrix-*.json")]
+        report_path, report = _latest_json(report_candidates)
+        if not report:
+            report = _read_json(AGENT_MATRIX_REPORT) if AGENT_MATRIX_REPORT.exists() else {}
     dataset_value = str(report.get("dataset") or "tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl")
     dataset_path = Path(dataset_value)
     if not dataset_path.is_absolute():
@@ -1824,6 +2036,10 @@ def _start_agent_live_job(payload: dict, *, surface: str = "lab") -> dict:
         corpus_ids = [DEFAULT_CORPUS_ID]
     max_hops = _as_positive_int(payload.get("max_retrieval_hops"), 6, maximum=8)
     max_tool_calls = _as_positive_int(payload.get("max_tool_calls"), 4, maximum=6)
+    max_retrieval_seconds = max(
+        5.0,
+        min(float(payload.get("max_retrieval_seconds") or 180.0), 300.0),
+    )
     memory_enabled = bool(payload.get("memory_enabled", True))
     session = _agent_chat_session(str(payload.get("session_id") or "")) if surface == "chat" else None
     with AGENT_LIVE_LOCK:
@@ -1842,6 +2058,7 @@ def _start_agent_live_job(payload: dict, *, surface: str = "lab") -> dict:
             "backends": backends,
             "max_retrieval_hops": max_hops,
             "max_tool_calls": max_tool_calls,
+            "max_retrieval_seconds": max_retrieval_seconds,
             "session_id": session["id"] if session else None,
             "memory_enabled": memory_enabled,
             "session_memory_count": len(session.get("memory") or []) if session else 0,
@@ -1985,6 +2202,7 @@ def _run_agent_live_job(job_id: str) -> None:
             "filters": {},
             "response_mode": "answer_with_citations",
             "max_retrieval_hops": job["max_retrieval_hops"],
+            "max_retrieval_seconds": job.get("max_retrieval_seconds", 180.0),
         }
         if job.get("surface") == "chat":
             session = _agent_chat_session(job.get("session_id"))
@@ -2071,6 +2289,7 @@ def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:
     except Exception as error:  # journal failure must not change benchmark behavior
         progress_bridge = None
         print(f"Agent matrix progress bridge unavailable: {error}", file=sys.stderr, flush=True)
+    run_report = TEST_REPORTS_DIR / f"agent_evaluation_matrix_{job_id}.json"
     cmd = [
         sys.executable,
         str(MANUALS_ROOT / "scripts" / "benchmark" / "compare_agentic_retrieval.py"),
@@ -2083,7 +2302,7 @@ def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:
         "--max-hops",
         str(snapshot["max_hops"]),
         "--output",
-        str(AGENT_MATRIX_REPORT),
+        str(run_report),
         "--progress-jsonl",
         "--quiet",
     ]
@@ -2100,7 +2319,20 @@ def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:
             bufsize=1,
         )
         assert process.stdout is not None
-        for line in process.stdout:
+        output_tail: list[str] = []
+        while True:
+            ready, _, _ = select.select([process.stdout], [], [], 1.0)
+            if not ready:
+                if process.poll() is not None:
+                    break
+                continue
+            line = process.stdout.readline()
+            if not line:
+                if process.poll() is not None:
+                    break
+                continue
+            output_tail.append(line.rstrip())
+            del output_tail[:-40]
             try:
                 event = json.loads(line)
             except json.JSONDecodeError:
@@ -2127,16 +2359,21 @@ def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:
                 job["live_results"] = {
                     **job.get("live_results", {}),
                     str(event.get("case_id") or ""): {
-                        "langgraph": event.get("langgraph"),
-                        "llamaindex": event.get("llamaindex"),
+                        "langgraph": {"agent_evaluation": event.get("langgraph") or {}},
+                        "llamaindex": {"agent_evaluation": event.get("llamaindex") or {}},
                     },
                 }
         returncode = process.wait(timeout=MATRIX_JOB_TIMEOUT_SECONDS)
         if returncode != 0:
-            raise RuntimeError(f"Agent evaluation exited with status {returncode}")
+            diagnostic = "\n".join(output_tail[-12:])
+            raise RuntimeError(
+                f"Agent evaluation exited with status {returncode}"
+                + (f"; child output:\n{diagnostic}" if diagnostic else "")
+            )
         with AGENT_MATRIX_LOCK:
             job = AGENT_MATRIX_JOBS[job_id]
             job["status"] = "completed"
+            job["results_path"] = str(run_report.relative_to(MANUALS_ROOT))
             job["current_case_id"] = None
             job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         _try_publish_component_event(

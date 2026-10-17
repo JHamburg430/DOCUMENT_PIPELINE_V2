@@ -217,10 +217,14 @@ def retrieve_documents(state: QueryState) -> QueryState:
     retrieval_trace = {}
     if results:
         retrieval_trace = dict(results[0].metadata.get("corrective_retrieval") or {})
+    routing_evidence = {}
+    if results:
+        routing_evidence = dict(results[0].metadata.get("routing_evidence_record") or {})
     return {
         **state,
         "retrieval_results": [result.model_dump() for result in results],
         "retrieval_trace": retrieval_trace,
+        "routing_evidence": routing_evidence,
     }
 
 

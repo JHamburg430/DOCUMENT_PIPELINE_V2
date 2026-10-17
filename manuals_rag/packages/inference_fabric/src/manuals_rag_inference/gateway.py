@@ -10,10 +10,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import math
 import os
 import threading
 import time
 import urllib.error
+from contextlib import contextmanager
 from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable
@@ -24,6 +26,7 @@ from .scheduler import InferenceScheduler, SchedulerPolicy
 from .control import sign_command
 from .enrollment import EnrollmentManager
 from .entra import EntraTokenValidator
+from .streaming import NDJSONResponse, relay_ndjson, watch_disconnect
 
 
 class AuthenticationError(PermissionError):
@@ -101,6 +104,7 @@ class InferenceGateway:
             endpoint=endpoint,
             agent_url=agent_url,
             tailnet_name=tailnet_name,
+            allowed_applications=self.node_default_applications,
         )
         self.node_secrets[node.node_id] = node.secret.encode()
         self.node_agent_urls[node.node_id] = node.agent_url
@@ -131,6 +135,7 @@ class InferenceGateway:
             enrollment_method="entra",
             identity_subject=identity["subject"],
             identity_tenant=identity["tenant_id"],
+            allowed_applications=self.node_default_applications,
         )
         self.node_secrets[node.node_id] = node.secret.encode()
         self.node_agent_urls[node.node_id] = node.agent_url
@@ -196,6 +201,63 @@ class InferenceGateway:
         """Backward-compatible name for inference authorization."""
         self.authorize_inference(token, application=application, application_token=application_token)
 
+    def authenticate_node_inference(self, raw: bytes, signature: str) -> dict[str, Any]:
+        """Authenticate the exact body using persistent enrollment, never app tokens."""
+        try:
+            body = json.loads(raw)
+            if not isinstance(body, dict):
+                raise ValueError("invalid node inference payload")
+            node_id = body.get("node_id")
+            if not isinstance(node_id, str):
+                raise ValueError("node_id is required")
+        except (TypeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid node inference payload") from error
+        record = next((node for node in self.enrollment.nodes() if node.node_id == node_id), None) if self.enrollment else None
+        if record is None or not hmac.compare_digest(heartbeat_signature(raw, record.secret.encode()), signature):
+            raise AuthenticationError("invalid node authentication")
+        issued_at = body.get("issued_at")
+        if isinstance(issued_at, bool) or not isinstance(issued_at, (int, float)) or not math.isfinite(issued_at) or abs(time.time() - issued_at) > 60:
+            raise AuthenticationError("stale or invalid node inference timestamp")
+        request = body.get("request")
+        if not isinstance(request, dict):
+            raise ValueError("request must be an object")
+        request_id = request.get("request_id")
+        if not isinstance(request_id, str) or not request_id.strip() or len(request_id) > 200:
+            raise ValueError("invalid request_id")
+        snapshot = next((node for node in self.scheduler.snapshots() if node.node_id == node_id), None)
+        now = time.time()
+        if snapshot is None or not snapshot.healthy or not snapshot.inference_enabled or not 0 <= now - snapshot.observed_at_epoch <= self.scheduler.policy.heartbeat_ttl_seconds:
+            raise AuthorizationError("ingress node is not eligible")
+        approved = record.allowed_applications or self.node_default_applications
+        application = request.get("application")
+        if not isinstance(application, str) or application not in approved or application not in snapshot.allowed_applications:
+            raise AuthorizationError("application is not approved for ingress node")
+        model = request.get("model")
+        if not isinstance(model, str) or model not in self.model_catalog:
+            raise ValueError("model is required and must be in the gateway catalog")
+        try:
+            self.enrollment.claim_inference_request(node_id, request_id, issued_at)
+        except PermissionError as error:
+            raise AuthenticationError("replayed or unavailable node inference nonce") from error
+        return body
+
+    def authorize_node_inference(self, node_id: str, raw_body: bytes, signature: str, *, application: str) -> None:
+        """Compatibility check for callers that validate a node before dispatch.
+
+        The HTTP broker route uses ``authenticate_node_inference`` so replay
+        protection and catalog validation cannot be bypassed. This method is
+        retained for existing internal callers and tests; it performs only
+        the legacy signature, health, and allowlist checks.
+        """
+        secret = self.node_secrets.get(node_id)
+        if secret is None or not hmac.compare_digest(heartbeat_signature(raw_body, secret), signature):
+            raise AuthenticationError("valid enrolled node authentication required")
+        snapshot = next((item for item in self.scheduler.snapshots() if item.node_id == node_id), None)
+        if snapshot is None or not snapshot.healthy or not snapshot.inference_enabled:
+            raise AuthorizationError("node is not currently eligible for inference")
+        if application not in snapshot.allowed_applications:
+            raise AuthorizationError("application is not allowed on this node")
+
     def register_heartbeat(self, snapshot: NodeSnapshot, raw_body: bytes, signature: str) -> None:
         secret = self.node_secrets.get(snapshot.node_id)
         if secret is None or not hmac.compare_digest(heartbeat_signature(raw_body, secret), signature):
@@ -255,6 +317,37 @@ class InferenceGateway:
             return {"routing": decision.to_dict(), "response": response}
         finally:
             self.scheduler.release(decision.node_id, request.request_id)
+
+    @contextmanager
+    def stream_infer(self, request: InferenceRequest, *, operation: str, payload: dict[str, Any]):
+        if operation not in {"chat", "generate"}:
+            raise ValueError("streaming is only supported for chat and generate")
+        request = self._authoritative_request(request)
+        if payload.get("model", request.model) != request.model:
+            raise ValueError("payload model does not match request")
+        decision = self.scheduler.choose_and_reserve(request)
+        if not decision.admitted or not decision.endpoint:
+            raise RuntimeError("scheduler admission rejected")
+        stream = None
+        deadline = time.monotonic() + max(0.001, min(900, (request.max_latency_ms or 180000) / 1000))
+        try:
+            self._prepare_node(request, decision)
+            url = self.node_agent_urls.get(decision.node_id or "")
+            secret = self.node_secrets.get(decision.node_id or "")
+            if not url or secret is None:
+                raise RuntimeError("signed node streaming is required")
+            envelope = {"operation": operation, "payload": {**payload, "model": request.model, "stream": True}, "request_id": request.request_id, "issued_at": time.time()}
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("inference preparation timed out")
+            stream = NDJSONResponse(f"{url.rstrip('/')}/v1/node/inference", {**envelope, "signature": node_request_signature(envelope, secret)}, timeout=remaining)
+            yield decision.to_dict(), stream
+        finally:
+            try:
+                if stream is not None:
+                    stream.close()
+            finally:
+                self.scheduler.release(decision.node_id, request.request_id)
 
     def _authoritative_request(self, request: InferenceRequest) -> InferenceRequest:
         """Use central catalog truth instead of caller-supplied model resources."""
@@ -364,6 +457,7 @@ def _snapshot_from_payload(payload: dict[str, Any]) -> NodeSnapshot:
         healthy=bool(payload.get("healthy", True)),
         request_accounting_available=bool(payload.get("request_accounting_available", False)),
         inference_enabled=bool(payload.get("inference_enabled", True)),
+        installed_models=tuple(str(item) for item in payload.get("installed_models") or []),
     )
 
 
@@ -371,6 +465,26 @@ def _request_from_payload(payload: dict[str, Any]) -> InferenceRequest:
     fields = {key: payload[key] for key in ("request_id", "application", "workload", "model", "model_size_bytes", "min_vram_mb")}
     fields.update({key: payload[key] for key in ("context_tokens", "context_vram_mb_per_1k", "priority", "max_latency_ms", "allow_model_pull", "allow_eviction") if key in payload})
     fields["required_capabilities"] = tuple(payload.get("required_capabilities") or ["chat"])
+    return InferenceRequest(**fields)
+
+
+def _broker_request_from_payload(metadata: dict[str, Any], operation: str) -> InferenceRequest:
+    fields = {key: metadata[key] for key in ("request_id", "application", "model")}
+    fields.update(workload=f"node_{operation}", model_size_bytes=0, min_vram_mb=0)
+    for key, default, lower, upper in (("context_tokens", 0, 0, 1_000_000), ("priority", 50, 0, 100), ("max_latency_ms", 180000, 1, 900000)):
+        value = metadata.get(key, default)
+        if type(value) is not int or not lower <= value <= upper:
+            raise ValueError("invalid inference limits")
+        fields[key] = value
+    for key in ("allow_model_pull", "allow_eviction"):
+        value = metadata.get(key, False)
+        if not isinstance(value, bool):
+            raise ValueError("invalid model preparation option")
+        fields[key] = value
+    capabilities = metadata.get("required_capabilities", [])
+    if not isinstance(capabilities, list) or len(capabilities) > 32 or any(not isinstance(item, str) for item in capabilities):
+        raise ValueError("invalid required capabilities")
+    fields["required_capabilities"] = tuple(sorted(set(capabilities) | {"embeddings" if operation == "embeddings" else "chat"}))
     return InferenceRequest(**fields)
 
 
@@ -399,7 +513,7 @@ def create_gateway_handler(gateway: InferenceGateway):
 
         def _body(self) -> bytes:
             length = int(self.headers.get("Content-Length") or "0")
-            if length > 2_000_000:
+            if length <= 0 or length > 2_000_000:
                 raise ValueError("request body too large")
             return self.rfile.read(length)
 
@@ -421,6 +535,25 @@ def create_gateway_handler(gateway: InferenceGateway):
             try:
                 raw = self._body()
                 payload = json.loads(raw.decode())
+                if self.path == "/v1/nodes/inference":
+                    payload = gateway.authenticate_node_inference(raw, self.headers.get("X-Node-Signature") or "")
+                    metadata = payload["request"]
+                    operation = payload.get("operation")
+                    model_payload = payload.get("payload")
+                    if operation not in {"chat", "generate", "embeddings"} or not isinstance(model_payload, dict):
+                        raise ValueError("invalid inference operation or payload")
+                    if "stream" in model_payload and not isinstance(model_payload["stream"], bool):
+                        raise ValueError("stream must be a boolean")
+                    if model_payload.get("model", metadata["model"]) != metadata["model"]:
+                        raise ValueError("payload model does not match request")
+                    request = _broker_request_from_payload(metadata, operation)
+                    if model_payload.get("stream") is True:
+                        with gateway.stream_infer(request, operation=operation, payload=model_payload) as (routing, stream):
+                            with watch_disconnect(self.connection, stream.cancel):
+                                relay_ndjson(self, stream, wrap=lambda event: {"routing": routing, "response": event})
+                    else:
+                        self._send(200, gateway.infer(request, operation=operation, payload=model_payload))
+                    return
                 if self.path == "/v1/nodes/heartbeat":
                     snapshot = _snapshot_from_payload(payload)
                     gateway.register_heartbeat(snapshot, raw, self.headers.get("X-Node-Signature") or "")
@@ -499,9 +632,11 @@ def create_gateway_handler(gateway: InferenceGateway):
             except PermissionError as error:
                 self._send(403, {"detail": str(error)})
             except (KeyError, ValueError, json.JSONDecodeError) as error:
-                self._send(400, {"detail": str(error)})
+                self._send(400, {"detail": "invalid node inference request" if self.path == "/v1/nodes/inference" else str(error)})
             except (RuntimeError, urllib.error.URLError) as error:
-                self._send(503, {"detail": str(error)})
+                self._send(503, {"detail": "node inference unavailable" if self.path == "/v1/nodes/inference" else str(error)})
+            except (OSError, TypeError) as error:
+                self._send((400 if isinstance(error, TypeError) else 503), {"detail": "invalid request or upstream unavailable"})
             except Exception as error:
                 self._send(500, {"detail": f"gateway failure: {error.__class__.__name__}"})
 

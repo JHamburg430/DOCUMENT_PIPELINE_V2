@@ -15,6 +15,8 @@ from run_onsite_agent_eval import (  # noqa: E402
     _select_rows,
     grade,
     load_bank,
+    validate_runtime_provenance,
+    wait_for_health,
 )
 
 
@@ -108,6 +110,45 @@ def test_loopback_requests_bypass_inherited_proxy(monkeypatch) -> None:
     request = onsite_eval.Request("http://127.0.0.1:18600/agent/stream")
     assert onsite_eval._open_request(request, timeout=12) is sentinel
     assert opened == [("http://127.0.0.1:18600/agent/stream", 12)]
+
+
+def test_wait_for_health_accepts_healthy_loopback(monkeypatch) -> None:
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(onsite_eval, "_open_request", lambda *_args, **_kwargs: Response())
+    wait_for_health(timeout=1)
+
+
+def test_fetch_runtime_version_requires_revision(monkeypatch) -> None:
+    class Response:
+        status = 200
+
+        def read(self):
+            return b'{"service":"manuals-rag-api","revision":"abc123"}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(onsite_eval, "_open_request", lambda _request, timeout: Response())
+    assert onsite_eval.fetch_runtime_version(timeout=1)["revision"] == "abc123"
+
+
+def test_runtime_provenance_rejects_wrong_checkout() -> None:
+    with pytest.raises(RuntimeError, match="revision mismatch"):
+        validate_runtime_provenance(
+            {"revision": "source-revision"},
+            {"revision": "runtime-revision"},
+        )
 
 
 def test_mutated_bank_cannot_reuse_frozen_manifest(tmp_path: Path) -> None:

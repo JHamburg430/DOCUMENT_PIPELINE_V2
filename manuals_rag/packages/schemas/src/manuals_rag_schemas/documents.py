@@ -76,8 +76,8 @@ class ParseResult(BaseModel):
 
 
 class QueryRequest(BaseModel):
-    query: str
-    corpus_ids: list[str]
+    query: str = Field(min_length=1, max_length=12000)
+    corpus_ids: list[str] = Field(min_length=1, max_length=16)
     filters: dict[str, list[str] | bool | str | int] = Field(default_factory=dict)
     response_mode: str = "answer_with_citations"
     retrieval_orchestrator: Literal["baseline", "langgraph_agent", "llamaindex_agent"] = "baseline"
@@ -95,7 +95,7 @@ class ConversationMessage(BaseModel):
 
 class ReactAgentRequest(BaseModel):
     query: str = Field(min_length=1, max_length=12000)
-    corpus_ids: list[str]
+    corpus_ids: list[str] = Field(min_length=1, max_length=16)
     filters: dict[str, list[str] | bool | str | int] = Field(default_factory=dict)
     retrieval_orchestrator: Literal["langgraph_agent", "llamaindex_agent"] = "langgraph_agent"
     max_retrieval_hops: int = Field(default=6, ge=1, le=8)

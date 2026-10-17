@@ -28,6 +28,48 @@ def _open_request(request: Request, timeout: float):
     return urlopen(request, timeout=timeout)
 
 
+def wait_for_health(timeout: float = 30.0) -> None:
+    """Do not start a benchmark until the target API accepts health probes."""
+    base = os.getenv("MANUALS_RAG_API_BASE", "http://127.0.0.1:8600").rstrip("/")
+    deadline = time.monotonic() + max(1.0, timeout)
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        request = Request(f"{base}/health", method="GET")
+        try:
+            with _open_request(request, timeout=min(2.0, max(1.0, deadline - time.monotonic()))) as response:
+                if getattr(response, "status", 200) == 200:
+                    return
+                last_error = RuntimeError(f"health status {response.status}")
+        except (OSError, RuntimeError, TimeoutError) as error:
+            last_error = error
+        time.sleep(0.5)
+    raise RuntimeError(f"API did not become healthy within {timeout:g}s: {last_error}")
+
+
+def fetch_runtime_version(timeout: float = 5.0) -> dict:
+    """Fetch non-secret API provenance after liveness succeeds."""
+    base = os.getenv("MANUALS_RAG_API_BASE", "http://127.0.0.1:8600").rstrip("/")
+    request = Request(f"{base}/version", method="GET")
+    with _open_request(request, timeout=timeout) as response:
+        if getattr(response, "status", 200) != 200:
+            raise RuntimeError(f"version status {response.status}")
+        payload = json.loads(response.read().decode("utf-8"))
+    if not isinstance(payload, dict) or not payload.get("revision"):
+        raise RuntimeError("runtime version response lacks revision")
+    return payload
+
+
+def validate_runtime_provenance(source: dict, runtime: dict) -> None:
+    """Prevent a benchmark from silently exercising a different checkout."""
+    source_revision = str(source.get("revision") or "")
+    runtime_revision = str(runtime.get("revision") or "")
+    if not source_revision or not runtime_revision or source_revision != runtime_revision:
+        raise RuntimeError(
+            "runtime/source revision mismatch: "
+            f"source={source_revision or '<missing>'} runtime={runtime_revision or '<missing>'}"
+        )
+
+
 def _atomic_write_json(path: Path, payload: dict) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(payload, indent=2) + "\n")
@@ -214,6 +256,10 @@ def run(
     def persist_partial() -> None:
         _atomic_write_json(partial, report)
 
+    persist_partial()
+    wait_for_health()
+    report["provenance"]["runtime"] = fetch_runtime_version()
+    validate_runtime_provenance(report["provenance"]["source"], report["provenance"]["runtime"])
     persist_partial()
     for case in selected:
         record = {"case_id": case["case_id"], "question": case["question"], "backends": {}}

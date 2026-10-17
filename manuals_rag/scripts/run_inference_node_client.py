@@ -116,7 +116,9 @@ class InferenceNodeClient(tk.Tk):
             )
         }
         self.status_var = tk.StringVar(value="Not connected")
+        self.signin_code = ""
         self.inference_var = tk.StringVar(value="Inference disabled")
+        self.local_endpoint_var = tk.StringVar(value="OpenAI-compatible local endpoint: http://127.0.0.1:8767/v1")
         self._build_ui()
         self._load_saved_values()
         self.after(250, self._drain_worker_queue)
@@ -133,7 +135,10 @@ class InferenceNodeClient(tk.Tk):
         ttk.Label(connection, text="This device is preconfigured by PROVIS. Sign in with Microsoft 365 to enroll it; node settings are discovered automatically.").grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))
         self.entra_button = ttk.Button(connection, text="Sign in with Microsoft 365", command=self._entra_connect)
         self.entra_button.grid(row=1, column=0, sticky="w", pady=(4, 0))
-        ttk.Label(connection, textvariable=self.status_var).grid(row=1, column=1, columnspan=3, sticky="w", pady=(4, 0))
+        ttk.Label(connection, textvariable=self.status_var).grid(row=1, column=1, sticky="w", padx=(12, 8), pady=(4, 0))
+        self.copy_code_button = ttk.Button(connection, text="Copy", command=self._copy_signin_code)
+        self.copy_code_button.grid(row=1, column=2, sticky="w", pady=(4, 0))
+        self.copy_code_button.grid_remove()
 
         controls = ttk.LabelFrame(root, text="Node controls", padding=10)
         controls.pack(fill="x", pady=(12, 0))
@@ -144,6 +149,8 @@ class InferenceNodeClient(tk.Tk):
         self.disconnect_button = ttk.Button(controls, text="Disconnect safely", command=self._disconnect, state="disabled")
         self.disconnect_button.pack(side="left")
         ttk.Label(controls, textvariable=self.inference_var).pack(side="left", padx=16)
+        ttk.Label(root, textvariable=self.local_endpoint_var, foreground="#165d69").pack(anchor="w", pady=(8, 0))
+        ttk.Label(root, text="Use X-ProVIS-Application to select an allowed application; gateway credentials stay inside the node.", foreground="#5c6770").pack(anchor="w")
 
         monitor = ttk.LabelFrame(root, text="PROVIS node activity (prompts and credentials are never displayed)", padding=8)
         monitor.pack(fill="both", expand=True, pady=(12, 0))
@@ -163,6 +170,8 @@ class InferenceNodeClient(tk.Tk):
         config = _load_node_config(self.config_path)
         tailscale_ipv4 = _detect_tailscale_ipv4()
         port = str(config.get("port") or os.getenv("INFERENCE_NODE_PORT", "8765"))
+        broker_port = str(config.get("local_broker_port") or os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", "8767"))
+        self.local_endpoint_var.set(f"OpenAI-compatible local endpoint: http://127.0.0.1:{broker_port}/v1 (containers: http://host.docker.internal:{broker_port}/v1)")
         values = {
             "gateway_url": _load_managed_gateway_url() or str(config.get("gateway_url") or ""),
             "entra_tenant_id": config.get("entra_tenant_id") or os.getenv("INFERENCE_ENTRA_TENANT_ID", ""),
@@ -191,9 +200,30 @@ class InferenceNodeClient(tk.Tk):
             threading.Thread(target=self._connect_worker, args=(self._values(),), daemon=True).start()
 
     def _entra_connect(self) -> None:
+        self._clear_signin_code()
         self.entra_button.configure(state="disabled")
         self.status_var.set("Starting Microsoft 365 device sign-in...")
         threading.Thread(target=self._entra_connect_worker, args=(self._values(),), daemon=True).start()
+
+    def _show_signin_code(self, code: str) -> None:
+        self.signin_code = code
+        self.status_var.set(code)
+        self.copy_code_button.configure(text="Copy", state="normal")
+        self.copy_code_button.grid()
+
+    def _clear_signin_code(self) -> None:
+        self.signin_code = ""
+        self.copy_code_button.configure(text="Copy", state="disabled")
+        self.copy_code_button.grid_remove()
+
+    def _copy_signin_code(self) -> None:
+        code = self.signin_code
+        if not code:
+            return
+        self.clipboard_clear()
+        self.clipboard_append(code)
+        self.copy_code_button.configure(text="Copied")
+        self.after(1500, lambda: self.copy_code_button.configure(text="Copy") if self.signin_code == code else None)
 
     def _resolve_values(self, values: dict[str, str]) -> dict[str, str]:
         config = _load_node_config(self.config_path)
@@ -237,6 +267,9 @@ class InferenceNodeClient(tk.Tk):
         server, agent, gateway_url = create_node_server(self.config_path)
         thread = threading.Thread(target=server.serve_forever, daemon=True, name="provis-inference-node-server")
         thread.start()
+        local_broker_server = getattr(server, "local_broker_server", None)
+        if local_broker_server is not None:
+            threading.Thread(target=local_broker_server.serve_forever, daemon=True, name="provis-inference-local-broker").start()
         return server, agent, gateway_url
 
     def _connect_worker(self, values: dict[str, str]) -> None:
@@ -266,8 +299,10 @@ class InferenceNodeClient(tk.Tk):
                 client_id=values["entra_client_id"],
                 scope=values["entra_scope"],
             )
-            message = str(device.get("message") or "Open the Microsoft sign-in URL and enter the displayed code.")
-            self.worker_queue.put(("entra_prompt", message))
+            user_code = str(device.get("user_code") or "").strip()
+            if not user_code:
+                raise RuntimeError("Microsoft sign-in did not return a user code")
+            self.worker_queue.put(("entra_prompt", user_code))
             verification_url = str(device.get("verification_uri_complete") or device.get("verification_uri") or "")
             if verification_url:
                 webbrowser.open(verification_url)
@@ -322,10 +357,12 @@ class InferenceNodeClient(tk.Tk):
             while True:
                 event, value = self.worker_queue.get_nowait()
                 if event == "connected":
+                    self._clear_signin_code()
                     self.server, self.agent, self.gateway_url = value
                     self.status_var.set(f"Connected: {self.agent.node_id}")
                     self._update_controls()
                 elif event == "disconnected":
+                    self._clear_signin_code()
                     self._stop_server()
                     self.status_var.set("Disconnected safely from gateway")
                     self._update_controls()
@@ -334,10 +371,11 @@ class InferenceNodeClient(tk.Tk):
                     if self.agent:
                         self._update_controls()
                 elif event == "error":
+                    self._clear_signin_code()
                     self.status_var.set(f"Connection failed: {value}")
                     self.entra_button.configure(state="normal")
                 elif event == "entra_prompt":
-                    self.status_var.set(f"Microsoft sign-in: {value}")
+                    self._show_signin_code(value)
         except queue.Empty:
             pass
         self.after(250, self._drain_worker_queue)
@@ -357,6 +395,11 @@ class InferenceNodeClient(tk.Tk):
     def _refresh_activity(self) -> None:
         if self.agent is not None:
             events = self.agent.activity()
+            heartbeat = next((event for event in reversed(events) if event.get("operation") == "heartbeat"), None)
+            if heartbeat and heartbeat.get("status") == "failed":
+                self.status_var.set(f"Gateway heartbeat failed: {heartbeat.get('error', 'unknown')}; retrying automatically")
+            elif heartbeat and str(self.status_var.get()).startswith(("Gateway heartbeat failed:", "Connected:")):
+                self.status_var.set(f"Connected: {self.agent.node_id}")
             for item in self.activity_view.get_children():
                 self.activity_view.delete(item)
             for event in events[-200:]:
@@ -382,6 +425,10 @@ class InferenceNodeClient(tk.Tk):
         self.gateway_url = ""
         if server is not None:
             server.inference_stop_event.set()
+            local_broker_server = getattr(server, "local_broker_server", None)
+            if local_broker_server is not None:
+                local_broker_server.shutdown()
+                local_broker_server.server_close()
             server.shutdown()
             server.server_close()
 

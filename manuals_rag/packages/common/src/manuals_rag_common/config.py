@@ -22,6 +22,12 @@ class Settings:
     )
     redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
     qdrant_url: str = os.getenv("QDRANT_URL", "http://qdrant:6333")
+    qdrant_payload_refresh_retries: int = max(
+        0, int(os.getenv("QDRANT_PAYLOAD_REFRESH_RETRIES", "3"))
+    )
+    qdrant_payload_refresh_backoff_seconds: float = max(
+        0.0, float(os.getenv("QDRANT_PAYLOAD_REFRESH_BACKOFF_SECONDS", "2"))
+    )
     indexed_bm25_enabled: bool = _as_bool(os.getenv("INDEXED_BM25_ENABLED"), False)
     retrieval_branch_max_workers: int = max(
         1,
@@ -55,10 +61,15 @@ class Settings:
         os.getenv("OLLAMA_METADATA_TIMEOUT_SECONDS", "300")
     )
     ollama_metadata_num_batch: int = int(os.getenv("OLLAMA_METADATA_NUM_BATCH", "64"))
+    metadata_map_max_concurrency: int = max(
+        1, min(int(os.getenv("METADATA_MAP_MAX_CONCURRENCY", "1")), 2)
+    )
     metadata_segment_chars: int = max(
         500,
         int(os.getenv("METADATA_SEGMENT_CHARS", "12000")),
     )
+    metadata_graph_enrichment_enabled: bool = _as_bool(os.getenv("METADATA_GRAPH_ENRICHMENT_ENABLED"), True)
+    metadata_graph_enrichment_timeout_seconds: float = float(os.getenv("METADATA_GRAPH_ENRICHMENT_TIMEOUT_SECONDS", "180"))
     ollama_fast_model: str = os.getenv("OLLAMA_FAST_MODEL", "qwen3.5:4b")
     ollama_retrieval_verifier_model: str = os.getenv(
         "OLLAMA_RETRIEVAL_VERIFIER_MODEL",
@@ -70,7 +81,9 @@ class Settings:
     ollama_answer_model: str = os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b")
     ollama_answer_num_predict: int = int(os.getenv("OLLAMA_ANSWER_NUM_PREDICT", "1024"))
     agentic_retrieval_enabled: bool = _as_bool(os.getenv("AGENTIC_RETRIEVAL_ENABLED"), False)
-    agent_evidence_gate_enabled: bool = _as_bool(os.getenv("AGENT_EVIDENCE_GATE_ENABLED"), False)
+    # Evidence enforcement is fail-closed by default; deployments may only
+    # disable it explicitly for local diagnostics.
+    agent_evidence_gate_enabled: bool = _as_bool(os.getenv("AGENT_EVIDENCE_GATE_ENABLED"), True)
     agentic_hop_max_concurrency: int = max(
         1,
         int(os.getenv("AGENTIC_HOP_MAX_CONCURRENCY", "2")),
@@ -89,9 +102,29 @@ class Settings:
     agentic_retrieval_result_limit: int = int(os.getenv("AGENTIC_RETRIEVAL_RESULT_LIMIT", "10"))
     ollama_eval_model: str = os.getenv("OLLAMA_EVAL_MODEL", os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b"))
     ollama_eval_question_model: str = os.getenv("OLLAMA_EVAL_QUESTION_MODEL", "qwen3.5:27b")
+    ollama_eval_question_reviewer_model: str = os.getenv(
+        "OLLAMA_EVAL_QUESTION_REVIEWER_MODEL",
+        "qwen3.5:9b",
+    )
+    ollama_eval_question_review_attempts: int = max(
+        1,
+        int(os.getenv("OLLAMA_EVAL_QUESTION_REVIEW_ATTEMPTS", "3")),
+    )
     ollama_eval_question_num_ctx: int = int(os.getenv("OLLAMA_EVAL_QUESTION_NUM_CTX", "32768"))
     ollama_eval_question_timeout_seconds: float = float(os.getenv("OLLAMA_EVAL_QUESTION_TIMEOUT_SECONDS", "180"))
     auth_mode: str = os.getenv("AUTH_MODE", "local")
+    auth_jwt_secret: str = os.getenv("AUTH_JWT_SECRET", "")
+    auth_jwt_issuer: str = os.getenv("AUTH_JWT_ISSUER", "")
+    auth_jwt_audience: str = os.getenv("AUTH_JWT_AUDIENCE", "")
+    auth_jwt_clock_skew_seconds: int = max(0, int(os.getenv("AUTH_JWT_CLOCK_SKEW_SECONDS", "30")))
+    cors_allowed_origins: tuple[str, ...] = tuple(
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOWED_ORIGINS", "*").split(",")
+        if origin.strip()
+    )
+    rate_limit_enabled: bool = _as_bool(os.getenv("RATE_LIMIT_ENABLED"), True)
+    rate_limit_requests: int = max(1, int(os.getenv("RATE_LIMIT_REQUESTS", "120")))
+    rate_limit_window_seconds: int = max(1, int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")))
     local_admin_token: str = os.getenv("LOCAL_ADMIN_TOKEN", "admin-token")
     local_operator_token: str = os.getenv("LOCAL_OPERATOR_TOKEN", "operator-token")
     local_end_user_token: str = os.getenv("LOCAL_END_USER_TOKEN", "user-token")

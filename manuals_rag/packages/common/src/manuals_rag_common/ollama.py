@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from collections import deque
 from contextlib import contextmanager
@@ -33,6 +34,13 @@ def _record_call(event: dict[str, Any]) -> None:
     }
     with _recent_ollama_calls_lock:
         _recent_ollama_calls.append(payload)
+    event_file = os.getenv("OLLAMA_EVENT_FILE")
+    if event_file:
+        try:
+            with open(event_file, "a", encoding="utf-8") as stream:
+                stream.write(json.dumps(payload, default=str) + "\n")
+        except OSError:
+            logger.debug("Unable to persist Ollama event", exc_info=True)
     capture = _active_usage_capture.get()
     if capture is not None:
         capture.append(payload)
@@ -342,6 +350,7 @@ def _post_chat(
             "prompt_eval_duration": body.get("prompt_eval_duration"),
             "eval_duration": body.get("eval_duration"),
             "loaded_models_after": sorted(_loaded_models(client)),
+            "output_preview": str((body.get("message") or {}).get("content") or "")[:4000],
         }
     )
     return body
@@ -442,12 +451,17 @@ def chat_json(
     num_batch: int | None = None,
 ) -> tuple[dict[str, Any] | list[Any], str]:
     if inference_gateway.enabled():
-        body = inference_gateway.chat(model=model, messages=messages, purpose=purpose, json_schema=json_schema, think=think, timeout=timeout, keep_alive=keep_alive, temperature=temperature, seed=seed, num_predict=num_predict, num_ctx=num_ctx, num_batch=num_batch)
-        _record_call({"kind": "chat_response", "model": model, "purpose": purpose, "status": "ok", "routing": body.get("_inference_routing"), "via": "inference_gateway"})
-        content = extract_chat_content(body)
-        if not content.strip():
-            raise ValueError("inference gateway returned empty structured output")
-        return parse_json_content(content), content
+        try:
+            body = inference_gateway.chat(model=model, messages=messages, purpose=purpose, json_schema=json_schema, think=think, timeout=timeout, keep_alive=keep_alive, temperature=temperature, seed=seed, num_predict=num_predict, num_ctx=num_ctx, num_batch=num_batch)
+            _record_call({"kind": "chat_response", "model": model, "purpose": purpose, "status": "ok", "routing": body.get("_inference_routing"), "via": "inference_gateway"})
+            content = extract_chat_content(body)
+            if not content.strip():
+                raise ValueError("inference gateway returned empty structured output")
+            return parse_json_content(content), content
+        except Exception as error:
+            if not inference_gateway.should_fallback(error):
+                raise
+            _record_call({"kind": "gateway_fallback", "model": model, "purpose": purpose, "status": "local_fallback", "error": error.__class__.__name__})
     with httpx.Client(base_url=settings.ollama_url, timeout=load_timeout) as client:
         ensure_model_loaded(
             client=client,
@@ -529,13 +543,18 @@ def chat_json_stream(
     num_ctx: int | None = None,
 ) -> tuple[dict[str, Any] | list[Any], str]:
     if inference_gateway.enabled():
-        body = inference_gateway.chat(model=model, messages=messages, purpose=purpose, json_schema=json_schema, think=think, timeout=timeout, keep_alive=keep_alive, num_predict=num_predict, num_ctx=num_ctx)
-        content = extract_chat_content(body)
-        if on_token is not None and content:
-            on_token(content)
-        if not content.strip():
-            raise ValueError("inference gateway returned empty structured output")
-        return parse_json_content(content), content
+        try:
+            body = inference_gateway.chat(model=model, messages=messages, purpose=purpose, json_schema=json_schema, think=think, timeout=timeout, keep_alive=keep_alive, num_predict=num_predict, num_ctx=num_ctx)
+            content = extract_chat_content(body)
+            if on_token is not None and content:
+                on_token(content)
+            if not content.strip():
+                raise ValueError("inference gateway returned empty structured output")
+            return parse_json_content(content), content
+        except Exception as error:
+            if not inference_gateway.should_fallback(error):
+                raise
+            _record_call({"kind": "gateway_fallback", "model": model, "purpose": purpose, "status": "local_fallback", "error": error.__class__.__name__})
     with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
         ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose, num_ctx=num_ctx)
         body = _post_chat_stream(
@@ -569,11 +588,16 @@ def chat_text(
     num_ctx: int | None = None,
 ) -> tuple[str, dict[str, Any]]:
     if inference_gateway.enabled():
-        body = inference_gateway.chat(model=model, messages=messages, purpose=purpose, think=think, timeout=timeout, keep_alive=keep_alive, num_predict=num_predict, num_ctx=num_ctx)
-        content = extract_chat_content(body)
-        if not content.strip():
-            raise ValueError("inference gateway returned empty text output")
-        return content, body
+        try:
+            body = inference_gateway.chat(model=model, messages=messages, purpose=purpose, think=think, timeout=timeout, keep_alive=keep_alive, num_predict=num_predict, num_ctx=num_ctx)
+            content = extract_chat_content(body)
+            if not content.strip():
+                raise ValueError("inference gateway returned empty text output")
+            return content, body
+        except Exception as error:
+            if not inference_gateway.should_fallback(error):
+                raise
+            _record_call({"kind": "gateway_fallback", "model": model, "purpose": purpose, "status": "local_fallback", "error": error.__class__.__name__})
     with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
         ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose, num_ctx=num_ctx)
         try:
