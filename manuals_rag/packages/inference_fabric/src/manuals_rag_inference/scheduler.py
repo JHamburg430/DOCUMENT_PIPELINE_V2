@@ -70,7 +70,7 @@ class InferenceScheduler:
         loaded = next((item for item in node.loaded_models if item.name == request.model), None)
         required_vram_mb = self._required_vram_mb(request)
         loaded_vram = sum(g.available_vram_mb for g in node.gpus)
-        requires_pull = loaded is None
+        requires_pull = loaded is None and request.model not in node.installed_models
         if loaded is not None and loaded.active_requests > 0:
             loaded_vram = max(0, loaded_vram)
         if loaded_vram - self.policy.reserved_vram_mb < required_vram_mb:
@@ -98,16 +98,17 @@ class InferenceScheduler:
                 rejected.append(f"{node.node_id}:{reason}")
                 continue
             if requires_pull and not request.allow_model_pull:
-                rejected.append(f"{node.node_id}:model_not_loaded_and_pull_not_allowed")
+                rejected.append(f"{node.node_id}:model_not_installed_and_pull_not_allowed")
                 continue
             loaded = next((item for item in node.loaded_models if item.name == request.model), None)
             model_loaded_bonus = 1000.0 if loaded else 0.0
+            model_installed_bonus = 300.0 if request.model in node.installed_models else 0.0
             app_bonus = 200.0 if request.application in self.policy.interactive_applications else 0.0
             reserved = len(self._reservations.get(node.node_id, set()))
             queue_penalty = float((node.queued_requests + reserved) * 50 + (node.active_requests + reserved) * 25)
             required_vram_mb = self._required_vram_mb(request)
             headroom_bonus = min(200.0, max(0.0, (available_vram - required_vram_mb) / 100.0))
-            score = model_loaded_bonus + app_bonus + headroom_bonus - queue_penalty + request.priority
+            score = model_loaded_bonus + model_installed_bonus + app_bonus + headroom_bonus - queue_penalty + request.priority
             evictions = ()
             if request.allow_eviction and available_vram - self.policy.reserved_vram_mb < required_vram_mb:
                 evictions = tuple(

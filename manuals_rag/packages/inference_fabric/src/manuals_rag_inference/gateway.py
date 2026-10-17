@@ -442,6 +442,7 @@ def _snapshot_from_payload(payload: dict[str, Any]) -> NodeSnapshot:
         healthy=bool(payload.get("healthy", True)),
         request_accounting_available=bool(payload.get("request_accounting_available", False)),
         inference_enabled=bool(payload.get("inference_enabled", True)),
+        installed_models=tuple(str(model) for model in payload.get("installed_models") or []),
     )
 
 

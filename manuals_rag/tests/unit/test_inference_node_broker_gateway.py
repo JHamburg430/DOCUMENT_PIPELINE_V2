@@ -14,6 +14,7 @@ from manuals_rag_inference.enrollment import EnrollmentManager
 from manuals_rag_inference.gateway import InferenceGateway, create_gateway_handler, heartbeat_signature
 from manuals_rag_inference.models import GpuSnapshot, LoadedModel, ModelSpec, NodeSnapshot
 from manuals_rag_inference.scheduler import InferenceScheduler, SchedulerPolicy
+from manuals_rag_inference.node_agent import OllamaNode, create_handler
 
 
 @contextmanager
@@ -208,3 +209,47 @@ def test_stream_incremental_and_reservation_cleanup(broker, mode):
             assert len(forwarded) == 1  # Never retry after the first token.
     finally:
         continue_stream.set()
+
+
+@pytest.mark.parametrize("disconnect", [False, True])
+def test_real_node_streams_ollama_incrementally_and_cleans_accounting(broker, disconnect):
+    finish = threading.Event()
+    class Ollama(BaseHTTPRequestHandler):
+        def do_POST(self):
+            payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            assert self.path == "/api/chat" and payload["stream"] is True
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.end_headers()
+            self.wfile.write(b'{"message":{"content":"first"},"done":false}\n')
+            self.wfile.flush()
+            finish.wait(2)
+            try:
+                self.wfile.write(b'{"message":{"content":"second"},"done":false}\n{"done":true}\n')
+                self.wfile.flush()
+            except OSError:
+                pass
+        def log_message(self, *args): pass
+    try:
+        with serving(Ollama) as ollama_url:
+            agent = OllamaNode(node_id="worker", endpoint=ollama_url, tailnet_name="test", secret=broker.node_secrets["worker"])
+            with serving(create_handler(agent)) as node_url, serving(create_gateway_handler(broker)) as gateway_url:
+                broker.node_agent_urls["worker"] = node_url
+                body = envelope()
+                body["payload"]["stream"] = True
+                response = call(gateway_url, broker, body)
+                assert json.loads(response.readline())["response"]["message"]["content"] == "first"
+                assert agent._active_by_model == {"test-model": 1}
+                if disconnect:
+                    response.close()
+                else:
+                    finish.set()
+                    assert [json.loads(line) for line in response][-1]["response"]["done"] is True
+                    response.close()
+                deadline = time.monotonic() + 2
+                while (broker.scheduler._reservations or agent._active_by_model) and time.monotonic() < deadline:
+                    time.sleep(.02)
+                assert not agent._active_by_model
+                assert not broker.scheduler._reservations
+    finally:
+        finish.set()

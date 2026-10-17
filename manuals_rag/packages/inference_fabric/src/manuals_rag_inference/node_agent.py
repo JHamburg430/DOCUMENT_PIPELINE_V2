@@ -11,6 +11,7 @@ import subprocess
 import threading
 import time
 from collections import deque
+from contextlib import contextmanager
 from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -20,9 +21,38 @@ from urllib.error import HTTPError
 from .control import ControlPolicy, verify_command
 from .gateway import heartbeat_signature, node_request_signature
 from .models import GpuSnapshot, LoadedModel, NodeSnapshot
+from .streaming import NDJSONResponse, relay_ndjson, watch_disconnect
 
 
 TAILSCALE_IPV4_RANGE = ipaddress.ip_network("100.64.0.0/10")
+
+
+class ModelPreparationError(RuntimeError):
+    def __init__(self, category: str, upstream_status: int | None = None):
+        super().__init__(category)
+        self.category = category
+        self.upstream_status = upstream_status
+
+
+def _model_error_category(message: str) -> str:
+    text = message.lower()
+    for phrase, category in (
+        ("newer version", "ollama_upgrade_required"),
+        ("no space left", "insufficient_disk_space"),
+        ("certificate", "registry_tls_error"),
+        ("not found", "registry_model_not_found"),
+        ("timed out", "registry_timeout"),
+        ("deadline exceeded", "registry_timeout"),
+        ("connection refused", "registry_connection_failed"),
+        ("manifest", "registry_manifest_failed"),
+    ):
+        if phrase in text:
+            return category
+    return "ollama_model_pull_failed"
+
+
+def _installed_model_names(payload: dict) -> tuple[str, ...]:
+    return tuple(str(item.get("name") or item.get("model")) for item in payload.get("models") or [] if item.get("name") or item.get("model"))
 
 
 def _json_request(url: str, *, method: str = "GET", body: dict | None = None, timeout: float = 3.0) -> dict:
@@ -180,6 +210,12 @@ class OllamaNode:
             self._record_probe("ollama", "failed", error.__class__.__name__)
         if ollama_healthy:
             self._record_probe("ollama", "healthy")
+        try:
+            installed_models = _installed_model_names(_json_request(f"{self.endpoint}/api/tags"))
+            self._record_probe("model_inventory", "available")
+        except Exception as error:
+            installed_models = ()
+            self._record_probe("model_inventory", "unavailable", error.__class__.__name__)
         gpus = _gpu_snapshots()
         self._record_probe("gpu", "detected" if gpus else "unavailable", "" if gpus else "gpu_probe_unavailable")
         with self._request_lock:
@@ -196,9 +232,10 @@ class OllamaNode:
             request_accounting_available=self.proxy_only,
             healthy=ollama_healthy,
             inference_enabled=self.inference_enabled,
+            installed_models=installed_models,
         )
 
-    def infer(self, envelope: dict, signature: str) -> dict:
+    def _authorize_inference(self, envelope: dict, signature: str) -> tuple[str, dict, str]:
         unsigned = {
             "operation": envelope.get("operation"),
             "payload": envelope.get("payload"),
@@ -231,6 +268,10 @@ class OllamaNode:
         if not self.inference_enabled:
             self._record_activity(operation, model, "rejected", error="inference_disabled")
             raise PermissionError("inference is disabled on this node")
+        return operation, payload, model
+
+    def infer(self, envelope: dict, signature: str) -> dict:
+        operation, payload, model = self._authorize_inference(envelope, signature)
         ollama_operation = {"embeddings": "embed"}.get(operation, operation)
         started_at = time.time()
         self._record_activity(operation, model, "started")
@@ -257,6 +298,36 @@ class OllamaNode:
                 else:
                     self._active_by_model.pop(model, None)
 
+    @contextmanager
+    def stream_infer(self, envelope: dict, signature: str):
+        operation, payload, model = self._authorize_inference(envelope, signature)
+        if operation not in {"chat", "generate"}:
+            raise ValueError("embeddings cannot stream")
+        started_at = time.time()
+        stream = None
+        self._record_activity(operation, model, "started")
+        with self._request_lock:
+            self._active_by_model[model] = self._active_by_model.get(model, 0) + 1
+            self._last_used_by_model[model] = time.time()
+        try:
+            stream = NDJSONResponse(f"{self.endpoint}/api/{operation}", {**payload, "stream": True}, timeout=900)
+            yield stream
+            self._record_activity(operation, model, "completed" if stream.done else "cancelled", started_at=started_at)
+        except Exception as error:
+            self._record_activity(operation, model, "failed", started_at=started_at, error=type(error).__name__)
+            raise
+        finally:
+            try:
+                if stream is not None:
+                    stream.close()
+            finally:
+                with self._request_lock:
+                    remaining = self._active_by_model.get(model, 1) - 1
+                    if remaining > 0:
+                        self._active_by_model[model] = remaining
+                    else:
+                        self._active_by_model.pop(model, None)
+
     def disconnect(self, gateway_url: str) -> dict:
         payload = {"node_id": self.node_id, "issued_at": time.time()}
         raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
@@ -277,8 +348,34 @@ class OllamaNode:
         action = command["action"]
         model = command["model"]
         if action == "pull_model":
-            _json_request(f"{self.endpoint}/api/pull", method="POST", body={"model": model, "stream": False}, timeout=float(command.get("timeout_seconds") or 900))
-            return {"action": action, "model": model, "status": "completed"}
+            started_at = time.time()
+            self._record_activity("pull_model", model, "started")
+            try:
+                try:
+                    installed = _installed_model_names(_json_request(f"{self.endpoint}/api/tags"))
+                except Exception:
+                    installed = ()
+                if model in installed:
+                    self._record_activity("pull_model", model, "already_installed", started_at=started_at)
+                    return {"action": action, "model": model, "status": "completed", "already_installed": True}
+                result = _json_request(f"{self.endpoint}/api/pull", method="POST", body={"model": model, "stream": False}, timeout=float(command.get("timeout_seconds") or 900))
+                if result.get("error"):
+                    raise ModelPreparationError(_model_error_category(str(result["error"])))
+                if result.get("status") != "success":
+                    raise ModelPreparationError("ollama_pull_completion_unconfirmed")
+                self._record_activity("pull_model", model, "completed", started_at=started_at)
+                return {"action": action, "model": model, "status": "completed"}
+            except HTTPError as error:
+                try:
+                    message = str(json.loads(error.read(8192)).get("error", ""))
+                except Exception:
+                    message = ""
+                category = _model_error_category(message)
+                self._record_activity("pull_model", model, "failed", started_at=started_at, error=f"HTTP_{error.code}:{category}")
+                raise ModelPreparationError(category, error.code) from None
+            except Exception as error:
+                self._record_activity("pull_model", model, "failed", started_at=started_at, error=error.category if isinstance(error, ModelPreparationError) else type(error).__name__)
+                raise
         if action == "evict_model":
             with self._request_lock:
                 if self._active_by_model.get(model, 0) > 0:
@@ -341,7 +438,12 @@ def create_handler(agent: OllamaNode, *, local_control_token: str = ""):
                         raise ValueError("inference body too large")
                     payload = json.loads(self.rfile.read(length).decode())
                     signature = str(payload.pop("signature"))
-                    self._send(200, agent.infer(payload, signature))
+                    if isinstance(payload.get("payload"), dict) and payload["payload"].get("stream") is True:
+                        with agent.stream_infer(payload, signature) as stream:
+                            with watch_disconnect(self.connection, stream.cancel):
+                                relay_ndjson(self, stream)
+                    else:
+                        self._send(200, agent.infer(payload, signature))
                 except PermissionError as error:
                     self._send(403, {"detail": str(error)})
                 except (KeyError, ValueError, json.JSONDecodeError) as error:
@@ -378,6 +480,8 @@ def create_handler(agent: OllamaNode, *, local_control_token: str = ""):
                     raise ValueError("command body too large")
                 payload = json.loads(self.rfile.read(length).decode())
                 self._send(200, agent.command(payload["command"], str(payload["signature"])))
+            except ModelPreparationError as error:
+                self._send(502, {"detail": "model preparation failed", "code": error.category, "upstream_status": error.upstream_status})
             except PermissionError as error:
                 self._send(403, {"detail": str(error)})
             except (KeyError, ValueError, json.JSONDecodeError) as error:
