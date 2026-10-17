@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 
 from manuals_rag_inference.node_agent import (
     _detect_tailscale_ipv4,
+    _gpu_snapshots,
     _load_node_config,
     _save_node_config,
     create_node_server,
@@ -95,12 +96,17 @@ def _default_node_id() -> str:
     return value or "provis-inference-node"
 
 
+from manuals_rag_inference.node_presentation import public_events, utilization
+from manuals_rag_inference.node_tray import NodeTray, SingleInstance
+
+
 class InferenceNodeClient(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("PROVIS Inference Node")
-        self.geometry("920x650")
-        self.minsize(760, 520)
+        self.geometry("440x740")
+        self.resizable(False, False)
+        self.configure(bg="#f3f6fb")
         self.protocol("WM_DELETE_WINDOW", self._close_requested)
         self.config_path = os.getenv("INFERENCE_NODE_CONFIG_PATH", _default_config_path())
         self.server = None
@@ -118,50 +124,101 @@ class InferenceNodeClient(tk.Tk):
         self.status_var = tk.StringVar(value="Not connected")
         self.signin_code = ""
         self.inference_var = tk.StringVar(value="Inference disabled")
+        self._quitting = False
+        self._last_rows = None
+        self._metrics_stop = threading.Event()
         self._build_ui()
+        self.tray = NodeTray(lambda event, value: self.worker_queue.put((event, value)))
         self._load_saved_values()
+        threading.Thread(target=self._metrics_worker, daemon=True, name="provis-utilization").start()
+        self.after(800, self._position_panel)
         self.after(250, self._drain_worker_queue)
         self.after(1000, self._refresh_activity)
 
     def _build_ui(self) -> None:
-        root = ttk.Frame(self, padding=14)
+        navy, muted, blue = "#122743", "#65758c", "#225fe5"
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("TButton", font=("Segoe UI", 10), padding=(10, 8), background="#edf2fa", foreground=navy, borderwidth=0)
+        style.map("TButton", background=[("active", "#dbe7fa")], foreground=[("disabled", "#96a1b2")])
+        style.configure("Primary.TButton", background=blue, foreground="white")
+        style.map("Primary.TButton", background=[("active", "#174fc9"), ("disabled", "#b3c8ef")])
+        style.configure("Node.Treeview", font=("Segoe UI", 9), rowheight=34, background="white", fieldbackground="white", foreground=navy, borderwidth=0)
+        style.configure("Node.Treeview.Heading", font=("Segoe UI", 9), background="#f3f6fb", foreground=muted, relief="flat")
+        style.configure("Node.Horizontal.TProgressbar", background="#1c9b8a", troughcolor="#e8edf5", borderwidth=0)
+        header = tk.Frame(self, bg=navy, padx=22, pady=18)
+        header.pack(fill="x")
+        tk.Label(header, text="PROVIS", bg=navy, fg="white", font=("Segoe UI", 21, "bold")).pack(anchor="w")
+        tk.Label(header, text="PRIVATE COMPUTE", bg=navy, fg="#96b7eb", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=(1, 0))
+        root = tk.Frame(self, bg="#f3f6fb", padx=18, pady=14)
         root.pack(fill="both", expand=True)
-        ttk.Label(root, text="PROVIS Inference Node", font=("Segoe UI", 17, "bold")).pack(anchor="w")
-        ttk.Label(root, text="Connect this machine to the private PROVIS inference gateway. No Tailscale key is entered here.").pack(anchor="w", pady=(2, 12))
-
-        connection = ttk.LabelFrame(root, text="Connect / login", padding=10)
+        connection = tk.Frame(root, bg="white", padx=14, pady=12)
         connection.pack(fill="x")
-        ttk.Label(connection, text="This device is preconfigured by PROVIS. Sign in with Microsoft 365 to enroll it; node settings are discovered automatically.").grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))
-        self.entra_button = ttk.Button(connection, text="Sign in with Microsoft 365", command=self._entra_connect)
-        self.entra_button.grid(row=1, column=0, sticky="w", pady=(4, 0))
-        ttk.Label(connection, textvariable=self.status_var).grid(row=1, column=1, sticky="w", padx=(12, 8), pady=(4, 0))
+        tk.Label(connection, text="Your device", bg="white", fg=navy, font=("Segoe UI", 12, "bold")).grid(row=0, column=0, sticky="w")
+        tk.Label(connection, textvariable=self.status_var, wraplength=315, justify="left", bg="white", fg=muted, font=("Segoe UI", 10)).grid(row=1, column=0, sticky="w", pady=(4, 8))
         self.copy_code_button = ttk.Button(connection, text="Copy", command=self._copy_signin_code)
-        self.copy_code_button.grid(row=1, column=2, sticky="w", pady=(4, 0))
+        self.copy_code_button.grid(row=1, column=1, padx=(6, 0))
         self.copy_code_button.grid_remove()
-
-        controls = ttk.LabelFrame(root, text="Node controls", padding=10)
-        controls.pack(fill="x", pady=(12, 0))
-        self.enable_button = ttk.Button(controls, text="Enable inference", command=lambda: self._set_inference(True), state="disabled")
+        self.entra_button = ttk.Button(connection, text="Sign in with Microsoft 365", style="Primary.TButton", command=self._entra_connect)
+        self.entra_button.grid(row=2, column=0, columnspan=2, sticky="ew")
+        metrics = tk.Frame(root, bg="white", padx=14, pady=12)
+        metrics.pack(fill="x", pady=(10, 0))
+        tk.Label(metrics, text="Device utilization", bg="white", fg=navy, font=("Segoe UI", 12, "bold")).pack(anchor="w")
+        self.gpu_var = tk.StringVar(value="GPU  •  Checking…")
+        self.memory_var = tk.StringVar(value="GPU memory  •  Checking…")
+        self.work_var = tk.StringVar(value="No active work")
+        tk.Label(metrics, textvariable=self.gpu_var, bg="white", fg=muted, font=("Segoe UI", 10)).pack(anchor="w", pady=(8, 3))
+        self.gpu_bar = ttk.Progressbar(metrics, style="Node.Horizontal.TProgressbar", maximum=100)
+        self.gpu_bar.pack(fill="x")
+        tk.Label(metrics, textvariable=self.memory_var, bg="white", fg=muted, font=("Segoe UI", 10)).pack(anchor="w", pady=(8, 3))
+        self.memory_bar = ttk.Progressbar(metrics, style="Node.Horizontal.TProgressbar", maximum=100)
+        self.memory_bar.pack(fill="x")
+        tk.Label(metrics, textvariable=self.work_var, bg="white", fg=muted, font=("Segoe UI", 9)).pack(anchor="w", pady=(8, 0))
+        controls = tk.Frame(root, bg="#f3f6fb")
+        controls.pack(fill="x", pady=10)
+        self.enable_button = ttk.Button(controls, text="Resume", command=lambda: self._set_inference(True), state="disabled")
         self.enable_button.pack(side="left")
-        self.disable_button = ttk.Button(controls, text="Disable inference", command=lambda: self._set_inference(False), state="disabled")
-        self.disable_button.pack(side="left", padx=8)
-        self.disconnect_button = ttk.Button(controls, text="Disconnect safely", command=self._disconnect, state="disabled")
-        self.disconnect_button.pack(side="left")
-        ttk.Label(controls, textvariable=self.inference_var).pack(side="left", padx=16)
+        self.disable_button = ttk.Button(controls, text="Pause", command=lambda: self._set_inference(False), state="disabled")
+        self.disable_button.pack(side="left", padx=6)
+        self.disconnect_button = ttk.Button(controls, text="Disconnect", command=self._disconnect, state="disabled")
+        self.disconnect_button.pack(side="right")
+        status = tk.Frame(root, bg="#f3f6fb")
+        status.pack(fill="x", pady=(0, 8))
+        tk.Label(status, textvariable=self.inference_var, bg="#f3f6fb", fg=muted, font=("Segoe UI", 9)).pack(side="left")
+        tk.Button(status, text="Quit", command=self._quit_requested, bg="#f3f6fb", fg=muted, relief="flat", font=("Segoe UI", 9)).pack(side="right")
+        tk.Label(root, text="Recent events", bg="#f3f6fb", fg=navy, font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 6))
+        self.activity_view = ttk.Treeview(root, style="Node.Treeview", columns=("time", "event", "status"), show="headings", height=4)
+        for column, label, width in (("time", "Time", 66), ("event", "Event", 197), ("status", "Status", 101)):
+            self.activity_view.heading(column, text=label)
+            self.activity_view.column(column, width=width, stretch=False)
+        self.activity_view.pack(fill="both", expand=True)
+        tk.Label(root, text="Private by design. Activity and utilization only.", bg="#f3f6fb", fg=muted, font=("Segoe UI", 8)).pack(anchor="w", pady=(10, 0))
 
-        monitor = ttk.LabelFrame(root, text="PROVIS node activity (prompts and credentials are never displayed)", padding=8)
-        monitor.pack(fill="both", expand=True, pady=(12, 0))
-        columns = ("time", "operation", "model", "status", "duration", "error")
-        self.activity_view = ttk.Treeview(monitor, columns=columns, show="headings", height=14)
-        headings = {"time": "Time", "operation": "Operation", "model": "Model", "status": "Status", "duration": "Duration ms", "error": "Error"}
-        widths = {"time": 90, "operation": 100, "model": 180, "status": 90, "duration": 90, "error": 180}
-        for column in columns:
-            self.activity_view.heading(column, text=headings[column])
-            self.activity_view.column(column, width=widths[column], anchor="w")
-        scrollbar = ttk.Scrollbar(monitor, orient="vertical", command=self.activity_view.yview)
-        self.activity_view.configure(yscrollcommand=scrollbar.set)
-        self.activity_view.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+    def _position_panel(self):
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+            area = wintypes.RECT()
+            if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(area), 0):
+                height = min(740, area.bottom - area.top - 48)
+                self.geometry(f"440x{height}+{max(area.left, area.right - 456)}+{max(area.top, area.bottom - height - 40)}")
+
+    def _show_panel(self):
+        if self.state() == "withdrawn":
+            self._position_panel()
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+        else:
+            self.withdraw()
+
+    def _metrics_worker(self):
+        while not self._metrics_stop.is_set():
+            try:
+                self.worker_queue.put(("metrics", utilization(_gpu_snapshots())))
+            except Exception:
+                self.worker_queue.put(("metrics", (0, 0, 0)))
+            self._metrics_stop.wait(3)
 
     def _load_saved_values(self) -> None:
         config = _load_node_config(self.config_path)
@@ -348,10 +405,34 @@ class InferenceNodeClient(tk.Tk):
         try:
             while True:
                 event, value = self.worker_queue.get_nowait()
-                if event == "connected":
+                if event == "tray_show":
+                    self._show_panel()
+                elif event == "show_existing":
+                    self._position_panel()
+                    self.deiconify()
+                    self.lift()
+                    self.focus_force()
+                elif event == "tray_pause":
+                    self._set_inference(False)
+                elif event == "tray_resume":
+                    self._set_inference(True)
+                elif event == "tray_disconnect":
+                    self._disconnect()
+                elif event == "tray_quit":
+                    self._quit_requested()
+                elif event == "tray_error":
+                    self.deiconify()
+                    self.status_var.set("Tray unavailable. Keep this panel open while sharing.")
+                elif event == "metrics":
+                    load, used, total = value
+                    self.gpu_var.set(f"GPU load  •  {load:.0f}%" if total else "GPU metrics unavailable")
+                    self.memory_var.set(f"GPU memory  •  {used / 1024:.1f} / {total / 1024:.1f} GB" if total else "GPU memory unavailable")
+                    self.gpu_bar["value"] = load
+                    self.memory_bar["value"] = 100 * used / total if total else 0
+                elif event == "connected":
                     self._clear_signin_code()
                     self.server, self.agent, self.gateway_url = value
-                    self.status_var.set(f"Connected: {self.agent.node_id}")
+                    self.status_var.set("Connected to PROVIS")
                     self._update_controls()
                 elif event == "disconnected":
                     self._clear_signin_code()
@@ -359,12 +440,12 @@ class InferenceNodeClient(tk.Tk):
                     self.status_var.set("Disconnected safely from gateway")
                     self._update_controls()
                 elif event == "disconnect_error":
-                    self.status_var.set(f"Disconnect failed; node remains stopped from inference: {value}")
+                    self.status_var.set("Sharing paused. Disconnect could not be confirmed; try again.")
                     if self.agent:
                         self._update_controls()
                 elif event == "error":
                     self._clear_signin_code()
-                    self.status_var.set(f"Connection failed: {value}")
+                    self.status_var.set("Unable to connect. Check your connection and sign in again.")
                     self.entra_button.configure(state="normal")
                 elif event == "entra_prompt":
                     self._show_signin_code(value)
@@ -388,26 +469,22 @@ class InferenceNodeClient(tk.Tk):
         if self.agent is not None:
             events = self.agent.activity()
             heartbeat = next((event for event in reversed(events) if event.get("operation") == "heartbeat"), None)
-            if heartbeat and heartbeat.get("status") == "failed":
-                self.status_var.set(f"Gateway heartbeat failed: {heartbeat.get('error', 'unknown')}; retrying automatically")
-            elif heartbeat and str(self.status_var.get()).startswith(("Gateway heartbeat failed:", "Connected:")):
-                self.status_var.set(f"Connected: {self.agent.node_id}")
-            for item in self.activity_view.get_children():
-                self.activity_view.delete(item)
-            for event in events[-200:]:
-                timestamp = time.strftime("%H:%M:%S", time.localtime(float(event.get("timestamp") or 0)))
-                self.activity_view.insert("", "end", values=(
-                    timestamp,
-                    event.get("operation", ""),
-                    event.get("model", ""),
-                    event.get("status", ""),
-                    event.get("duration_ms", ""),
-                    event.get("error", ""),
-                ))
-            if events:
+            if heartbeat:
+                self.status_var.set("Reconnecting to PROVIS…" if heartbeat.get("status") == "failed" else "Connected to PROVIS")
+            rows = public_events(events)
+            if rows != self._last_rows:
+                self._last_rows = rows
+                for item in self.activity_view.get_children():
+                    self.activity_view.delete(item)
+                for row in rows:
+                    self.activity_view.insert("", "end", values=row)
                 children = self.activity_view.get_children()
                 if children:
                     self.activity_view.see(children[-1])
+            # Only counts cross the presentation boundary; model keys stay private.
+            with self.agent._request_lock:
+                active = sum(self.agent._active_by_model.values())
+            self.work_var.set(f"{active} active request" + ("s" if active != 1 else "") if active else "No active work")
         self.after(1000, self._refresh_activity)
 
     def _stop_server(self) -> None:
@@ -421,22 +498,49 @@ class InferenceNodeClient(tk.Tk):
             server.server_close()
 
     def _close_requested(self) -> None:
-        if self.agent is None:
-            self.destroy()
+        if self.tray.ready.is_set() and self.tray.error is None:
+            self.withdraw()
+        else:
+            self._quit_requested()
+
+    def _quit_requested(self) -> None:
+        if self._quitting:
             return
-        if messagebox.askyesno("Disconnect node", "Safely disconnect this node from the gateway before closing?"):
+        if self.agent is not None:
+            if not messagebox.askyesno("Quit PROVIS", "Pause sharing and safely disconnect this device?", parent=self):
+                return
+            self._quitting = True
             self._disconnect()
             self.after(250, self._close_after_disconnect)
+        else:
+            self._finish_quit()
+
+    def _finish_quit(self):
+        self._metrics_stop.set()
+        self.tray.close()
+        self.destroy()
 
     def _close_after_disconnect(self) -> None:
         if self.agent is None:
-            self.destroy()
+            self._finish_quit()
+        elif str(self.status_var.get()).startswith("Sharing paused."):
+            self._quitting = False
+            self.deiconify()
         else:
             self.after(250, self._close_after_disconnect)
 
 
 def main() -> None:
-    InferenceNodeClient().mainloop()
+    instance = SingleInstance()
+    if instance.existing:
+        instance.close()
+        return
+    try:
+        app = InferenceNodeClient()
+        instance.watch(lambda event, value: app.worker_queue.put((event, value)))
+        app.mainloop()
+    finally:
+        instance.close()
 
 
 if __name__ == "__main__":

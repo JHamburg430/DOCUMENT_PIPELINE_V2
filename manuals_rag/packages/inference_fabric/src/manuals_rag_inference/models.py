@@ -67,6 +67,7 @@ class InferenceRequest:
     required_capabilities: tuple[str, ...] = ("chat",)
     allow_model_pull: bool = False
     allow_eviction: bool = False
+    allowed_node_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

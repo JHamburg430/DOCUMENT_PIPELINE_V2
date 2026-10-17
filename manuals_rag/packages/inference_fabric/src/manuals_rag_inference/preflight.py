@@ -67,6 +67,10 @@ def validate_gateway_environment(env: Mapping[str, str]) -> PreflightResult:
     for application, application_token in application_tokens.items():
         if not str(application).strip() or not isinstance(application_token, str) or len(application_token) < 32:
             errors.append(f"application token for {application!r} is missing or too short")
+    worker_policy = _json_object(str(env.get("INFERENCE_APPLICATION_WORKER_ALLOWLIST_JSON") or ""), "INFERENCE_APPLICATION_WORKER_ALLOWLIST_JSON", errors)
+    for application, nodes in worker_policy.items():
+        if application not in application_tokens or not isinstance(nodes, list) or not nodes or any(not isinstance(node, str) or not NODE_ID_PATTERN.fullmatch(node) for node in nodes):
+            errors.append("application worker allowlist must map registered applications to nonempty approved node IDs")
     try:
         port = int(env.get("INFERENCE_GATEWAY_PORT") or "8780")
         if not 1 <= port <= 65535:
