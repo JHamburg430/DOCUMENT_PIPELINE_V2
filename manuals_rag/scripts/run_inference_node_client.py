@@ -145,6 +145,8 @@ class InferenceNodeClient(tk.Tk):
         self._last_rows = None
         self._metrics_stop = threading.Event()
         self._build_ui()
+        self.owner_panel = None
+        self.bind_all('<Control-Shift-A>', self._open_owner_panel)
         self._apply_theme()
         self.tray = NodeTray(lambda event, value: self.worker_queue.put((event, value)))
         self._load_saved_values()
@@ -221,13 +223,22 @@ class InferenceNodeClient(tk.Tk):
         except OSError:
             self.status_var.set('Appearance changed for this session; preference could not be saved.')
 
+    def _open_owner_panel(self, _event=None):
+        from manuals_rag_inference.agent_link_ui import OwnerPanel
+        if self.owner_panel is None or not self.owner_panel.winfo_exists():
+            self.owner_panel = OwnerPanel(self)
+        self.owner_panel.deiconify();self.owner_panel.lift()
+
     def _apply_theme(self):
         colors = PALETTES[self.theme]
         self.theme_button_var.set('Light mode' if self.theme == 'dark' else 'Dark mode')
         background_roles = {'#f3f6fb': 'background', 'white': 'card', '#ffffff': 'card', '#122743': 'header'}
         foreground_roles = {'#122743': 'text', '#65758c': 'muted'}
+        for palette in PALETTES.values():
+            background_roles.update({palette[role]: role for role in ('background', 'card', 'header')})
+            foreground_roles.update({palette[role]: role for role in ('text', 'muted')})
         def visit(widget):
-            if isinstance(widget, (tk.Tk, tk.Frame, tk.Label, tk.Button)):
+            if isinstance(widget, (tk.Tk, tk.Toplevel, tk.Frame, tk.Label, tk.Button, tk.Text)):
                 if not hasattr(widget, '_appearance_roles'):
                     roles = {}
                     for option, mapping in [('background', background_roles), ('foreground', foreground_roles)]:
@@ -238,6 +249,7 @@ class InferenceNodeClient(tk.Tk):
                             pass
                     widget._appearance_roles = roles
                 widget.configure(**{option: colors[role] for option, role in widget._appearance_roles.items()})
+                if isinstance(widget, tk.Text): widget.configure(insertbackground=colors['text'])
             for child in widget.winfo_children(): visit(child)
         visit(self)
         style = ttk.Style(self)
@@ -443,6 +455,7 @@ class InferenceNodeClient(tk.Tk):
         self._update_controls()
 
     def _disconnect(self) -> None:
+        if self.owner_panel is not None: self.owner_panel._sign_out()
         if self.agent is None or not self.gateway_url:
             self.status_var.set("No connected gateway")
             return
@@ -575,6 +588,7 @@ class InferenceNodeClient(tk.Tk):
             self._finish_quit()
 
     def _finish_quit(self):
+        if self.owner_panel is not None: self.owner_panel.stop()
         self._metrics_stop.set()
         self.tray.close()
         self.destroy()
@@ -590,6 +604,11 @@ class InferenceNodeClient(tk.Tk):
 
 
 def main() -> None:
+    if not getattr(sys, 'frozen', False) and len(sys.argv) > 1 and sys.argv[1] == '--agent-link':
+        sys.argv.pop(1)
+        from provis_agent_link import main as owner_tool
+        owner_tool()
+        return
     instance = SingleInstance()
     if instance.existing:
         instance.close()

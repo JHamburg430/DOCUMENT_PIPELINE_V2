@@ -39,6 +39,15 @@ def _json_object(raw: str, field: str, errors: list[str]) -> dict:
 def validate_gateway_environment(env: Mapping[str, str]) -> PreflightResult:
     errors: list[str] = []
     warnings: list[str] = []
+    owner = str(env.get('INFERENCE_AGENT_LINK_OWNER_OBJECT_ID') or '').strip()
+    if owner:
+        import uuid
+        try:
+            if str(uuid.UUID(owner)) != owner: raise ValueError
+        except ValueError:
+            errors.append('Owner agent link requires one canonical Entra object ID')
+        if str(env.get('INFERENCE_GATEWAY_REQUIRE_ENTRA_ENROLLMENT') or '').lower() != 'true':
+            errors.append('Owner agent link requires Entra authentication')
     token = str(env.get("INFERENCE_GATEWAY_TOKEN") or "")
     bind = str(env.get("INFERENCE_GATEWAY_BIND") or "127.0.0.1")
     allow_public = str(env.get("INFERENCE_GATEWAY_ALLOW_PUBLIC_BIND") or "false").lower() == "true"

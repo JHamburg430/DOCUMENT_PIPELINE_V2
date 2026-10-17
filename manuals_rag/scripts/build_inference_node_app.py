@@ -26,6 +26,7 @@ def build(output: Path, *, gateway_url: str = "") -> Path:
         stage = Path(temporary)
         shutil.copytree(PACKAGE_ROOT, stage / "manuals_rag_inference", ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         shutil.copy2(APP_SOURCE, stage / "node_app.py")
+        shutil.copy2(REPO_ROOT / 'manuals_rag/scripts/provis_agent_link.py', stage / 'provis_agent_link.py')
         (stage / "__main__.py").write_text("from node_app import main\n\nmain()\n", encoding='utf-8')
         (stage / 'provis-node-config.json').write_text(json.dumps({'gateway_url': gateway_url}), encoding='utf-8')
         zipapp.create_archive(stage, str(output), interpreter="/usr/bin/env python3")

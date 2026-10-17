@@ -303,7 +303,7 @@ def build(output: Path, *, gateway_url: str = "") -> Path:
             source / "manuals_rag_inference",
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
-        for name in ("run_inference_node_client.py", "run_inference_node_agent.py"):
+        for name in ("run_inference_node_client.py", "run_inference_node_agent.py", "provis_agent_link.py"):
             shutil.copy2(SOURCE_ROOT / name, source / name)
         _write_text(stage, "start-node-setup.ps1", WINDOWS_SETUP)
         _write_text(stage, "start-node-agent.ps1", WINDOWS_AGENT)

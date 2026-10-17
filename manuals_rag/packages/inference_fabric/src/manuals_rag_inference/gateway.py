@@ -109,6 +109,7 @@ class InferenceGateway:
         if any(not isinstance(app, str) or not app or not isinstance(nodes, (list, tuple)) or not nodes or any(not isinstance(node, str) or not node for node in nodes) for app, nodes in self.application_worker_allowlist.items()):
             raise ValueError("invalid application worker allowlist")
         self._heartbeat_lock = threading.Lock()
+        self.agent_link = None
         self._last_heartbeat_observed: dict[str, float] = {}
         self._post = post or self._post_json
         self.enrollment = enrollment
@@ -575,6 +576,8 @@ def create_gateway_handler(gateway: InferenceGateway):
         def do_GET(self) -> None:  # noqa: N802
             if self.path == "/health":
                 self._send(200, {"status": "ok", "nodes": len(gateway.scheduler.snapshots())})
+            elif self.path == '/v1/agent-link/availability':
+                self._send(200, {'enabled': gateway.agent_link is not None})
             elif self.path == "/v1/node/enrollment-config":
                 try:
                     self._send(200, gateway.enrollment_config())
@@ -590,6 +593,18 @@ def create_gateway_handler(gateway: InferenceGateway):
             try:
                 raw = self._body()
                 payload = json.loads(raw.decode())
+                if self.path.startswith('/v1/agent-link/'):
+                    if gateway.agent_link is None:
+                        self._send(503, {'detail': 'Owner agent link is not enabled'})
+                        return
+                    if len(raw) > 65536:
+                        raise ValueError('Owner request too large')
+                    scheme, _, bearer = self.headers.get('Authorization', '').partition(' ')
+                    if scheme.lower() != 'bearer' or not bearer:
+                        raise AuthenticationError('Owner sign-in required')
+                    result = gateway.agent_link.dispatch(self.path.removeprefix('/v1/agent-link/'), bearer, payload)
+                    self._send(200, result)
+                    return
                 if self.path in {"/v1/nodes/inference", "/v1/applications/inference"}:
                     if self.path == "/v1/nodes/inference":
                         payload = gateway.authenticate_node_inference(raw, self.headers.get("X-Node-Signature") or "")
@@ -792,5 +807,13 @@ def run_gateway() -> None:
         ),
         require_node_agents=require_node_agents,
     )
+    owner_object_id = os.getenv('INFERENCE_AGENT_LINK_OWNER_OBJECT_ID', '').strip()
+    if owner_object_id:
+        from pathlib import Path
+        from .agent_link import AgentLink
+        if entra_validator is None:
+            raise RuntimeError('Entra authentication required for owner agent link')
+        gateway.agent_link = AgentLink(entra_validator, gateway.enrollment, owner_object_id=owner_object_id,
+                                      path=Path(enrollment_path).parent / 'agent-link.sqlite3')
     server = ThreadingHTTPServer((bind, int(os.getenv("INFERENCE_GATEWAY_PORT", "8780"))), create_gateway_handler(gateway))
     server.serve_forever()
