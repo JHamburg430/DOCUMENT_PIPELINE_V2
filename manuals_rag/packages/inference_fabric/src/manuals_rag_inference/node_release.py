@@ -6,7 +6,7 @@ import re
 import uuid
 from pathlib import Path
 
-DEFAULT_VERSION = '2026.10.16.1'
+DEFAULT_VERSION = '2026.10.17.7'
 MAX_ARTIFACT = 256 * 1024 * 1024
 FILENAMES = {'windows-x86_64': 'PROVISInferenceNode.exe', 'linux-x86_64': 'PROVISInferenceNode', 'linux-aarch64': 'PROVISInferenceNode'}
 LEGACY_LINUX_FILENAME = 'inference-node.pyz'

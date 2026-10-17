@@ -7,6 +7,11 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from manuals_rag_inference import node_release, node_updater
 
+
+def test_linux_default_version_matches_current_windows_release():
+    assert node_release.DEFAULT_VERSION == '2026.10.17.7'
+
+
 @pytest.mark.parametrize('platform', ['linux-x86_64', 'linux-aarch64'])
 @pytest.mark.parametrize('filename', ['PROVISInferenceNode', 'inference-node.pyz'])
 def test_both_signed_linux_formats_have_fixed_filenames(platform, filename):
