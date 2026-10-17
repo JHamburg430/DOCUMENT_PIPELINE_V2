@@ -48,6 +48,10 @@ class NodeSnapshot:
     installed_models: tuple[str, ...] = ()
     installed_model_capabilities: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
+    node_app_version: str = ""
+    node_app_platform: str = ""
+    remote_updates_enabled: bool = False
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
@@ -67,6 +71,7 @@ class InferenceRequest:
     required_capabilities: tuple[str, ...] = ("chat",)
     allow_model_pull: bool = False
     allow_eviction: bool = False
+    allowed_node_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

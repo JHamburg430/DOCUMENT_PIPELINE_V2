@@ -22,6 +22,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src/manuals_rag_inference"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
 
+LINUX_SETUP = '''#!/bin/sh
+set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export PYTHONPATH="$ROOT/src"
+export PROVIS_NODE_BOOTSTRAP_CONFIG="$ROOT/provis-node-config.json"
+exec python3 "$ROOT/src/run_inference_node_client.py"
+'''
+
 
 WINDOWS_SETUP = r'''param([switch]$NoBrowser)
 $ErrorActionPreference = "Stop"
@@ -186,9 +194,38 @@ node's permanent machine secret.
    client, API scope, node identity, Tailscale endpoint, and approved
    application policy automatically, then opens Microsoft's device sign-in
    page.
-4. Use **Enable inference**, **Disable inference**, and **Disconnect safely**
-   from the same window. The activity table shows routing operations, model,
-   status, duration, and sanitized error type.
+4. Use **Resume**, **Pause**, and **Disconnect** in the tray panel.
+   The panel shows events and GPU utilization only; no prompts, responses,
+   model names, credentials, or raw error text are displayed.
+5. Choose **Dark mode** or **Light mode** in the header. The choice is saved
+   separately from enrollment credentials. Close hides the panel to the tray;
+   relaunching opens the existing node. Use **Quit** to disconnect and exit.
+
+## Linux desktop quick start
+
+Use the same managed bundle and run `sh start-node-setup.sh`, or launch the
+administrator-built `inference-node.pyz` with `python3 inference-node.pyz`.
+Both use the same Microsoft sign-in, code Copy button, appearance controls,
+privacy-safe events, GPU utilization and safe sharing controls as Windows.
+
+On Ubuntu/Debian the desktop dependencies are `python3-tk`, `python3-gi`,
+`gir1.2-gtk-3.0`, and `gir1.2-ayatanaappindicator3-0.1` (installed by your
+administrator). The tray uses the desktop's StatusNotifier/AppIndicator
+support. On GNOME this may require its AppIndicator extension. Use the icon's
+**Open PROVIS** menu to open the panel. If the desktop cannot provide a tray,
+the window stays visible and Close uses the safe Quit flow.
+
+Build the managed Linux zipapp from the repository:
+
+```bash
+python3 manuals_rag/scripts/build_inference_node_app.py \
+  --gateway-url https://<managed-provis-gateway> \
+  --output dist/inference-node.pyz
+```
+
+No root service, browser credentials or node credentials are included. Run the
+desktop app as the employee, not with sudo. The existing headless node service
+is separate; do not run it concurrently on the same node port.
 
 To create a standalone Windows executable, run `build-node-exe.ps1` once from
 the extracted folder. It installs only the build-time PyInstaller tool and
@@ -253,7 +290,20 @@ def _validate_managed_gateway_url(value: str) -> str:
     return parsed.geturl().rstrip("/")
 
 
-def build(output: Path, *, gateway_url: str = "") -> Path:
+def managed_config(gateway_url, update_config=None):
+    config = {'gateway_url': gateway_url}
+    if update_config is not None:
+        import base64
+        from manuals_rag_inference.node_updater import bootstrap
+        settings = bootstrap({'app_update':update_config})
+        if not settings['enabled']: raise ValueError('Updater requires explicit enablement and pinned publisher keys')
+        if any(not isinstance(key,str) or len(base64.b64decode(value,validate=True))!=32 for key,value in settings['public_keys'].items()):
+            raise ValueError('Ed25519 publisher public keys required')
+        config['app_update'] = settings
+    return config
+
+
+def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
     gateway_url = _validate_managed_gateway_url(gateway_url)
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -266,14 +316,16 @@ def build(output: Path, *, gateway_url: str = "") -> Path:
             source / "manuals_rag_inference",
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
-        for name in ("run_inference_node_client.py", "run_inference_node_agent.py"):
+        for name in ("run_inference_node_client.py", "run_inference_node_agent.py", "provis_agent_link.py"):
             shutil.copy2(SOURCE_ROOT / name, source / name)
         _write_text(stage, "start-node-setup.ps1", WINDOWS_SETUP)
         _write_text(stage, "start-node-agent.ps1", WINDOWS_AGENT)
         _write_text(stage, "start-node-setup.cmd", WINDOWS_SETUP_CMD)
         _write_text(stage, "start-node-agent.cmd", WINDOWS_AGENT_CMD)
         _write_text(stage, "build-node-exe.ps1", WINDOWS_EXE_BUILD)
-        _write_text(stage, "provis-node-config.json", json.dumps({"gateway_url": gateway_url}, indent=2) + "\n")
+        _write_text(stage, "start-node-setup.sh", LINUX_SETUP)
+        (stage / 'start-node-setup.sh').chmod(0o755)
+        _write_text(stage, "provis-node-config.json", json.dumps(managed_config(gateway_url, update_config), indent=2) + "\n")
         _write_text(stage, "README.md", README)
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for item in sorted(stage.rglob("*")):
@@ -294,8 +346,9 @@ def main() -> None:
         default=os.getenv("PROVIS_INFERENCE_GATEWAY_URL", ""),
         help="Managed gateway URL embedded for employees; tenant/client/scope are discovered from the gateway",
     )
+    parser.add_argument('--update-config', type=Path, help='Nonsecret JSON: enabled, version, pinned public_keys')
     args = parser.parse_args()
-    print(build(args.output, gateway_url=args.gateway_url))
+    print(build(args.output, gateway_url=args.gateway_url, update_config=json.loads(args.update_config.read_text(encoding='utf-8')) if args.update_config else None))
 
 
 if __name__ == "__main__":

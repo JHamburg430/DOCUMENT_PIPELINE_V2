@@ -39,6 +39,25 @@ def _json_object(raw: str, field: str, errors: list[str]) -> dict:
 def validate_gateway_environment(env: Mapping[str, str]) -> PreflightResult:
     errors: list[str] = []
     warnings: list[str] = []
+    owner = str(env.get('INFERENCE_AGENT_LINK_OWNER_OBJECT_ID') or '').strip()
+    if owner:
+        import uuid
+        try:
+            if str(uuid.UUID(owner)) != owner: raise ValueError
+        except ValueError:
+            errors.append('Owner agent link requires one canonical Entra object ID')
+        if str(env.get('INFERENCE_GATEWAY_REQUIRE_ENTRA_ENROLLMENT') or '').lower() != 'true':
+            errors.append('Owner agent link requires Entra authentication')
+    release_dir = str(env.get('INFERENCE_NODE_UPDATE_RELEASE_DIR') or '').strip()
+    release_keys = str(env.get('INFERENCE_NODE_UPDATE_PUBLIC_KEYS_JSON') or '').strip()
+    if release_dir or release_keys:
+        import base64
+        keys = _json_object(release_keys, 'INFERENCE_NODE_UPDATE_PUBLIC_KEYS_JSON', errors)
+        if not owner or not release_dir or not keys:
+            errors.append('Remote updates require owner identity, release directory and publisher public keys')
+        try:
+            if any(not isinstance(key, str) or not key or len(base64.b64decode(value, validate=True)) != 32 for key, value in keys.items()): raise ValueError
+        except (ValueError, TypeError): errors.append('Remote updates require Ed25519 publisher public keys')
     token = str(env.get("INFERENCE_GATEWAY_TOKEN") or "")
     bind = str(env.get("INFERENCE_GATEWAY_BIND") or "127.0.0.1")
     allow_public = str(env.get("INFERENCE_GATEWAY_ALLOW_PUBLIC_BIND") or "false").lower() == "true"
@@ -67,6 +86,10 @@ def validate_gateway_environment(env: Mapping[str, str]) -> PreflightResult:
     for application, application_token in application_tokens.items():
         if not str(application).strip() or not isinstance(application_token, str) or len(application_token) < 32:
             errors.append(f"application token for {application!r} is missing or too short")
+    worker_policy = _json_object(str(env.get("INFERENCE_APPLICATION_WORKER_ALLOWLIST_JSON") or ""), "INFERENCE_APPLICATION_WORKER_ALLOWLIST_JSON", errors)
+    for application, nodes in worker_policy.items():
+        if application not in application_tokens or not isinstance(nodes, list) or not nodes or any(not isinstance(node, str) or not NODE_ID_PATTERN.fullmatch(node) for node in nodes):
+            errors.append("application worker allowlist must map registered applications to nonempty approved node IDs")
     try:
         port = int(env.get("INFERENCE_GATEWAY_PORT") or "8780")
         if not 1 <= port <= 65535:

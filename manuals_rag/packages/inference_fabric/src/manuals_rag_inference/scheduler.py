@@ -49,6 +49,8 @@ class InferenceScheduler:
         return request.min_vram_mb + math.ceil(context_mb)
 
     def _eligible(self, request: InferenceRequest, node: NodeSnapshot) -> tuple[bool, str, bool, int]:
+        if request.allowed_node_ids and node.node_id not in request.allowed_node_ids:
+            return False, "application_worker_not_approved", False, 0
         if request.model_size_bytes <= 0 or request.min_vram_mb <= 0:
             return False, "invalid_model_resource_requirements", False, 0
         if not node.healthy:

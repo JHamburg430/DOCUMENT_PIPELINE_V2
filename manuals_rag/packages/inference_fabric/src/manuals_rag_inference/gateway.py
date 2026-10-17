@@ -88,7 +88,7 @@ def validate_gateway_runtime_security(
 class InferenceGateway:
     """Registry, admission, and forwarding boundary for Ollama requests."""
 
-    def __init__(self, scheduler: InferenceScheduler | None = None, *, node_secrets: dict[str, bytes] | None = None, node_agent_urls: dict[str, str] | None = None, gateway_token: str | None = None, post: Callable[..., dict[str, Any]] | None = None, enrollment: EnrollmentManager | None = None, require_node_agents: bool = False, model_catalog: dict[str, ModelSpec] | None = None, require_model_catalog: bool = False, application_tokens: dict[str, str] | None = None, require_application_identity: bool = False, entra_validator: EntraTokenValidator | None = None, require_entra_enrollment: bool = False, entra_client_id: str = "", entra_scope: str = "", node_default_tailnet: str = "", node_default_applications: tuple[str, ...] = (), node_default_port: int = 8765) -> None:
+    def __init__(self, scheduler: InferenceScheduler | None = None, *, node_secrets: dict[str, bytes] | None = None, node_agent_urls: dict[str, str] | None = None, gateway_token: str | None = None, post: Callable[..., dict[str, Any]] | None = None, enrollment: EnrollmentManager | None = None, require_node_agents: bool = False, model_catalog: dict[str, ModelSpec] | None = None, require_model_catalog: bool = False, application_tokens: dict[str, str] | None = None, require_application_identity: bool = False, entra_validator: EntraTokenValidator | None = None, require_entra_enrollment: bool = False, entra_client_id: str = "", entra_scope: str = "", node_default_tailnet: str = "", node_default_applications: tuple[str, ...] = (), node_default_port: int = 8765, application_worker_allowlist: dict[str, tuple[str, ...]] | None = None) -> None:
         self.scheduler = scheduler or InferenceScheduler()
         self.node_secrets = node_secrets or {}
         self.node_agent_urls = node_agent_urls or {}
@@ -105,7 +105,11 @@ class InferenceGateway:
         self.node_default_tailnet = node_default_tailnet.strip()
         self.node_default_applications = tuple(item for item in node_default_applications if item)
         self.node_default_port = int(node_default_port)
+        self.application_worker_allowlist = dict(application_worker_allowlist or {})
+        if any(not isinstance(app, str) or not app or not isinstance(nodes, (list, tuple)) or not nodes or any(not isinstance(node, str) or not node for node in nodes) for app, nodes in self.application_worker_allowlist.items()):
+            raise ValueError("invalid application worker allowlist")
         self._heartbeat_lock = threading.Lock()
+        self.agent_link = None
         self._last_heartbeat_observed: dict[str, float] = {}
         self._post = post or self._post_json
         self.enrollment = enrollment
@@ -222,6 +226,12 @@ class InferenceGateway:
             expected = self.application_tokens.get(str(application or ""))
             if expected is None or not hmac.compare_digest(expected, application_token or ""):
                 raise AuthenticationError("valid application identity required for inference")
+
+    def authorize_application(self, *, application: str, application_token: str | None) -> None:
+        """Application tokens grant inference only, never operator administration."""
+        expected = self.application_tokens.get(application)
+        if not expected or not hmac.compare_digest(expected, application_token or ""):
+            raise AuthenticationError("valid application identity required for inference")
 
     def authorize_client(self, token: str | None, *, application: str | None = None, application_token: str | None = None) -> None:
         """Backward-compatible name for inference authorization."""
@@ -370,6 +380,9 @@ class InferenceGateway:
 
     def _authoritative_request(self, request: InferenceRequest) -> InferenceRequest:
         """Use central catalog truth instead of caller-supplied model resources."""
+        from dataclasses import replace
+        # Worker restrictions are server-owned; callers cannot widen or bypass them.
+        request = replace(request, allowed_node_ids=tuple(self.application_worker_allowlist.get(request.application, ())))
         if not self.model_catalog:
             if self.require_model_catalog:
                 raise RuntimeError("model_catalog_required")
@@ -499,6 +512,9 @@ def _snapshot_from_payload(payload: dict[str, Any]) -> NodeSnapshot:
         healthy=bool(payload.get("healthy", True)),
         request_accounting_available=bool(payload.get("request_accounting_available", False)),
         inference_enabled=bool(payload.get("inference_enabled", True)),
+        node_app_version=str(payload.get("node_app_version") or "")[:40],
+        node_app_platform=str(payload.get("node_app_platform") or "")[:40],
+        remote_updates_enabled=payload.get("remote_updates_enabled") is True,
         installed_models=tuple(str(model) for model in payload.get("installed_models") or []),
         installed_model_capabilities={str(model): tuple(capabilities) for model, capabilities in (payload.get("installed_model_capabilities") or {}).items()},
     )
@@ -563,6 +579,8 @@ def create_gateway_handler(gateway: InferenceGateway):
         def do_GET(self) -> None:  # noqa: N802
             if self.path == "/health":
                 self._send(200, {"status": "ok", "nodes": len(gateway.scheduler.snapshots())})
+            elif self.path == '/v1/agent-link/availability':
+                self._send(200, {'enabled': gateway.agent_link is not None})
             elif self.path == "/v1/node/enrollment-config":
                 try:
                     self._send(200, gateway.enrollment_config())
@@ -571,6 +589,19 @@ def create_gateway_handler(gateway: InferenceGateway):
             elif self.path == "/v1/nodes":
                 gateway.authorize_operator(self.headers.get("X-Gateway-Token"))
                 self._send(200, {"nodes": [node.to_dict() for node in gateway.scheduler.snapshots()]})
+            elif self.path.startswith('/v1/node-releases/'):
+                try:
+                    updates = gateway.agent_link.updates if gateway.agent_link else None
+                    if updates is None: raise PermissionError('Updates unavailable')
+                    _, artifact = updates.catalog.get(self.path.removeprefix('/v1/node-releases/'))
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/octet-stream')
+                    self.send_header('Content-Length', str(artifact.stat().st_size))
+                    self.end_headers()
+                    with artifact.open('rb') as stream:
+                        while chunk := stream.read(65536): self.wfile.write(chunk)
+                except (OSError, ValueError, PermissionError):
+                    self._send(404, {'detail': 'Release unavailable'})
             else:
                 self._send(404, {"detail": "not found"})
 
@@ -578,8 +609,35 @@ def create_gateway_handler(gateway: InferenceGateway):
             try:
                 raw = self._body()
                 payload = json.loads(raw.decode())
-                if self.path == "/v1/nodes/inference":
-                    payload = gateway.authenticate_node_inference(raw, self.headers.get("X-Node-Signature") or "")
+                if self.path in ('/v1/nodes/updates/poll', '/v1/nodes/updates/report'):
+                    updates = gateway.agent_link.updates if gateway.agent_link else None
+                    if updates is None:
+                        self._send(503, {'detail': 'Remote updates are not enabled'})
+                        return
+                    if len(raw) > 16384: raise ValueError('Bounded update request required')
+                    self._send(200, updates.node(self.path.rsplit('/', 1)[1], raw, self.headers.get('X-Node-Signature', '')))
+                    return
+                if self.path.startswith('/v1/agent-link/'):
+
+                    if gateway.agent_link is None:
+                        self._send(503, {'detail': 'Owner agent link is not enabled'})
+                        return
+                    if len(raw) > 65536:
+                        raise ValueError('Owner request too large')
+                    scheme, _, bearer = self.headers.get('Authorization', '').partition(' ')
+                    if scheme.lower() != 'bearer' or not bearer:
+                        raise AuthenticationError('Owner sign-in required')
+                    result = gateway.agent_link.dispatch(self.path.removeprefix('/v1/agent-link/'), bearer, payload)
+                    self._send(200, result)
+                    return
+                if self.path in {"/v1/nodes/inference", "/v1/applications/inference"}:
+                    if self.path == "/v1/nodes/inference":
+                        payload = gateway.authenticate_node_inference(raw, self.headers.get("X-Node-Signature") or "")
+                    else:
+                        metadata = payload.get("request")
+                        if not isinstance(metadata, dict) or not isinstance(metadata.get("application"), str):
+                            raise ValueError("application identity required")
+                        gateway.authorize_application(application=metadata["application"], application_token=self.headers.get("X-Inference-Application-Token"))
                     metadata = payload["request"]
                     operation = payload.get("operation")
                     model_payload = payload.get("payload")
@@ -678,9 +736,9 @@ def create_gateway_handler(gateway: InferenceGateway):
             except PermissionError as error:
                 self._send(403, {"detail": str(error)})
             except (KeyError, ValueError, json.JSONDecodeError) as error:
-                self._send(400, {"detail": "invalid node inference request" if self.path == "/v1/nodes/inference" else str(error)})
+                self._send(400, {"detail": "invalid node inference request" if self.path in {"/v1/nodes/inference", "/v1/applications/inference"} else str(error)})
             except (RuntimeError, urllib.error.URLError) as error:
-                self._send(503, {"detail": "node inference unavailable" if self.path == "/v1/nodes/inference" else str(error)})
+                self._send(503, {"detail": "node inference unavailable" if self.path in {"/v1/nodes/inference", "/v1/applications/inference"} else str(error)})
             except (OSError, TypeError) as error:
                 self._send((400 if isinstance(error, TypeError) else 503), {"detail": "invalid request or upstream unavailable"})
             except Exception as error:
@@ -762,6 +820,7 @@ def run_gateway() -> None:
         node_default_tailnet=os.getenv("INFERENCE_NODE_DEFAULT_TAILNET", "").strip(),
         node_default_applications=node_default_applications,
         node_default_port=int(os.getenv("INFERENCE_NODE_DEFAULT_PORT", "8765")),
+        application_worker_allowlist=json.loads(os.getenv("INFERENCE_APPLICATION_WORKER_ALLOWLIST_JSON", "{}")),
         enrollment=EnrollmentManager(
             enrollment_path,
             allowed_host_suffixes=tuple(
@@ -773,5 +832,24 @@ def run_gateway() -> None:
         ),
         require_node_agents=require_node_agents,
     )
+    owner_object_id = os.getenv('INFERENCE_AGENT_LINK_OWNER_OBJECT_ID', '').strip()
+    if owner_object_id:
+        from pathlib import Path
+        from .agent_link import AgentLink
+        if entra_validator is None:
+            raise RuntimeError('Entra authentication required for owner agent link')
+        gateway.agent_link = AgentLink(entra_validator, gateway.enrollment, owner_object_id=owner_object_id,
+                                      path=Path(enrollment_path).parent / 'agent-link.sqlite3')
+    release_dir = os.getenv('INFERENCE_NODE_UPDATE_RELEASE_DIR', '').strip()
+    release_keys = os.getenv('INFERENCE_NODE_UPDATE_PUBLIC_KEYS_JSON', '').strip()
+    if release_dir or release_keys:
+        from .node_release import ReleaseCatalog
+        from .node_update_queue import NodeUpdateQueue
+        if not gateway.agent_link or not release_dir or not release_keys:
+            raise RuntimeError('Owner identity, release directory and publisher keys required for updates')
+        catalog = ReleaseCatalog(release_dir, json.loads(release_keys))
+        catalog.list()  # refuse startup with unverified releases
+        gateway.agent_link.updates = NodeUpdateQueue(catalog, gateway.enrollment, gateway.scheduler,
+                                                   gateway.agent_link.db, gateway.agent_link.lock)
     server = ThreadingHTTPServer((bind, int(os.getenv("INFERENCE_GATEWAY_PORT", "8780"))), create_gateway_handler(gateway))
     server.serve_forever()

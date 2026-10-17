@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 
 from manuals_rag_inference.node_agent import (
     _detect_tailscale_ipv4,
+    _gpu_snapshots,
     _load_node_config,
     _save_node_config,
     create_node_server,
@@ -74,6 +75,18 @@ def _managed_config_candidates() -> tuple[Path, ...]:
 
 
 def _load_managed_gateway_url() -> str:
+    # Linux zipapps carry the same nonsecret bootstrap JSON as the Windows EXE.
+    if not getattr(sys, 'frozen', False) and Path(sys.argv[0]).suffix == '.pyz':
+        import json
+        import zipfile
+        try:
+            with zipfile.ZipFile(sys.argv[0]) as archive:
+                config = json.loads(archive.read('provis-node-config.json'))
+            gateway_url = str(config.get('gateway_url') or '').strip()
+            if _is_managed_gateway_url(gateway_url):
+                return gateway_url.rstrip('/')
+        except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+            pass
     for candidate in _managed_config_candidates():
         try:
             config = _load_node_config(str(candidate))
@@ -90,19 +103,43 @@ def _load_managed_gateway_url() -> str:
     return ""
 
 
+def _managed_update_settings():
+    import json
+    from manuals_rag_inference.node_updater import bootstrap
+    if not getattr(sys, 'frozen', False) and Path(sys.argv[0]).suffix == '.pyz':
+        import zipfile
+        with zipfile.ZipFile(sys.argv[0]) as archive:
+            return bootstrap(json.loads(archive.read('provis-node-config.json')))
+    for candidate in _managed_config_candidates():
+        if candidate.is_file(): return bootstrap(_load_node_config(str(candidate)))
+    return bootstrap({})
+
+
 def _default_node_id() -> str:
     value = re.sub(r"[^A-Za-z0-9._-]+", "-", platform.node()).strip("-")
     return value or "provis-inference-node"
+
+
+from manuals_rag_inference.node_presentation import public_events, utilization
+from manuals_rag_inference.node_tray import NodeTray, SingleInstance
+from manuals_rag_inference.node_theme import PALETTES, load_theme, save_theme
 
 
 class InferenceNodeClient(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("PROVIS Inference Node")
-        self.geometry("920x650")
-        self.minsize(760, 520)
+        self.geometry("440x740")
+        self.resizable(False, False)
+        self.configure(bg="#f3f6fb")
         self.protocol("WM_DELETE_WINDOW", self._close_requested)
         self.config_path = os.getenv("INFERENCE_NODE_CONFIG_PATH", _default_config_path())
+        self.theme_path = Path(self.config_path).with_name('inference-node-ui.json')
+        self.theme = load_theme(self.theme_path)
+        self.ui_font = 'Segoe UI' if os.name == 'nt' else 'DejaVu Sans'
+        self.theme_button_var = tk.StringVar()
+        self.updater = None
+        self.update_settings = _managed_update_settings()
         self.server = None
         self.agent = None
         self.gateway_url = ""
@@ -119,52 +156,157 @@ class InferenceNodeClient(tk.Tk):
         self.signin_code = ""
         self.inference_var = tk.StringVar(value="Inference disabled")
         self.local_endpoint_var = tk.StringVar(value="OpenAI-compatible local endpoint: http://127.0.0.1:8767/v1")
+        self._quitting = False
+        self._last_rows = None
+        self._metrics_stop = threading.Event()
         self._build_ui()
+        self.owner_panel = None
+        self.bind_all('<Control-Shift-A>', self._open_owner_panel)
+        self._apply_theme()
+        self.tray = NodeTray(lambda event, value: self.worker_queue.put((event, value)))
         self._load_saved_values()
+        threading.Thread(target=self._metrics_worker, daemon=True, name="provis-utilization").start()
+        self.after(800, self._position_panel)
         self.after(250, self._drain_worker_queue)
         self.after(1000, self._refresh_activity)
 
     def _build_ui(self) -> None:
-        root = ttk.Frame(self, padding=14)
+        navy, muted, blue = "#122743", "#65758c", "#225fe5"
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("TButton", font=(self.ui_font, 10), padding=(10, 8), background="#edf2fa", foreground=navy, borderwidth=0)
+        style.map("TButton", background=[("active", "#dbe7fa")], foreground=[("disabled", "#96a1b2")])
+        style.configure("Primary.TButton", background=blue, foreground="white")
+        style.map("Primary.TButton", background=[("active", "#174fc9"), ("disabled", "#b3c8ef")])
+        style.configure("Node.Treeview", font=(self.ui_font, 9), rowheight=34, background="white", fieldbackground="white", foreground=navy, borderwidth=0)
+        style.configure("Node.Treeview.Heading", font=(self.ui_font, 9), background="#f3f6fb", foreground=muted, relief="flat")
+        style.configure("Node.Horizontal.TProgressbar", background="#1c9b8a", troughcolor="#e8edf5", borderwidth=0)
+        header = tk.Frame(self, bg=navy, padx=22, pady=18)
+        header.pack(fill="x")
+        tk.Button(header, textvariable=self.theme_button_var, command=self._toggle_theme, bg=navy, fg='white', activebackground='#29394d', activeforeground='white', relief='flat', font=(self.ui_font, 9), padx=8, pady=6).pack(side='right')
+        tk.Label(header, text="PROVIS", bg=navy, fg="white", font=(self.ui_font, 21, "bold")).pack(anchor="w")
+        tk.Label(header, text="PRIVATE COMPUTE", bg=navy, fg="#96b7eb", font=(self.ui_font, 9, "bold")).pack(anchor="w", pady=(1, 0))
+        root = tk.Frame(self, bg="#f3f6fb", padx=18, pady=14)
         root.pack(fill="both", expand=True)
-        ttk.Label(root, text="PROVIS Inference Node", font=("Segoe UI", 17, "bold")).pack(anchor="w")
-        ttk.Label(root, text="Connect this machine to the private PROVIS inference gateway. No Tailscale key is entered here.").pack(anchor="w", pady=(2, 12))
-
-        connection = ttk.LabelFrame(root, text="Connect / login", padding=10)
+        connection = tk.Frame(root, bg="white", padx=14, pady=12)
         connection.pack(fill="x")
-        ttk.Label(connection, text="This device is preconfigured by PROVIS. Sign in with Microsoft 365 to enroll it; node settings are discovered automatically.").grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))
-        self.entra_button = ttk.Button(connection, text="Sign in with Microsoft 365", command=self._entra_connect)
-        self.entra_button.grid(row=1, column=0, sticky="w", pady=(4, 0))
-        ttk.Label(connection, textvariable=self.status_var).grid(row=1, column=1, sticky="w", padx=(12, 8), pady=(4, 0))
+        tk.Label(connection, text="Your device", bg="white", fg=navy, font=(self.ui_font, 12, "bold")).grid(row=0, column=0, sticky="w")
+        tk.Label(connection, textvariable=self.status_var, wraplength=315, justify="left", bg="white", fg=muted, font=(self.ui_font, 10)).grid(row=1, column=0, sticky="w", pady=(4, 8))
         self.copy_code_button = ttk.Button(connection, text="Copy", command=self._copy_signin_code)
-        self.copy_code_button.grid(row=1, column=2, sticky="w", pady=(4, 0))
+        self.copy_code_button.grid(row=1, column=1, padx=(6, 0))
         self.copy_code_button.grid_remove()
-
-        controls = ttk.LabelFrame(root, text="Node controls", padding=10)
-        controls.pack(fill="x", pady=(12, 0))
-        self.enable_button = ttk.Button(controls, text="Enable inference", command=lambda: self._set_inference(True), state="disabled")
+        self.entra_button = ttk.Button(connection, text="Sign in with Microsoft 365", style="Primary.TButton", command=self._entra_connect)
+        self.entra_button.grid(row=2, column=0, columnspan=2, sticky="ew")
+        metrics = tk.Frame(root, bg="white", padx=14, pady=12)
+        metrics.pack(fill="x", pady=(10, 0))
+        tk.Label(metrics, text="Device utilization", bg="white", fg=navy, font=(self.ui_font, 12, "bold")).pack(anchor="w")
+        self.gpu_var = tk.StringVar(value="GPU  •  Checking…")
+        self.memory_var = tk.StringVar(value="GPU memory  •  Checking…")
+        self.work_var = tk.StringVar(value="No active work")
+        tk.Label(metrics, textvariable=self.gpu_var, bg="white", fg=muted, font=(self.ui_font, 10)).pack(anchor="w", pady=(8, 3))
+        self.gpu_bar = ttk.Progressbar(metrics, style="Node.Horizontal.TProgressbar", maximum=100)
+        self.gpu_bar.pack(fill="x")
+        tk.Label(metrics, textvariable=self.memory_var, bg="white", fg=muted, font=(self.ui_font, 10)).pack(anchor="w", pady=(8, 3))
+        self.memory_bar = ttk.Progressbar(metrics, style="Node.Horizontal.TProgressbar", maximum=100)
+        self.memory_bar.pack(fill="x")
+        tk.Label(metrics, textvariable=self.work_var, bg="white", fg=muted, font=(self.ui_font, 9)).pack(anchor="w", pady=(8, 0))
+        controls = tk.Frame(root, bg="#f3f6fb")
+        controls.pack(fill="x", pady=10)
+        self.enable_button = ttk.Button(controls, text="Resume", command=lambda: self._set_inference(True), state="disabled")
         self.enable_button.pack(side="left")
-        self.disable_button = ttk.Button(controls, text="Disable inference", command=lambda: self._set_inference(False), state="disabled")
-        self.disable_button.pack(side="left", padx=8)
-        self.disconnect_button = ttk.Button(controls, text="Disconnect safely", command=self._disconnect, state="disabled")
-        self.disconnect_button.pack(side="left")
-        ttk.Label(controls, textvariable=self.inference_var).pack(side="left", padx=16)
+        self.disable_button = ttk.Button(controls, text="Pause", command=lambda: self._set_inference(False), state="disabled")
+        self.disable_button.pack(side="left", padx=6)
+        self.disconnect_button = ttk.Button(controls, text="Disconnect", command=self._disconnect, state="disabled")
+        self.disconnect_button.pack(side="right")
+        status = tk.Frame(root, bg="#f3f6fb")
+        status.pack(fill="x", pady=(0, 8))
+        tk.Label(status, textvariable=self.inference_var, bg="#f3f6fb", fg=muted, font=(self.ui_font, 9)).pack(side="left")
+        tk.Button(status, text="Quit", command=self._quit_requested, bg="#f3f6fb", fg=muted, relief="flat", font=(self.ui_font, 9)).pack(side="right")
+        tk.Label(root, text="Recent events", bg="#f3f6fb", fg=navy, font=(self.ui_font, 11, "bold")).pack(anchor="w", pady=(0, 6))
+        self.activity_view = ttk.Treeview(root, style="Node.Treeview", columns=("time", "event", "status"), show="headings", height=4)
+        for column, label, width in (("time", "Time", 66), ("event", "Event", 197), ("status", "Status", 101)):
+            self.activity_view.heading(column, text=label)
+            self.activity_view.column(column, width=width, stretch=False)
+        tk.Label(root, text="Activity and utilization only.", bg="#f3f6fb", fg=muted, font=(self.ui_font, 8)).pack(side='bottom', anchor="w", pady=(8, 0))
+        self.activity_view.pack(fill="both", expand=True)
         ttk.Label(root, textvariable=self.local_endpoint_var, foreground="#165d69").pack(anchor="w", pady=(8, 0))
         ttk.Label(root, text="Use X-ProVIS-Application to select an allowed application; gateway credentials stay inside the node.", foreground="#5c6770").pack(anchor="w")
 
-        monitor = ttk.LabelFrame(root, text="PROVIS node activity (prompts and credentials are never displayed)", padding=8)
-        monitor.pack(fill="both", expand=True, pady=(12, 0))
-        columns = ("time", "operation", "model", "status", "duration", "error")
-        self.activity_view = ttk.Treeview(monitor, columns=columns, show="headings", height=14)
-        headings = {"time": "Time", "operation": "Operation", "model": "Model", "status": "Status", "duration": "Duration ms", "error": "Error"}
-        widths = {"time": 90, "operation": 100, "model": 180, "status": 90, "duration": 90, "error": 180}
-        for column in columns:
-            self.activity_view.heading(column, text=headings[column])
-            self.activity_view.column(column, width=widths[column], anchor="w")
-        scrollbar = ttk.Scrollbar(monitor, orient="vertical", command=self.activity_view.yview)
-        self.activity_view.configure(yscrollcommand=scrollbar.set)
-        self.activity_view.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+    def _toggle_theme(self):
+        self.theme = 'dark' if self.theme == 'light' else 'light'
+        self._apply_theme()
+        try:
+            save_theme(self.theme_path, self.theme)
+        except OSError:
+            self.status_var.set('Appearance changed for this session; preference could not be saved.')
+
+    def _open_owner_panel(self, _event=None):
+        from manuals_rag_inference.agent_link_ui import OwnerPanel
+        if self.owner_panel is None or not self.owner_panel.winfo_exists():
+            self.owner_panel = OwnerPanel(self)
+        self.owner_panel.deiconify();self.owner_panel.lift()
+
+    def _apply_theme(self):
+        colors = PALETTES[self.theme]
+        self.theme_button_var.set('Light mode' if self.theme == 'dark' else 'Dark mode')
+        background_roles = {'#f3f6fb': 'background', 'white': 'card', '#ffffff': 'card', '#122743': 'header'}
+        foreground_roles = {'#122743': 'text', '#65758c': 'muted'}
+        for palette in PALETTES.values():
+            background_roles.update({palette[role]: role for role in ('background', 'card', 'header')})
+            foreground_roles.update({palette[role]: role for role in ('text', 'muted')})
+        def visit(widget):
+            if isinstance(widget, (tk.Tk, tk.Toplevel, tk.Frame, tk.Label, tk.Button, tk.Text)):
+                if not hasattr(widget, '_appearance_roles'):
+                    roles = {}
+                    for option, mapping in [('background', background_roles), ('foreground', foreground_roles)]:
+                        try:
+                            role = mapping.get(widget.cget(option))
+                            if role: roles[option] = role
+                        except tk.TclError:
+                            pass
+                    widget._appearance_roles = roles
+                widget.configure(**{option: colors[role] for option, role in widget._appearance_roles.items()})
+                if isinstance(widget, tk.Text): widget.configure(insertbackground=colors['text'])
+            for child in widget.winfo_children(): visit(child)
+        visit(self)
+        style = ttk.Style(self)
+        style.configure('TButton', background=colors['button'], foreground=colors['text'])
+        style.map('TButton', background=[('active', colors['hover'])], foreground=[('disabled', colors['muted'])])
+        style.configure('Primary.TButton', background='#225fe5', foreground='white')
+        style.map('Primary.TButton', background=[('active', '#174fc9'), ('disabled', colors['button'])], foreground=[('disabled', colors['muted'])])
+        style.configure('Node.Treeview', background=colors['card'], fieldbackground=colors['card'], foreground=colors['text'])
+        style.map('Node.Treeview', background=[('selected', '#225fe5')], foreground=[('selected', 'white')])
+        style.configure('Node.Treeview.Heading', background=colors['background'], foreground=colors['muted'])
+        style.configure('Node.Horizontal.TProgressbar', troughcolor=colors['track'], background='#1c9b8a')
+
+    def _position_panel(self):
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+            area = wintypes.RECT()
+            if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(area), 0):
+                height = min(740, area.bottom - area.top - 48)
+                self.geometry(f"440x{height}+{max(area.left, area.right - 456)}+{max(area.top, area.bottom - height - 40)}")
+        else:
+            height = min(740, self.winfo_screenheight() - 80)
+            self.geometry(f"440x{height}+{max(0, self.winfo_screenwidth() - 456)}+{max(0, self.winfo_screenheight() - height - 64)}")
+
+    def _show_panel(self):
+        if self.state() == "withdrawn":
+            self._position_panel()
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+        else:
+            self.withdraw()
+
+    def _metrics_worker(self):
+        while not self._metrics_stop.is_set():
+            try:
+                self.worker_queue.put(("metrics", utilization(_gpu_snapshots())))
+            except Exception:
+                self.worker_queue.put(("metrics", (0, 0, 0)))
+            self._metrics_stop.wait(3)
 
     def _load_saved_values(self) -> None:
         config = _load_node_config(self.config_path)
@@ -264,7 +406,12 @@ class InferenceNodeClient(tk.Tk):
             "entra_scope": values.get("entra_scope", ""),
         })
         _save_node_config(self.config_path, config)
-        server, agent, gateway_url = create_node_server(self.config_path)
+        from manuals_rag_inference.node_updater import platform_id
+        plan = getattr(self, 'update_plan', None)
+        startup_enabled = plan['previous_enabled'] if plan else True
+        metadata = {'node_app_version': self.update_settings['version'], 'node_app_platform': platform_id(),
+                    'remote_updates_enabled': self.update_settings['enabled'] and (bool(getattr(sys, 'frozen', False)) or Path(sys.argv[0]).suffix == '.pyz')}
+        server, agent, gateway_url = create_node_server(self.config_path, app_metadata=metadata, startup_enabled=startup_enabled)
         thread = threading.Thread(target=server.serve_forever, daemon=True, name="provis-inference-node-server")
         thread.start()
         local_broker_server = getattr(server, "local_broker_server", None)
@@ -329,12 +476,14 @@ class InferenceNodeClient(tk.Tk):
             self.worker_queue.put(("error", str(error)))
 
     def _set_inference(self, enabled: bool) -> None:
+        if self.updater and self.updater.applying: return
         if self.agent is None:
             return
         self.agent.set_inference_enabled(enabled)
         self._update_controls()
 
     def _disconnect(self) -> None:
+        if self.owner_panel is not None: self.owner_panel._sign_out()
         if self.agent is None or not self.gateway_url:
             self.status_var.set("No connected gateway")
             return
@@ -356,23 +505,60 @@ class InferenceNodeClient(tk.Tk):
         try:
             while True:
                 event, value = self.worker_queue.get_nowait()
-                if event == "connected":
+                if event == "tray_show":
+                    self._show_panel()
+                elif event == "show_existing":
+                    self._position_panel()
+                    self.deiconify()
+                    self.lift()
+                    self.focus_force()
+                elif event == "tray_pause":
+                    self._set_inference(False)
+                elif event == "tray_resume":
+                    self._set_inference(True)
+                elif event == "tray_disconnect":
+                    self._disconnect()
+                elif event == "tray_quit":
+                    self._quit_requested()
+                elif event == "tray_error":
+                    self.deiconify()
+                    self.status_var.set("Tray unavailable. Keep this panel open while sharing.")
+                elif event == "metrics":
+                    load, used, total = value
+                    self.gpu_var.set(f"GPU load  •  {load:.0f}%" if total else "GPU metrics unavailable")
+                    self.memory_var.set(f"GPU memory  •  {used / 1024:.1f} / {total / 1024:.1f} GB" if total else "GPU memory unavailable")
+                    self.gpu_bar["value"] = load
+                    self.memory_bar["value"] = 100 * used / total if total else 0
+                elif event == "connected":
                     self._clear_signin_code()
                     self.server, self.agent, self.gateway_url = value
-                    self.status_var.set(f"Connected: {self.agent.node_id}")
+                    from manuals_rag_inference.node_updater import UpdateWorker
+                    if self.update_settings['enabled'] and self.agent.app_metadata['remote_updates_enabled']:
+                        self.updater = UpdateWorker(self.agent, self.gateway_url, self.config_path, self.update_settings,
+                            self._owner_busy,
+                            lambda plan: self.worker_queue.put(('app_update_apply', plan)))
+                    self.status_var.set("Connected to PROVIS")
                     self._update_controls()
+                elif event == 'app_update_apply':
+                    from manuals_rag_inference.node_updater import command
+                    import subprocess
+                    flags = {'creationflags':subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {}
+                    subprocess.Popen(command()+['--update-helper',str(value)], **flags)
+                    self._stop_server()
+                    self._finish_quit()
+                    return
                 elif event == "disconnected":
                     self._clear_signin_code()
                     self._stop_server()
                     self.status_var.set("Disconnected safely from gateway")
                     self._update_controls()
                 elif event == "disconnect_error":
-                    self.status_var.set(f"Disconnect failed; node remains stopped from inference: {value}")
+                    self.status_var.set("Sharing paused. Disconnect could not be confirmed; try again.")
                     if self.agent:
                         self._update_controls()
                 elif event == "error":
                     self._clear_signin_code()
-                    self.status_var.set(f"Connection failed: {value}")
+                    self.status_var.set("Unable to connect. Check your connection and sign in again.")
                     self.entra_button.configure(state="normal")
                 elif event == "entra_prompt":
                     self._show_signin_code(value)
@@ -383,7 +569,7 @@ class InferenceNodeClient(tk.Tk):
     def _update_controls(self) -> None:
         connected = self.agent is not None
         self.entra_button.configure(state="disabled" if connected else "normal")
-        state = "normal" if connected else "disabled"
+        state = "normal" if connected and not (self.updater and self.updater.applying) else "disabled"
         self.enable_button.configure(state=state)
         self.disable_button.configure(state=state)
         self.disconnect_button.configure(state=state)
@@ -393,32 +579,36 @@ class InferenceNodeClient(tk.Tk):
             self.inference_var.set("Inference disabled")
 
     def _refresh_activity(self) -> None:
+        self._update_controls()
         if self.agent is not None:
             events = self.agent.activity()
             heartbeat = next((event for event in reversed(events) if event.get("operation") == "heartbeat"), None)
-            if heartbeat and heartbeat.get("status") == "failed":
-                self.status_var.set(f"Gateway heartbeat failed: {heartbeat.get('error', 'unknown')}; retrying automatically")
-            elif heartbeat and str(self.status_var.get()).startswith(("Gateway heartbeat failed:", "Connected:")):
-                self.status_var.set(f"Connected: {self.agent.node_id}")
-            for item in self.activity_view.get_children():
-                self.activity_view.delete(item)
-            for event in events[-200:]:
-                timestamp = time.strftime("%H:%M:%S", time.localtime(float(event.get("timestamp") or 0)))
-                self.activity_view.insert("", "end", values=(
-                    timestamp,
-                    event.get("operation", ""),
-                    event.get("model", ""),
-                    event.get("status", ""),
-                    event.get("duration_ms", ""),
-                    event.get("error", ""),
-                ))
-            if events:
+            if heartbeat:
+                self.status_var.set("Reconnecting to PROVIS…" if heartbeat.get("status") == "failed" else "Connected to PROVIS")
+            rows = public_events(events)
+            if rows != self._last_rows:
+                self._last_rows = rows
+                for item in self.activity_view.get_children():
+                    self.activity_view.delete(item)
+                for row in rows:
+                    self.activity_view.insert("", "end", values=row)
                 children = self.activity_view.get_children()
                 if children:
                     self.activity_view.see(children[-1])
+            # Only counts cross the presentation boundary; model keys stay private.
+            with self.agent._request_lock:
+                active = sum(self.agent._active_by_model.values())
+            self.work_var.set(f"{active} active request" + ("s" if active != 1 else "") if active else "No active work")
         self.after(1000, self._refresh_activity)
 
+    def _owner_busy(self):
+        runtime = self.owner_panel.runtime if self.owner_panel else None
+        if runtime:
+            with runtime.delivery_lock: return runtime.busy.is_set()
+        return False
+
     def _stop_server(self) -> None:
+        if self.updater: self.updater.stop.set();self.updater = None
         server = self.server
         self.server = None
         self.agent = None
@@ -433,22 +623,90 @@ class InferenceNodeClient(tk.Tk):
             server.server_close()
 
     def _close_requested(self) -> None:
-        if self.agent is None:
-            self.destroy()
+        if self.tray.ready.is_set() and self.tray.error is None:
+            self.withdraw()
+        else:
+            self._quit_requested()
+
+    def _quit_requested(self) -> None:
+        if self._quitting:
             return
-        if messagebox.askyesno("Disconnect node", "Safely disconnect this node from the gateway before closing?"):
+        if self.agent is not None:
+            if not messagebox.askyesno("Quit PROVIS", "Pause sharing and safely disconnect this device?", parent=self):
+                return
+            self._quitting = True
             self._disconnect()
             self.after(250, self._close_after_disconnect)
+        else:
+            self._finish_quit()
+
+    def _finish_quit(self):
+        if self.updater: self.updater.stop.set()
+        if self.owner_panel is not None: self.owner_panel.stop()
+        self._metrics_stop.set()
+        self.tray.close()
+        self.destroy()
 
     def _close_after_disconnect(self) -> None:
         if self.agent is None:
-            self.destroy()
+            self._finish_quit()
+        elif str(self.status_var.get()).startswith("Sharing paused."):
+            self._quitting = False
+            self.deiconify()
         else:
             self.after(250, self._close_after_disconnect)
 
 
 def main() -> None:
-    InferenceNodeClient().mainloop()
+    if not getattr(sys, 'frozen', False) and len(sys.argv) > 1 and sys.argv[1] == '--agent-link':
+        sys.argv.pop(1)
+        from provis_agent_link import main as owner_tool
+        owner_tool()
+        return
+    from manuals_rag_inference.node_updater import helper, active_app, command, validate_plan, private_json, _report_plan
+    import subprocess
+    settings = _managed_update_settings()
+    config_path = os.getenv('INFERENCE_NODE_CONFIG_PATH', _default_config_path())
+    mode = sys.argv[1] if len(sys.argv)>1 else ''
+    if mode in ('--update-helper', '--update-probe', '--update-rollback') and (not settings['enabled'] or len(sys.argv)!=3):
+        raise PermissionError('Trusted updater bootstrap required')
+    if mode == '--update-helper':
+        helper(sys.argv[2], config_path, settings)
+        return
+    probe = None
+    if mode in ('--update-probe','--update-rollback'):
+        probe = validate_plan(sys.argv[2], config_path, settings)
+    elif settings['enabled']:
+        target = active_app(config_path, settings)
+        if target:
+            subprocess.Popen(command(target), creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+            return
+    instance = SingleInstance()
+    if instance.existing:
+        instance.close()
+        return
+    try:
+        app = InferenceNodeClient()
+        if probe:
+            path, plan, manifest = probe
+            app.update_plan = plan
+            def check_update_health():
+                if app.agent and app.server and app.agent.heartbeat_accepted.is_set() and app.agent.node_id == plan['node_id']:
+                    if mode == '--update-probe':
+                        if app.update_settings['version'] != manifest['version']:
+                            app._stop_server();app._finish_quit();return
+                        private_json(path.parent/'healthy.json', {'nonce':plan['probe_nonce'], 'version':manifest['version'], 'node_id':plan['node_id']})
+                    else: _report_plan(plan,'rolled_back')
+                    return
+                if time.monotonic() > health_deadline:
+                    app._stop_server();app._finish_quit();return
+                app.after(500, check_update_health)
+            health_deadline = time.monotonic()+75
+            app.after(500,check_update_health)
+        instance.watch(lambda event, value: app.worker_queue.put((event, value)))
+        app.mainloop()
+    finally:
+        instance.close()
 
 
 if __name__ == "__main__":

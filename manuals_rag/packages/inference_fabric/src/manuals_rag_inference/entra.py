@@ -83,6 +83,8 @@ class EntraTokenValidator:
             raise PermissionError("Entra token lacks an approved group")
         return {
             "subject": str(claims["sub"]),
+            "object_id": str(claims.get("oid") or ""),
+            "expires_at_epoch": int(claims["exp"]),
             "tenant_id": str(claims["tid"]),
             "issuer": str(claims["iss"]),
             "roles": sorted(roles.intersection(self.config.allowed_roles)) if self.config.allowed_roles else sorted(roles),
