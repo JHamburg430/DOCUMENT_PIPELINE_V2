@@ -1,14 +1,22 @@
 # PROVIS node app remote updates
 
-Implementation status: staged and tested locally. The live droplet has not been
-changed for this feature. No production publisher key or release was created.
-The running ProVisWork node has not been replaced by an updater-enabled build.
+Verified Windows pilot status (2026-10-17): the gateway trust configuration is
+active and ProVisWork runs signed release 2026.10.17.7. A dedicated Ed25519
+publisher key was created on ProVisWork and remains user-bound DPAPI protected;
+only its public key is deployed. The .1-to-.2, .4-to-.5 and .5-to-.6 update paths
+reconnected successfully. The .6 final health report needed one guarded retry
+after checking the signed active pointer, matching nonce receipt and live node;
+its gateway status is now healthy. Automatic final-status reporting under
+transient network failure still needs operational attention. Linux runtime and
+live rollback acceptance remain outstanding. See
+[the current setup handoff](provis_node_agent_setup_handoff_20261017.md).
 
 ## Employee and owner experience
 
 Normal employees continue to see only events/utilization and Microsoft sign-in.
-Windows and Linux use the same updater. John opens Ctrl+Shift+A, verifies his
-Microsoft account, and chooses **App updates**. Select a PC and compatible signed
+Windows and Linux share the updater implementation. John opens Ctrl+Shift+A,
+verifies his Microsoft account, expands the bottom owner arrow, and chooses
+**App updates** in the embedded controls. Select a PC and compatible signed
 release, then **Update selected PC**. Progress refreshes every ten seconds.
 Server-side authorization uses John's exact Entra object ID, not the visibility
 of the menu, email spelling, or a local configuration switch. Agent sessions do
@@ -21,7 +29,7 @@ that an initial installation is needed.
 
 ## Release trust and first installation
 
-The administrator must select an offline Ed25519 release-signing private key.
+The administrator must use the approved protected Ed25519 publisher.
 Keep it outside this repository, node packages, gateway environment and activity
 logs. Use a protected signing machine or existing organization key service.
 Only its base64 raw 32-byte PUBLIC key goes into managed node configuration and
@@ -94,7 +102,7 @@ INFERENCE_NODE_UPDATE_PUBLIC_KEYS_JSON={"provis-release-1":"<PUBLIC key>"}
 Keep the existing enrollment/identity/application/node-agent restrictions.
 Preflight and restart only `inference-fabric-gateway.service` when deploying the
 reviewed code/config. OpenClaw and other services do not need a restart for this
-feature. This document is preparation, not a claim that activation occurred.
+feature. The Windows pilot activation is recorded above; do not infer Linux acceptance from it.
 For key rotation, distribute a bootstrap/release trusting both old and new public
 keys before publishing a release signed only by the new key.
 
@@ -130,10 +138,9 @@ secret, token, raw upstream error or authentication response enters app activity
 or update progress. The feature updates only the PROVIS node app; it has no
 remote shell, arbitrary file-write, OS installer or remote approval capability.
 
-## Activation acceptance still required
+## Remaining acceptance
 
-Use an actual approved publisher key, deploy the reviewed gateway, install the
-trusted bootstrap, and verify owner sign-in plus one signed EXE update/readback.
+Windows publisher, owner sign-in and signed update/readback have been verified.
 Repeat on a real Linux desktop. Test a deliberately unhealthy signed candidate
 on a disposable node to verify live recovery. Keep other employee identity tests
 at the end of the wider Employee Assistant acceptance work.

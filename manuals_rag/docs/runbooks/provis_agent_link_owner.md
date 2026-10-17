@@ -74,7 +74,11 @@ The current ProVisWork Codex desktop process uses its private stdio transport;
 its default shared control socket is unavailable (Windows error 10050).
 The approved dedicated stdio connection initialized successfully on ProVisWork;
 this does not grant control of the live desktop's existing conversations.
-Do not claim a live agent-to-agent round trip until both PC connectors are
-verified and an explicitly authorized synthetic message has returned a reply.
+The approved single-PC gateway mailbox round trip on ProVisWork completed and
+returned exactly PROVIS_LINK_OK. Its test publication was revoked afterward.
+Cross-PC delivery has not been verified; require explicit authorization for a
+specific target/message before testing it. The final .6 owner drawer and
+scrollable layout were checked in the signed-in employee session.
+See [the setup handoff](provis_node_agent_setup_handoff_20261017.md).
 
 Protocol reference: https://learn.chatgpt.com/docs/app-server
