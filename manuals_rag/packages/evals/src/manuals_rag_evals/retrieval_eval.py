@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 
 from manuals_rag_common.config import settings
+from manuals_rag_common import inference_gateway
 from manuals_rag_common.ollama import chat_json
 
 
@@ -63,7 +64,29 @@ def _post_ollama_generate_with_optional_trace(
     request_payload: dict[str, Any],
     trace_event: str,
     trace_fields: dict[str, object],
+    timeout_seconds: float | None = None,
 ) -> str:
+    if inference_gateway.enabled():
+        body = inference_gateway.generate(
+            model=str(request_payload.get("model") or ""),
+            prompt=str(request_payload.get("prompt") or ""),
+            purpose=trace_event,
+            think=request_payload.get("think") if isinstance(request_payload.get("think"), bool) else None,
+            options=dict(request_payload.get("options") or {}),
+            timeout=float(timeout_seconds or settings.ollama_eval_question_timeout_seconds),
+            keep_alive=request_payload.get("keep_alive", "10m"),
+        )
+        text = str(body.get("response") or body.get("thinking") or "")
+        if text:
+            _trace_question_generation_event(
+                trace_event,
+                **trace_fields,
+                fragment=text,
+                preview=text[-500:],
+                done=True,
+                via="inference_gateway",
+            )
+        return text
     if not _trace_question_generation_enabled():
         response = client.post("/api/generate", json=request_payload)
         response.raise_for_status()
@@ -387,7 +410,8 @@ If the current section/context already has all logical, fair questions covered, 
 NONE
 
 Rules:
-- Write concise question-form queries a real technician, engineer, operator, purchaser, or integrator might ask.
+- Write concise question-form queries a real person at any level of technical experience might ask while using, configuring, troubleshooting, purchasing, or integrating a system.
+- The question must sound like an authentic request, not like a benchmark label, a template with source text substituted into it, or a paraphrase assembled from adjacent manual fragments.
 - Optimize for useful retrieval questions, not exhaustive coverage of every parseable cell. A question should be something a user might actually ask to solve a task, compare a spec, understand a warning, or find a setting.
 - Before writing queries, identify for yourself: the device/product, the parent article or section, the exact answerable fact/action/constraint, and the anchors that distinguish this source from sibling rows or nearby steps.
 - Base every query on the provided context, especially document_context, source snippet, structured fields, labels, and extracted terms.
@@ -396,6 +420,8 @@ Rules:
 - Bind the question subject to the exact snippet-owned row, part, device, setting, warning, or procedure. If surrounding context mentions a different nearby part/model/step, do not ask about that other item.
 - If the snippet contains multiple identifiers, ask only about the identifier directly tied to the answer value or action. If that binding is unclear, return NONE.
 - Represent the kind of question a user would ask before seeing the answer text; do not turn source wording into a keyword query.
+- Avoid retrieval leakage: include only the product, model, interface, setting, symptom, or operating condition a user would reasonably know before asking. Do not place the answer, distinctive answer wording, page/section clues, table labels, or an unnatural list of same-page details into the question merely to make retrieval easy.
+- Vary specificity naturally. Some questions may be terse and expert-like; others may explain a symptom or task. Do not force every question into novice language or require the user to restate the manual's terminology.
 - Include enough fair discriminators that the intended row, warning, step, or spec can be found without reading adjacent context.
 - Use product names, model numbers, feature names, protocol names, units, and standardized technical terms as anchors when needed.
 - Prefer the product/device identity from document_context over filename-like artifacts. If document_context does not identify a real product/device, use the feature/section/action anchors instead.
@@ -511,7 +537,8 @@ Allowed rejection categories:
 - duplicate_or_near_duplicate: the question repeats or closely paraphrases a previous accepted question.
 
 Approve only if the question:
-- Sounds like a natural question from a technician, engineer, operator, purchaser, or integrator.
+- Sounds like a natural question from a real technician, engineer, operator, purchaser, or integrator at any level of expertise.
+- Does not look like a generated benchmark query: reject template phrasing, source-fragment concatenation, generic filler, answer leakage, and unnatural inclusion of multiple facts copied from the same source.
 - Is answerable from the provided source snippet itself.
 - Targets a concrete source-backed answer, action, limit, warning, setting, field, table row, or procedure result.
 - Uses document_context only for fair disambiguation, such as product/device, parent article, feature area, section, or page context.
@@ -520,6 +547,7 @@ Approve only if the question:
 - Does not ask "how" or "why" unless the snippet actually provides a procedure, causal explanation, formula, or reason.
 - Does not use a product/model anchor if that anchor appears to be only a filename artifact rather than source-backed device context.
 - Does not copy source/table/UI wording mechanically.
+- Does not include answer-bearing details, page/section hints, or a cluster of same-snippet facts that a real user would not know or need to provide before retrieval.
 - Does not depend on file names, page/table coordinates, or benchmark-only phrasing.
 - Does not ask about storage format, display precision, parser coordinates, or internal representation unless that is clearly a user-facing spec someone would search for.
 - When the snippet or document context contains multiple values for the same metric or multiple variants of the same component, names the user-visible accessory, assembly, location, mode, or other discriminator that uniquely binds the requested value. A product model plus a generic component name is not sufficient when sibling components have different values.
@@ -1832,6 +1860,24 @@ def _request_generated_queries(
         "document_title": (structured_input.get("document_context") or {}).get("document_title") or _safe_query_label(chunk),
         "section_path": chunk.get("section_path_text") or chunk.get("section_path"),
         "structured_input": structured_input,
+        "generation_context": {
+            "source_background": structured_input.get("document_context", {}),
+            "answerable_source_content": {
+                "snippet": structured_input.get("snippet", ""),
+                "field_value_pairs": structured_input.get("field_value_pairs", []),
+                "table_row_headers": structured_input.get("table_row_headers", []),
+                "table_column_headers": structured_input.get("table_column_headers", []),
+                "menu_labels": structured_input.get("menu_labels", []),
+            },
+            "surrounding_context_for_disambiguation": structured_input.get("section_context_excerpt", ""),
+            "question_design_rules": [
+                "Use the background to understand the device, feature, task, and terminology before writing.",
+                "Ask about one concrete source-backed fact, action, condition, limit, warning, or setting.",
+                "Use only user-known discriminators in the question; do not copy the answer or same-page clues into it.",
+                "Write like a real user at any expertise level, not like a benchmark template.",
+                "If the source meaning or ownership is unclear, return NONE instead of guessing.",
+            ],
+        },
         "previous_questions_for_this_section": previous_questions[:30],
     }
     if prompt_guidance:
@@ -1873,6 +1919,7 @@ def _request_generated_queries(
                 "chunk_id": chunk.get("id"),
                 **trace_fields,
             },
+            timeout_seconds=timeout_seconds or settings.ollama_eval_question_timeout_seconds,
         )
     if _generated_query_response_is_none(response_text):
         _trace_question_generation_event(
@@ -1919,7 +1966,7 @@ def _review_generated_query(
             response_text = _post_ollama_generate_with_optional_trace(
                 client=client,
                 request_payload={
-                    "model": settings.ollama_eval_question_model,
+                    "model": settings.ollama_eval_question_reviewer_model,
                     "prompt": (
                         f"{USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT}\n\n"
                         f"Review input: {json.dumps(review_input, ensure_ascii=True)}"
@@ -1940,6 +1987,7 @@ def _review_generated_query(
                     **trace_fields,
                     "question": query,
                 },
+                timeout_seconds=timeout_seconds or settings.ollama_eval_question_timeout_seconds,
             )
         review = _parse_query_review(response_text)
         _trace_question_generation_event(
@@ -1966,6 +2014,38 @@ def _review_generated_query(
             category="reviewer_rejected",
             feedback="Review model failed; question was not accepted.",
         )
+
+
+def _question_quality_static_check(query: str, content: str) -> tuple[str, str] | None:
+    """Reject mechanical/corrupt candidates before spending a reviewer call.
+
+    These checks are intentionally structural rather than a list of known bad
+    questions.  The local reviewer remains responsible for source alignment.
+    """
+    text = re.sub(r"\s+", " ", query).strip()
+    if len(text) < 12 or not text.endswith("?"):
+        return "malformed_question", "Use one complete, concise question ending with a question mark."
+    words = re.findall(r"[a-z0-9]+", text.lower())
+    if len(words) < 4:
+        return "too_vague", "Name the concrete device, setting, action, warning, or value being requested."
+    if len(words) > 45:
+        return "mechanical_source_copy", "Rewrite as a concise, authentic user support question."
+    # Repeated adjacent phrases are a strong signal that multiple source fields
+    # were concatenated instead of paraphrased.
+    for width in (2, 3, 4):
+        phrases = [tuple(words[i : i + width]) for i in range(len(words) - width + 1)]
+        if len(phrases) != len(set(phrases)):
+            return "mechanical_source_copy", "Remove repeated source fragments and ask one coherent question."
+    lowered = text.lower()
+    if re.search(r"\b(?:what|which|how|where|when|can|should|is)\s+(?:the\s+)?(?:value|item|detail|entry|information)\b", lowered):
+        return "too_vague", "Replace generic wording with the specific source-backed target."
+    source_words = re.findall(r"[a-z0-9]+", content.lower())
+    if source_words:
+        source_bigrams = {tuple(source_words[i : i + 2]) for i in range(len(source_words) - 1)}
+        query_bigrams = {tuple(words[i : i + 2]) for i in range(len(words) - 1)}
+        if len(query_bigrams & source_bigrams) >= 4 and len(words) >= 10:
+            return "mechanical_source_copy", "Paraphrase the source instead of copying several adjacent phrases."
+    return None
 
 
 def generate_user_style_queries(
@@ -2023,12 +2103,22 @@ def generate_user_style_queries(
                 item["query"],
                 str(chunk.get("content") or ""),
             )
+            static_rejection = _question_quality_static_check(
+                item["query"],
+                str(chunk.get("content") or ""),
+            )
+            if static_rejection:
+                source_rejection = static_rejection[0]
             if source_rejection:
                 review_feedback.append(
                     {
                         "question": item["query"],
                         "category": source_rejection,
-                        "feedback": "The source snippet does not contain the requested instruction or outcome.",
+                        "feedback": (
+                            static_rejection[1]
+                            if static_rejection
+                            else "The source snippet does not contain the requested instruction or outcome."
+                        ),
                         "answer_in_snippet": False,
                     }
                 )
@@ -2038,7 +2128,11 @@ def generate_user_style_queries(
                     **trace_fields,
                     question=item["query"],
                     category=source_rejection,
-                    reason="The source snippet does not contain the requested instruction or outcome.",
+                    reason=(
+                        static_rejection[1]
+                        if static_rejection
+                        else "The source snippet does not contain the requested instruction or outcome."
+                    ),
                     answer_in_snippet=False,
                     false_rejection_check={},
                 )
@@ -2079,9 +2173,19 @@ def generate_user_style_queries(
                 return
 
     accept_generated_items(generated)
-    if len(queries) >= limit:
-        return queries
-    if not queries and review_feedback:
+    for attempt in range(1, settings.ollama_eval_question_review_attempts):
+        # Preserve accepted candidates as the stable batch result.  Repair is
+        # needed only when the controller has no safe candidate to return.
+        if len(queries) >= limit or queries or not review_feedback:
+            break
+        _trace_question_generation_event(
+            "question_generation_rewrite_requested",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            attempt=attempt,
+            max_attempts=settings.ollama_eval_question_review_attempts,
+            feedback_count=len(review_feedback),
+        )
         try:
             regenerated, retry_declared_none = _request_generated_queries(
                 chunk,
@@ -2092,15 +2196,20 @@ def generate_user_style_queries(
                 num_ctx=num_ctx,
                 timeout_seconds=timeout_seconds,
             )
-            if not retry_declared_none:
-                accept_generated_items(regenerated)
-                if len(queries) >= limit:
-                    return queries
+            if retry_declared_none:
+                break
+            before = len(review_feedback)
+            accept_generated_items(regenerated)
+            if len(queries) >= limit:
+                return queries
+            if len(review_feedback) == before and not regenerated:
+                break
         except Exception as error:
             _trace_question_generation_event(
                 "question_generation_retry_failed",
                 chunk_id=chunk.get("id"),
                 **trace_fields,
+                attempt=attempt,
                 error=f"{error.__class__.__name__}: {error}",
             )
     if not queries:
@@ -3857,6 +3966,30 @@ def score_search_results(
     *,
     top_k: int = 5,
 ) -> dict[str, Any]:
+    if case.retrieval_task == "unanswerable" and not case.source_document_id:
+        # A negative-control case passes when retrieval does not produce the
+        # nonexistent source or a strong answer-bearing match.  It must not be
+        # treated as a candidate miss merely because unrelated documents were
+        # returned for the query.
+        return {
+            "passed": True,
+            "rank": None,
+            "match_reason": "no_supporting_evidence",
+            "overlap_terms": 0,
+            "query_overlap_terms": 0,
+            "failure_category": None,
+            "retrieval_stage": "final_top_k",
+            "candidate_recall": True,
+            "metadata_document_selection": {
+                "attempted": False,
+                "passed": True,
+                "rank": None,
+                "expected_source_document_id": "",
+                "selected_source_document_ids": [],
+                "hit_count": 0,
+                "failure_category": None,
+            },
+        }
     document_selection = score_document_selection(case, results, top_k=top_k)
     if case.retrieval_task == "multi_step_retrieval":
         return _score_multi_step_search_results(case, results, top_k=top_k, document_selection=document_selection)

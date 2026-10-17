@@ -118,6 +118,43 @@ def test_qdrant_payload_refresh_uses_document_filter_for_dense_and_bm25(monkeypa
     assert all(call["points"].must[0].match.value == "document" for call in captured)
 
 
+def test_qdrant_payload_refresh_retries_transient_timeout(monkeypatch):
+    import httpx
+    from qdrant_client.http.exceptions import ResponseHandlingException
+    import manuals_rag_retrieval.qdrant_store as qdrant_store
+    from manuals_rag_retrieval.qdrant_store import QdrantStore
+
+    attempts = []
+    store = object.__new__(QdrantStore)
+
+    def set_payload(**kwargs):
+        attempts.append(kwargs)
+        if len(attempts) < 2:
+            raise ResponseHandlingException(httpx.ReadTimeout("qdrant response timed out")) from httpx.ReadTimeout("qdrant response timed out")
+
+    store.client = SimpleNamespace(
+        collection_exists=lambda name: name == "manuals_corpus",
+        set_payload=set_payload,
+    )
+    monkeypatch.setattr(
+        qdrant_store,
+        "settings",
+        SimpleNamespace(
+            indexed_bm25_enabled=False,
+            qdrant_payload_refresh_retries=1,
+            qdrant_payload_refresh_backoff_seconds=0,
+        ),
+    )
+
+    store.refresh_document_chunk_payload(
+        "corpus",
+        source_document_id="document",
+        payload={"metadata_pipeline_version": "v7"},
+    )
+
+    assert len(attempts) == 2
+
+
 def test_pruning_filter_excludes_replacement_point_ids():
     from manuals_rag_retrieval.qdrant_store import QdrantStore
     captured={}

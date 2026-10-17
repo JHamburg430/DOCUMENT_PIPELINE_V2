@@ -9130,9 +9130,17 @@ def generate_answer_with_trace(
                     }
                 )
                 return validated, trace
+    routing_record = (prioritized_results[0].metadata.get("routing_evidence_record") or {}) if prioritized_results else {}
+    routing_context = {
+        "matched_entities": routing_record.get("matched_entities", {}),
+        "selected_documents": routing_record.get("selected_documents", [])[:5],
+        "evidence_candidates": routing_record.get("evidence_candidates", [])[:10],
+        "confidence": routing_record.get("confidence"),
+        "model_instruction": routing_record.get("model_instruction"),
+    }
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Question: {query}\nEvidence summaries: {json.dumps(summarized_evidence)}"},
+        {"role": "user", "content": f"Question: {query}\nRouting and evidence ledger: {json.dumps(routing_context)}\nEvidence summaries: {json.dumps(summarized_evidence)}"},
     ]
     last_error: Exception | None = None
     for attempt in range(2):
@@ -9662,6 +9670,11 @@ def _summarize_chunk(query: str, result: SearchResult) -> dict[str, Any]:
         "section_path": result.section_path,
         "content": _evidence_text(result)[:2500],
         "parent_context": str(result.metadata.get("parent_context") or "")[:1000],
+        "routing_evidence": {
+            "matched_entities": (result.metadata.get("routing_evidence_record") or {}).get("matched_entities", {}),
+            "confidence": (result.metadata.get("routing_evidence_record") or {}).get("confidence"),
+            "model_instruction": (result.metadata.get("routing_evidence_record") or {}).get("model_instruction"),
+        },
     }
     messages = [
         {"role": "system", "content": SUMMARY_PROMPT},

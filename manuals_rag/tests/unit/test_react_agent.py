@@ -1,4 +1,5 @@
 from manuals_rag_answering import react_agent
+from dataclasses import replace
 
 
 def _rag_answer(answer: str, chunk_id: str) -> dict:
@@ -14,6 +15,13 @@ def _rag_answer(answer: str, chunk_id: str) -> dict:
 
 
 def test_react_agent_uses_rag_first_and_can_call_it_multiple_times(monkeypatch):
+    # This test isolates controller sequencing with synthetic citations; the
+    # production default is fail-closed and requires passage-bound evidence.
+    monkeypatch.setattr(
+        react_agent,
+        "settings",
+        replace(react_agent.settings, agent_evidence_gate_enabled=False),
+    )
     model_outputs = iter(
         [
             ({"action": "manuals_rag", "query": "find voltage", "rationale": "first fact"}, ""),
@@ -51,7 +59,7 @@ def test_react_agent_uses_rag_first_and_can_call_it_multiple_times(monkeypatch):
         event_callback=events.append,
     )
 
-    assert calls == [("find voltage", "langgraph_agent"), ("find current", "langgraph_agent")]
+    assert calls == [("What are the voltage and current?", "langgraph_agent"), ("find current", "langgraph_agent")]
     assert result["agent_trace"]["rag_call_count"] == 2
     assert [citation["chunk_id"] for citation in result["citations"]] == ["chunk-1", "chunk-2"]
     assert result["memory_updates"] == ["User is working with model CA-U5."]
@@ -93,6 +101,37 @@ def test_react_agent_forces_rag_as_first_tool(monkeypatch):
 
     assert calls == ["What is the rating?"]
     assert result["agent_trace"]["tool_calls"][0]["action"] == "manuals_rag"
+
+
+def test_react_agent_preserves_sufficient_recovery_result(monkeypatch):
+    """A successful bounded recovery must not be replaced by a weaker finalizer."""
+    monkeypatch.setattr(
+        react_agent,
+        "settings",
+        replace(react_agent.settings, agent_evidence_gate_enabled=False),
+    )
+    monkeypatch.setattr(
+        react_agent,
+        "chat_json",
+        lambda **_kwargs: ({"action": "manuals_rag", "query": "recover", "rationale": "verify"}, ""),
+    )
+
+    def rag_tool(query, _backend, _relay):
+        return {
+            **_rag_answer("Verified procedure.", "chunk-verified"),
+            "retrieval_trace": {"sufficient": True, "stop_reason": "sufficient"},
+        }
+
+    result = react_agent.run_react_agent(
+        query="How do I perform the procedure?",
+        backend="langgraph_agent",
+        rag_tool=rag_tool,
+        max_tool_calls=1,
+    )
+
+    assert result["answer"] == "Verified procedure."
+    assert result["citations"][0]["chunk_id"] == "chunk-verified"
+    assert result["agent_trace"]["finalization"] == "rag_verified_result"
 
 
 def test_calculator_rejects_code_execution():

@@ -1,0 +1,3 @@
+# Optional gateway-only dependency for Microsoft Entra RS256/JWKS validation.
+# The desktop PROVIS Inference Node remains dependency-free and does not use this.
+PyJWT[crypto]>=2.9,<3

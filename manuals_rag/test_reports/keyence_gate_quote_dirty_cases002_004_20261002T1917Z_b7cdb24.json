@@ -1,0 +1,112 @@
+{
+  "schema": "manuals-rag-onsite-agent-eval-result-v1",
+  "run_id": "keyence_gate_quote_dirty_cases002_004_20261002T1917Z_b7cdb24",
+  "dataset": "tests/fixtures/keyence_onsite_agent_eval_v2.jsonl",
+  "dataset_sha256": "fe238d38fb090998de61075f2e91927f2b20fe65eeade3433f21182e62a85a2f",
+  "selected_case_ids": [
+    "keyence-onsite-v1-002",
+    "keyence-onsite-v1-003",
+    "keyence-onsite-v1-004"
+  ],
+  "backends": [
+    "langgraph_agent",
+    "llamaindex_agent"
+  ],
+  "started_at": "2026-10-02T19:16:50Z",
+  "status": "failed",
+  "provenance": {
+    "source": {
+      "revision": "b7cdb244a74ab4f356e912bddaf2a84843aa31df",
+      "dirty": true
+    },
+    "api_base": "http://127.0.0.1:18600",
+    "dataset": {
+      "path": "tests/fixtures/keyence_onsite_agent_eval_v2.jsonl",
+      "manifest_path": "tests/fixtures/keyence_onsite_agent_eval_v2.manifest.json",
+      "sha256": "fe238d38fb090998de61075f2e91927f2b20fe65eeade3433f21182e62a85a2f",
+      "selected_offset": 1,
+      "selected_limit": 3,
+      "ordered_case_ids": [
+        "keyence-onsite-v1-002",
+        "keyence-onsite-v1-003",
+        "keyence-onsite-v1-004"
+      ]
+    },
+    "backends": [
+      "langgraph_agent",
+      "llamaindex_agent"
+    ],
+    "request_contract": {
+      "max_retrieval_hops": 6,
+      "max_retrieval_seconds": 90,
+      "max_tool_calls": 4,
+      "corpus": "manuals_vendor_keyence"
+    }
+  },
+  "completed_cell_keys": [
+    "keyence-onsite-v1-002:langgraph_agent",
+    "keyence-onsite-v1-002:llamaindex_agent",
+    "keyence-onsite-v1-003:langgraph_agent",
+    "keyence-onsite-v1-003:llamaindex_agent",
+    "keyence-onsite-v1-004:langgraph_agent",
+    "keyence-onsite-v1-004:llamaindex_agent"
+  ],
+  "records": [
+    {
+      "case_id": "keyence-onsite-v1-002",
+      "question": "Which CA-EN100U terminals take the 24 VDC supply, and where should cable No. 10 (SG) terminate?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 502: Bad Gateway"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 502: Bad Gateway"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-003",
+      "question": "For an IV4-400CA using its M3 mounting holes, what tightening torque applies, and what torque applies to an unused connector waterproof cap?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 502: Bad Gateway"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 502: Bad Gateway"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-004",
+      "question": "An IV4-400CA will operate above 40\u00b0C ambient. What heat-dissipation provision and case-temperature limit apply?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 502: Bad Gateway"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 502: Bad Gateway"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 0,
+    "errors": 6,
+    "total": 6
+  },
+  "exit_code": 1,
+  "completed_at": "2026-10-02T19:16:54Z"
+}

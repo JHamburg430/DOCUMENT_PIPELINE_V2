@@ -5,9 +5,9 @@ Wants=openclaw-manuals-rag.service
 
 [Service]
 Type=simple
-WorkingDirectory=/home/john/Desktop/Programming/Document_Pipeline_V2_release_20260919
+WorkingDirectory=/home/john/Desktop/Programming/Document_Pipeline_V2_evidence_gate_20261002
 Environment=PATH=/home/john/nodejs/bin:/usr/local/bin:/usr/bin
-ExecStart=/home/john/.local/share/manuals-repair-handoff-venv/bin/python /home/john/Desktop/Programming/Document_Pipeline_V2_release_20260919/manuals_rag/scripts/agent_repair_gateway_handoff.py
+ExecStart=/home/john/.local/share/manuals-repair-handoff-venv/bin/python /home/john/Desktop/Programming/Document_Pipeline_V2_evidence_gate_20261002/manuals_rag/scripts/agent_repair_gateway_handoff.py
 Restart=always
 RestartSec=5
 

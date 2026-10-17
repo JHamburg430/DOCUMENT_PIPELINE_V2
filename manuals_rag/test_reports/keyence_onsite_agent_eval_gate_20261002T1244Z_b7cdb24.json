@@ -1,0 +1,364 @@
+{
+  "schema": "manuals-rag-onsite-agent-eval-result-v1",
+  "run_id": "keyence_onsite_agent_eval_gate_20261002T1244Z_b7cdb24",
+  "dataset": "tests/fixtures/keyence_onsite_agent_eval_v2.jsonl",
+  "dataset_sha256": "fe238d38fb090998de61075f2e91927f2b20fe65eeade3433f21182e62a85a2f",
+  "selected_case_ids": [
+    "keyence-onsite-v1-001",
+    "keyence-onsite-v1-002",
+    "keyence-onsite-v1-003",
+    "keyence-onsite-v1-004",
+    "keyence-onsite-v1-005",
+    "keyence-onsite-v1-006",
+    "keyence-onsite-v1-007",
+    "keyence-onsite-v1-008",
+    "keyence-onsite-v1-009",
+    "keyence-onsite-v1-010",
+    "keyence-onsite-v1-011",
+    "keyence-onsite-v1-012",
+    "keyence-onsite-v1-013",
+    "keyence-onsite-v1-014",
+    "keyence-onsite-v1-015",
+    "keyence-onsite-v1-016",
+    "keyence-onsite-v1-017",
+    "keyence-onsite-v1-018",
+    "keyence-onsite-v1-019",
+    "keyence-onsite-v1-020"
+  ],
+  "backends": [
+    "langgraph_agent",
+    "llamaindex_agent"
+  ],
+  "started_at": "2026-10-02T12:44:11Z",
+  "status": "failed",
+  "records": [
+    {
+      "case_id": "keyence-onsite-v1-001",
+      "question": "Before connecting a CA-EN100H encoder head to the CA-EN100U, what power condition must I verify?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-002",
+      "question": "Which CA-EN100U terminals take the 24 VDC supply, and where should cable No. 10 (SG) terminate?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-003",
+      "question": "For an IV4-400CA using its M3 mounting holes, what tightening torque applies, and what torque applies to an unused connector waterproof cap?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-004",
+      "question": "An IV4-400CA will operate above 40\u00b0C ambient. What heat-dissipation provision and case-temperature limit apply?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-005",
+      "question": "Nearby lighting appears to disturb an LJ-S8000 measurement head. What installation remedy does its manual specify?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-006",
+      "question": "Before powering a CA-U5, what rated input ranges and output voltage should I verify?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-007",
+      "question": "An IV-500C status LED blinks green, but the monitor cannot connect. What does that LED state mean?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-008",
+      "question": "After installing a manual-focus IV-500C, what adjustment still needs to be performed?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-009",
+      "question": "For an LR-W500, which calibration mode detects one specific color, and which distinguishes two colors?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-010",
+      "question": "An LR-W70(C) shows three right-pointing arrow symbols (\u25b6\u25b6\u25b6). What condition is indicated, and what should I adjust?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-011",
+      "question": "The LR-ZH500C3P indicates excessive reflected light. What adjustment does its manual recommend?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-012",
+      "question": "With the IV sensor dome attachment fitted, what target-distance range applies from the top of the dome?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-013",
+      "question": "For XG-X inline 3D inspection of dents from sharp to shallow, what reference-plane capability is available?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-014",
+      "question": "How does the XG-X 3D 90-degree projection-pattern approach reduce glossy-part reflection problems?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-015",
+      "question": "When configuring an LJ-S8000 rectangle region, how are height differences displayed and where is the color-range adjustment?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-016",
+      "question": "For a VS camera with unusual field of view and working distance, what C-mount lens-selection flexibility is documented?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-017",
+      "question": "A CV-X subtraction inspection rejects known-good parts. What difference-recognition setting should I adjust while allowing for normal good-part variation?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-018",
+      "question": "How many color or monochrome cameras can one CA-E100 area-camera input unit connect in the XG-X2802 configuration?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-019",
+      "question": "Before directly connecting an LJ-X8000 and PLC for EtherNet/IP setup, what other hub devices should I disconnect and why?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-020",
+      "question": "In Studio 5000, how do I add the LJ-X8000 module and download the configuration to the PLC?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "error",
+          "error": "HTTPError: HTTP Error 503: Service Unavailable"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 0,
+    "errors": 40,
+    "total": 40
+  },
+  "exit_code": 1,
+  "completed_at": "2026-10-02T12:44:11Z"
+}

@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from manuals_rag_common.config import settings
+from manuals_rag_common import inference_gateway
 
 
 MAX_EMBED_CHARS = 6000
@@ -137,6 +138,24 @@ def _embed_one_with_fallbacks(client: httpx.Client, text: str) -> list[float]:
 
 
 def embed_dense(texts: list[str]) -> list[list[float]]:
+    if inference_gateway.enabled():
+        try:
+            normalized_texts = [normalize_for_embedding(text) or "content unavailable" for text in texts]
+            body = inference_gateway.embeddings(
+                model=settings.ollama_embed_model,
+                inputs=normalized_texts,
+                purpose="embedding",
+            )
+            embeddings = body.get("embeddings") or []
+            if embeddings and isinstance(embeddings[0], list):
+                return embeddings
+            embedding = body.get("embedding")
+            if isinstance(embedding, list) and embedding and isinstance(embedding[0], (int, float)):
+                return [embedding]
+            raise ValueError("Unexpected embedding response shape from inference gateway.")
+        except Exception as error:
+            if not inference_gateway.should_fallback(error):
+                raise
     with httpx.Client(base_url=settings.ollama_embed_url, timeout=60.0) as client:
         vectors: list[list[float]] = []
         normalized_texts = [

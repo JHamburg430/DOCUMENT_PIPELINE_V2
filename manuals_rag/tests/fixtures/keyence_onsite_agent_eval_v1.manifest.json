@@ -1,0 +1,25 @@
+{
+  "acceptance": "All 40 backend cells pass source-document citation, grounded answer facets, and manuals_rag tool-use checks. Automated scoring is lexical and needs review for paraphrase false negatives.",
+  "backends": [
+    "langgraph_agent",
+    "llamaindex_agent"
+  ],
+  "case_count": 20,
+  "categories": {
+    "calibration": 1,
+    "diagnostics": 3,
+    "inspection": 4,
+    "installation": 4,
+    "integration": 3,
+    "power": 1,
+    "selection": 1,
+    "setup": 2,
+    "wiring": 1
+  },
+  "corpus": "manuals_vendor_keyence",
+  "dataset": "tests/fixtures/keyence_onsite_agent_eval_v1.jsonl",
+  "human_reviewed": false,
+  "schema": "manuals-rag-onsite-agent-eval-v1",
+  "sha256": "d663597a612e0476cfcc01121deaa3526830e74fa342da079c9953083c087ecb",
+  "source_verification": "active_postgres_chunks_2026-10-01"
+}

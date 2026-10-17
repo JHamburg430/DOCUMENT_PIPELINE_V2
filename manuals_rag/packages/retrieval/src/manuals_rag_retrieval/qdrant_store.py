@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from threading import Lock
 from typing import Any
 
 import httpx
 from qdrant_client import QdrantClient
-from qdrant_client.http.exceptions import UnexpectedResponse
+from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 from qdrant_client.http.models import (
     Distance,
     FieldCondition,
@@ -15,6 +16,7 @@ from qdrant_client.http.models import (
     FilterSelector,
     HasIdCondition,
     MatchAny,
+    MatchText,
     MatchValue,
     Modifier,
     NamedSparseVector,
@@ -92,6 +94,10 @@ class QdrantStore:
         self.client = QdrantClient(url=settings.qdrant_url, **options)
         self._dense_query_cache: dict[tuple[str, str], tuple[float, ...]] = {}
         self._dense_query_lock = Lock()
+        # Dense retrieval is optional when sparse/lexical lanes are available.
+        # Remember a request-local embedding outage so one failed endpoint does
+        # not multiply latency across metadata, table, and chunk searches.
+        self._dense_query_error: Exception | None = None
 
     def _dense_query_vector(self, query: str, *, instruction: str | None = None) -> list[float]:
         """Embed each query/instruction pair once per retrieval request.
@@ -102,16 +108,24 @@ class QdrantStore:
         server without changing the vector.
         """
         key = (query, instruction or "")
+        if self._dense_query_error is not None:
+            raise RuntimeError("dense query unavailable for this retrieval request") from self._dense_query_error
         cached = self._dense_query_cache.get(key)
         if cached is None:
             with self._dense_query_lock:
+                if self._dense_query_error is not None:
+                    raise RuntimeError("dense query unavailable for this retrieval request") from self._dense_query_error
                 cached = self._dense_query_cache.get(key)
                 if cached is None:
-                    vector = (
-                        embed_query_dense(query, instruction=instruction)
-                        if instruction
-                        else embed_dense([query])[0]
-                    )
+                    try:
+                        vector = (
+                            embed_query_dense(query, instruction=instruction)
+                            if instruction
+                            else embed_dense([query])[0]
+                        )
+                    except Exception as exc:
+                        self._dense_query_error = exc
+                        raise
                     cached = tuple(float(value) for value in vector)
                     self._dense_query_cache[key] = cached
         return list(cached)
@@ -208,12 +222,43 @@ class QdrantStore:
         for name in names:
             if not self.client.collection_exists(name):
                 continue
-            self.client.set_payload(
-                collection_name=name,
-                payload=payload,
-                points=selector,
-                wait=True,
-            )
+            attempts = max(0, int(getattr(settings, "qdrant_payload_refresh_retries", 3)))
+            backoff = max(0.0, float(getattr(settings, "qdrant_payload_refresh_backoff_seconds", 2.0)))
+            for attempt in range(attempts + 1):
+                try:
+                    self.client.set_payload(
+                        collection_name=name,
+                        payload=payload,
+                        points=selector,
+                        wait=True,
+                    )
+                    break
+                except (httpx.ReadTimeout, httpx.ConnectError, ResponseHandlingException) as error:
+                    cause = (
+                        error.__cause__ or (error.args[0] if error.args else None)
+                        if isinstance(error, ResponseHandlingException)
+                        else error
+                    )
+                    if not isinstance(cause, (httpx.ReadTimeout, httpx.ConnectError)):
+                        raise
+                    if attempt >= attempts:
+                        logger.error(
+                            "Qdrant payload refresh exhausted retries collection=%s attempts=%s",
+                            name,
+                            attempt + 1,
+                        )
+                        raise
+                    delay = backoff * (2**attempt)
+                    logger.warning(
+                        "Qdrant payload refresh transient failure collection=%s attempt=%s/%s retry_in=%.1fs error=%s",
+                        name,
+                        attempt + 1,
+                        attempts + 1,
+                        delay,
+                        error.__class__.__name__,
+                    )
+                    if delay:
+                        time.sleep(delay)
 
     def upsert_bm25_chunks(self, corpus_id: str, chunks: list[RetrievalChunk]) -> None:
         """Index true BM25 vectors in an isolated collection using Qdrant server inference."""
@@ -688,6 +733,24 @@ class QdrantStore:
             payload = hit.payload or {}
             results.append(self._payload_to_result(chunk_id=str(hit.id), payload=payload, score=float(hit.score)))
         return results
+
+    def search_text(self, corpus_id: str, text: str, filters: dict[str, Any], *, limit: int = 20) -> list[SearchResult]:
+        """Read-only exact text-match lookup used by bounded corrective retrieval."""
+        name = collection_name(corpus_id)
+        if not self.client.collection_exists(name):
+            return []
+        points, _ = self.client.scroll(
+            collection_name=name,
+            scroll_filter=Filter(must=[FieldCondition(key="content", match=MatchText(text=text))]),
+            limit=limit,
+            with_payload=True,
+            with_vectors=False,
+        )
+        return [
+            self._payload_to_result(chunk_id=str(point.id), payload=point.payload or {}, score=1.0)
+            for point in points
+            if self._payload_matches(point.payload or {}, filters)
+        ]
 
     def _payload_to_result(self, *, chunk_id: str, payload: dict[str, Any], score: float) -> SearchResult:
         return SearchResult(

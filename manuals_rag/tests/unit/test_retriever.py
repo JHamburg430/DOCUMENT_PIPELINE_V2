@@ -2,6 +2,7 @@ import logging
 from threading import Barrier, BoundedSemaphore, Lock
 from time import sleep
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -137,6 +138,16 @@ def test_parallel_branches_isolate_one_branch_failure_and_capture_telemetry(capl
     assert "Retrieval branch special failed" in caplog.text
 
 
+def test_parallel_branches_normalize_none_to_empty_result_set():
+    results = retriever._run_parallel_branches(
+        "setup query",
+        [("optional", lambda: None), ("contextual_lexical", lambda: [])],
+        max_workers=2,
+    )
+
+    assert results == {"optional": [], "contextual_lexical": []}
+
+
 def test_qdrant_branch_concurrency_is_globally_bounded(monkeypatch):
     active = 0
     maximum_active = 0
@@ -163,6 +174,43 @@ def test_qdrant_branch_concurrency_is_globally_bounded(monkeypatch):
     )
 
     assert maximum_active == 1
+
+
+def test_qdrant_branch_normalizes_none_to_empty_result_set():
+    assert retriever._run_qdrant_branch(lambda: None) == []
+
+
+def test_metadata_selection_normalizes_none_search_results(monkeypatch):
+    store = Mock()
+    store.search_document_metadata_exact_references.return_value = None
+    store.search_document_metadata.return_value = None
+    monkeypatch.setattr(retriever, "_explicit_document_reference_tokens", lambda _query: ["CA-EN100U"])
+
+    filters, hits = retriever.select_documents_from_metadata(
+        store,
+        "CA-EN100U power wiring",
+        ["manuals_vendor_keyence"],
+        {},
+    )
+
+    assert filters == {}
+    assert hits == []
+
+
+def test_metadata_selection_falls_back_to_chunk_lanes_when_embedding_is_unavailable():
+    class OfflineMetadataStore:
+        def search_document_metadata(self, **_kwargs):
+            raise RuntimeError("embedding service unavailable")
+
+    filters, hits = retriever.select_documents_from_metadata(
+        OfflineMetadataStore(),
+        "XG-X2802 CA-E100 camera count",
+        ["manuals_vendor_keyence"],
+        {"is_active": True},
+    )
+
+    assert filters == {"is_active": True}
+    assert hits == []
 
 
 def test_measurement_promotion_keeps_locally_bound_mode_value_after_rerank():
@@ -1274,6 +1322,14 @@ def test_structured_lookup_with_product_family_skips_table_lexical_search():
     assert analysis.product_family == "XG-X"
     assert retriever._should_run_extra_table_vector_search(analysis) is True
     assert retriever._should_run_table_lexical_search(analysis) is False
+
+
+def test_structured_quantity_lookup_with_product_identifier_keeps_table_lexical_search():
+    analysis = analyze_query(
+        "How many color or monochrome cameras can one CA-E100 area-camera input unit connect in the XG-X2802 configuration?"
+    )
+
+    assert retriever._should_run_table_lexical_search(analysis) is True
 
 
 def test_cause_or_remedy_lookup_with_product_family_keeps_exact_table_lexical_search():

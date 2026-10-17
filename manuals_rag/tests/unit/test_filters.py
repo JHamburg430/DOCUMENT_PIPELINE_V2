@@ -1,5 +1,5 @@
 from manuals_rag_retrieval.query_analysis import analyze_query
-from manuals_rag_retrieval.retriever import build_filters
+from manuals_rag_retrieval.retriever import _model_routing_filters, build_filters
 
 
 def test_build_filters_adds_active_default_without_query_identifier_filters():
@@ -87,6 +87,29 @@ def test_build_filters_does_not_add_family_or_part_number_filters_from_query():
 def test_build_filters_does_not_add_menu_label_filters_from_query():
     filters = build_filters("When Change the trigger settings, what related [Step 2/3 Trigger Settings] detail should be used?", {})
     assert filters == {"is_active": True}
+
+
+def test_model_routing_filters_apply_preferred_filters_for_strict_analysis():
+    analysis = analyze_query("CA-EN100U error 123 revision history")
+
+    routed = _model_routing_filters({"is_active": True}, analysis)
+
+    assert analysis.filter_strictness == "strict"
+    assert routed["version_signal"] == "true"
+
+
+def test_model_routing_filters_keep_loose_analysis_broad():
+    analysis = analyze_query("What is the latest setup guidance?")
+
+    assert analysis.filter_strictness == "loose"
+    assert _model_routing_filters({"is_active": True}, analysis) == {"is_active": True}
+
+
+def test_model_routing_filters_never_override_explicit_scope():
+    analysis = analyze_query("CA-EN100U error 123 revision history")
+    request_filters = {"source_document_id": "caller-selected", "version_signal": "false"}
+
+    assert _model_routing_filters(request_filters, analysis) == request_filters
 
 
 def test_query_analysis_routes_named_mode_alternatives_to_structured_tables():

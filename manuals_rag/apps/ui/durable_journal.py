@@ -79,6 +79,15 @@ class SQLiteEventJournal:
         with self._lock:
             self._connection.close()
 
+    def recent(self, *, limit: int = 200) -> list[EventEnvelope]:
+        """Return a bounded cross-run activity feed for the console overview."""
+        with self._lock:
+            rows = self._connection.execute(
+                "select event_json from events order by created_at desc, rowid desc limit ?",
+                (max(1, min(int(limit), 1000)),),
+            ).fetchall()
+        return [EventEnvelope.from_mapping(json.loads(row["event_json"])) for row in rows]
+
     def append(self, event: EventEnvelope) -> EventEnvelope:
         encoded = json.dumps(event.to_dict(), sort_keys=True, separators=(",", ":"))
         with self._lock, self._connection:

@@ -1,0 +1,179 @@
+{
+  "schema": "manuals-rag-onsite-agent-eval-result-v1",
+  "run_id": "keyence_onsite_agent_eval_gate_20261002T1245Z_b7cdb24",
+  "dataset": "tests/fixtures/keyence_onsite_agent_eval_v2.jsonl",
+  "dataset_sha256": "fe238d38fb090998de61075f2e91927f2b20fe65eeade3433f21182e62a85a2f",
+  "selected_case_ids": [
+    "keyence-onsite-v1-001",
+    "keyence-onsite-v1-002",
+    "keyence-onsite-v1-003",
+    "keyence-onsite-v1-004",
+    "keyence-onsite-v1-005",
+    "keyence-onsite-v1-006",
+    "keyence-onsite-v1-007",
+    "keyence-onsite-v1-008",
+    "keyence-onsite-v1-009",
+    "keyence-onsite-v1-010",
+    "keyence-onsite-v1-011",
+    "keyence-onsite-v1-012",
+    "keyence-onsite-v1-013",
+    "keyence-onsite-v1-014",
+    "keyence-onsite-v1-015",
+    "keyence-onsite-v1-016",
+    "keyence-onsite-v1-017",
+    "keyence-onsite-v1-018",
+    "keyence-onsite-v1-019",
+    "keyence-onsite-v1-020"
+  ],
+  "backends": [
+    "langgraph_agent",
+    "llamaindex_agent"
+  ],
+  "started_at": "2026-10-02T12:45:22Z",
+  "status": "running",
+  "records": [
+    {
+      "case_id": "keyence-onsite-v1-001",
+      "question": "Before connecting a CA-EN100H encoder head to the CA-EN100U, what power condition must I verify?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "pass",
+          "checks": {
+            "completed": true,
+            "supported": true,
+            "cited_expected_document": true,
+            "answer_facets": true,
+            "used_manuals_rag": true
+          },
+          "answer": "Check that power (24 VDC) is not being supplied to the CA-EN100U, and then connect the encoder head CA-EN100H to the encoder connector of the CA-EN100U.",
+          "citations": [
+            {
+              "chunk_id": "0117b16a-84ae-5b74-9b53-3fb2ddac7686",
+              "document_id": "1a6783bf-01ae-4dde-8876-687064704e8c",
+              "pages": [
+                2
+              ],
+              "quote_span": null
+            }
+          ],
+          "expected_chunk_cited": true,
+          "rag_calls": 1,
+          "event_count": 13
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "pass",
+          "checks": {
+            "completed": true,
+            "supported": true,
+            "cited_expected_document": true,
+            "answer_facets": true,
+            "used_manuals_rag": true
+          },
+          "answer": "Check that power (24 VDC) is not being supplied to the CA-EN100U, and then connect the encoder head CA-EN100H to the encoder connector of the CA-EN100U.",
+          "citations": [
+            {
+              "chunk_id": "0117b16a-84ae-5b74-9b53-3fb2ddac7686",
+              "document_id": "1a6783bf-01ae-4dde-8876-687064704e8c",
+              "pages": [
+                2
+              ],
+              "quote_span": null
+            }
+          ],
+          "expected_chunk_cited": true,
+          "rag_calls": 1,
+          "event_count": 14
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-002",
+      "question": "Which CA-EN100U terminals take the 24 VDC supply, and where should cable No. 10 (SG) terminate?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "pass",
+          "checks": {
+            "completed": true,
+            "supported": true,
+            "cited_expected_document": true,
+            "answer_facets": true,
+            "used_manuals_rag": true
+          },
+          "answer": "For CA-EN100U, Terminals 1 and 2 take the 24 VDC supply. Cable No. 10 (SG) should terminate at the 0 V OUT terminal (0 V of 5 V OUT) of the image processing system controller.",
+          "citations": [
+            {
+              "chunk_id": "c03e90e2-6086-587f-a5a5-d0b9619c81aa",
+              "document_id": "1a6783bf-01ae-4dde-8876-687064704e8c",
+              "pages": [
+                2
+              ],
+              "quote_span": null
+            },
+            {
+              "chunk_id": "06cb5341-ab4d-5585-8d53-8f79e5af60e8",
+              "document_id": "1a6783bf-01ae-4dde-8876-687064704e8c",
+              "pages": [
+                2
+              ],
+              "quote_span": null
+            }
+          ],
+          "expected_chunk_cited": true,
+          "rag_calls": 3,
+          "event_count": 57
+        },
+        "llamaindex_agent": {
+          "backend": "llamaindex_agent",
+          "status": "fail",
+          "checks": {
+            "completed": true,
+            "supported": false,
+            "cited_expected_document": true,
+            "answer_facets": false,
+            "used_manuals_rag": true
+          },
+          "answer": "The CA-EN100U terminal takes a 24 VDC power supply. Cable No. 10 (SG) termination location is not specified in the available evidence.",
+          "citations": [
+            {
+              "chunk_id": "ef8079f3-ae5e-5ca9-a55c-92753a0c1e69",
+              "document_id": "1a6783bf-01ae-4dde-8876-687064704e8c",
+              "pages": [
+                2,
+                3
+              ],
+              "quote_span": null
+            }
+          ],
+          "expected_chunk_cited": false,
+          "rag_calls": 3,
+          "event_count": 54
+        }
+      }
+    },
+    {
+      "case_id": "keyence-onsite-v1-003",
+      "question": "For an IV4-400CA using its M3 mounting holes, what tightening torque applies, and what torque applies to an unused connector waterproof cap?",
+      "backends": {
+        "langgraph_agent": {
+          "backend": "langgraph_agent",
+          "status": "fail",
+          "checks": {
+            "completed": true,
+            "supported": false,
+            "cited_expected_document": false,
+            "answer_facets": false,
+            "used_manuals_rag": true
+          },
+          "answer": "I could not verify a complete answer against the retrieved manual passages.",
+          "citations": [],
+          "expected_chunk_cited": false,
+          "rag_calls": 1,
+          "event_count": 13
+        }
+      }
+    }
+  ]
+}

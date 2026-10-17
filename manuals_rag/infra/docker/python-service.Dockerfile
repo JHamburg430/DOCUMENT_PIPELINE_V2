@@ -13,4 +13,8 @@ COPY requirements.txt /tmp/requirements.txt
 RUN python -m pip install --upgrade pip \
     && python -m pip install -r /tmp/requirements.txt
 
+# Reranker assets are supplied as a read-only local runtime mount. This keeps
+# model weights out of the image and guarantees that runtime never downloads
+# from external model hosting.
+
 COPY . /workspace/manuals_rag

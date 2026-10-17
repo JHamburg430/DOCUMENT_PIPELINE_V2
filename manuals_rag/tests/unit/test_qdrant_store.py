@@ -101,3 +101,25 @@ def test_dense_query_vector_cache_is_thread_safe(monkeypatch):
         assert second.result() == [1.0, 2.0]
 
     assert calls == ["same query"]
+
+
+def test_dense_query_vector_circuits_repeated_embedding_failures(monkeypatch):
+    calls: list[str] = []
+    monkeypatch.setattr(qdrant_store, "QdrantClient", lambda **_kwargs: object())
+
+    def embed(_texts):
+        calls.append("embed")
+        raise RuntimeError("embedding unavailable")
+
+    monkeypatch.setattr(qdrant_store, "embed_dense", embed)
+    store = qdrant_store.QdrantStore()
+
+    for query in ("first", "second"):
+        try:
+            store._dense_query_vector(query)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("embedding failure should remain fail-closed")
+
+    assert calls == ["embed"]

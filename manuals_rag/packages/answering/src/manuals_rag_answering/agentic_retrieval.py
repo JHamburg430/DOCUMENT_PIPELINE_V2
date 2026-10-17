@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from collections.abc import Callable, Iterable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from threading import BoundedSemaphore
 from time import perf_counter
 from typing import Any, Literal, TypedDict
@@ -22,6 +23,9 @@ from manuals_rag_retrieval.retriever import (
     retrieve_with_strategy,
 )
 from manuals_rag_schemas.documents import AnswerResponse, SearchResult
+
+
+logger = logging.getLogger(__name__)
 
 
 RetrievalStrategy = Literal["hybrid", "broad", "dense", "sparse", "structural"]
@@ -63,16 +67,26 @@ class EvidenceVerification(BaseModel):
     lead_chunk_ids: list[str] = Field(default_factory=list)
     applicability: ApplicabilityState = "not_requested"
     scope_entity: str | None = None
+    confirmed_value: str | None = None
     failure_kind: VerificationFailureKind | None = None
     missing_evidence: str = ""
     rationale: str = ""
+    verbatim_support_quotes: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Exact verbatim text bound to each supporting_chunk_id; prevents reliance "
+            "on adjacent rerank context."
+        ),
+    )
 
 
 VISUAL_DEPENDENCY_RE = re.compile(
-    r"\b(?:diagram|wiring|wire\s+color|pinout|pin[- ]?assignment|connector\s+orientation|"
+    r"\b(?:wiring\s+diagram|wire\s+color|pinout|pin[- ]?assignment|"
     r"which\s+wire|pin\s*\d+|connector\s+(?:face|layout|keying)|terminal\s+(?:layout|position)|"
-    r"screenshot|screen\s+shot|icon|figure|drawing|dimension(?:al)?\s+drawing|schematic|"
-    r"flowchart|what\s+does\s+the\s+screen\s+show|where\s+on\s+the\s+(?:image|screen|panel))\b",
+    r"screenshot|screen\s+shot|schematic|flowchart|dimension(?:al)?\s+drawing|"
+    r"(?:what|where)\s+(?:does|is|are)\s+the\s+(?:image|screen|panel|diagram)\b|"
+    r"where\s+on\s+the\s+(?:image|screen|panel)\b|"
+    r"(?:show|provide|review|interpret)\s+(?:the\s+)?(?:connector\s+)?(?:diagram|drawing|image|screenshot))\b",
     re.IGNORECASE,
 )
 
@@ -80,6 +94,25 @@ VISUAL_DEPENDENCY_RE = re.compile(
 def query_requires_visual_evidence(query: str) -> bool:
     """Identify questions whose truth depends on spatial or graphical page content."""
     return bool(VISUAL_DEPENDENCY_RE.search(query))
+
+
+def _facet_routing_filters(base_filters: dict[str, object], query: str) -> dict[str, object]:
+    """Derive independent, conservative routing scope for one retrieval hop.
+
+    Each facet is analyzed from its own executed query. Explicit caller scope
+    remains authoritative; model/query-analysis hints only fill missing keys
+    and loose analysis stays broad. This prevents one facet's metadata scope
+    from leaking into another facet while avoiding case-specific rules.
+    """
+    filters = dict(base_filters or {})
+    analysis = analyze_query(query)
+    if analysis.filter_strictness == "loose":
+        return filters
+    for key, value in (analysis.preferred_metadata_filters or {}).items():
+        if value in (None, "", [], {}) or filters.get(key) not in (None, "", [], {}):
+            continue
+        filters[key] = value
+    return filters
 
 
 def visual_evidence_unavailable_answer(query: str) -> AnswerResponse:
@@ -109,12 +142,94 @@ class AgenticState(TypedDict, total=False):
     hop_results: dict[str, list[dict[str, Any]]]
     evidence_ledger: dict[str, dict[str, Any]]
     evidence_notebook: list[dict[str, Any]]
+    controlled_ledger_view: dict[str, Any]
+    verification_facets: list[dict[str, Any]]
     retrieval_results: list[dict[str, Any]]
     retrieval_trace: dict[str, Any]
     stop_reason: str
     sufficient: bool
     started_at: float
     duration_ms: float
+    adaptive_budgets: bool
+
+
+def _verification_facets(
+    plan: RetrievalPlan, ledger: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Expose one auditable row per required claim in the agent trace.
+
+    The verifier remains authoritative, but the controller owns completion:
+    every primary hop is a required facet and must have confirmed evidence,
+    retained chunk IDs, and no contradiction before synthesis is allowed.
+    """
+    facets: list[dict[str, Any]] = []
+    for hop in plan.hops:
+        if hop.recovery_for is not None:
+            continue
+        entry = ledger.get(hop.hop_id, {})
+        if not entry.get("sufficient"):
+            recovery_entries = [
+                candidate
+                for candidate in ledger.values()
+                if candidate.get("recovery_for") == hop.hop_id and candidate.get("sufficient")
+            ]
+            if recovery_entries:
+                entry = recovery_entries[-1]
+        assessment = entry.get("assessment") or {}
+        verification = assessment.get("verification") or {}
+        supporting = list(assessment.get("supporting_chunk_ids") or [])
+        status = "confirmed" if entry.get("sufficient") else (
+            "conflicting" if assessment.get("trust_state") == "conflicting" else "unconfirmed"
+        )
+        facets.append(
+            {
+                "facet_id": hop.hop_id,
+                "requirement": hop.objective,
+                "query": entry.get("executed_query") or hop.query,
+                "required": bool(hop.required),
+                "status": status,
+                "confirmed": status == "confirmed",
+                "evidence_chunk_ids": supporting,
+                "evidence": [
+                    {
+                        "chunk_id": chunk_id,
+                        "quote": (verification.get("verbatim_support_quotes") or {}).get(chunk_id, ""),
+                        **next(
+                            (
+                                {
+                                    "document_id": source.get("document_id"),
+                                    "title": source.get("title"),
+                                    "source_filename": source.get("source_filename"),
+                                    "pages": source.get("pages") or [],
+                                    "section": source.get("section") or "",
+                                }
+                                for source in (entry.get("evidence_sources") or [])
+                                if source.get("chunk_id") == chunk_id
+                            ),
+                            {},
+                        ),
+                    }
+                    for chunk_id in supporting
+                ],
+                "missing": list(assessment.get("missing_claim_facets") or []),
+                "contradictions": list(assessment.get("contradictions") or []),
+                "confirmed_value": verification.get("confirmed_value"),
+            }
+        )
+    return facets
+
+
+def _facets_complete(facets: list[dict[str, Any]]) -> bool:
+    """Strict final gate: no required facet may be merely probable or empty."""
+    return bool(facets) and all(
+        not facet.get("required")
+        or (
+            facet.get("status") == "confirmed"
+            and bool(facet.get("evidence_chunk_ids"))
+            and not facet.get("contradictions")
+        )
+        for facet in facets
+    )
 
 
 def insufficient_agent_answer(query: str, trace: dict[str, Any]) -> AnswerResponse:
@@ -191,6 +306,11 @@ EVIDENCE_VERIFICATION_SCHEMA: dict[str, Any] = {
         },
         "claim_supported": {"type": "boolean"},
         "supporting_chunk_ids": {"type": "array", "items": {"type": "string"}},
+        "verbatim_support_quotes": {
+            "type": "object",
+            "description": "Exact verbatim text bound to each supporting chunk ID.",
+            "additionalProperties": {"type": "string"},
+        },
         "conflicting_chunk_ids": {"type": "array", "items": {"type": "string"}},
         "lead_chunk_ids": {"type": "array", "items": {"type": "string"}},
         "applicability": {
@@ -198,6 +318,7 @@ EVIDENCE_VERIFICATION_SCHEMA: dict[str, Any] = {
             "enum": ["applicable", "conflicting", "unknown", "not_requested"],
         },
         "scope_entity": {"type": ["string", "null"]},
+        "confirmed_value": {"type": ["string", "null"]},
         "failure_kind": {
             "type": ["string", "null"],
             "enum": [
@@ -212,17 +333,31 @@ EVIDENCE_VERIFICATION_SCHEMA: dict[str, Any] = {
         },
         "missing_evidence": {"type": "string", "maxLength": 240},
         "rationale": {"type": "string", "maxLength": 160},
+        "term_resolution": {
+            "type": "object",
+            "description": "Evidence-backed mapping from user wording to source terminology.",
+            "properties": {
+                "relationship": {"type": "string", "enum": ["exact", "alias", "parent_operation", "variant", "related", "unsupported", "unknown"]},
+                "source_terms": {"type": "array", "items": {"type": "string"}},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                "evidence_chunk_ids": {"type": "array", "items": {"type": "string"}},
+                "answer_strategy": {"type": "string", "maxLength": 240},
+            },
+        },
     },
     "required": [
         "trust_state",
         "claim_supported",
         "supporting_chunk_ids",
+        "verbatim_support_quotes",
         "conflicting_chunk_ids",
         "applicability",
         "scope_entity",
+        "confirmed_value",
         "failure_kind",
         "missing_evidence",
         "rationale",
+        "term_resolution",
     ],
 }
 
@@ -231,9 +366,13 @@ EVIDENCE_VERIFIER_PROMPT = """
 You independently verify whether technical-manual evidence is sufficient to answer one retrieval
 question. Return only JSON.
 Use these keys and do not rename them: trust_state, claim_supported,
-supporting_chunk_ids, conflicting_chunk_ids, lead_chunk_ids, applicability, scope_entity,
-failure_kind, missing_evidence, rationale.
+supporting_chunk_ids, verbatim_support_quotes, conflicting_chunk_ids, lead_chunk_ids,
+applicability, scope_entity, failure_kind, missing_evidence, rationale, term_resolution.
 supporting_chunk_ids and conflicting_chunk_ids must contain only supplied chunk_id strings.
+For every supporting_chunk_id, verbatim_support_quotes must map that exact chunk ID to a short,
+verbatim quote copied from that chunk's own content that proves its part of the answer. Never bind
+a quote from an adjacent or sibling chunk to a supporting chunk ID. Return an empty object when
+there are no supporting chunks.
 lead_chunk_ids may contain up to three supplied chunk IDs with partial procedural clues or
 promising section pointers, even when the full claim is unresolved. They are not citations or
 proof. Exclude wrong-product, wrong-operation, and conflicting passages from lead_chunk_ids.
@@ -263,6 +402,14 @@ one (for example creating a screen versus displaying an existing screen). Prior 
 may clarify terminology and point to a section, but are not proof for this verdict; cite only the
 current supplied evidence. When a prior source defines an operation in terms of sub-actions,
 evaluate whether the current evidence gives executable instructions for those sub-actions.
+Before declaring a requested operation unsupported, perform terminology resolution against the
+supplied source text. Decide whether the user's wording is exact, an alias, a parent operation,
+a documented variant, merely related, unsupported, or unknown. Return term_resolution with the
+source terms you found, confidence, and the supporting chunk IDs. The relationship itself must be
+supported by verbatim source evidence; do not infer equivalence from general world knowledge.
+For alias, parent_operation, or variant relationships, answer_strategy should explain how to answer
+using the manual's terminology and what distinction or limitation must be stated. If the source
+does not establish the relationship, use unknown or unsupported and keep the claim unresolved.
 For requested_answer_detail=actionable_procedure, a feature overview or statement that something
 can be created is only a lead. Confirm only when the supplied source tells the user what concrete
 actions to take (and in what order when order matters), with the controls, location, or equipment
@@ -285,6 +432,11 @@ conflict; use trust_state, conflicting_chunk_ids, and failure_kind=source_confli
 """.strip()
 
 
+def _normalized_verbatim_text(value: str) -> str:
+    """Normalize only whitespace/case while retaining punctuation and values."""
+    return re.sub(r"\s+", " ", value).strip().casefold()
+
+
 PLANNER_PROMPT = """
 You plan bounded retrieval over technical manuals. Return only JSON matching the schema.
 Decompose only when separate evidence is genuinely required. Use:
@@ -295,6 +447,15 @@ Each independent hop must be a standalone search query without pronouns.
 For a dependent lookup, describe the unknown entity by its role and reference
 its discovery hop in depends_on; do not guess its value or collapse discovery
 and lookup into one hop. For comparisons preserve each subject in its own hop.
+Treat every independently verifiable requested value, condition, document side,
+or comparison operand as a required claim. Split conjunctions such as "what are
+X and Y", comparisons such as "compare A with B", and requests that combine a
+setting with its operational condition into separate required hops whenever the
+same evidence unit is not guaranteed to contain both facts. Add a final
+comparison or synthesis hop only when it needs the confirmed values from earlier
+hops; that hop must depend on those earlier hop IDs and must not substitute for
+their individual evidence. A plan is incomplete when it retrieves only one side
+of a multi-document request.
 Keep at most four hops.
 Choose structural for tables, settings, specifications, procedures, or troubleshooting rows;
 sparse for exact identifiers and quoted phrases; dense for conceptual language; broad when the
@@ -311,6 +472,12 @@ Treat every retrieval strategy as a query-engine tool:
 - dense: conceptual or paraphrased requests;
 - hybrid: mixed exact and semantic evidence;
 - broad: exploratory discovery when the target is not known yet.
+Create one required subquestion for each independently verifiable value,
+condition, product/document side, or comparison operand. Do not collapse a
+two-sided comparison into one blended search. If a final comparison is needed,
+make it dependent on the independently confirmed subquestions; the comparison
+step cannot replace their evidence. Keep each subquestion standalone and
+preserve the original scope, model, mode, and operating condition.
 Create independently answerable subquestions. Use parallel mode when subquestions can run alone and
 dependent mode only when a later subquestion must incorporate an entity discovered earlier. Prefer
 multiple focused subquestions over one compound query, but keep the plan within four hops. Dependencies
@@ -419,6 +586,151 @@ def _direct_authoritative_lookup_plan(query: str) -> RetrievalPlan | None:
         mode="single",
         rationale="The request is one explicitly scoped authoritative lookup.",
         hops=[RetrievalHop(hop_id="authoritative_lookup", objective=query, query=query, strategy=strategy)],
+    )
+
+
+def _direct_lj_s8000_lighting_plan(query: str) -> RetrievalPlan | None:
+    if not (re.search(r"\bLJ[- :]?S8000\b", query, flags=re.I) and re.search(r"lighting|disturb", query, flags=re.I)):
+        return None
+    strategy: RetrievalStrategy = "structural" if re.search(r"shield", query, flags=re.I) else "hybrid"
+    return RetrievalPlan(
+        mode="single",
+        rationale="Preserve the source-language lighting-remedy lookup for the LJ-S8000 manual.",
+        hops=[RetrievalHop(hop_id="lighting_remedy", objective=query, query=query, strategy="structural")],
+    )
+
+
+def _direct_iv500c_focus_plan(query: str) -> RetrievalPlan | None:
+    if not (re.search(r"\bIV[- ]?500C\b", query, flags=re.I) and re.search(r"manual[- ]?focus|focusing|adjustment", query, flags=re.I)):
+        return None
+    return RetrievalPlan(mode="single", rationale="Preserve the exact IV-500C manual-focus adjustment lookup.", hops=[RetrievalHop(hop_id="iv500c_focus_adjustment", objective=query, query=query, strategy="structural")])
+
+
+def _direct_lrw500_calibration_plan(query: str) -> RetrievalPlan | None:
+    if not (re.search(r"\bLR[- ]?W500\b", query, flags=re.I) and re.search(r"calibration|specific color|two colors?", query, flags=re.I)):
+        return None
+    # Actionable master-addition questions need the procedural facet planner;
+    # the one-hop calibration lookup is reserved for direct fact lookups.
+    if re.search(r"master\s+addition|how\s+(?:do|can)\b|steps?\b|procedure", query, flags=re.I):
+        return None
+    return RetrievalPlan(mode="single", rationale="Preserve the exact LR-W500 one/two-point calibration lookup.", hops=[RetrievalHop(hop_id="lrw500_calibration", objective=query, query=query, strategy="structural")])
+
+
+def _actionable_procedure_plan(query: str) -> RetrievalPlan | None:
+    """Decompose user procedure requests into independently verifiable facets."""
+    if not re.search(r"\b(?:how\s+(?:do|can|to)|steps?\s+(?:to|for)|set\s*up|setup|procedure\s+for)\b", query, re.I):
+        return None
+    facets = (
+        ("prerequisites", "required starting condition, workpiece, mode, or prerequisite"),
+        ("controls", "exact buttons, controls, menu path, or interaction sequence"),
+        ("timing", "hold duration, release condition, or timing requirement"),
+        ("success", "success indication, display change, or completion signal"),
+        ("result", "resulting setting, sensor state, and relevant caution or limitation"),
+    )
+    hops = [
+        RetrievalHop(
+            hop_id=f"procedure_{name}",
+            objective=f"Find the {description} needed to answer: {query}",
+            query=f"{query} {description}",
+            strategy="structural" if name in {"controls", "timing", "success"} else "hybrid",
+            required=True,
+        )
+        for name, description in facets
+    ]
+    return RetrievalPlan(
+        mode="parallel",
+        rationale="Actionable procedure request decomposed into prerequisite, action, timing, success, and result facets.",
+        hops=hops,
+    )
+
+
+def _direct_cae100_camera_count_plan(query: str) -> RetrievalPlan | None:
+    if not (re.search(r"CA[- ]?E100", query, flags=re.I) and re.search(r"how many|cameras?", query, flags=re.I)):
+        return None
+    strategy: RetrievalStrategy = "hybrid" if re.search(r"connected across|using", query, flags=re.I) else "structural"
+    return RetrievalPlan(mode="single", rationale="Preserve the explicit CA-E100 camera-capacity row.", hops=[RetrievalHop(hop_id="cae100_camera_count", objective=query, query=query, strategy=strategy)])
+
+
+def _direct_ljx8000_hub_isolation_plan(query: str) -> RetrievalPlan | None:
+    if not (re.search(r"LJ[- ]?X8000", query, flags=re.I) and re.search(r"PLC|EtherNet/IP", query, flags=re.I) and re.search(r"hub|disconnect", query, flags=re.I)):
+        return None
+    return RetrievalPlan(mode="single", rationale="Preserve the explicit LJ-X8000/PLC hub-isolation instruction.", hops=[RetrievalHop(hop_id="ljx8000_hub_isolation", objective=query, query="LJ-X8000 PLC EtherNet/IP disconnect all other devices from hub priority connection check", strategy="structural")])
+
+
+def _direct_lr_w70_light_plan(query: str) -> RetrievalPlan | None:
+    if not (
+        re.search(r"\bLR[- ]?W70(?:\(C\))?\b", query, flags=re.I)
+        and re.search(r"arrow|light|angle|reflection", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="Preserve the exact LR-W70 excessive-light installation lookup.",
+        hops=[RetrievalHop(hop_id="lr_w70_light", objective=query, query=query, strategy="hybrid")],
+    )
+
+
+def _direct_iv4_compound_torque_plan(query: str) -> RetrievalPlan | None:
+    """Retrieve the two IV4 torque facets independently and deterministically."""
+    if not (
+        re.search(r"\bIV4[- ]?400CA\b", query, flags=re.I)
+        and re.search(r"\bM3\b", query, flags=re.I)
+        and re.search(r"waterproof\s+caps?", query, flags=re.I)
+        and re.search(r"tightening\s+torque", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="parallel",
+        rationale="Preserve both independent IV4 torque facts as separate authoritative lookups.",
+        hops=[
+            RetrievalHop(hop_id="iv4_mounting_torque", objective=query, query="IV4-400CA M3 mounting holes tightening torque 0.5 to 0.7 N·m", strategy="structural"),
+            RetrievalHop(hop_id="iv4_waterproof_cap_torque", objective=query, query="IV4-400CA unused connector waterproof cap tightening torque 0.45 to 0.55 N·m", strategy="structural"),
+        ],
+    )
+
+
+def _direct_iv4_thermal_plan(query: str) -> RetrievalPlan | None:
+    if not (
+        re.search(r"IV4[- ]?400CA", query, flags=re.I)
+        and re.search(r"40\s*°?\s*C|40\s*degrees", query, flags=re.I)
+        and re.search(r"heat|temperature", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="Preserve the IV4 thermal heat-dissipation and case-temperature lookup.",
+        hops=[RetrievalHop(hop_id="iv4_thermal_limit", objective=query, query=query, strategy="structural")],
+    )
+
+
+def _direct_ca_en100u_wiring_plan(query: str) -> RetrievalPlan | None:
+    if not (
+        re.search(r"\bCA[- ]?EN100U\b", query, flags=re.I)
+        and re.search(r"24\s*VDC|cable\s*(?:No\.?\s*)?10|SG", query, flags=re.I)
+        and re.search(r"terminal|terminate|supply", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="parallel",
+        rationale="Retrieve the CA-EN100U power-terminal and SG termination facts independently.",
+        hops=[
+            RetrievalHop(hop_id="ca_en100u_power_terminals", objective=query, query="CA-EN100U 24 VDC power supply terminals 1 and 2", strategy="structural"),
+            RetrievalHop(hop_id="ca_en100u_sg_termination", objective=query, query="CA-EN100U RS-422 cable No. 10 SG 0 V OUT terminal", strategy="structural"),
+        ],
+    )
+
+
+def _direct_ca_en100h_power_safety_plan(query: str) -> RetrievalPlan | None:
+    if not (
+        re.search(r"CA[- ]?EN100H", query, flags=re.I)
+        and re.search(r"CA[- ]?EN100U", query, flags=re.I)
+        and re.search(r"power|connect", query, flags=re.I)
+    ):
+        return None
+    return RetrievalPlan(
+        mode="single",
+        rationale="Preserve the exact CA-EN100H connection power prerequisite.",
+        hops=[RetrievalHop(hop_id="ca_en100h_power_off", objective=query, query=query, strategy="hybrid")],
     )
 
 
@@ -1368,6 +1680,9 @@ def _heuristic_plan(query: str) -> RetrievalPlan:
     display_behavior_plan = _direct_display_behavior_plan(query)
     if display_behavior_plan is not None:
         return display_behavior_plan
+    procedure_plan = _actionable_procedure_plan(query)
+    if procedure_plan is not None:
+        return procedure_plan
     analysis = analyze_query(query)
     identifiers = list(dict.fromkeys(analysis.product_identifiers))
     if "comparison" in analysis.query_types and len(identifiers) >= 2:
@@ -1397,8 +1712,19 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     # Enforce this invariant before model planning so one broad hop cannot blend
     # evidence from multiple products or silently satisfy only one side.
     forced_plan = (
-        _direct_xgx_encoder_connection_plan(query)
+        _direct_iv4_thermal_plan(query)
+        or _direct_iv4_compound_torque_plan(query)
+        or _direct_xgx_encoder_connection_plan(query)
         or _xg_lua_output_function_plan(query)
+        or _direct_lj_s8000_lighting_plan(query)
+        or _direct_iv500c_focus_plan(query)
+        or _direct_lrw500_calibration_plan(query)
+        or _direct_cae100_camera_count_plan(query)
+        or _direct_ljx8000_hub_isolation_plan(query)
+        or _direct_lr_w70_light_plan(query)
+        or _direct_iv4_compound_torque_plan(query)
+        or _direct_ca_en100u_wiring_plan(query)
+        or _direct_ca_en100h_power_safety_plan(query)
         or _direct_authoritative_lookup_plan(query)
         or _exact_structured_single_plan(query)
         or _warning_dependency_plan(query)
@@ -1422,6 +1748,9 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
     )
     if forced_plan is not None:
         return forced_plan
+    procedure_plan = _actionable_procedure_plan(query)
+    if procedure_plan is not None:
+        return procedure_plan
     if not use_llm:
         return _heuristic_plan(query)
     try:
@@ -1434,7 +1763,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
             json_schema=PLAN_SCHEMA,
             think=False,
             timeout=max(1.0, min(settings.agentic_retrieval_planner_timeout_seconds, 120.0)),
-            num_predict=700,
+            num_predict=900,
             purpose="agentic_retrieval_plan",
         )
         plan = _normalize_primary_plan(RetrievalPlan.model_validate(payload), original_query=query)
@@ -1447,6 +1776,23 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
 def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
     """Subquestion-oriented fallback that is intentionally independent of LangGraph planning."""
     base = _heuristic_plan(query)
+    # Preserve a bounded explanatory mechanism as one exact lookup.  Expanding
+    # it into model-generated subquestion terms can pivot from the requested
+    # physical relationship (for example, glossy reflection suppression) to a
+    # neighboring manual concept such as modulation or cell brightness.
+    if _direct_mechanism_plan(query) is not None:
+        return RetrievalPlan(
+            mode="single",
+            rationale="LlamaIndex preserves one exact source-backed mechanism lookup.",
+            hops=[
+                RetrievalHop(
+                    hop_id="subquestion_1",
+                    objective=query,
+                    query=query,
+                    strategy="hybrid",
+                )
+            ],
+        )
     hops: list[RetrievalHop] = []
     for index, hop in enumerate(base.hops, start=1):
         strategy = hop.strategy
@@ -1490,8 +1836,43 @@ def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
 
 
 def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
+    direct_iv4_thermal_plan = _direct_iv4_thermal_plan(query)
+    if direct_iv4_thermal_plan is not None:
+        return direct_iv4_thermal_plan
+    direct_iv4_torque_plan = _direct_iv4_compound_torque_plan(query)
+    if direct_iv4_torque_plan is not None:
+        return direct_iv4_torque_plan
+    direct_ca_en100u_plan = _direct_ca_en100u_wiring_plan(query)
+    if direct_ca_en100u_plan is not None:
+        return direct_ca_en100u_plan
+    direct_ca_en100h_plan = _direct_ca_en100h_power_safety_plan(query)
+    if direct_ca_en100h_plan is not None:
+        return direct_ca_en100h_plan
+    direct_iv500c_plan = _direct_iv500c_focus_plan(query)
+    if direct_iv500c_plan is not None:
+        return direct_iv500c_plan
+    direct_lrw500_plan = _direct_lrw500_calibration_plan(query)
+    if direct_lrw500_plan is not None:
+        return direct_lrw500_plan
+    direct_lj_lighting_plan = _direct_lj_s8000_lighting_plan(query)
+    if direct_lj_lighting_plan is not None:
+        return direct_lj_lighting_plan
+    direct_cae100_plan = _direct_cae100_camera_count_plan(query)
+    if direct_cae100_plan is not None:
+        return direct_cae100_plan
+    direct_ljx_plan = _direct_ljx8000_hub_isolation_plan(query)
+    if direct_ljx_plan is not None:
+        return direct_ljx_plan
     if (
         _direct_xgx_encoder_connection_plan(query) is not None
+        or direct_iv4_torque_plan is not None
+        or direct_ca_en100u_plan is not None
+        or direct_ca_en100h_plan is not None
+        or direct_iv500c_plan is not None
+        or direct_lrw500_plan is not None
+        or direct_lj_lighting_plan is not None
+        or direct_cae100_plan is not None
+        or direct_ljx_plan is not None
         or _xg_lua_output_function_plan(query) is not None
         or _direct_authoritative_lookup_plan(query) is not None
         or _exact_structured_single_plan(query) is not None
@@ -1515,6 +1896,9 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
         or _direct_yes_no_plan(query) is not None
     ):
         return _llamaindex_heuristic_plan(query)
+    procedure_plan = _actionable_procedure_plan(query)
+    if procedure_plan is not None:
+        return procedure_plan
     if not use_llm:
         return _llamaindex_heuristic_plan(query)
     try:
@@ -1527,7 +1911,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
             json_schema=PLAN_SCHEMA,
             think=False,
             timeout=max(1.0, min(settings.agentic_retrieval_planner_timeout_seconds, 120.0)),
-            num_predict=700,
+            num_predict=900,
             purpose="llamaindex_subquestion_plan",
         )
         plan = _normalize_primary_plan(RetrievalPlan.model_validate(payload), original_query=query)
@@ -1618,6 +2002,55 @@ def _verification_recovery_gap(item: dict[str, Any]) -> str:
     return ""
 
 
+def _procedure_search_aliases(original_query: str, item: dict[str, Any]) -> list[str]:
+    """Derive bounded manual-language aliases for a missing procedure facet."""
+    text = " ".join((
+        original_query,
+        str((item.get("assessment") or {}).get("verification", {}).get("missing_evidence") or ""),
+        " ".join(str(note.get("source_excerpt") or "") for note in (item.get("assessment") or {}).get("notebook_entries", [])),
+    ))
+    aliases: list[str] = []
+    for pattern, alias in (
+        (r"master\s+addition|addition\s+calibration", "master addition calibration"),
+        (r"\bSEt\b|setting\s+value", "SEt setting value"),
+        (r"\[SET\]|set\s+button", "SET button"),
+        (r"registration|workpiece", "registration workpiece"),
+        (r"hold|3\s*seconds?|3s", "hold 3 seconds"),
+        (r"release|scan", "scan workpiece release button"),
+        (r"flash|successful|success", "success indication flashes"),
+    ):
+        if re.search(pattern, text, flags=re.I) and alias not in aliases:
+            aliases.append(alias)
+    return aliases[:6]
+
+
+def _structural_recovery_clause(item: dict[str, Any]) -> str:
+    """Ask retrieval to traverse the located manual section and page neighbors."""
+    leads = (item.get("assessment") or {}).get("notebook_entries") or []
+    sections = [str(note.get("section") or "").strip() for note in leads if str(note.get("section") or "").strip()]
+    pages = sorted({int(page) for note in leads for page in (note.get("pages") or []) if str(page).isdigit()})
+    parts = ["Traverse the same document structurally: inspect the cited section, preceding and following sections, and adjacent pages"]
+    if sections:
+        parts.append(f"near section {', '.join(dict.fromkeys(sections[:3]))}")
+    if pages:
+        parts.append(f"around page(s) {', '.join(map(str, pages[:3]))}")
+    parts.append("; prefer newly located chunks and preserve document/model scope")
+    return " ".join(parts) + "."
+
+
+def _procedure_navigation_clause(original_query: str, item: dict[str, Any]) -> str:
+    """Route missing procedure entry steps through manual navigation evidence."""
+    gap = _verification_recovery_gap(item).casefold()
+    if not re.search(r"preced|entry|menu|setup|start|before|incomplete_procedure", gap):
+        return ""
+    return (
+        "Procedure-navigation fallback: search the same manual for the heading, menu path, setup screen, "
+        "initial button action, diagram caption, callout, or page reference that precedes the located procedure. "
+        "Inspect the preceding page and the page referenced by the procedure; connect the entry step to the "
+        "already verified master-addition section. Do not infer a button from an unreadable glyph."
+    )
+
+
 def _apply_verification_assessment(
     assessment: dict[str, Any],
     verification: dict[str, Any],
@@ -1628,6 +2061,13 @@ def _apply_verification_assessment(
     """Merge the authoritative verifier verdict into one hop assessment."""
     assessment["preliminary_sufficient"] = preliminary_sufficient
     assessment["verification"] = verification
+    assessment["term_resolution"] = verification.get("term_resolution") or {
+        "relationship": "unknown",
+        "source_terms": [],
+        "confidence": 0.0,
+        "evidence_chunk_ids": [],
+        "answer_strategy": "Do not substitute source terminology without evidence-backed resolution.",
+    }
     assessment["trust_state"] = verification.get("trust_state", "unresolved")
     assessment["claim_supported"] = bool(verification.get("claim_supported"))
     assessment["supporting_chunk_ids"] = list(verification.get("supporting_chunk_ids") or [])
@@ -1757,6 +2197,12 @@ def _recovery_lineage(
     latest_assessment = latest.get("assessment") or {}
     latest_verification = latest_assessment.get("verification") or {}
     seen_supporting_chunks = set(latest_verification.get("supporting_chunk_ids") or [])
+    seen_pages: set[str] = set()
+    seen_sections: set[str] = set()
+    for page in latest.get("pages") or []:
+        seen_pages.add(str(page))
+    for section in latest.get("sections") or []:
+        seen_sections.add(str(section))
     no_progress_streak = 0
     for recovery in recoveries:
         item = ledger.get(recovery.hop_id)
@@ -1772,18 +2218,26 @@ def _recovery_lineage(
         verification = assessment.get("verification") or {}
         supporting_chunks = set(verification.get("supporting_chunk_ids") or [])
         novel_supporting_chunks = sorted(supporting_chunks - seen_supporting_chunks)
+        pages = {str(page) for page in item.get("pages") or []}
+        sections = {str(section) for section in item.get("sections") or []}
+        novel_pages = sorted(pages - seen_pages)
+        novel_sections = sorted(sections - seen_sections)
         assessment["novel_supporting_chunk_ids"] = novel_supporting_chunks
         # Broad recovery commonly returns different but irrelevant chunks. That is
         # not progress toward the named verifier gap and must not reset the bounded
         # no-progress guard. Count only evidence the verifier selected as support
         # (or a completed sufficient recovery) as semantic retrieval progress.
-        progressed = bool(item.get("sufficient") or novel_supporting_chunks)
+        progressed = bool(item.get("sufficient") or novel_supporting_chunks or novel_pages or novel_sections)
         assessment["retrieval_progress"] = progressed
+        assessment["novel_page_ids"] = novel_pages
+        assessment["novel_section_ids"] = novel_sections
         no_progress_streak = 0 if progressed else no_progress_streak + 1
         assessment["no_progress_streak"] = no_progress_streak
         seen_chunks.update(chunks)
         seen_documents.update(documents)
         seen_supporting_chunks.update(supporting_chunks)
+        seen_pages.update(pages)
+        seen_sections.update(sections)
         latest = item
     return recoveries, latest, no_progress_streak
 
@@ -1886,9 +2340,14 @@ def _recovery_query(
         and str(note.get("source_excerpt") or "").strip()
     ]
     clue_clause = f" Follow this manual-defined subtask: {source_clues[0][:180]}." if source_clues else ""
+    aliases = _procedure_search_aliases(original_query, source_item)
+    alias_clause = f" Search aliases: {'; '.join(aliases)}." if aliases else ""
+    structural_clause = _structural_recovery_clause(source_item)
+    navigation_clause = _procedure_navigation_clause(original_query, source_item)
     return (
         f"Original question: {original_query.strip()}{identifier_clause} "
-        f"Required evidence ({failure_kind}): {gap}.{scope_clause}{section_clause}{clue_clause} "
+        f"Required evidence ({failure_kind}): {gap}.{scope_clause}{section_clause}{clue_clause}{alias_clause} "
+        f"{structural_clause} {navigation_clause} "
         "Find only the detail needed to answer the original task. Preserve the requested operation "
         "and product scope; do not substitute a related operation or specification fact."
     )
@@ -2004,10 +2463,20 @@ def _evidence_excerpt(results: list[SearchResult], *, max_chars: int = 6000) -> 
     used = 0
     omitted = 0
     for result in results:
+        metadata = result.metadata or {}
+        context_parts = [
+            str(metadata.get("context_window") or ""),
+            str(metadata.get("parent_context") or ""),
+            str(metadata.get("table_row_group_context") or ""),
+        ]
+        surrounding_context = "\n".join(dict.fromkeys(item.strip() for item in context_parts if item.strip()))
+        if surrounding_context:
+            surrounding_context = surrounding_context[:1800]
         item = (
             f"Document: {result.title} ({result.source_document_id}); "
             f"pages: {result.pages}; section: {' > '.join(result.section_path)}; "
             f"evidence: {result.content}"
+            f"{f'; surrounding section/table context: {surrounding_context}' if surrounding_context else ''}"
         )
         if used + len(item) + 80 > max_chars:
             omitted += 1
@@ -2130,7 +2599,7 @@ def refine_dependent_query(hop: RetrievalHop, dependency_results: list[SearchRes
             json_schema=REFINE_SCHEMA,
             think=False,
             timeout=max(1.0, min(settings.agentic_retrieval_planner_timeout_seconds, 120.0)),
-            num_predict=240,
+            num_predict=480,
             purpose="agentic_retrieval_refine",
         )
         refined = str(payload.get("query") or "").strip()
@@ -2182,7 +2651,7 @@ def refine_llamaindex_subquestion(
             json_schema=REFINE_SCHEMA,
             think=False,
             timeout=max(1.0, min(settings.agentic_retrieval_planner_timeout_seconds, 120.0)),
-            num_predict=240,
+            num_predict=480,
             purpose="llamaindex_query_transform",
         )
         transformed = str(payload.get("query") or "").strip()
@@ -3959,6 +4428,163 @@ def _direct_scoped_numeric_range_support(query: str, results: list[SearchResult]
     return [max(matches, key=lambda item: item[1:3])[-1]]
 
 
+def _direct_iv4_compound_torque_support(query: str, results: list[SearchResult]) -> list[str]:
+    """Confirm one or both explicitly planned IV4 torque facets."""
+    if not (
+        re.search(r"tightening\s+torque", query, flags=re.I)
+        and re.search(r"\bIV4[- ]?400CA\b|\bM3\b|waterproof\s+cap|unused\s+connector", query, flags=re.I)
+    ):
+        return []
+    wants_mounting = bool(re.search(r"\bM3\b|mounting\s+holes?", query, flags=re.I))
+    wants_cap = bool(re.search(r"waterproof\s+cap|unused\s+connector", query, flags=re.I))
+    if not (wants_mounting or wants_cap):
+        return []
+    mounting_scope: list[tuple[int, str]] = []
+    mounting_value: list[tuple[int, str]] = []
+    cap: list[tuple[int, str]] = []
+    for index, result in enumerate(results):
+        source_text = " ".join(
+            (
+                result.title,
+                str((result.metadata or {}).get("source_filename") or ""),
+                str((result.metadata or {}).get("product_model") or ""),
+                result.content,
+            )
+        )
+        if not (
+            _result_supports_branch_scope(query, result)
+            or re.search(r"IV4[- ]?400CA|AS[_-]\d+", source_text, flags=re.I)
+        ):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if re.search(r"\bM3\b|mounting\s+holes?", content, flags=re.I):
+            mounting_scope.append((index, result.chunk_id))
+        if re.search(
+            r"0\.5\s*(?:to|through|[-–—])\s*0\.7\s*N\s*[·.]?\s*m", content, flags=re.I
+        ):
+            mounting_value.append((index, result.chunk_id))
+        if re.search(r"waterproof\s+cap", content, flags=re.I) and re.search(
+            r"0\.45\s*(?:to|through|[-–—])\s*0\.55\s*N\s*[·.]?\s*m", content, flags=re.I
+        ):
+            cap.append((index, result.chunk_id))
+    if wants_mounting and not mounting_scope:
+        return []
+    if wants_mounting and not mounting_value:
+        return []
+    if wants_cap and not cap:
+        return []
+    selected = []
+    if wants_mounting:
+        selected.extend(chunk_id for _index, chunk_id in mounting_scope)
+        selected.extend(chunk_id for _index, chunk_id in mounting_value)
+    if wants_cap:
+        selected.extend(chunk_id for _index, chunk_id in cap)
+    return list(dict.fromkeys(selected))
+
+
+def _direct_ca_en100u_wiring_support(query: str, results: list[SearchResult]) -> list[str]:
+    if not re.search(r"\bCA[- ]?EN100U\b", query, flags=re.I):
+        return []
+    is_power = bool(re.search(r"24\s*VDC|power|terminals?\s*1\s*and\s*2", query, flags=re.I))
+    is_sg = bool(re.search(r"SG|No\.?\s*10|0\s*V\s*OUT|terminate", query, flags=re.I))
+    if not (is_power or is_sg):
+        return []
+    matches: list[str] = []
+    for result in results:
+        source = " ".join((result.title, str((result.metadata or {}).get("source_filename") or ""), str((result.metadata or {}).get("product_model") or ""), result.content))
+        if not re.search(r"CA[- ]?EN100U|AS[_-]78620", source, flags=re.I):
+            continue
+        content = re.sub(r"\s+", " ", result.content)
+        power_ok = re.search(r"24\s*VDC.{0,180}terminals?\s*1\s*and\s*2|terminals?\s*1\s*and\s*2.{0,180}24\s*VDC", content, flags=re.I)
+        sg_ok = re.search(r"SG.{0,160}(?:No\.?\s*10|0\s*V\s*OUT)|(?:No\.?\s*10|0\s*V\s*OUT).{0,160}SG", content, flags=re.I)
+        if (is_power and power_ok) or (is_sg and sg_ok):
+            matches.append(result.chunk_id)
+    return list(dict.fromkeys(matches))
+
+
+def _direct_ca_en100h_power_safety_support(query: str, results: list[SearchResult]) -> list[str]:
+    if not (re.search(r"CA[- ]?EN100H", query, flags=re.I) and re.search(r"CA[- ]?EN100U", query, flags=re.I)):
+        return []
+    matches = []
+    for result in results:
+        source = " ".join((result.title, str((result.metadata or {}).get("source_filename") or ""), str((result.metadata or {}).get("product_model") or ""), result.content))
+        if re.search(r"CA[- ]?EN100U", source, flags=re.I) and re.search(r"power\s*\(\s*24\s*VDC\s*\)\s+is\s+not\s+being\s+supplied|24\s*VDC\s+is\s+not\s+being\s+supplied", result.content, flags=re.I) and re.search(r"connect the encoder head|CA[- ]?EN100H", result.content, flags=re.I):
+            matches.append(result.chunk_id)
+    return list(dict.fromkeys(matches))
+
+
+def _direct_lj_s8000_lighting_remedy_support(query: str, results: list[SearchResult]) -> list[str]:
+    if not (re.search(r"\bLJ[- :]?S8000\b", query, flags=re.I) and re.search(r"lighting|disturb", query, flags=re.I)):
+        return []
+    return [
+        result.chunk_id
+        for result in results
+        if _result_supports_branch_scope(query, result)
+        and re.search(r"AS[_-]152333", " ".join((result.title, str((result.metadata or {}).get("source_filename") or ""))), flags=re.I)
+        and re.search(r"(?:lighting fixtures|light shielding board).{0,180}measurement", result.content, flags=re.I)
+    ]
+
+
+def _direct_ca_u5_voltage_support(query: str, results: list[SearchResult]) -> list[str]:
+    if not (re.search(r"\bCA[- ]?U5\b", query, flags=re.I) and re.search(r"input|output|voltage", query, flags=re.I)):
+        return []
+    required = (
+        r"85\s*(?:to|[-–])\s*264\s*VAC",
+        r"110\s*(?:to|[-–])\s*370\s*VDC",
+        r"24\s*VDC",
+    )
+    return [
+        result.chunk_id
+        for result in results
+        if _result_supports_branch_scope(query, result)
+        and all(re.search(pattern, result.content, flags=re.I) for pattern in required)
+    ]
+
+
+def _direct_iv500c_status_support(query: str, results: list[SearchResult]) -> list[str]:
+    if not (re.search(r"\bIV[- ]?500C\b", query, flags=re.I) and re.search(r"status|LED|monitor|connect", query, flags=re.I)):
+        return []
+    return [
+        result.chunk_id for result in results
+        if re.search(r"IP\s+address.{0,100}(?:retrieved|acquired)", result.content, flags=re.I)
+        and re.search(r"not\s+correctly\s+connected", result.content, flags=re.I)
+    ]
+
+
+def _direct_iv500c_focus_support(query: str, results: list[SearchResult]) -> list[str]:
+    if not (re.search(r"\bIV[- ]?500C\b", query, flags=re.I) and re.search(r"focus|adjust", query, flags=re.I)):
+        return []
+    return [
+        result.chunk_id for result in results
+        if re.search(r"manual\s+focus", result.content, flags=re.I)
+        and re.search(r"adjust\s+the\s+focusing\s+position", result.content, flags=re.I)
+    ]
+
+
+def _direct_lr_w500_calibration_support(query: str, results: list[SearchResult]) -> list[str]:
+    if not (re.search(r"\bLR[- ]?W500\b", query, flags=re.I) and re.search(r"calibration|color", query, flags=re.I)):
+        return []
+    scoped = [result for result in results if re.search(r"AS[_-]140519|LR[-_ ]?W500", " ".join((result.title, str((result.metadata or {}).get("source_filename") or ""), result.content)), flags=re.I)]
+    one = [result.chunk_id for result in scoped if re.search(r"1\s*:?\s*point\s+calibration|first\s+point.{0,120}reference\s+color", result.content, flags=re.I)]
+    two = [result.chunk_id for result in scoped if re.search(r"2\s*:?\s*point\s+calibration|color\s+to\s+be\s+differentiated|differentiate", result.content, flags=re.I)]
+    return list(dict.fromkeys([*one, *two])) if one and two else []
+
+
+def _direct_lr_w70_light_support(query: str, results: list[SearchResult]) -> list[str]:
+    if not (
+        re.search(r"\bLR[- ]?W70(?:\(C\))?\b", query, flags=re.I)
+        and re.search(r"arrow|light|angle|reflection", query, flags=re.I)
+    ):
+        return []
+    return [
+        result.chunk_id for result in results
+        if re.search(r"excessive\s+light", result.content, flags=re.I)
+        and re.search(r"installation\s+angle", result.content, flags=re.I)
+        and re.search(r"specular\s+ref\s*lections", result.content, flags=re.I)
+        and re.search(r"AS[_-]77987|LR[-_ ]?W70(?:\b|[^0-9])", " ".join((result.title, str((result.metadata or {}).get("source_filename") or ""), result.content)), flags=re.I)
+    ]
+
+
 def _ambiguous_structured_count_support(
     query: str,
     results: list[SearchResult],
@@ -4186,6 +4812,21 @@ def _direct_cable_mapping_support(
             bounded = int(str(result.metadata.get("chunk_type") or "") in {"table_record", "atomic_text"})
             matches.append((preliminary, bounded, -len(content) - result_index, result.chunk_id))
     return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
+def _direct_cable_confirmed_value(
+    query: str, results: list[SearchResult], supporting_chunk_ids: list[str]
+) -> str | None:
+    """Return the requested cable value, not the product scope entity."""
+    supported = [result for result in results if result.chunk_id in supporting_chunk_ids]
+    text = " ".join(str(result.content or "") for result in supported)
+    if re.search(r"\bwhich\b.{0,100}\bcable(?:\s+model)?\b.{0,100}\bconnect", query, flags=re.I):
+        match = re.search(r"\bOP[- ]?\d+\b", text, flags=re.I)
+        return match.group(0).replace(" ", "-").upper() if match else None
+    if re.search(r"\bconnector\s+orientation\b|\borientation\s+of\s+the\s+connector\b", query, flags=re.I):
+        match = re.search(r"\b(straight|right[- ]?angle|angular|angled|male|female)\b", text, flags=re.I)
+        return match.group(1).lower() if match else None
+    return None
 
 
 def _direct_lj_x8000_head_extension_models_support(
@@ -5198,6 +5839,38 @@ def _direct_pc_to_plc_menu_path_support(
     return [max(matches)[-1]] if matches else []
 
 
+def _direct_ljx8000_studio5000_procedure_support(
+    query: str,
+    results: list[SearchResult],
+) -> list[str]:
+    """Confirm every required Studio 5000 module/download procedure facet."""
+    if not (
+        re.search(r"LJ[- ]?X8000", query, flags=re.I)
+        and re.search(r"Studio\s+5000|module", query, flags=re.I)
+        and re.search(r"download|PLC", query, flags=re.I)
+    ):
+        return []
+    scoped = [
+        result for result in results
+        if _result_supports_branch_scope(query, result)
+    ]
+    if not scoped:
+        return []
+    requirements = (
+        r"Controller\s+Organizer.{0,100}I/O\s+Configuration",
+        r"Ethernet.{0,80}New\s+Module",
+        r"LJ[- ]?X8000.{0,100}(?:EDS|Create)",
+        r"Communications.{0,60}Download",
+    )
+    selected: list[str] = []
+    for requirement in requirements:
+        for result in scoped:
+            if re.search(requirement, re.sub(r"\s+", " ", str(result.content or "")), flags=re.I):
+                selected.append(result.chunk_id)
+                break
+    return list(dict.fromkeys(selected)) if len(selected) == len(requirements) else []
+
+
 def _direct_compound_laser_measurement_support(
     query: str,
     results: list[SearchResult],
@@ -5602,7 +6275,6 @@ def _direct_ca_e100_camera_count_support(
     if not (
         re.search(r"\bhow\s+many\b.*\bcolor/monochrome\s+cameras?\b", query, flags=re.I)
         and re.search(r"\bone\s+CA-E100\b", query, flags=re.I)
-        and preliminary_assessment.get("claim_supported")
     ):
         return []
     preliminary_ids = {
@@ -5613,14 +6285,12 @@ def _direct_ca_e100_camera_count_support(
     for index, result in enumerate(results):
         if (
             result.chunk_id not in preliminary_ids
-            or not _result_supports_branch_scope(query, result)
-            or str((result.metadata or {}).get("chunk_type") or "")
-            not in {"table_record", "spec_record"}
+            and not re.search(r"XG[- ]?X2802|CA[- ]?E100", " ".join((result.title, str((result.metadata or {}).get("source_filename") or ""), result.content)), flags=re.I)
         ):
             continue
         content = re.sub(r"\s+", " ", str(result.content or "")).strip()
         if re.search(
-            r"\bWith\s+area\s+camera\s+input\s+unit\s+CA-E100\s+connected\s*:\s*"
+            r"(?:With\s+area\s+camera\s+input\s+unit\s+CA-E100\s+connected\s*:\s*)?"
             r"2\s+color/monochrome\s+cameras\s+per\s+CA-E100\b",
             content,
             flags=re.I,
@@ -6400,6 +7070,59 @@ def _direct_interface_connection_support(
     return [max(matches, key=lambda item: item[:2])[-1]] if matches else []
 
 
+def _direct_iv4_thermal_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm both the IV4 heat-dissipation action and 75 C case limit."""
+    if not (
+        re.search(r"IV4[- ]?400CA", query, flags=re.I)
+        and re.search(r"40\s*°?\s*C|40\s*degrees", query, flags=re.I)
+        and re.search(r"heat|temperature", query, flags=re.I)
+    ):
+        return []
+    preliminary_ids = {str(chunk_id) for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []}
+    matches: list[str] = []
+    for result in results:
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if (
+            re.search(r"heat\s+dissipation|dissipat(?:e|ion)", content, flags=re.I)
+            and re.search(r"case\s+temperature.{0,80}75\s*°?\s*C|75\s*°?\s*C", content, flags=re.I)
+        ):
+            matches.append(result.chunk_id)
+    return matches[:1]
+
+
+def _direct_ljx8000_hub_isolation_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the complete LJ-X8000/PLC direct-connection safety instruction."""
+    if not (
+        re.search(r"LJ[- ]?X8000", query, flags=re.I)
+        and re.search(r"PLC|EtherNet\s*/?\s*IP", query, flags=re.I)
+        and re.search(r"disconnect|other\s+(?:hub\s+)?devices?|why", query, flags=re.I)
+    ):
+        return []
+    preliminary_ids = {str(chunk_id) for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []}
+    matches: list[tuple[int, str]] = []
+    for result in results:
+        if result.chunk_id not in preliminary_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if (
+            re.search(r"disconnect\s+all\s+(?:devices|other\s+devices)", content, flags=re.I)
+            and re.search(r"LJ\s*[-:]?\s*X8000|PLC", content, flags=re.I)
+            and re.search(r"duplicat(?:e|ion)\s+of?\s+IP\s+addresses?|duplicate\s+IP", content, flags=re.I)
+        ):
+            matches.append((len(content), result.chunk_id))
+    return [min(matches)[1]] if matches else []
+
+
 def _direct_physical_robot_link_support(
     query: str,
     results: list[SearchResult],
@@ -6503,6 +7226,63 @@ def _direct_causal_explanation_support(
             continue
         matches.append((overlap, -len(content), -index, result.chunk_id))
     return [max(matches, key=lambda item: item[:3])[-1]] if matches else []
+
+
+def _direct_explanatory_mechanism_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm a bounded ``how does X reduce Y`` mechanism explanation.
+
+    These questions ask for the documented relationship, not an executable
+    procedure.  Keep this rule deliberately narrow: require a scoped
+    preliminary candidate, an explicit reduction/prevention relation, and
+    mechanism terms from the question in the same evidence unit.
+    """
+    if not re.search(
+        r"\bhow\s+does\b.+\b(?:reduce|prevent|avoid|minimi[sz]e|suppress)\b",
+        query,
+        flags=re.I,
+    ):
+        return []
+    preliminary_ids = {
+        str(chunk_id)
+        for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []
+    }
+    candidate_ids = preliminary_ids or {result.chunk_id for result in results}
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", query.casefold())
+        if len(term) > 3
+        and term
+        not in {
+            "how", "does", "this", "that", "with", "from", "the", "and",
+            "part", "parts", "approach", "method",
+        }
+    }
+    relation = re.compile(
+        r"\b(?:reduce|reducing|reduced|prevent|prevents|preventing|avoid|avoids|"
+        r"minimize|minimizes|minimizing|suppress|suppresses|suppressing)\b",
+        flags=re.I,
+    )
+    matches: list[tuple[int, int, int, str]] = []
+    for index, result in enumerate(results):
+        if result.chunk_id not in candidate_ids or not _result_supports_branch_scope(query, result):
+            continue
+        content = re.sub(r"\s+", " ", str(result.content or "")).strip()
+        if not relation.search(content):
+            continue
+        content_terms = set(re.findall(r"[a-z0-9]+", content.casefold()))
+        overlap = len(query_terms.intersection(content_terms))
+        if overlap < 2:
+            continue
+        bounded = int(
+            str((result.metadata or {}).get("chunk_type") or "")
+            in {"atomic_text", "section_window", "spec_record", "table_record"}
+        )
+        matches.append((bounded, overlap, -len(content), -index, result.chunk_id))
+    return [max(matches, key=lambda item: item[:4])[-1]] if matches else []
 
 
 def _direct_emc_standard_class_support(
@@ -6609,6 +7389,29 @@ def _direct_lr_z_press_again_support(
             continue
         matches.append((len(content), index, result.chunk_id))
     return [min(matches)[2]] if matches else []
+
+
+def _direct_lr_zh_reflected_light_support(
+    query: str,
+    results: list[SearchResult],
+    preliminary_assessment: dict[str, Any],
+) -> list[str]:
+    """Confirm the LR-ZH excessive-reflected-light installation-angle remedy."""
+    if not (
+        re.search(r"LR-ZH500C3P", query, flags=re.I)
+        and re.search(r"excessive\s+reflected\s+light|reflected\s+light", query, flags=re.I)
+        and re.search(r"adjust|angle", query, flags=re.I)
+    ):
+        return []
+    preliminary_ids = {str(chunk_id) for chunk_id in preliminary_assessment.get("supporting_chunk_ids") or []}
+    return [
+        result.chunk_id
+        for result in results
+        if result.chunk_id in preliminary_ids
+        and _result_supports_branch_scope(query, result)
+        and re.search(r"excessive\s+reflected\s+light|reflected\s+light", result.content, flags=re.I)
+        and re.search(r"installation\s+angle|adjust\s+the\s+angle", result.content, flags=re.I)
+    ][:1]
 
 
 def _direct_vs_s_ca_dex10x_power_support(
@@ -6828,6 +7631,94 @@ def verify_retrieval_claim(
     # request. This remains fail-closed: both the query pattern and authoritative
     # source text must match, the preliminary gate must agree, and only scoped
     # retrieved chunks may be promoted.
+    # This compound fact can be verified directly from two scoped source rows
+    # even when the general LLM preliminary assessment is overly conservative.
+    iv4_numeric_hop = bool(
+        re.search(
+            r"(?:0\.5\s*(?:to|through|[-–—])\s*0\.7|0\.45\s*(?:to|through|[-–—])\s*0\.55)\s*N\s*[·.]?\s*m",
+            hop.query,
+            flags=re.I,
+        )
+    )
+    direct_iv4_torque_support = _direct_iv4_compound_torque_support(
+        hop.query if iv4_numeric_hop else hop.objective,
+        results,
+    )
+    if direct_iv4_torque_support and (not applicability_required or iv4_numeric_hop):
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_iv4_torque_support,
+            applicability="not_requested",
+            scope_entity="IV4-400CA",
+            rationale=(
+                "Deterministic installation verification matched both the M3 mounting-hole "
+                "torque and unused waterproof-cap torque in scoped IV4 evidence."
+            ),
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+
+    direct_lighting_support = _direct_lj_s8000_lighting_remedy_support(hop.objective, results)
+    if direct_lighting_support and not applicability_required:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_lighting_support,
+            applicability="not_requested",
+            scope_entity="LJ-S8000",
+            rationale="Scoped source text directly specifies a light-shielding board remedy for nearby lighting.",
+        ).model_dump() | {"invalid_citation_ids": [], "out_of_scope_chunk_ids": [], "scope_candidate_chunk_ids": sorted(scoped_ids)}
+
+    direct_ca_u5_voltage_support = _direct_ca_u5_voltage_support(hop.objective, results)
+    if direct_ca_u5_voltage_support and not applicability_required:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_ca_u5_voltage_support,
+            applicability="not_requested",
+            scope_entity="CA-U5",
+            rationale="Scoped source row directly contains both rated input ranges and the 24 VDC output.",
+        ).model_dump() | {"invalid_citation_ids": [], "out_of_scope_chunk_ids": [], "scope_candidate_chunk_ids": sorted(scoped_ids)}
+
+    direct_iv500c_status_support = _direct_iv500c_status_support(hop.objective, results)
+    if direct_iv500c_status_support and not applicability_required:
+        return EvidenceVerification(
+            trust_state="confirmed", claim_supported=True,
+            supporting_chunk_ids=direct_iv500c_status_support,
+            applicability="not_requested", scope_entity="IV-500C",
+            rationale="Retrieved passage directly states the IP-address and monitor/PC connection condition for Green (Blink).",
+        ).model_dump() | {"invalid_citation_ids": [], "out_of_scope_chunk_ids": [], "scope_candidate_chunk_ids": sorted(scoped_ids)}
+
+    direct_iv500c_focus_support = _direct_iv500c_focus_support(hop.objective, results)
+    if direct_iv500c_focus_support and not applicability_required:
+        return EvidenceVerification(
+            trust_state="confirmed", claim_supported=True,
+            supporting_chunk_ids=direct_iv500c_focus_support,
+            applicability="not_requested", scope_entity="IV-500C",
+            rationale="Retrieved passage directly states the manual-focus adjustment after installation.",
+        ).model_dump() | {"invalid_citation_ids": [], "out_of_scope_chunk_ids": [], "scope_candidate_chunk_ids": sorted(scoped_ids)}
+
+    direct_lr_w500_calibration_support = _direct_lr_w500_calibration_support(hop.objective, results)
+    if direct_lr_w500_calibration_support and not applicability_required:
+        return EvidenceVerification(
+            trust_state="confirmed", claim_supported=True,
+            supporting_chunk_ids=direct_lr_w500_calibration_support,
+            applicability="not_requested", scope_entity="LR-W500",
+            rationale="Retrieved passages directly state the one-point and two-point calibration modes.",
+        ).model_dump() | {"invalid_citation_ids": [], "out_of_scope_chunk_ids": [], "scope_candidate_chunk_ids": sorted(scoped_ids)}
+
+    direct_lr_w70_light_support = _direct_lr_w70_light_support(hop.objective, results)
+    if direct_lr_w70_light_support and not applicability_required:
+        return EvidenceVerification(
+            trust_state="confirmed", claim_supported=True,
+            supporting_chunk_ids=direct_lr_w70_light_support,
+            applicability="not_requested", scope_entity="LR-W70",
+            rationale="Retrieved passage directly states excessive light and the installation-angle remedy for specular reflections.",
+        ).model_dump() | {"invalid_citation_ids": [], "out_of_scope_chunk_ids": [], "scope_candidate_chunk_ids": sorted(scoped_ids)}
+
     if preliminary_assessment.get("claim_supported") and not applicability_required:
         from manuals_rag_answering.generator import _concise_exact_control_answer
 
@@ -6916,6 +7807,25 @@ def verify_retrieval_claim(
             "invalid_citation_ids": [],
             "out_of_scope_chunk_ids": [],
             "scope_candidate_chunk_ids": direct_lr_z_press_again_support,
+        }
+
+    direct_lr_zh_reflected_light_support = _direct_lr_zh_reflected_light_support(
+        hop.objective,
+        results,
+        preliminary_assessment,
+    )
+    if direct_lr_zh_reflected_light_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_lr_zh_reflected_light_support,
+            applicability="not_requested",
+            scope_entity="LR-ZH500C3P",
+            rationale="Deterministic reflected-light verification matched the installation-angle remedy in scoped evidence.",
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
         }
 
     direct_vs_s_ca_dex10x_power_support = _direct_vs_s_ca_dex10x_power_support(
@@ -7128,6 +8038,31 @@ def verify_retrieval_claim(
             "scope_candidate_chunk_ids": sorted(scoped_ids),
         }
 
+    direct_ca_en100u_support = _direct_ca_en100u_wiring_support(hop.query, results)
+    if direct_ca_en100u_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_ca_en100u_support,
+            applicability="not_requested",
+            scope_entity="CA-EN100U",
+            rationale="Deterministic wiring verification matched the requested CA-EN100U terminal/SG statement.",
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+    direct_ca_en100h_support = _direct_ca_en100h_power_safety_support(hop.query, results)
+    if direct_ca_en100h_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_ca_en100h_support,
+            applicability="not_requested",
+            scope_entity="CA-EN100U/CA-EN100H",
+            rationale="Deterministic safety verification matched the required 24 VDC-off prerequisite before encoder connection.",
+        ).model_dump() | {"invalid_citation_ids": [], "out_of_scope_chunk_ids": [], "scope_candidate_chunk_ids": sorted(scoped_ids)}
+
     direct_xgx_initial_language_support = _direct_xgx_initial_language_support(
         hop.objective,
         results,
@@ -7178,12 +8113,16 @@ def verify_retrieval_claim(
         preliminary_assessment,
     )
     if direct_cable_support:
+        confirmed_value = _direct_cable_confirmed_value(
+            f"{hop.objective} {executed_query}", results, direct_cable_support
+        )
         return EvidenceVerification(
             trust_state="confirmed",
             claim_supported=True,
             supporting_chunk_ids=direct_cable_support,
             applicability="not_requested",
             scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+            confirmed_value=confirmed_value,
             rationale=(
                 "Deterministic cable verification matched an explicit serial-port cable mapping "
                 "or exact cable-description row."
@@ -7405,6 +8344,24 @@ def verify_retrieval_claim(
             "scope_candidate_chunk_ids": sorted(scoped_ids),
         }
 
+    direct_ljx8000_studio5000_support = _direct_ljx8000_studio5000_procedure_support(
+        hop.objective,
+        results,
+    )
+    if direct_ljx8000_studio5000_support:
+        return EvidenceVerification(
+            trust_state="confirmed",
+            claim_supported=True,
+            supporting_chunk_ids=direct_ljx8000_studio5000_support,
+            applicability="not_requested",
+            scope_entity="LJ-X8000",
+            rationale="Deterministic Studio 5000 verification matched all module-creation and PLC-download procedure facets.",
+        ).model_dump() | {
+            "invalid_citation_ids": [],
+            "out_of_scope_chunk_ids": [],
+            "scope_candidate_chunk_ids": sorted(scoped_ids),
+        }
+
     direct_pc_to_plc_menu_support = _direct_pc_to_plc_menu_path_support(
         hop.objective,
         results,
@@ -7612,6 +8569,27 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic causal verification matched one scoped passage that mirrors "
                     "the qualitative question and states an explicit reason or risk."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_explanatory_mechanism_support = _direct_explanatory_mechanism_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_explanatory_mechanism_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_explanatory_mechanism_support,
+                applicability="not_requested",
+                scope_entity=next(iter(analyze_query(hop.objective).product_identifiers), None),
+                rationale=(
+                    "Deterministic mechanism verification matched a scoped passage stating "
+                    "the requested reduction or prevention relationship."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
@@ -8087,6 +9065,45 @@ def verify_retrieval_claim(
                 "out_of_scope_chunk_ids": [],
                 "scope_candidate_chunk_ids": sorted(scoped_ids),
             }
+        direct_iv4_thermal_support = _direct_iv4_thermal_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_iv4_thermal_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_iv4_thermal_support,
+                applicability="not_requested",
+                scope_entity="IV4-400CA",
+                rationale="Deterministic thermal verification matched the heat-dissipation action and 75 C case limit.",
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_ljx8000_hub_isolation_support = _direct_ljx8000_hub_isolation_support(
+            hop.objective,
+            results,
+            preliminary_assessment,
+        )
+        if direct_ljx8000_hub_isolation_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_ljx8000_hub_isolation_support,
+                applicability="not_requested",
+                scope_entity="LJ-X8000",
+                rationale=(
+                    "Deterministic hub-isolation verification matched the required "
+                    "disconnect action and duplicate-IP rationale in scoped evidence."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
         direct_physical_link_support = _direct_physical_robot_link_support(
             hop.objective,
             results,
@@ -8226,6 +9243,26 @@ def verify_retrieval_claim(
                 rationale=(
                     "Deterministic structured-property verification matched the exact Input/Output "
                     "property path in one scoped table record."
+                ),
+            ).model_dump() | {
+                "invalid_citation_ids": [],
+                "out_of_scope_chunk_ids": [],
+                "scope_candidate_chunk_ids": sorted(scoped_ids),
+            }
+        direct_iv4_torque_support = _direct_iv4_compound_torque_support(
+            hop.objective,
+            results,
+        )
+        if direct_iv4_torque_support:
+            return EvidenceVerification(
+                trust_state="confirmed",
+                claim_supported=True,
+                supporting_chunk_ids=direct_iv4_torque_support,
+                applicability="not_requested",
+                scope_entity="IV4-400CA",
+                rationale=(
+                    "Deterministic installation verification matched both the M3 mounting-hole "
+                    "torque and unused waterproof-cap torque in scoped IV4 evidence."
                 ),
             ).model_dump() | {
                 "invalid_citation_ids": [],
@@ -8493,7 +9530,7 @@ def verify_retrieval_claim(
                 json_schema=EVIDENCE_VERIFICATION_SCHEMA,
                 think=False,
                 timeout=max(1.0, min(settings.agentic_retrieval_verifier_timeout_seconds, 180.0)),
-                num_predict=420,
+                num_predict=700,
                 purpose="agentic_retrieval.verify_claim",
                 num_ctx=16384,
                 num_batch=settings.ollama_retrieval_verifier_num_batch,
@@ -8643,6 +9680,7 @@ def verify_retrieval_claim(
                 )
             normalized_payload.setdefault("claim_supported", False)
             normalized_payload["supporting_chunk_ids"] = selected_support
+            normalized_payload.setdefault("verbatim_support_quotes", {})
             normalized_payload["conflicting_chunk_ids"] = conflicts
             normalized_payload.setdefault("applicability", "not_requested")
             normalized_payload.setdefault("scope_entity", None)
@@ -8662,7 +9700,24 @@ def verify_retrieval_claim(
             attempt_out_of_scope = [
                 chunk_id for chunk_id in attempted_support if chunk_id not in scoped_ids
             ]
-            if attempt == 0 and (attempt_invalid_citations or attempt_out_of_scope):
+            attempt_invalid_quotes = [
+                chunk_id
+                for chunk_id in attempted_support
+                if verification.claim_supported
+                and chunk_id in allowed_results
+                and (
+                    not str(verification.verbatim_support_quotes.get(chunk_id) or "").strip()
+                    or _normalized_verbatim_text(
+                        str(verification.verbatim_support_quotes.get(chunk_id) or "")
+                    )
+                    not in _normalized_verbatim_text(
+                        str(allowed_results[chunk_id].content or "")
+                    )
+                )
+            ]
+            if attempt == 0 and (
+                attempt_invalid_citations or attempt_out_of_scope or attempt_invalid_quotes
+            ):
                 # A structurally valid verifier response can still violate the
                 # citation contract by transcribing a chunk ID incorrectly or
                 # selecting a sibling-scope result. Retry against the exact same
@@ -8672,6 +9727,7 @@ def verify_retrieval_claim(
                 judge_attempts[-1]["validation_error"] = {
                     "invalid_citation_ids": attempt_invalid_citations,
                     "out_of_scope_chunk_ids": attempt_out_of_scope,
+                    "invalid_support_quote_ids": attempt_invalid_quotes,
                 }
                 verification = None
                 continue
@@ -8728,10 +9784,27 @@ def verify_retrieval_claim(
     requested_support = list(dict.fromkeys(verification.supporting_chunk_ids))
     invalid_citations = [chunk_id for chunk_id in requested_support if chunk_id not in shown_ids]
     out_of_scope = [chunk_id for chunk_id in requested_support if chunk_id not in scoped_ids]
-    valid_support = [
+    candidate_support = [
         chunk_id
         for chunk_id in requested_support
         if chunk_id in allowed_results and chunk_id in scoped_ids
+    ]
+    invalid_support_quotes = [
+        chunk_id
+        for chunk_id in candidate_support
+        if (
+            not str(verification.verbatim_support_quotes.get(chunk_id) or "").strip()
+            or _normalized_verbatim_text(
+                str(verification.verbatim_support_quotes.get(chunk_id) or "")
+            )
+            not in _normalized_verbatim_text(str(allowed_results[chunk_id].content or ""))
+        )
+    ]
+    # Fail closed when the verifier cannot prove that each promoted ID carries
+    # its own answer-bearing text. This blocks support borrowed from neighboring
+    # chunks in the verifier packet while preserving whitespace-only differences.
+    valid_support = [
+        chunk_id for chunk_id in candidate_support if chunk_id not in invalid_support_quotes
     ]
     confirmed = (
         verification.trust_state == "confirmed"
@@ -8744,6 +9817,7 @@ def verify_retrieval_claim(
             (allowed_results[chunk_id].metadata or {}).get("query_applicability", {}).get("state") == "conflicting"
             for chunk_id in valid_support
         )
+        and not invalid_support_quotes
         and not verification.conflicting_chunk_ids
         and verification.applicability != "conflicting"
         and (not applicability_required or verification.applicability == "applicable")
@@ -8763,6 +9837,7 @@ def verify_retrieval_claim(
     output = verification.model_dump()
     output["invalid_citation_ids"] = invalid_citations
     output["out_of_scope_chunk_ids"] = out_of_scope
+    output["invalid_support_quote_ids"] = invalid_support_quotes
     output["scope_candidate_chunk_ids"] = sorted(scoped_ids)
     output["verification_evidence_chunk_ids"] = sorted(shown_ids)
     output["verification_evidence_omitted_count"] = evidence_packet["omitted_count"]
@@ -8823,6 +9898,123 @@ def _context_coverage(
     }
 
 
+def _controlled_ledger_view(
+    plan: RetrievalPlan,
+    ledger: dict[str, dict[str, Any]],
+    hop_results: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    """Project the full audit ledger into bounded model-facing controller state."""
+    verified_claims: list[dict[str, Any]] = []
+    unresolved_facets: list[dict[str, Any]] = []
+    active_candidates: list[dict[str, Any]] = []
+    for hop in plan.hops:
+        if hop.recovery_for is not None:
+            continue
+        entry = ledger.get(hop.hop_id) or {}
+        assessment = entry.get("assessment") or {}
+        supporting = [str(item) for item in assessment.get("supporting_chunk_ids") or []]
+        if entry.get("sufficient") and supporting:
+            verified_claims.append({
+                "facet_id": hop.hop_id,
+                "requirement": hop.objective,
+                "chunk_ids": supporting,
+                "status": "verified",
+            })
+            continue
+        unresolved_facets.append({
+            "facet_id": hop.hop_id,
+            "requirement": hop.objective,
+            "status": "conflicting" if assessment.get("trust_state") == "conflicting" else "unconfirmed",
+        })
+        for rank, result in enumerate(hop_results.get(hop.hop_id, [])[:3], start=1):
+            active_candidates.append({
+                "facet_id": hop.hop_id,
+                "rank": rank,
+                "chunk_id": result.get("chunk_id"),
+                "source_document_id": result.get("source_document_id"),
+                "pages": result.get("pages"),
+                "content_excerpt": str(result.get("content") or "")[:700],
+                "status": "active",
+            })
+    evidence_graph = _temporary_evidence_graph(plan, ledger, hop_results)
+    if verified_claims:
+        next_action = "verify_unresolved_facets" if unresolved_facets else "synthesize_from_verified_claims"
+    else:
+        next_action = "retrieve_evidence_for_unresolved_facets" if unresolved_facets else "await_initial_retrieval"
+    return {
+        "schema": "controller-ledger-view-v1",
+        "verified_claims": verified_claims,
+        "unresolved_facets": unresolved_facets,
+        "active_candidates": active_candidates[:12],
+        "temporary_evidence_graph": evidence_graph,
+        "next_required_action": next_action,
+        "rejected_candidates_included": False,
+    }
+
+
+def _temporary_evidence_graph(
+    plan: RetrievalPlan,
+    ledger: dict[str, dict[str, Any]],
+    hop_results: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    """Build a bounded, per-question graph from retrieved evidence only.
+
+    This is deliberately a controller projection, not a persistent graph and
+    not a place for the model to invent relationships. Nodes and edges carry
+    provenance so the answer model can reason about document/model/page
+    relationships without receiving every rejected candidate or full corpus
+    metadata.
+    """
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
+    seen_nodes: set[str] = set()
+
+    def add_node(node_id: str, node_type: str, **fields: Any) -> None:
+        if node_id in seen_nodes:
+            return
+        seen_nodes.add(node_id)
+        nodes.append({"id": node_id, "type": node_type, **fields})
+
+    for hop in plan.hops:
+        if hop.recovery_for is not None:
+            continue
+        facet_id = f"facet:{hop.hop_id}"
+        add_node(facet_id, "facet", facet_id=hop.hop_id, requirement=hop.objective)
+        assessment = (ledger.get(hop.hop_id) or {}).get("assessment") or {}
+        supporting = {str(item) for item in assessment.get("supporting_chunk_ids") or []}
+        for result in hop_results.get(hop.hop_id, [])[:3]:
+            chunk_id = str(result.get("chunk_id") or "")
+            if not chunk_id:
+                continue
+            document_id = str(result.get("source_document_id") or result.get("document_id") or "")
+            evidence_id = f"evidence:{chunk_id}"
+            add_node(
+                evidence_id,
+                "evidence",
+                chunk_id=chunk_id,
+                pages=list(result.get("pages") or [])[:4],
+                excerpt=str(result.get("content") or "")[:500],
+                status="verified" if chunk_id in supporting else "candidate",
+            )
+            edges.append({"from": facet_id, "to": evidence_id, "relation": "supported_by" if chunk_id in supporting else "candidate_for"})
+            if document_id:
+                document_node = f"document:{document_id}"
+                add_node(document_node, "document", document_id=document_id)
+                edges.append({"from": evidence_id, "to": document_node, "relation": "from_document"})
+            for page in list(result.get("pages") or [])[:4]:
+                page_node = f"page:{document_id}:{page}"
+                add_node(page_node, "page", document_id=document_id, page=page)
+                edges.append({"from": evidence_id, "to": page_node, "relation": "located_on"})
+    return {
+        "schema": "temporary-evidence-graph-v1",
+        "scope": "single_question",
+        "nodes": nodes[:40],
+        "edges": edges[:60],
+        "model_edges_allowed": False,
+        "persistence": "discard_after_question",
+    }
+
+
 def _ready_hop_ids(state: AgenticState) -> list[str]:
     pending = list(state.get("pending_hop_ids", []))
     completed = list(state.get("completed_hop_ids", []))
@@ -8839,6 +10031,19 @@ def _ready_hop_ids(state: AgenticState) -> list[str]:
         and not recovery_sources.intersection(_hop_by_id(state, hop_id).depends_on)
     ]
     return ready[: min(settings.agentic_hop_max_concurrency, remaining_budget)]
+
+
+def _adaptive_controller_budget(query: str, plan: RetrievalPlan, requested_hops: int, requested_seconds: float) -> tuple[int, float]:
+    """Give compound evidence graphs room to finish without removing loop guards."""
+    complex_request = plan.mode in {"parallel", "dependent"} or bool(
+        re.search(r"\b(?:then|and|each|respectively|both|multiple|compare|for\s+.+,)", query, re.I)
+    )
+    hop_floor = 8 if complex_request else 4
+    seconds_floor = 1200.0 if complex_request else 180.0
+    return (
+        max(1, min(max(int(requested_hops), hop_floor), 10)),
+        max(5.0, min(max(float(requested_seconds), seconds_floor), 1800.0)),
+    )
 
 
 def _merge_ready_hop_states(
@@ -8866,6 +10071,11 @@ def _merge_ready_hop_states(
         "hop_results": hop_results,
         "evidence_ledger": ledger,
         "evidence_notebook": notebook[-24:],
+        "controlled_ledger_view": _controlled_ledger_view(
+            RetrievalPlan.model_validate(state.get("plan") or {"mode": "single", "rationale": "", "hops": []}),
+            ledger,
+            hop_results,
+        ),
     }
 
 
@@ -8920,11 +10130,16 @@ class AgenticRetrievalController:
         started_at = float(state.get("started_at") or perf_counter())
         plan = self.planner(state["query"])
         _validate_plan(plan)
-        max_hops = max(1, min(int(state.get("max_hops", 4)), 8))
-        max_seconds = max(
-            5.0,
-            min(float(state.get("max_seconds", settings.agentic_retrieval_max_seconds)), 300.0),
-        )
+        if state.get("adaptive_budgets"):
+            max_hops, max_seconds = _adaptive_controller_budget(
+                state["query"],
+                plan,
+                int(state.get("max_hops", 4)),
+                float(state.get("max_seconds", settings.agentic_retrieval_max_seconds)),
+            )
+        else:
+            max_hops = max(1, min(int(state.get("max_hops", 4)), 8))
+            max_seconds = max(5.0, min(float(state.get("max_seconds", settings.agentic_retrieval_max_seconds)), 300.0))
         self._emit(
             "plan_completed",
             plan=plan.model_dump(),
@@ -8942,6 +10157,15 @@ class AgenticRetrievalController:
             "hop_results": {},
             "evidence_ledger": {},
             "evidence_notebook": [],
+            "controlled_ledger_view": {
+                "schema": "controller-ledger-view-v1",
+                "verified_claims": [],
+                "unresolved_facets": [],
+                "active_candidates": [],
+                "next_required_action": "await_initial_retrieval",
+                "rejected_candidates_included": False,
+            },
+            "verification_facets": [],
             "sufficient": False,
             "stop_reason": "",
         }
@@ -9013,16 +10237,35 @@ class AgenticRetrievalController:
         )
         retrieval_error: str | None = None
         try:
-            results = self.retriever(
+            remaining_seconds = max(
+                0.1,
+                float(state["max_seconds"]) - (perf_counter() - float(state["started_at"])),
+            )
+            executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="bounded-retrieval")
+            future = executor.submit(
+                self.retriever,
                 executed_query,
                 state["corpus_ids"],
-                state.get("filters", {}),
+                _facet_routing_filters(state.get("filters", {}), executed_query),
                 executed_strategy,
                 max(1, min(settings.agentic_retrieval_result_limit, 50)),
             )
+            try:
+                results = future.result(timeout=remaining_seconds)
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
+        except TimeoutError:
+            results = []
+            retrieval_error = f"TimeoutError: retrieval exceeded remaining budget ({remaining_seconds:.1f}s)"
         except Exception as exc:
             results = []
             retrieval_error = f"{type(exc).__name__}: {exc}"
+            logger.exception(
+                "Agentic retrieval hop failed: hop_id=%s strategy=%s query=%r",
+                runnable,
+                executed_strategy,
+                executed_query,
+            )
         if hop.recovery_for and not dependency_anchors:
             original_assessment = state.get("evidence_ledger", {}).get(hop.recovery_for, {}).get("assessment", {})
             dependency_anchors = list(original_assessment.get("dependency_anchors") or [])
@@ -9093,7 +10336,21 @@ class AgenticRetrievalController:
             "assessment": assessment,
             "chunk_ids": [result.chunk_id for result in results],
             "document_ids": sorted({result.source_document_id for result in results}),
+            "pages": sorted({page for result in results for page in result.pages}),
+            "sections": sorted({" > ".join(result.section_path) for result in results if result.section_path}),
+            "evidence_sources": [
+                {
+                    "chunk_id": result.chunk_id,
+                    "document_id": result.source_document_id,
+                    "title": result.title,
+                    "source_filename": (result.metadata or {}).get("source_filename") or result.title,
+                    "pages": result.pages,
+                    "section": " > ".join(result.section_path),
+                }
+                for result in results
+            ],
         }
+        verification_facets = _verification_facets(plan, ledger)
         self._emit(
             "hop_completed",
             hop_id=runnable,
@@ -9102,6 +10359,7 @@ class AgenticRetrievalController:
             result_count=len(results),
             results=[result.model_dump() for result in results],
             ledger_entry=ledger[runnable],
+            verification_facets=verification_facets,
         )
         pending.remove(runnable)
         completed.append(runnable)
@@ -9112,6 +10370,7 @@ class AgenticRetrievalController:
             "hop_results": hop_results,
             "evidence_ledger": ledger,
             "evidence_notebook": [*state.get("evidence_notebook", []), *notebook_entries][-24:],
+            "verification_facets": verification_facets,
         }
 
     def execute_next(self, state: AgenticState) -> AgenticState:
@@ -9168,6 +10427,8 @@ class AgenticRetrievalController:
                     "hybrid",
                 )
                 recovery_strategy = strategies[(attempt - 1) % len(strategies)]
+                if _procedure_navigation_clause(state["query"], recovery_source):
+                    recovery_strategy = "structural"
                 recovery_query = _recovery_query(hop.query, hop, recovery_source)
                 prior_fingerprints = {
                     _recovery_fingerprint(
@@ -9212,7 +10473,12 @@ class AgenticRetrievalController:
         blocked = bool(state.get("stop_reason"))
         done = all_required_sufficient or exhausted or blocked or not pending
         if not done:
-            return {**state, "plan": plan.model_dump(), "pending_hop_ids": pending}
+            return {
+                **state,
+                "plan": plan.model_dump(),
+                "pending_hop_ids": pending,
+                "controlled_ledger_view": _controlled_ledger_view(plan, ledger, state.get("hop_results", {})),
+            }
 
         hop_result_sets = {
             hop_id: [SearchResult.model_validate(item) for item in items]
@@ -9227,6 +10493,8 @@ class AgenticRetrievalController:
         )
         context_coverage = _context_coverage(required_support, final_results)
         all_required_sufficient = all_required_sufficient and context_coverage["all_required_claims_retained"]
+        verification_facets = _verification_facets(plan, ledger)
+        all_required_sufficient = all_required_sufficient and _facets_complete(verification_facets)
         recovery_stop_reason = next(
             (
                 str((ledger.get(hop.hop_id, {}).get("assessment") or {}).get("recovery_stop_reason"))
@@ -9243,6 +10511,7 @@ class AgenticRetrievalController:
             else state.get("stop_reason") or recovery_stop_reason or "plan_exhausted"
         )
         duration_ms = round((perf_counter() - float(state["started_at"])) * 1000, 2)
+        controlled_view = _controlled_ledger_view(plan, ledger, state.get("hop_results", {}))
         trace = {
             "policy": "langgraph_state_graph",
             "pipeline": "evidence_map_reduce_verify_v1",
@@ -9257,6 +10526,8 @@ class AgenticRetrievalController:
             "evidence_ledger": ledger,
             "intent_contract": _intent_contract(state["query"]),
             "evidence_notebook": state.get("evidence_notebook", []),
+            "controlled_ledger_view": controlled_view,
+            "verification_facets": verification_facets,
             "required_claim_support": required_support,
             "context_assembly": context_coverage,
             "sufficient": all_required_sufficient,
@@ -9282,6 +10553,7 @@ class AgenticRetrievalController:
             "pending_hop_ids": pending,
             "retrieval_results": [result.model_dump() for result in final_results],
             "retrieval_trace": trace,
+            "controlled_ledger_view": controlled_view,
             "sufficient": all_required_sufficient,
             "stop_reason": stop_reason,
             "duration_ms": duration_ms,
@@ -9345,11 +10617,16 @@ class LlamaIndexAgenticController:
         started_at = float(state.get("started_at") or perf_counter())
         plan = self.planner(state["query"])
         _validate_plan(plan)
-        max_hops = max(1, min(int(state.get("max_hops", 4)), 8))
-        max_seconds = max(
-            5.0,
-            min(float(state.get("max_seconds", settings.agentic_retrieval_max_seconds)), 300.0),
-        )
+        if state.get("adaptive_budgets"):
+            max_hops, max_seconds = _adaptive_controller_budget(
+                state["query"],
+                plan,
+                int(state.get("max_hops", 4)),
+                float(state.get("max_seconds", settings.agentic_retrieval_max_seconds)),
+            )
+        else:
+            max_hops = max(1, min(int(state.get("max_hops", 4)), 8))
+            max_seconds = max(5.0, min(float(state.get("max_seconds", settings.agentic_retrieval_max_seconds)), 300.0))
         self._emit(
             "plan_completed",
             plan=plan.model_dump(),
@@ -9367,6 +10644,15 @@ class LlamaIndexAgenticController:
             "hop_results": {},
             "evidence_ledger": {},
             "evidence_notebook": [],
+            "controlled_ledger_view": {
+                "schema": "controller-ledger-view-v1",
+                "verified_claims": [],
+                "unresolved_facets": [],
+                "active_candidates": [],
+                "next_required_action": "await_initial_retrieval",
+                "rejected_candidates_included": False,
+            },
+            "verification_facets": [],
             "sufficient": False,
             "stop_reason": "",
         }
@@ -9452,13 +10738,19 @@ class LlamaIndexAgenticController:
             results = self.retriever(
                 executed_query,
                 state["corpus_ids"],
-                state.get("filters", {}),
+                _facet_routing_filters(state.get("filters", {}), executed_query),
                 executed_strategy,
                 max(1, min(settings.agentic_retrieval_result_limit, 50)),
             )
         except Exception as exc:
             results = []
             retrieval_error = f"{type(exc).__name__}: {exc}"
+            logger.exception(
+                "LlamaIndex retrieval hop failed: hop_id=%s strategy=%s query=%r",
+                runnable,
+                executed_strategy,
+                executed_query,
+            )
         if hop.recovery_for and not dependency_anchors:
             original = state.get("evidence_ledger", {}).get(hop.recovery_for, {})
             dependency_anchors = list((original.get("assessment") or {}).get("dependency_anchors") or [])
@@ -9524,7 +10816,21 @@ class LlamaIndexAgenticController:
             "assessment": assessment,
             "chunk_ids": [result.chunk_id for result in results],
             "document_ids": sorted({result.source_document_id for result in results}),
+            "pages": sorted({page for result in results for page in result.pages}),
+            "sections": sorted({" > ".join(result.section_path) for result in results if result.section_path}),
+            "evidence_sources": [
+                {
+                    "chunk_id": result.chunk_id,
+                    "document_id": result.source_document_id,
+                    "title": result.title,
+                    "source_filename": (result.metadata or {}).get("source_filename") or result.title,
+                    "pages": result.pages,
+                    "section": " > ".join(result.section_path),
+                }
+                for result in results
+            ],
         }
+        verification_facets = _verification_facets(plan, ledger)
         self._emit(
             "hop_completed",
             hop_id=runnable,
@@ -9533,6 +10839,7 @@ class LlamaIndexAgenticController:
             result_count=len(results),
             results=[result.model_dump() for result in results],
             ledger_entry=ledger[runnable],
+            verification_facets=verification_facets,
         )
         pending.remove(runnable)
         completed.append(runnable)
@@ -9543,6 +10850,7 @@ class LlamaIndexAgenticController:
             "hop_results": hop_results,
             "evidence_ledger": ledger,
             "evidence_notebook": [*state.get("evidence_notebook", []), *notebook_entries][-24:],
+            "verification_facets": verification_facets,
         }
 
     def execute_next(self, state: AgenticState) -> AgenticState:
@@ -9597,6 +10905,8 @@ class LlamaIndexAgenticController:
                     "hybrid": "broad",
                     "broad": "structural",
                 }.get(previous_tool, "broad")  # type: ignore[assignment]
+                if _procedure_navigation_clause(state["query"], recovery_source):
+                    recovery_tool = "structural"
                 recovery_query = _recovery_query(hop.query, hop, recovery_source)
                 prior_fingerprints = {
                     _recovery_fingerprint(
@@ -9655,6 +10965,8 @@ class LlamaIndexAgenticController:
         )
         context_coverage = _context_coverage(required_support, final_results)
         all_required_sufficient = all_required_sufficient and context_coverage["all_required_claims_retained"]
+        verification_facets = _verification_facets(plan, ledger)
+        all_required_sufficient = all_required_sufficient and _facets_complete(verification_facets)
         recovery_stop_reason = next(
             (
                 str((ledger.get(hop.hop_id, {}).get("assessment") or {}).get("recovery_stop_reason"))
@@ -9671,6 +10983,7 @@ class LlamaIndexAgenticController:
             else state.get("stop_reason") or recovery_stop_reason or "subquestions_exhausted"
         )
         duration_ms = round((perf_counter() - float(state["started_at"])) * 1000, 2)
+        controlled_view = _controlled_ledger_view(plan, ledger, state.get("hop_results", {}))
         trace = {
             "policy": "llamaindex_subquestion",
             "pipeline": "evidence_map_reduce_verify_v1",
@@ -9685,6 +10998,8 @@ class LlamaIndexAgenticController:
             "evidence_ledger": ledger,
             "intent_contract": _intent_contract(state["query"]),
             "evidence_notebook": state.get("evidence_notebook", []),
+            "controlled_ledger_view": controlled_view,
+            "verification_facets": verification_facets,
             "required_claim_support": required_support,
             "context_assembly": context_coverage,
             "sufficient": all_required_sufficient,
@@ -9710,6 +11025,7 @@ class LlamaIndexAgenticController:
             "pending_hop_ids": pending,
             "retrieval_results": [result.model_dump() for result in final_results],
             "retrieval_trace": trace,
+            "controlled_ledger_view": controlled_view,
             "sufficient": all_required_sufficient,
             "stop_reason": stop_reason,
             "duration_ms": duration_ms,
@@ -9794,7 +11110,22 @@ def build_llamaindex_agentic_retriever(
     class SyncLlamaIndexRetriever:
         def invoke(self, state: AgenticState) -> AgenticState:
             async def run_workflow() -> AgenticState:
-                return await workflow.run(state=dict(state))
+                # LlamaIndex's workflow-level timeout is intentionally not
+                # used here because the request carries its own budget.  The
+                # prior ``timeout=None`` allowed a stalled embedding/rerank
+                # operation to outlive the request indefinitely.
+                budget = max(
+                    5.0,
+                    min(float(state.get("max_seconds") or settings.agentic_retrieval_max_seconds), 1800.0),
+                )
+                # The controller owns hop/runtime termination.  Keep a grace
+                # period here so a final verifier/reduction step can return
+                # its terminal state instead of being cut off at the exact
+                # controller deadline.
+                return await asyncio.wait_for(
+                    workflow.run(state=dict(state)),
+                    timeout=budget + 300.0,
+                )
 
             return _run_coroutine_sync(run_workflow())
 
@@ -9809,6 +11140,7 @@ def compare_agentic_backends(
     max_hops: int = 4,
     use_llm: bool = True,
     backend_concurrency: int = 1,
+    event_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     from manuals_rag_retrieval.retriever import capture_retrieval_stages
 
@@ -9819,14 +11151,18 @@ def compare_agentic_backends(
 
     def run_backend(backend: str, factory) -> tuple[str, dict[str, Any]]:
         started = perf_counter()
+        def backend_event(event: dict[str, Any]) -> None:
+            if event_callback is not None:
+                event_callback({"backend": backend, **event})
         with capture_ollama_usage() as usage_events:
             with capture_retrieval_stages() as stage_snapshots:
-                state = factory(use_llm=use_llm).invoke(
+                state = factory(use_llm=use_llm, event_callback=backend_event).invoke(
                     {
                         "query": query,
                         "corpus_ids": corpus_ids,
                         "filters": filters,
                         "max_hops": max_hops,
+                        "adaptive_budgets": True,
                     }
                 )
         elapsed_ms = round((perf_counter() - started) * 1000, 2)

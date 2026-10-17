@@ -1,0 +1,27 @@
+{
+  "acceptance": "All 40 backend cells pass source-document citation, grounded answer facets, and manuals_rag tool-use checks. Automated scoring is lexical and needs review for paraphrase false negatives.",
+  "backends": [
+    "langgraph_agent",
+    "llamaindex_agent"
+  ],
+  "case_count": 20,
+  "categories": {
+    "calibration": 1,
+    "diagnostics": 3,
+    "inspection": 4,
+    "installation": 4,
+    "integration": 3,
+    "power": 1,
+    "selection": 1,
+    "setup": 2,
+    "wiring": 1
+  },
+  "corpus": "manuals_vendor_keyence",
+  "dataset": "tests/fixtures/keyence_onsite_agent_eval_v2.jsonl",
+  "human_reviewed": false,
+  "revision_reason": "Q1 accepted answer says not being supplied; v1 lexical facet wrongly rejected it.",
+  "schema": "manuals-rag-onsite-agent-eval-v1",
+  "sha256": "fe238d38fb090998de61075f2e91927f2b20fe65eeade3433f21182e62a85a2f",
+  "source_verification": "active_postgres_chunks_2026-10-01",
+  "supersedes": "tests/fixtures/keyence_onsite_agent_eval_v1.jsonl"
+}

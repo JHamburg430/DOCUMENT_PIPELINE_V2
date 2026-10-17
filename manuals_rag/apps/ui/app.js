@@ -2,9 +2,10 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260929-react-agent-sessions";
+const ASSET_VERSION = "20261015-live-matrix-refresh";
 const EVALUATION_REALTIME_FIXTURE = "/fixtures/evaluation-realtime.json";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
+const AGENT_EVAL_SELECTIONS_KEY = "manuals-rag-agent-evaluation-selections";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
 const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
 const MATRIX_GENERATION_DEFAULT_PROMPT = "Generate realistic engineer, technician, sales, support, or manager questions that are specific to the supplied source content. First use the document context to identify the product/device, parent article, feature area, and source-backed answer. Prefer concrete procedures, specs, limits, warnings, settings, table row subjects, units, symptoms, and user-visible product anchors when the source supports them. Optimize for useful retrieval questions, not exhaustive coverage of every parseable cell. Avoid vague questions, filename/document artifacts, and questions about storage format, display precision, parser coordinates, or internal representation unless clearly user-facing. If the source window cannot support a specific non-duplicative user-style question, return NONE.";
@@ -28,6 +29,8 @@ const state = {
   questionMatrix: null,
   matrixJob: null,
   matrixJobTimer: null,
+  questionMatrixRefreshTimer: null,
+  questionMatrixLoadVersion: 0,
   externalEvalTimer: null,
   matrixSort: { key: "number", direction: "asc" },
   matrixFilters: { text: "", run: "", type: "", anyStatus: "", stages: {} },
@@ -1036,9 +1039,21 @@ function renderMatrixRunOverview(job = state.matrixJob, currentRun = state.quest
     `;
     return;
   }
-  const completed = Number(job?.completed_datasets ?? currentRun?.completed ?? 0);
-  const total = Number(job?.dataset_count ?? currentRun?.total ?? 0);
-  const percent = total ? Math.min(100, Math.max(0, (completed / total) * 100)) : 0;
+  // `dataset_count` is the number of input artifacts (usually 1), not the
+  // number of questions in an evaluation.  Using it here made a 100-question
+  // run display "0 of 1" and "Question N of 1". Prefer the question count
+  // exposed by the job, then the loaded matrix rows, and only use dataset
+  // count as a last resort for generation jobs.
+  const questionRows = Array.isArray(state.questionMatrix?.rows) ? state.questionMatrix.rows : [];
+  const currentQuestion = Number(job?.current_question_number || 0);
+  const totalQuestions = Number(job?.total_questions || currentRun?.total_questions || questionRows.length || 0);
+  const datasetTotal = Number(job?.dataset_count ?? currentRun?.total ?? 0);
+  const total = totalQuestions || datasetTotal;
+  const completedQuestions = Number(job?.completed_questions ?? 0);
+  const progressValue = totalQuestions
+    ? Math.min(totalQuestions, Math.max(completedQuestions, currentQuestion ? currentQuestion - 1 : 0))
+    : Number(job?.completed_datasets ?? currentRun?.completed ?? 0);
+  const percent = total ? Math.min(100, Math.max(0, (progressValue / total) * 100)) : 0;
   const stageKey = job?.mode === "column" && job?.column && job.column !== "all"
     ? job.column
     : job?.current_stage_key || (job?.response_mode === "answer_with_citations" ? "answer" : "retrieval");
@@ -1049,15 +1064,16 @@ function renderMatrixRunOverview(job = state.matrixJob, currentRun = state.quest
     : job?.mode === "column"
       ? `${stage?.label || job?.column || "Column"} evaluation`
       : "Full evaluation matrix";
-  const currentQuestion = Number(job?.current_question_number || 0);
-  const positionLabel = total
-    ? `${completed} of ${total} complete`
+  const positionLabel = totalQuestions
+    ? `${progressValue} of ${totalQuestions} questions in progress`
+    : total
+      ? `${Number(job?.completed_datasets ?? currentRun?.completed ?? 0)} of ${total} complete`
     : currentQuestion
       ? `Question ${currentQuestion}`
       : "Preparing run";
   const nextLabel = currentQuestion
     ? `Question ${currentQuestion}${total ? ` of ${total}` : ""}`
-    : (completed < total ? `Next question ${completed + 1}` : "Finalizing artifacts");
+    : (progressValue < total ? `Next question ${progressValue + 1}` : "Finalizing artifacts");
   const dataset = String(job?.current_dataset || currentRun?.artifact_run_id || "");
   node.className = `matrix-run-overview ${active ? "running" : status === "failed" ? "failed" : "complete"}`;
   node.innerHTML = `
@@ -1069,7 +1085,7 @@ function renderMatrixRunOverview(job = state.matrixJob, currentRun = state.quest
     <div class="run-overview-metric">
       <span>Overall matrix</span>
       <strong>${escapeHtml(positionLabel)}</strong>
-      <div class="run-overview-bar" role="progressbar" aria-label="Overall matrix progress" aria-valuemin="0" aria-valuemax="${total || 0}" aria-valuenow="${completed}"><i style="width:${percent.toFixed(2)}%"></i></div>
+      <div class="run-overview-bar" role="progressbar" aria-label="Overall matrix progress" aria-valuemin="0" aria-valuemax="${total || 0}" aria-valuenow="${progressValue}"><i style="width:${percent.toFixed(2)}%"></i></div>
     </div>
     <div class="run-overview-metric">
       <span>Now processing</span>
@@ -1335,6 +1351,11 @@ function updateMatrixGenerationControlVisibility() {
 }
 
 function setupMatrixControls() {
+  const savedAgentSelections = (() => { try { return JSON.parse(localStorage.getItem(AGENT_EVAL_SELECTIONS_KEY) || "{}"); } catch { return {}; } })();
+  for (const [id, key] of [["agent-matrix-dataset", "dataset"], ["agent-matrix-limit", "limit"], ["agent-matrix-hops", "max_hops"], ["agent-matrix-corpus", "corpus_id"]]) {
+    const node = $(id);
+    if (node && savedAgentSelections[key] != null) node.value = String(savedAgentSelections[key]);
+  }
   const select = $("matrix-column");
   if (select) {
     select.innerHTML = MATRIX_STAGES.map((stage) => `<option value="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</option>`).join("");
@@ -1352,6 +1373,14 @@ function setupMatrixControls() {
     });
   });
   updateMatrixGenerationControlVisibility();
+  ["agent-matrix-dataset", "agent-matrix-limit", "agent-matrix-hops", "agent-matrix-corpus", "agent-matrix-no-llm"].forEach((id) => {
+    $(id)?.addEventListener("change", () => {
+      const value = {};
+      for (const [field, key] of [["agent-matrix-dataset", "dataset"], ["agent-matrix-limit", "limit"], ["agent-matrix-hops", "max_hops"], ["agent-matrix-corpus", "corpus_id"]]) value[key] = $(field)?.value || "";
+      value.no_llm = Boolean($("agent-matrix-no-llm")?.checked);
+      localStorage.setItem(AGENT_EVAL_SELECTIONS_KEY, JSON.stringify({ ...savedAgentSelections, ...value }));
+    });
+  });
   state.matrixVisibleColumns = { ...MATRIX_DEFAULT_VISIBLE_COLUMNS };
   state.matrixVisibleColumnsCustomized = false;
   renderMatrixColumnControls();
@@ -1361,6 +1390,14 @@ function setupMatrixControls() {
   $("matrix-clear-questions")?.addEventListener("click", clearGeneratedQuestions);
   $("matrix-reset-bank")?.addEventListener("click", resetQuestionBank);
   $("matrix-refresh")?.addEventListener("click", loadQuestionMatrix);
+  // Reconcile even when a job starts after this page was opened. The SSE
+  // watcher can only be attached after an active job is discovered; without
+  // this watchdog an already-open page remained on the previous run forever.
+  if (!state.questionMatrixRefreshTimer) {
+    state.questionMatrixRefreshTimer = setInterval(() => {
+      loadQuestionMatrix().catch(console.error);
+    }, 3000);
+  }
   $("matrix-clear-results")?.addEventListener("click", clearMatrixResults);
   $("matrix-stop")?.addEventListener("click", stopMatrixJob);
   ["matrix-filter-text", "matrix-filter-run", "matrix-filter-type", "matrix-filter-status"].forEach((id) => {
@@ -1868,10 +1905,17 @@ function watchExternalEvaluation(runId) {
 }
 
 async function loadQuestionMatrix() {
-  $("matrix-summary").className = "matrix-summary empty-state";
-  $("matrix-summary").textContent = "Loading question bank matrix...";
+  const loadVersion = ++state.questionMatrixLoadVersion;
+  // Keep the currently rendered cards visible while a background refresh is
+  // in flight. Replacing them with a loading label every few seconds made
+  // live status cards visibly flicker.
+  if (!state.questionMatrix) {
+    $("matrix-summary").className = "matrix-summary empty-state";
+    $("matrix-summary").textContent = "Loading question bank matrix...";
+  }
   try {
     const payload = await localJson("/local/question-matrix");
+    if (loadVersion !== state.questionMatrixLoadVersion) return;
     state.questionMatrix = payload;
     if (payload.active_job) {
       const wasDifferentJob = state.matrixJob?.id !== payload.active_job.id;
@@ -1881,11 +1925,12 @@ async function loadQuestionMatrix() {
         if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
         watchMatrixJob(payload.active_job.id).catch(console.error);
       }
-    } else if (!state.matrixJob) {
+    } else {
+      // The server payload is authoritative. Do not retain a prior job in
+      // memory when the server reports no active job; retaining it made the
+      // page display an old completed run as if it were current.
       state.matrixJob = null;
       renderMatrixJobStatus(null);
-    } else {
-      renderMatrixJobStatus(state.matrixJob);
     }
     renderQuestionMatrix(payload);
     const currentRun = payload.current_run;
@@ -1896,6 +1941,7 @@ async function loadQuestionMatrix() {
       closeRunEventStream("external-evaluation");
     }
   } catch (error) {
+    if (loadVersion !== state.questionMatrixLoadVersion) return;
     $("matrix-summary").className = "matrix-summary empty-state";
     $("matrix-summary").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
     $("matrix-table").innerHTML = "";
@@ -3013,6 +3059,37 @@ function renderAgentLab() {
   const status = $("agent-lab-status");
   status.textContent = running ? `${running} backend${running === 1 ? "" : "s"} running` : failed ? `${failed} failed` : "Complete";
   status.className = `status-pill ${running ? "running" : failed ? "fail" : "pass"}`;
+  renderVerificationLedger();
+}
+
+function renderVerificationLedger() {
+  const runs = Object.values(state.agentLab.runs || {});
+  const run = runs[runs.length - 1];
+  const status = $("verification-ledger-status");
+  const summary = $("verification-ledger-summary");
+  const table = $("verification-ledger-table");
+  const details = $("verification-ledger-details");
+  if (!status || !summary || !table || !details) return;
+  const trace = run?.trace || {};
+  const facets = trace.verification_facets || [];
+  if (!run || !facets.length) {
+    status.textContent = "No run loaded";
+    status.className = "status-pill";
+    summary.className = "matrix-summary empty-state";
+    summary.textContent = "Run a question from the Evaluation → Live Agent Retrieval Lab to populate this page.";
+    table.innerHTML = "";
+    details.innerHTML = "";
+    return;
+  }
+  const confirmed = facets.filter((facet) => facet.status === "confirmed").length;
+  const required = facets.filter((facet) => facet.required !== false).length;
+  const gateOpen = trace.sufficient === true && confirmed === required;
+  status.textContent = gateOpen ? "Gate open" : "Gate blocked";
+  status.className = `status-pill ${gateOpen ? "pass" : "fail"}`;
+  summary.className = "matrix-summary";
+  summary.innerHTML = `<strong>${gateOpen ? "Synthesis permitted" : "Synthesis blocked"}</strong> · ${confirmed}/${required} required facets confirmed · ${escapeHtml(trace.stop_reason || "in progress")} · ${escapeHtml(run.backend || "agent")}`;
+  table.innerHTML = `<table class="matrix-table"><thead><tr><th>Facet</th><th>Requirement</th><th>Status</th><th>Evidence chunks</th><th>Missing / contradictions</th></tr></thead><tbody>${facets.map((facet) => `<tr><td>${escapeHtml(facet.facet_id)}</td><td>${escapeHtml(facet.requirement)}</td><td><span class="status-pill ${facet.status === "confirmed" ? "pass" : "fail"}">${escapeHtml(facet.status)}</span></td><td>${escapeHtml((facet.evidence_chunk_ids || []).join(", ") || "—")}</td><td>${escapeHtml([...(facet.missing || []), ...(facet.contradictions || [])].join(", ") || "—")}</td></tr>`).join("")}</tbody></table>`;
+  details.innerHTML = facets.map((facet) => `<article class="ledger-facet"><h3>${escapeHtml(facet.facet_id)} · ${escapeHtml(facet.status)}</h3>${(facet.evidence || []).length ? `<ul>${facet.evidence.map((item) => `<li><code>${escapeHtml(item.chunk_id)}</code> ${escapeHtml(item.quote || "No retained quote")}</li>`).join("")}</ul>` : '<p class="muted">No retained evidence.</p>'}${facet.confirmed_value ? `<p><strong>Confirmed value:</strong> ${escapeHtml(facet.confirmed_value)}</p>` : ""}</article>`).join("");
 }
 
 function applyAgentEvent(run, event, shouldRender = true) {
@@ -3043,6 +3120,7 @@ function applyAgentEvent(run, event, shouldRender = true) {
       sufficient: event.sufficient,
       status: "completed",
     };
+    run.trace = { ...(run.trace || {}), verification_facets: event.verification_facets || run.trace?.verification_facets || [] };
   }
   if (event.event === "recovery_scheduled") {
     run.hops[event.hop_id] = { ...event, status: "scheduled", results: [] };
@@ -3587,25 +3665,79 @@ function applyAgentMatrixLiveCell(event) {
   if (state.agentMatrix.selectedCaseId === event.case_id) renderAgentMatrixDetail();
 }
 
+function applyAgentMatrixControllerStage(event) {
+  const row = (state.agentMatrix.payload?.rows || []).find((item) => item.case_id === event.case_id);
+  if (!row) return;
+  const stage = String(event.controller_stage || event.stage || "running").toLowerCase();
+  const labels = {
+    planning: "PLAN",
+    retrieving: "RETRIEVE",
+    verification: "VERIFY",
+    synthesis: "ANSWER",
+    running: "LIVE",
+  };
+  const details = {
+    planning: "Controller is planning the evidence graph.",
+    retrieving: "Controller is retrieving candidate evidence.",
+    verification: "Controller is checking evidence sufficiency and dependencies.",
+    synthesis: "Controller is synthesizing the grounded answer.",
+    running: "Controller is running this question.",
+  };
+  const activeLayer = {
+    planning: "tool_selection",
+    retrieving: "candidate_recall",
+    verification: "evidence_sufficiency",
+    synthesis: "grounded_answer",
+  }[stage] || "latency_token_cost";
+  for (const backend of ["langgraph", "llamaindex"]) {
+    const result = ensureAgentMatrixResult(row, backend);
+    for (const [layer] of AGENT_MATRIX_LAYERS) {
+      const current = result.agent_evaluation.cells[layer];
+      if (["pass", "fail"].includes(current?.status)) continue;
+      result.agent_evaluation.cells[layer] = {
+        status: "provisional",
+        label: layer === activeLayer ? labels[stage] || "LIVE" : "WAIT",
+        detail: layer === activeLayer ? details[stage] : `Waiting for controller stage: ${stage}.`,
+      };
+    }
+  }
+  renderAgentMatrix(state.agentMatrix.payload);
+}
+
 function mergeAgentMatrixJobSnapshot(job) {
   const payload = state.agentMatrix.payload;
   if (!payload) return;
   for (const [caseId, result] of Object.entries(job.live_results || {})) {
     const row = (payload.rows || []).find((item) => item.case_id === caseId);
-    if (row) row.result = { ...(row.result || {}), ...result };
+    if (row) {
+      const normalized = {};
+      for (const backend of ["langgraph", "llamaindex"]) {
+        const backendResult = result?.[backend];
+        if (!backendResult) continue;
+        normalized[backend] = backendResult.agent_evaluation
+          ? backendResult
+          : { agent_evaluation: backendResult };
+      }
+      row.result = { ...(row.result || {}), ...normalized };
+    }
   }
   if (!["queued", "running"].includes(job.status)) return;
-  const pendingRow = (payload.rows || [])[Math.max(0, Number(job.completed_questions || 0))];
+  const pendingRow = (payload.rows || []).find((row) => row.case_id === job.current_case_id)
+    || (payload.rows || [])[Math.max(0, Number(job.completed_questions || 0))];
   if (!pendingRow) return;
   for (const backend of ["langgraph", "llamaindex"]) {
     const result = ensureAgentMatrixResult(pendingRow, backend);
     for (const [layer, label] of AGENT_MATRIX_LAYERS) {
       result.agent_evaluation.cells[layer] ||= {
         status: "provisional",
-        label: "LIVE",
-        detail: `${label} is being evaluated; this provisional result will be replaced by the scored cell.`,
+        label: "—",
+        detail: `${label} has not started for this question.`,
       };
     }
+  }
+  const currentStage = job.current_stage || (job.current_case_id ? "planning" : null);
+  if (currentStage && pendingRow.case_id === job.current_case_id) {
+    applyAgentMatrixControllerStage({ case_id: pendingRow.case_id, controller_stage: currentStage });
   }
 }
 
@@ -3730,9 +3862,12 @@ function renderAgentMatrixDetail() {
       <p class="muted">${escapeHtml(row.agent_case_category)} · expected ${escapeHtml(row.expected_graph_mode || "unspecified")} evidence graph</p>
       ${["langgraph", "llamaindex"].map((backend) => {
         const result = row.result[backend] || {};
+        const facets = result.trace?.verification_facets || [];
+        const facetSourceRows = facets.flatMap((facet) => (facet.evidence || []).map((source) => ({ facet, source })));
         return `<details open><summary><strong>${escapeHtml(backend)}</strong> · ${result.agent_evaluation?.passed ? "PASS" : "FAIL"} · ${Number(result.elapsed_ms || 0).toFixed(0)} ms</summary>
           <p>${escapeHtml(result.answer?.answer || "No answer")}</p>
           <dl class="agent-matrix-stage-details">${AGENT_MATRIX_LAYERS.map(([key, label]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(result.agent_evaluation?.cells?.[key]?.detail || "Not scored")}</dd></div>`).join("")}</dl>
+          ${facets.length ? `<h4>Claim evidence and PDF source pages</h4><table><thead><tr><th>Claim</th><th>Status</th><th>Source</th><th>Page</th><th>Quote</th></tr></thead><tbody>${facetSourceRows.length ? facetSourceRows.map(({ facet, source }) => { const pages = source.pages || []; const links = pages.map((page) => `<a href="${escapeHtml(`/local/source-page?document_id=${encodeURIComponent(source.document_id || "")}&page=${encodeURIComponent(page)}&source_filename=${encodeURIComponent(source.source_filename || "")}`)}" target="_blank" rel="noopener">p. ${escapeHtml(page)}</a>`).join(", "); return `<tr><td>${escapeHtml(facet.requirement)}</td><td>${escapeHtml(facet.status)}</td><td>${escapeHtml(source.source_filename || source.title || source.document_id || "")}</td><td>${links || "—"}</td><td>${escapeHtml(source.quote || "")}</td></tr>`; }).join("") : `<tr><td colspan="5">No confirmed source rows recorded for this facet.</td></tr>`}</tbody></table>` : ""}
           <details><summary>Trace JSON</summary><pre>${escapeHtml(JSON.stringify(result.trace || {}, null, 2))}</pre></details>
         </details>`;
       }).join("")}
@@ -3748,6 +3883,7 @@ async function loadAgentMatrix() {
       $("agent-matrix-workspace").open = true;
       state.agentMatrix.job = payload.active_job;
       mergeAgentMatrixJobSnapshot(payload.active_job);
+      renderAgentMatrix(state.agentMatrix.payload);
       $("agent-matrix-status").textContent = [
         payload.active_job.status,
         `${Number(payload.active_job.completed_questions || 0)}/${Number(payload.active_job.limit || 0)}`,
@@ -3796,11 +3932,33 @@ function applyAgentMatrixEnvelope(envelope) {
     job.current_case_id = event.case_id;
     job.completed_questions = Number(event.question_number || job.completed_questions || 0);
   }
+  if (event.case_id && ["agent_case_started", "answer_started"].includes(envelope.phase)) {
+    job.current_stage = envelope.phase === "agent_case_started" ? "planning" : "synthesis";
+    applyAgentMatrixControllerStage({
+      case_id: event.case_id,
+      controller_stage: envelope.phase === "agent_case_started" ? "planning" : "synthesis",
+    });
+  }
+  if (envelope.phase === "controller_stage" && event.case_id) {
+    const stageName = String(event.stage || "").toLowerCase();
+    const controllerStage = stageName.includes("plan") ? "planning"
+      : stageName.includes("hop_started") || stageName.includes("recovery") ? "retrieving"
+      : stageName.includes("claim_verified") || stageName.includes("hop_completed") ? "verification"
+      : stageName.includes("retrieval_completed") ? "synthesis"
+      : "running";
+    job.current_stage = controllerStage;
+    applyAgentMatrixControllerStage({
+      case_id: event.case_id,
+      backend: event.backend,
+      controller_stage: controllerStage,
+    });
+  }
   if (envelope.phase === "agent_case_completed" && event.case_id) {
     for (const backend of ["langgraph", "llamaindex"]) {
       const result = event[backend] || {};
+      const evaluation = result.agent_evaluation || result;
       for (const [layer] of AGENT_MATRIX_LAYERS) {
-        const cell = result.agent_evaluation?.cells?.[layer];
+        const cell = evaluation.cells?.[layer];
         if (!cell) continue;
         applyAgentMatrixLiveCell({
           case_id: event.case_id,
@@ -3816,13 +3974,14 @@ function applyAgentMatrixEnvelope(envelope) {
           answer: result.answer,
           trace: result.trace,
           elapsed_ms: result.elapsed_ms,
-          passed: result.agent_evaluation?.passed,
+          passed: evaluation.passed,
         });
       }
     }
   }
   const status = $("agent-matrix-status");
-  status.textContent = [job.status, `${job.completed_questions}/${job.limit}`, job.current_case_id, "live"].filter(Boolean).join(" · ");
+  const activeStage = job.current_stage || (job.current_case_id ? "planning" : "starting");
+  status.textContent = [job.status, `${job.completed_questions}/${job.limit}`, activeStage, job.current_case_id, "live"].filter(Boolean).join(" · ");
   status.className = "status-pill running";
   updateProductionReadinessAgentProgress(job);
   if (envelope.phase === "agent_matrix_progress") loadAgentMatrix().catch(console.error);
@@ -4208,16 +4367,13 @@ async function ingestSelectedDocuments() {
   const button = $("ingestion-ingest-selected");
   button.disabled = true;
   const failures = [];
-  const queuedRunIds = [];
-  for (let index = 0; index < documentIds.length; index += 1) {
-    $("ingestion-action-status").textContent = `Queueing document ${index + 1} of ${documentIds.length}...`;
-    try {
-      const queued = await apiJson(`/documents/${encodeURIComponent(documentIds[index])}/ingest`, { method: "POST", body: "{}" });
-      if (queued.run_id) queuedRunIds.push(String(queued.run_id));
-    } catch (error) {
-      failures.push(`${documentIds[index]}: ${error.message}`);
-    }
-  }
+  let queuedRunIds = [];
+  $("ingestion-action-status").textContent = `Queueing ${documentIds.length} document${documentIds.length === 1 ? "" : "s"}...`;
+  try {
+    const result = await localPostJson("/local/ingestion-runs/run", { document_ids: documentIds });
+    queuedRunIds = (result.queued || []).map((item) => item.run_id).filter(Boolean).map(String);
+    (result.failures || []).forEach((item) => failures.push(`${item.document_id}: ${item.error}`));
+  } catch (error) { failures.push(error.message); }
   state.ingestion.selectedDocumentIds.clear();
   if (queuedRunIds.length) {
     state.ingestion.selectedRunId = queuedRunIds[queuedRunIds.length - 1];
@@ -4337,6 +4493,71 @@ async function maybePollIngestion() {
   }
 }
 
+async function loadOnsiteAgentEval() {
+  const payload = await localJson("/local/onsite-agent-eval");
+  const cases = payload.cases || [];
+  const report = payload.latest_report;
+  const active = payload.active_job;
+  const status = $("onsite-agent-eval-status");
+  const limit = $("onsite-agent-eval-limit");
+  limit.max = String(cases.length || 1);
+  if (Number(limit.value) > cases.length) limit.value = String(cases.length || 1);
+  const summary = report?.summary || {};
+  const records = new Map((report?.records || []).map((row) => [row.case_id, row]));
+  const observedCells = (report?.records || []).flatMap((row) => Object.values(row.backends || {}));
+  const observedCounts = Object.fromEntries(["pass", "fail", "error"].map((kind) => [kind, observedCells.filter((cell) => cell.status === kind).length]));
+  if (active) {
+    status.textContent = `Running · ${active.completed_cells}/${active.total_cells} cells`;
+    status.className = "status-pill running";
+  } else if (report?.status === "completed") {
+    status.textContent = `Passed · ${summary.passed}/${summary.total}`;
+    status.className = "status-pill pass";
+  } else if (report?.status === "failed") {
+    status.textContent = `Failed · ${summary.passed}/${summary.total} passed`;
+    status.className = "status-pill fail";
+  } else {
+    status.textContent = "Not run";
+    status.className = "status-pill idle";
+  }
+  $("run-onsite-agent-eval").disabled = Boolean(active) || !cases.length;
+  $("onsite-agent-eval-summary").className = "matrix-summary";
+  $("onsite-agent-eval-summary").innerHTML = `
+    <article class="matrix-stat"><span>Source-backed questions</span><strong>${cases.length}</strong><small>${escapeHtml(payload.manifest?.corpus || "")}</small></article>
+    <article class="matrix-stat"><span>Completed cells</span><strong>${active?.completed_cells ?? (report?.records?.length || 0) * 2}</strong><small>of ${active?.total_cells ?? summary.total ?? cases.length * 2} selected backend cells</small></article>
+    <article class="matrix-stat"><span>Passed</span><strong>${report ? observedCounts.pass : "—"}</strong><small>${report?.status === "running" ? "Provisional; terminal reconciliation pending" : escapeHtml(report?.run_id || "No run yet")}</small></article>
+    <article class="matrix-stat"><span>Failed / errored</span><strong>${report ? `${observedCounts.fail} / ${observedCounts.error}` : "—"}</strong><small>Distinct answer failures and stream errors</small></article>`;
+  $("onsite-agent-eval-table").innerHTML = `<table class="matrix-grid agent-matrix-grid"><thead><tr><th>#</th><th>Area</th><th>Question / source</th><th>LangGraph</th><th>LlamaIndex</th></tr></thead><tbody>${cases.map((item, index) => {
+    const record = records.get(item.case_id);
+    const cell = (backend) => {
+      const value = record?.backends?.[backend]?.status || (active && index < active.limit ? "pending" : "not run");
+      return `<span class="status-pill ${value === "pass" ? "pass" : value === "fail" || value === "error" ? "fail" : "idle"}">${escapeHtml(value)}</span>`;
+    };
+    return `<tr class="clickable" data-onsite-case="${escapeHtml(item.case_id)}"><td>${index + 1}</td><td>${escapeHtml(item.category || "onsite")}</td><td class="matrix-text-cell"><strong>${escapeHtml(item.question)}</strong><small>${escapeHtml(item.source_filename || "")} · p. ${escapeHtml(item.page || "?")}</small></td><td>${cell("langgraph_agent")}</td><td>${cell("llamaindex_agent")}</td></tr>`;
+  }).join("")}</tbody></table>`;
+  document.querySelectorAll("[data-onsite-case]").forEach((node) => node.addEventListener("click", () => {
+    const item = cases.find((candidate) => candidate.case_id === node.dataset.onsiteCase);
+    const record = records.get(item.case_id);
+    $("onsite-agent-eval-detail").innerHTML = `<section class="panel"><h3>${escapeHtml(item.question)}</h3><p class="muted">Source: ${escapeHtml(item.source_filename)} · p. ${escapeHtml(item.page)} · chunk ${escapeHtml(item.source_chunk_id)}</p><p><strong>Expected:</strong> ${escapeHtml(item.expected_answer || "See source-backed facets")}</p>${["langgraph_agent", "llamaindex_agent"].map((backend) => {
+      const result = record?.backends?.[backend];
+      return `<h4>${escapeHtml(backend)} · ${escapeHtml(result?.status || "not run")}</h4><p>${escapeHtml(result?.answer || result?.error || "No answer yet")}</p><small>${escapeHtml(result?.checks ? Object.entries(result.checks).map(([key, passed]) => `${key}: ${passed ? "pass" : "fail"}`).join(" · ") : "")}</small>`;
+    }).join("")}</section>`;
+  }));
+  if (active) setTimeout(() => loadOnsiteAgentEval().catch(console.error), MATRIX_JOB_POLL_MS);
+}
+
+async function runOnsiteAgentEval() {
+  const button = $("run-onsite-agent-eval");
+  button.disabled = true;
+  try {
+    await localPostJson("/local/onsite-agent-eval/run", { limit: Number($("onsite-agent-eval-limit").value) });
+    await loadOnsiteAgentEval();
+  } catch (error) {
+    $("onsite-agent-eval-status").textContent = error.message;
+    $("onsite-agent-eval-status").className = "status-pill fail";
+    button.disabled = false;
+  }
+}
+
 function setupEvaluationWorkspace() {
   const workspace = $("evaluation");
   const agentLab = $("agent-lab");
@@ -4344,13 +4565,21 @@ function setupEvaluationWorkspace() {
   const questionMatrix = $("question-matrix-workspace");
   const agentMatrix = $("agent-matrix-workspace");
   const researchAgentMatrix = $("research-agent-matrix-workspace");
+  const onsiteAgentEval = $("onsite-agent-eval");
+  const verificationLedger = $("verification-ledger");
   agentLab.classList.remove("tab-panel");
   agentLab.classList.add("evaluation-agent-lab");
+  if (verificationLedger) {
+    verificationLedger.classList.remove("tab-panel");
+    verificationLedger.classList.add("evaluation-section", "verification-ledger-inline");
+    agentLab.insertBefore(verificationLedger, agentMatrix || null);
+  }
   if (questionMatrix) {
     if (researchAgentMatrix) {
       researchAgentMatrix.open = true;
       workspace.insertBefore(researchAgentMatrix, questionMatrix);
     }
+    if (onsiteAgentEval) workspace.insertBefore(onsiteAgentEval, questionMatrix);
     if (agentMatrix) {
       agentMatrix.open = true;
       workspace.insertBefore(agentMatrix, questionMatrix);
@@ -4360,6 +4589,9 @@ function setupEvaluationWorkspace() {
 }
 
 function setupTabs() {
+  const initialTab = "overview";
+  document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("active", item.dataset.tab === initialTab));
+  document.querySelectorAll(".tab-panel").forEach((item) => item.classList.toggle("active", item.id === initialTab));
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
       document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
@@ -4369,13 +4601,141 @@ function setupTabs() {
       if (tab.dataset.tab === "evaluation") {
         loadQuestionMatrix();
         loadAgentMatrix();
+        loadOnsiteAgentEval().catch(console.error);
         loadAgentLiveJob().catch(console.error);
+        if (tab.dataset.scrollTarget) {
+          requestAnimationFrame(() => $(tab.dataset.scrollTarget)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+        }
       }
       if (tab.dataset.tab === "agent-chat") loadAgentChatJob().catch(console.error);
       if (tab.dataset.tab === "ingestion") maybePollIngestion();
       if (tab.dataset.tab === "history") loadHistory();
+      if (tab.dataset.tab === "overview") startOverviewPolling();
     });
   });
+}
+
+let overviewTimer = null;
+let overviewModelEvents = [];
+function overviewStatus(value) {
+  const status = String(value || "unknown").toLowerCase();
+  return `<span class="status-pill ${status === "completed" || status === "complete" ? "pass" : status === "failed" || status === "error" ? "fail" : "running"}">${escapeHtml(status)}</span>`;
+}
+async function refreshOverview() {
+  const activity = $("overview-activity");
+  const runs = $("overview-runs");
+  const log = $("overview-log");
+  if (!activity || !runs) return;
+  const sources = await Promise.allSettled([
+    localJson("/local/question-matrix?summary=1"),
+    localJson("/local/agent-matrix"),
+    localJson("/local/agent-runs/current"),
+    localJson("/local/ingestion-runs"),
+    localJson("/local/activity-log"),
+    localJson("/local/model-output"),
+  ]);
+  const [matrix, agentMatrix, agent, ingestion, activityLog, modelOutput] = sources.map((item) => item.status === "fulfilled" ? item.value : null);
+  overviewModelEvents = modelOutput?.events || [];
+  const items = [
+    ["Ingestion / metadata", ingestion?.active_run || ingestion?.latest_run || ingestion?.active || null, "ingestion"],
+    ["Full evaluation matrix", matrix?.active_job || matrix?.job || null, "evaluation"],
+    ["Agent batch tests", agentMatrix?.active_job || agentMatrix?.job || null, "agent-matrix"],
+    ["Agent retrieval", agent?.active_job || agent?.job || null, "agent"],
+  ];
+  const outputFor = (job) => {
+    if (!job) return "Waiting for a run…";
+    const lines = [
+      `run: ${job.id || job.run_id || "—"}`,
+      `status: ${job.status || "unknown"}`,
+      `stage: ${job.stage || job.current_stage || job.progress || "—"}`,
+    ];
+    if (job.source_filename) lines.push(`source: ${job.source_filename}`);
+    if (job.failure_class) lines.push(`failure: ${job.failure_class}`);
+    if (job.failure_reason) lines.push(`reason: ${job.failure_reason}`);
+    if (job.updated_at) lines.push(`updated: ${job.updated_at}`);
+    return lines.join("\n");
+  };
+  activity.innerHTML = items.map(([label, job]) => `<article class="metric-card overview-card"><div class="overview-card-summary"><span class="muted">${escapeHtml(label)}</span><strong>${job ? escapeHtml(job.stage || job.current_stage || job.status || "active") : "Idle"}</strong><small>${job ? overviewStatus(job.status || "running") : "No active run"}</small></div><pre class="overview-card-output" data-overview-output>${escapeHtml(outputFor(job))}</pre></article>`).join("");
+  activity.querySelectorAll("[data-overview-output]").forEach((node) => { node.scrollTop = node.scrollHeight; });
+  const modelLines = overviewModelEvents.slice(-12).map((event) => `[${event.model || "model"}] ${event.purpose || event.kind}: ${event.output_preview || event.status || ""}`);
+  const modelPanel = $("overview-model-output");
+  if (modelPanel) { modelPanel.textContent = modelLines.join("\n") || "Waiting for structured model output…"; modelPanel.scrollTop = modelPanel.scrollHeight; }
+  const improvementPanel = $("overview-improvement-loop");
+  if (improvementPanel) {
+    try {
+      const improvement = await localJson("/local/improvement-loop");
+      const records = improvement.records || [];
+      improvementPanel.innerHTML = records.length ? records.map((record) => {
+        const summary = record.summary || {};
+        const clusters = Object.entries(summary.failure_classes || {}).map(([key, value]) => `${key}: ${value}`).join(" · ") || "no failures";
+        const handoff = record.handoff || {};
+        const actions = handoff.available_actions || [];
+        const selectedAction = (record.review || {}).selected_action || "";
+        const actionButtons = actions.map((action) => `<div class="improvement-action-choice"><button type="button" class="improvement-action-button ${selectedAction === action.id ? "selected" : ""}" data-improvement-action="${escapeHtml(record.run_id || "")}" data-improvement-action-id="${escapeHtml(action.id)}">${escapeHtml(action.label)}</button><small>${escapeHtml(action.description || "")}</small></div>`).join("");
+        return `<article class="improvement-record"><div class="improvement-record-header"><div><strong>${escapeHtml(record.run_id || "unknown run")}</strong><small>${escapeHtml(record.dataset || "")}</small></div><span class="improvement-status">${escapeHtml(handoff.status || "pending_review")}</span></div><div class="improvement-summary"><div><span>Result</span><strong>${summary.passed_cases || 0} / ${summary.total_cases || 0} passed</strong></div><div><span>Failures</span><strong>${summary.failed_cases || 0}</strong></div></div><div class="improvement-clusters"><span>Failure clusters</span><strong>${escapeHtml(clusters)}</strong></div><div class="improvement-next"><span>Next step</span><p>${escapeHtml(handoff.next_action || handoff.recommended_next_step || "Review the failure evidence before proceeding.")}</p></div><div class="improvement-actions"><strong>Choose the next Codex action</strong>${actionButtons}</div><div class="improvement-confirmation" data-improvement-confirmation="${escapeHtml(record.run_id || "")}">${selectedAction ? `Selected: ${escapeHtml(selectedAction)} · ready to return to Codex` : "No action selected"}</div><button type="button" data-improvement-save="${escapeHtml(record.run_id || "")}">Confirm and return selection to Codex</button></article>`;
+      }).join("") : "No improvement records yet.";
+      improvementPanel.querySelectorAll("[data-improvement-action-id]").forEach((button) => button.addEventListener("click", () => {
+        const runId = button.dataset.improvementAction;
+        improvementPanel.querySelectorAll(`[data-improvement-action="${CSS.escape(runId)}"]`).forEach((item) => item.classList.remove("selected"));
+        button.classList.add("selected");
+        const confirmation = button.closest(".overview-list-item")?.querySelector("[data-improvement-confirmation]");
+        if (confirmation) confirmation.textContent = `Selected: ${button.dataset.improvementActionId} · ready to return to Codex`;
+      }));
+      improvementPanel.querySelectorAll("[data-improvement-save]").forEach((button) => button.addEventListener("click", async () => {
+        const runId = button.dataset.improvementSave;
+        const action = button.closest(".overview-list-item")?.querySelector(".improvement-action-button.selected")?.dataset.improvementActionId || "";
+        button.disabled = true;
+        try {
+          if (!action) throw new Error("Choose a next Codex action first");
+          const saved = await localPostJson("/local/improvement-loop/review", { run_id: runId, status: "approved", selected_action: action });
+          button.textContent = saved.codex_received ? "Selection received by Codex" : "Selection saved";
+          if (action === "target_retrieval") {
+            const current = await localJson("/local/question-matrix");
+            if (!current.active_job) await localPostJson("/local/question-matrix/run", { mode: "all_bank", column: "retrieval", use_model_judge: true, stop_on_answer_failure: false });
+          }
+          await refreshOverview();
+        }
+        catch (error) { button.textContent = "Save failed"; console.error(error); }
+        finally { button.disabled = false; }
+      }));
+    } catch (error) { improvementPanel.textContent = `Improvement loop unavailable: ${error.message}`; }
+  }
+  const activeRows = items.filter(([, job]) => job).map(([label, job]) => `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(job.id || job.run_id || "—")}</td><td>${overviewStatus(job.status || "running")}</td><td>${escapeHtml(job.stage || job.current_stage || job.progress || "—")}</td></tr>`);
+  runs.innerHTML = activeRows.length ? `<table><thead><tr><th>Workspace</th><th>Run</th><th>Status</th><th>Stage / progress</th></tr></thead><tbody>${activeRows.join("")}</tbody></table>` : `<div class="empty-state">No active processes.</div>`;
+  const events = (activityLog?.events || []).slice(0, 30);
+  log.innerHTML = events.length ? `<ol>${events.map((event) => `<li><time>${escapeHtml(event.timestamp || event.created_at || "")}</time><strong>${escapeHtml(event.workflow || "run")}</strong><span>${escapeHtml(event.phase || "update")}</span><small>${escapeHtml(event.run_id || "")}</small></li>`).join("")}</ol>` : `<div class="empty-state">No durable activity events yet.</div>`;
+  $("overview-updated").textContent = `Updated ${new Date().toLocaleTimeString()}`;
+}
+function startOverviewPolling() {
+  refreshOverview().catch(console.error);
+  if (!overviewTimer) overviewTimer = setInterval(() => refreshOverview().catch(console.error), 2000);
+}
+
+function setupEvaluationSubtabs() {
+  const views = [
+    "question-matrix-workspace",
+    "agent-matrix-workspace",
+    "research-agent-matrix-workspace",
+    "agent-lab",
+  ];
+  const activate = (target) => {
+    views.forEach((id) => {
+      const node = $(id);
+      if (node) node.hidden = id !== target;
+    });
+    document.querySelectorAll(".evaluation-subtab").forEach((button) => {
+      button.classList.toggle("active", button.dataset.evalView === target);
+    });
+  };
+  document.querySelectorAll(".evaluation-subtab").forEach((button) => {
+    button.addEventListener("click", () => {
+      activate(button.dataset.evalView);
+      localStorage.setItem(AGENT_EVAL_SELECTIONS_KEY, JSON.stringify({ view: button.dataset.evalView }));
+    });
+  });
+  let savedView = "question-matrix-workspace";
+  try { savedView = JSON.parse(localStorage.getItem(AGENT_EVAL_SELECTIONS_KEY) || "{}").view || savedView; } catch {}
+  activate(views.includes(savedView) ? savedView : "question-matrix-workspace");
 }
 
 function setupEvalScopeControls() {
@@ -4400,8 +4760,10 @@ function setupProgressInteractions() {
 }
 
 async function init() {
+  startOverviewPolling();
   const evaluationFixtureMode = new URLSearchParams(window.location.search).get("evaluationFixture");
   setupEvaluationWorkspace();
+  setupEvaluationSubtabs();
   document.body.classList.toggle(
     "fixture-agent-matrix-focus",
     Boolean(evaluationFixtureMode) && new URLSearchParams(window.location.search).get("focus") === "agent-matrix",
@@ -4437,6 +4799,8 @@ async function init() {
   $("replay-agent-matrix-fixture").addEventListener("click", replayAgentMatrixFixture);
   $("run-research-agent-matrix").addEventListener("click", runResearchAgentMatrix);
   $("refresh-research-agent-matrix").addEventListener("click", () => loadResearchAgentMatrix().catch(console.error));
+  $("run-onsite-agent-eval")?.addEventListener("click", runOnsiteAgentEval);
+  $("refresh-onsite-agent-eval")?.addEventListener("click", () => loadOnsiteAgentEval().catch(console.error));
   if (["replay", "provisional"].includes(evaluationFixtureMode)) {
     replayAgentMatrixFixture();
   }

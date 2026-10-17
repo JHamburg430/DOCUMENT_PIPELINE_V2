@@ -13,14 +13,27 @@ from manuals_rag_answering.agentic_retrieval import (
     compare_agentic_backends,
     plan_retrieval,
     plan_llamaindex_retrieval,
+    plan_llamaindex_retrieval,
     refine_dependent_query,
     refine_llamaindex_subquestion,
     insufficient_agent_answer,
     query_requires_visual_evidence,
     visual_evidence_unavailable_answer,
     _assess_hop_evidence,
+    _facets_complete,
+    _procedure_search_aliases,
+    _structural_recovery_clause,
+    _procedure_navigation_clause,
+    _recovery_lineage,
+    _verification_facets,
+    _facet_routing_filters,
     _direct_atomic_measurement_support,
     _direct_ca_e100_camera_count_support,
+    _direct_ca_u5_voltage_support,
+    _direct_ljx8000_hub_isolation_support,
+    _direct_lr_zh_reflected_light_support,
+    _direct_ljx8000_studio5000_procedure_support,
+    _direct_iv4_thermal_support,
     _direct_controller_image_capacity_support,
     _direct_devid_protocol_mapping_support,
     _direct_detection_capability_support,
@@ -42,6 +55,7 @@ from manuals_rag_answering.agentic_retrieval import (
     _direct_gl_r60h_stop_distance_support,
     _direct_indicator_meaning_support,
     _direct_illumination_type_support,
+    _direct_explanatory_mechanism_support,
     _direct_iv2_infrared_filter_part_support,
     _direct_iv4_output_configuration_support,
     _direct_manual_focus_installation_support,
@@ -60,6 +74,28 @@ from manuals_rag_answering.agentic_retrieval import (
 )
 from manuals_rag_common.config import settings
 from manuals_rag_schemas.documents import SearchResult
+
+
+def test_facet_routing_filters_are_derived_per_query_without_scope_leakage():
+    base = {"is_active": True}
+
+    revision = _facet_routing_filters(
+        base,
+        "CA-EN100U error code 123 revision history",
+    )
+    ordinary = _facet_routing_filters(
+        base,
+        "What is the CA-EN100U power supply voltage?",
+    )
+
+    assert revision["version_signal"] == "true"
+    assert ordinary == base
+
+
+def test_facet_routing_filters_preserve_explicit_request_scope():
+    base = {"source_document_id": "caller-selected", "version_signal": "false"}
+
+    assert _facet_routing_filters(base, "CA-EN100U error code 123 revision history") == base
 
 
 def _result(chunk_id: str, document_id: str, content: str) -> SearchResult:
@@ -93,11 +129,108 @@ def _invoke(
     )
 
 
+def _verifier_payload(
+    supporting_chunk_ids: list[str],
+    verbatim_support_quotes: dict[str, str],
+) -> dict:
+    return {
+        "trust_state": "confirmed",
+        "claim_supported": True,
+        "supporting_chunk_ids": supporting_chunk_ids,
+        "verbatim_support_quotes": verbatim_support_quotes,
+        "conflicting_chunk_ids": [],
+        "lead_chunk_ids": [],
+        "applicability": "not_requested",
+        "scope_entity": None,
+        "failure_kind": None,
+        "missing_evidence": "",
+        "rationale": "Each requested value is present in its cited source chunk.",
+    }
+
+
+def test_verifier_requires_each_support_id_to_carry_its_own_verbatim_quote(monkeypatch):
+    query = "What values are listed for Alpha mode and Beta mode in the setup notes?"
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query)
+    alpha = _result("alpha", "setup-notes", "Alpha mode uses value 17.")
+    beta = _result("beta", "setup-notes", "Beta mode uses value 29.")
+    calls = []
+
+    def verifier(**_kwargs):
+        calls.append(True)
+        return (
+            _verifier_payload(
+                ["alpha", "beta"],
+                {
+                    # The quote is real, but it belongs to beta rather than alpha.
+                    "alpha": "Beta mode uses value 29.",
+                    "beta": "Beta mode uses value 29.",
+                },
+            ),
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.agentic_retrieval.chat_json", verifier)
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [alpha, beta],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha", "beta"]},
+    )
+
+    assert len(calls) == 2
+    assert output["claim_supported"] is False
+    assert output["trust_state"] == "unresolved"
+    assert output["supporting_chunk_ids"] == ["beta"]
+    assert output["invalid_support_quote_ids"] == ["alpha"]
+    assert output["judge"]["attempts"][0]["validation_error"][
+        "invalid_support_quote_ids"
+    ] == ["alpha"]
+
+
+def test_verifier_accepts_support_ids_with_quotes_from_their_own_chunks(monkeypatch):
+    query = "What values are listed for Alpha mode and Beta mode in the setup notes?"
+    hop = RetrievalHop(hop_id="lookup", objective=query, query=query)
+    alpha = _result("alpha", "setup-notes", "Alpha mode uses value 17.")
+    beta = _result("beta", "setup-notes", "Beta mode uses value 29.")
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.chat_json",
+        lambda **_kwargs: (
+            _verifier_payload(
+                ["alpha", "beta"],
+                {
+                    "alpha": "Alpha mode uses value 17.",
+                    "beta": "Beta mode uses value 29.",
+                },
+            ),
+            "{}",
+        ),
+    )
+
+    output = verify_retrieval_claim(
+        hop,
+        query,
+        [alpha, beta],
+        {"claim_supported": True, "supporting_chunk_ids": ["alpha", "beta"]},
+    )
+
+    assert output["claim_supported"] is True
+    assert output["trust_state"] == "confirmed"
+    assert output["supporting_chunk_ids"] == ["alpha", "beta"]
+    assert output["invalid_support_quote_ids"] == []
+
+
 def test_visual_dependency_router_is_conservative_for_spatial_manual_questions():
     assert query_requires_visual_evidence("Which pin in the wiring diagram carries output 4?") is True
     assert query_requires_visual_evidence("Which wire goes to pin 3 on the connector face?") is True
     assert query_requires_visual_evidence("Where on the screen is the calibration icon?") is True
     assert query_requires_visual_evidence("What is the rated input voltage?") is False
+    assert query_requires_visual_evidence("What does the ErC display code indicate on the LR-W500?") is False
+    assert query_requires_visual_evidence("What display range is selectable for received light intensity?") is False
+    assert query_requires_visual_evidence("How do I create a custom screen?") is False
+    assert query_requires_visual_evidence(
+        "Which cable model connects the LJ-X8000 RS-232C port, then what is that cable's connector orientation?"
+    ) is False
 
 
 def test_visual_dependency_abstention_emits_no_citations():
@@ -981,6 +1114,20 @@ def test_model_planners_keep_scoped_structured_lookups_in_one_hop(monkeypatch):
     assert planner_calls == []
 
 
+def test_iv4_compound_torque_planner_accepts_plural_waterproof_caps():
+    query = (
+        "For the IV4-400CA, what are the tightening torques for the M3 mounting "
+        "holes and unused connector waterproof caps?"
+    )
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=False)
+        assert plan.mode == "parallel"
+        assert [hop.hop_id for hop in plan.hops] == [
+            "iv4_mounting_torque",
+            "iv4_waterproof_cap_torque",
+        ]
+
+
 def test_model_planners_keep_direct_compatibility_mode_and_error_lookups_in_one_hop(monkeypatch):
     planner_calls = []
     monkeypatch.setattr(
@@ -1488,6 +1635,7 @@ def test_verifier_deterministically_confirms_serial_cable_mapping_and_orientatio
     )
     assert cable_output["trust_state"] == "confirmed"
     assert cable_output["supporting_chunk_ids"] == ["cable"]
+    assert cable_output["confirmed_value"] == "OP-26487"
 
     orientation = _result(
         "orientation",
@@ -1507,6 +1655,25 @@ def test_verifier_deterministically_confirms_serial_cable_mapping_and_orientatio
     )
     assert orientation_output["trust_state"] == "confirmed"
     assert orientation_output["supporting_chunk_ids"] == ["orientation"]
+    assert orientation_output["confirmed_value"] == "straight"
+
+
+def test_verification_facets_use_claim_value_not_scope_entity():
+    plan = RetrievalPlan(hops=[
+        RetrievalHop(hop_id="cable", objective="Which cable model connects the RS-232C port?", query="cable"),
+        RetrievalHop(hop_id="orientation", objective="What is that cable's connector orientation?", query="orientation", depends_on=["cable"]),
+    ])
+    facets = _verification_facets(plan, {
+        "cable": {"sufficient": True, "executed_query": "cable", "assessment": {
+            "trust_state": "confirmed", "supporting_chunk_ids": ["c1"],
+            "verification": {"scope_entity": "LJ-X8000", "confirmed_value": "OP-26487"},
+        }},
+        "orientation": {"sufficient": True, "executed_query": "orientation", "assessment": {
+            "trust_state": "confirmed", "supporting_chunk_ids": ["c2"],
+            "verification": {"scope_entity": "OP-26487", "confirmed_value": "straight"},
+        }},
+    })
+    assert [facet["confirmed_value"] for facet in facets] == ["OP-26487", "straight"]
 
 
 def test_llamaindex_keeps_structural_tool_for_dependency_predicate():
@@ -1940,6 +2107,47 @@ def test_direct_scoped_numeric_range_support_prefers_answer_bearing_pipe_row():
     assert _direct_scoped_numeric_range_support(query, [header, value]) == ["value"]
 
 
+def test_direct_iv4_compound_torque_support_requires_both_scoped_facets():
+    from manuals_rag_answering.agentic_retrieval import _direct_iv4_compound_torque_support
+
+    query = (
+        "For an IV4-400CA using its M3 mounting holes, what tightening torque applies, "
+        "and what torque applies to an unused connector waterproof cap?"
+    )
+    mounting = _result(
+        "mounting", "iv4-doc", "M3 mounting holes tightening torque: 0.5 to 0.7 N·m"
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text", "product_model": "IV4-400CA"}})
+    cap = _result(
+        "cap", "iv4-doc", "Unused connector waterproof cap tightening torque: 0.45 to 0.55 N·m"
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text", "product_model": "IV4-400CA"}})
+
+    assert _direct_iv4_compound_torque_support(query, [mounting, cap]) == ["mounting", "cap"]
+
+
+def test_direct_iv4_compound_torque_support_allows_split_mounting_evidence():
+    from manuals_rag_answering.agentic_retrieval import _direct_iv4_compound_torque_support
+
+    query = (
+        "For an IV4-400CA using its M3 mounting holes, what tightening torque applies, "
+        "and what torque applies to an unused connector waterproof cap?"
+    )
+    mounting_scope = _result("scope", "iv4-doc", "Back M3 mounting hole.").model_copy(
+        update={"metadata": {"chunk_type": "atomic_text", "product_model": "IV4-400CA"}}
+    )
+    mounting_value = _result("value", "iv4-doc", "Tightening torque: 0.5 to 0.7 N·m.").model_copy(
+        update={"metadata": {"chunk_type": "atomic_text", "product_model": "IV4-400CA"}}
+    )
+    cap = _result(
+        "cap", "iv4-doc", "Unused connector waterproof cap tightening torque: 0.45 to 0.55 N·m"
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text", "product_model": "IV4-400CA"}})
+
+    assert _direct_iv4_compound_torque_support(query, [mounting_scope, mounting_value, cap]) == [
+        "scope",
+        "value",
+        "cap",
+    ]
+
+
 def test_scope_matching_rejects_exact_model_only_in_long_incidental_spec_prose():
     from manuals_rag_answering.agentic_retrieval import _result_supports_branch_scope
 
@@ -2281,6 +2489,9 @@ def test_both_orchestrators_preserve_parallel_document_coverage():
             "beta-doc",
         }
         assert output["retrieval_trace"]["completed_hops"] == ["alpha", "beta"]
+        facets = output["retrieval_trace"]["verification_facets"]
+        assert [facet["facet_id"] for facet in facets] == ["alpha", "beta"]
+        assert all(facet["status"] == "confirmed" for facet in facets)
     assert [item["chunk_id"] for item in outputs[0]["retrieval_results"]] == [
         item["chunk_id"] for item in outputs[1]["retrieval_results"]
     ]
@@ -2460,6 +2671,10 @@ def test_verifier_fails_closed_when_out_of_scope_citation_accompanies_scoped_sup
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["iv4-temperature", "sibling-temperature"],
+                "verbatim_support_quotes": {
+                    "iv4-temperature": "IV4-400MA operating ambient temperature: 0 to +50 C (no freezing).",
+                    "sibling-temperature": "Another model supports operation below freezing.",
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "unknown",
                 "scope_entity": "IV4-400MA",
@@ -3613,6 +3828,81 @@ def test_ca_e100_count_gate_requires_one_unit_camera_binding():
         [capture_only],
         {"claim_supported": True, "supporting_chunk_ids": ["capture-count"]},
     ) == []
+
+
+def test_ljx8000_hub_isolation_gate_requires_action_and_duplicate_ip_reason():
+    query = "Before directly connecting an LJ-X8000 and PLC for EtherNet/IP setup, what other hub devices should I disconnect and why?"
+    exact = _result(
+        "ljx-hub-safety",
+        "ljx-doc",
+        "Disconnect all devices other than the LJ-X8000 and the PLC. When connecting other devices, exercise caution to prevent the duplication of IP addresses.",
+    ).model_copy(update={"metadata": {"product_models": ["LJ-X8000"], "source_filename": "AS_128241_LJ-X8000_SG.pdf"}})
+    action_only = _result(
+        "ljx-action-only",
+        "ljx-doc",
+        "Disconnect all devices other than the LJ-X8000 and the PLC before connecting.",
+    ).model_copy(update={"metadata": {"product_models": ["LJ-X8000"], "source_filename": "AS_128241_LJ-X8000_SG.pdf"}})
+
+    assessment = {"supporting_chunk_ids": [exact.chunk_id, action_only.chunk_id]}
+    assert _direct_ljx8000_hub_isolation_support(query, [action_only, exact], assessment) == [exact.chunk_id]
+    assert _direct_ljx8000_hub_isolation_support(query, [action_only], {"supporting_chunk_ids": [action_only.chunk_id]}) == []
+
+
+def test_iv4_thermal_gate_requires_dissipation_and_case_limit():
+    query = "An IV4-400CA will operate above 40°C ambient. What heat-dissipation provision and case-temperature limit apply?"
+    exact = _result(
+        "iv4-thermal",
+        "iv4-doc",
+        "When the temperature exceeds an operating ambient temperature of 40°C, take an appropriate heat dissipation measure, and ensure that the case temperature does not exceed the rating of 75°C.",
+    ).model_copy(update={"metadata": {"product_models": ["IV4-400CA"], "source_filename": "AS_148740_IV4-400CA.pdf"}})
+    limit_only = _result(
+        "iv4-limit-only",
+        "iv4-doc",
+        "Ensure that the case temperature does not exceed the rating of 75°C.",
+    ).model_copy(update={"metadata": {"product_models": ["IV4-400CA"], "source_filename": "AS_148740_IV4-400CA.pdf"}})
+
+    assert _direct_iv4_thermal_support(query, [exact], {"supporting_chunk_ids": [exact.chunk_id]}) == [exact.chunk_id]
+    assert _direct_iv4_thermal_support(query, [limit_only], {"supporting_chunk_ids": [limit_only.chunk_id]}) == []
+
+
+def test_ca_u5_voltage_gate_accepts_table_range_dash_variants():
+    query = "Before powering a CA-U5, what rated input ranges and output voltage should I verify?"
+    exact = _result(
+        "ca-u5-voltage",
+        "ca-u5-doc",
+        "Rated input voltage: 85–264 VAC 47–63 Hz, 110 to 370 VDC. Rated output voltage: 24 VDC.",
+    ).model_copy(update={"metadata": {"product_model": "CA-U5", "source_filename": "CA-U5_Datasheet.pdf"}})
+    assert _direct_ca_u5_voltage_support(query, [exact]) == [exact.chunk_id]
+
+
+def test_lr_zh_reflected_light_gate_requires_angle_remedy():
+    query = "How should I adjust the LR-ZH500C3P sensor if it shows excessive reflected light?"
+    exact = _result(
+        "lr-zh-light",
+        "lr-zh-doc",
+        "If excessive reflected light occurs, adjust the sensor installation angle to avoid the reflection.",
+    ).model_copy(update={"metadata": {"product_model": "LR-ZH500C3P", "source_filename": "AS_152388_LR-ZH500C3P.pdf"}})
+    condition_only = _result(
+        "lr-zh-condition-only",
+        "lr-zh-doc",
+        "If excessive reflected light occurs, check the installation.",
+    ).model_copy(update={"metadata": {"product_model": "LR-ZH500C3P", "source_filename": "AS_152388_LR-ZH500C3P.pdf"}})
+    assessment = {"supporting_chunk_ids": [exact.chunk_id, condition_only.chunk_id]}
+    assert _direct_lr_zh_reflected_light_support(query, [condition_only, exact], assessment) == [exact.chunk_id]
+    assert _direct_lr_zh_reflected_light_support(query, [condition_only], {"supporting_chunk_ids": [condition_only.chunk_id]}) == []
+
+
+def test_ljx8000_studio5000_gate_requires_all_procedure_facets():
+    query = "In Studio 5000, how do I add the LJ-X8000 module and download the configuration to the PLC?"
+    chunks = [
+        _result("step-1", "ljx-doc", 'Right-click "Ethernet" under "Controller Organizer" > "I/O Configuration" and select "New Module...".'),
+        _result("step-2", "ljx-doc", 'With "LJ-X8000 Series" selected in the list, click "Create" and set the module IP.'),
+        _result("step-3", "ljx-doc", 'Select "Communications" > "Download" to transfer the data to the PLC.'),
+    ]
+    for chunk in chunks:
+        chunk.metadata = {"product_models": ["LJ-X8000"], "source_filename": "AS_128241_LJ-X8000_SG.pdf"}
+    assert _direct_ljx8000_studio5000_procedure_support(query, chunks) == ["step-1", "step-2", "step-3"]
+    assert _direct_ljx8000_studio5000_procedure_support(query, chunks[:2]) == []
 
 
 def test_controller_image_capacity_requires_complete_two_sided_relation():
@@ -5322,6 +5612,7 @@ def test_verifier_normalizes_single_list_wrapped_object(monkeypatch):
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "conflicting_chunk_ids": [],
                 "applicability": "not_requested",
                 "scope_entity": "ALPHA-1",
@@ -5355,6 +5646,7 @@ def test_verifier_normalizes_compact_supported_response(monkeypatch):
             {
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "reasoning": "The cited chunk directly states the action.",
             },
             "{}",
@@ -5388,6 +5680,7 @@ def test_verifier_reconciles_internally_inconsistent_affirmative_response(monkey
                 "trust_state": "unresolved",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "conflicting_chunk_ids": [],
                 "applicability": "not_requested",
                 "scope_entity": "ALPHA-1",
@@ -5421,6 +5714,7 @@ def test_verifier_normalizes_verdict_alias_response(monkeypatch):
             {
                 "verdict": "confirmed",
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "reasoning": "The cited chunk directly supports the claim.",
             },
             "{}",
@@ -5451,6 +5745,7 @@ def test_verifier_normalizes_verified_and_chunk_ids_aliases(monkeypatch):
             {
                 "verified": True,
                 "chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "evidence_support": "The cited chunk directly states the action.",
             },
             "{}",
@@ -5482,6 +5777,7 @@ def test_verifier_normalizes_claim_verified_and_supporting_evidence_aliases(monk
             {
                 "claim_verified": True,
                 "supporting_evidence": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
             },
             "{}",
         ),
@@ -5512,6 +5808,7 @@ def test_verifier_normalizes_verified_trust_and_confirmed_applicability(monkeypa
                 "trust_state": "verified",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "conflicting_chunk_ids": [],
                 "applicability": "confirmed",
                 "scope_entity": "ALPHA-1",
@@ -5546,6 +5843,7 @@ def test_verifier_conservatively_normalizes_domain_in_applicability_field(monkey
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "ALPHA-1 integrated software: Control Suite."},
                 "conflicting_chunk_ids": [],
                 "applicability": "software",
                 "scope_entity": "ALPHA-1",
@@ -5614,6 +5912,7 @@ def test_verifier_accepts_explicit_firmware_applicability(monkeypatch):
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "ALPHA-1 requires firmware 6.0 or later."},
                 "conflicting_chunk_ids": [],
                 "applicability": "applicable",
                 "scope_entity": "ALPHA-1",
@@ -5648,6 +5947,9 @@ def test_verifier_ignores_spurious_applicability_conflict_for_direct_fact(monkey
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["terminal-map"],
+                "verbatim_support_quotes": {
+                    "terminal-map": "Connect cable no. 10 (SG) to the 0 V OUT terminal"
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "conflicting",
                 "scope_entity": "image processing system controller",
@@ -5695,6 +5997,7 @@ def test_verifier_retries_once_after_malformed_model_response(monkeypatch):
             {
                 "claim_supported": True,
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "reasoning": "The cited chunk directly supports the claim.",
             },
             "{}",
@@ -5734,6 +6037,9 @@ def test_verifier_retries_same_evidence_after_invalid_citation_id(monkeypatch):
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": [cited],
+                "verbatim_support_quotes": {
+                    cited: "Electronic shutter: 1/15 through 1/20000."
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "not_requested",
                 "scope_entity": "CV-X electronic shutter",
@@ -5763,6 +6069,7 @@ def test_verifier_retries_same_evidence_after_invalid_citation_id(monkeypatch):
     assert result["judge"]["attempts"][0]["validation_error"] == {
         "invalid_citation_ids": ["mistyped-row"],
         "out_of_scope_chunk_ids": ["mistyped-row"],
+            "invalid_support_quote_ids": [],
     }
     assert result["judge"]["attempts"][1]["raw_response"] == "{}"
 
@@ -5793,6 +6100,7 @@ def test_verifier_treats_attributed_support_list_as_compact_affirmative_verdict(
         lambda **_kwargs: (
             {
                 "supporting_chunk_ids": ["alpha"],
+                "verbatim_support_quotes": {"alpha": "Corrective action: replace the ALPHA-1 fuse."},
                 "reasoning": "The cited chunk directly supports the claim.",
             },
             "{}",
@@ -5854,6 +6162,9 @@ def test_verifier_promotes_attributed_support_when_model_marks_it_probable(monke
                 "trust_state": "probable",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["stb"],
+                "verbatim_support_quotes": {
+                    "stb": "STB: Illuminates green when receiving stable light."
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "unknown",
                 "scope_entity": "W500",
@@ -5921,6 +6232,9 @@ def test_verifier_prompt_judges_negative_answers_as_supported_and_omits_prelimin
                 "trust_state": "confirmed",
                 "claim_supported": True,
                 "supporting_chunk_ids": ["limit"],
+                "verbatim_support_quotes": {
+                    "limit": "The secondary module cannot run without the primary module."
+                },
                 "conflicting_chunk_ids": [],
                 "applicability": "unknown",
                 "scope_entity": None,
@@ -7880,6 +8194,9 @@ def test_procedure_recheck_uses_verbatim_actions_and_revalidates_citation(monkey
         prompts.append(kwargs["messages"][1]["content"])
         common = {
             "supporting_chunk_ids": ["adding-pages"], "conflicting_chunk_ids": [],
+            "verbatim_support_quotes": {
+                "adding-pages": "Click [Add Page] in [Custom Screen]."
+            },
             "applicability": "not_requested", "scope_entity": None,
         }
         if len(prompts) == 1:
@@ -8374,3 +8691,135 @@ def test_optical_axis_installation_verifier_rejects_generic_alignment_advice(mon
     )
 
     assert output["claim_supported"] is False
+
+
+def test_explanatory_mechanism_verifier_accepts_scoped_how_does_reduction():
+    query = (
+        "How does the XG-X 3D 90-degree projection-pattern approach "
+        "reduce glossy-part reflection problems?"
+    )
+    result = _result(
+        "xgx-projection-reflection",
+        "xgx-3d-manual",
+        "Projects and analyzes different projection patterns at 90-degree angles, "
+        "reducing the impact of multiple reflections from glossy surfaces.",
+    ).model_copy(update={"metadata": {"chunk_type": "atomic_text"}})
+    assessment = {"supporting_chunk_ids": [result.chunk_id]}
+
+    assert _direct_explanatory_mechanism_support(query, [result], assessment) == [
+        result.chunk_id
+    ]
+
+
+def test_llamaindex_preserves_direct_mechanism_query():
+    query = (
+        "How does the XG-X 3D 90-degree projection-pattern approach "
+        "reduce glossy-part reflection problems?"
+    )
+    plan = plan_llamaindex_retrieval(query, use_llm=False)
+
+    assert plan.mode == "single"
+    assert len(plan.hops) == 1
+    assert plan.hops[0].query == query
+
+
+def test_iv4_compound_torque_uses_two_deterministic_scoped_hops():
+    query = (
+        "For an IV4-400CA using its M3 mounting holes, what tightening torque applies, "
+        "and what torque applies to an unused connector waterproof cap?"
+    )
+    for planner in (plan_retrieval, plan_llamaindex_retrieval):
+        plan = planner(query, use_llm=False)
+        assert plan.mode == "parallel"
+        assert len(plan.hops) == 2
+        assert all("IV4-400CA" in hop.query for hop in plan.hops)
+        assert any("M3 mounting holes" in hop.query for hop in plan.hops)
+        assert any("waterproof cap" in hop.query for hop in plan.hops)
+
+
+def test_verification_facets_require_every_primary_hop_and_retain_quotes():
+    plan = RetrievalPlan(
+        mode="parallel",
+        hops=[
+            RetrievalHop(hop_id="device", objective="Identify the device", query="device"),
+            RetrievalHop(hop_id="value", objective="Confirm the value", query="value"),
+            RetrievalHop(
+                hop_id="value_recovery",
+                objective="Confirm the value",
+                query="value recovery",
+                required=False,
+                recovery_for="value",
+            ),
+        ],
+    )
+    ledger = {
+        "device": {
+            "sufficient": True,
+            "executed_query": "device",
+            "assessment": {
+                "trust_state": "confirmed",
+                "supporting_chunk_ids": ["d1"],
+                "verification": {"verbatim_support_quotes": {"d1": "Device: XG-8000"}},
+            },
+        },
+        "value": {
+            "sufficient": False,
+            "assessment": {"trust_state": "unresolved", "missing_claim_facets": ["numeric_value"]},
+        },
+    }
+    facets = _verification_facets(plan, ledger)
+    assert [facet["facet_id"] for facet in facets] == ["device", "value"]
+    assert facets[0]["confirmed"] is True
+    assert facets[0]["evidence"][0]["quote"] == "Device: XG-8000"
+    assert facets[1]["status"] == "unconfirmed"
+    assert _facets_complete(facets) is False
+
+
+def test_verification_facets_reject_conflicting_evidence_even_with_chunks():
+    plan = RetrievalPlan(hops=[RetrievalHop(hop_id="value", objective="Confirm value", query="value")])
+    facets = _verification_facets(
+        plan,
+        {
+            "value": {
+                "sufficient": False,
+                "assessment": {
+                    "trust_state": "conflicting",
+                    "supporting_chunk_ids": ["a", "b"],
+                    "contradictions": ["conflicting_values"],
+                },
+            }
+        },
+    )
+    assert facets[0]["status"] == "conflicting"
+    assert _facets_complete(facets) is False
+
+
+def test_procedure_recovery_generates_manual_aliases_and_structural_route():
+    item = {"assessment": {"verification": {"missing_evidence": "missing button sequence"}, "notebook_entries": [{"section": "950", "pages": [2], "source_excerpt": "master addition: hold [SET] for 3 seconds"}]}}
+    aliases = _procedure_search_aliases("How do I perform master addition calibration on W500?", item)
+    assert "master addition calibration" in aliases
+    assert "SET button" in aliases
+    clause = _structural_recovery_clause(item)
+    assert "preceding and following sections" in clause
+    assert "page(s) 2" in clause
+
+
+def test_procedure_navigation_fallback_targets_entry_evidence_only():
+    item = {"assessment": {"verification": {"missing_evidence": "preceding menu path and setup step"}}}
+    clause = _procedure_navigation_clause("How do I perform master addition calibration on W500?", item)
+    assert "Procedure-navigation fallback" in clause
+    assert "diagram caption" in clause
+    assert "Do not infer a button" in clause
+
+
+def test_recovery_progress_counts_new_structural_pages():
+    primary = RetrievalHop(hop_id="procedure", objective="procedure", query="procedure")
+    recovery = RetrievalHop(hop_id="procedure_recovery", objective="procedure", query="procedure adjacent", recovery_for="procedure", required=False)
+    plan = RetrievalPlan(mode="single", hops=[primary, recovery])
+    recoveries, latest, streak = _recovery_lineage(primary, plan, {
+        "procedure": {"chunk_ids": ["old"], "document_ids": ["doc"], "pages": [2], "sections": ["950"], "assessment": {"verification": {}}},
+        "procedure_recovery": {"chunk_ids": ["new"], "document_ids": ["doc"], "pages": [3], "sections": ["951"], "assessment": {"verification": {}}},
+    })
+    assert recoveries and latest["chunk_ids"] == ["new"]
+    assert streak == 0
+    assert latest["assessment"]["retrieval_progress"] is True

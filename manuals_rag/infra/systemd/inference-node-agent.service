@@ -1,0 +1,27 @@
+[Unit]
+Description=PROVIS Inference Node agent
+After=network-online.target tailscaled.service ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=manuals-rag-node
+Group=manuals-rag-node
+WorkingDirectory=/opt/manuals-rag-inference
+EnvironmentFile=/etc/manuals-rag/inference-node.env
+Environment=PYTHONPATH=/opt/manuals-rag-inference/manuals_rag/packages/inference_fabric/src
+Environment=INFERENCE_NODE_CONFIG_PATH=/var/lib/manuals-rag-inference-node/node.json
+Environment=INFERENCE_NODE_REQUIRE_PRODUCTION=true
+ExecStartPre=/usr/bin/python3 /opt/manuals-rag-inference/manuals_rag/scripts/check_inference_node_config.py
+ExecStart=/usr/bin/python3 /opt/manuals-rag-inference/manuals_rag/scripts/run_inference_node_agent.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/manuals-rag-inference-node
+
+[Install]
+WantedBy=multi-user.target

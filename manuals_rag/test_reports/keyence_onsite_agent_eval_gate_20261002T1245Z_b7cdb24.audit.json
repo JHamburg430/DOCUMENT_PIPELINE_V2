@@ -1,0 +1,137 @@
+{
+  "schema": "manuals-rag-onsite-agent-eval-audit-v1",
+  "run_id": "keyence_onsite_agent_eval_gate_20261002T1245Z_b7cdb24",
+  "audited_at": "2026-10-02T12:59:41Z",
+  "audit_status": "incomplete_no_go",
+  "observed_writer_state": "absent",
+  "writer_exit_code": null,
+  "final_artifact_exists": false,
+  "partial_artifact": "test_reports/keyence_onsite_agent_eval_gate_20261002T1245Z_b7cdb24.partial.json",
+  "final_artifact": "test_reports/keyence_onsite_agent_eval_gate_20261002T1245Z_b7cdb24.json",
+  "partial_status_field": "running",
+  "started_at": "2026-10-02T12:45:22Z",
+  "source_revision": "b7cdb244a74ab4f356e912bddaf2a84843aa31df",
+  "dataset": "tests/fixtures/keyence_onsite_agent_eval_v2.jsonl",
+  "dataset_sha256": "fe238d38fb090998de61075f2e91927f2b20fe65eeade3433f21182e62a85a2f",
+  "expected_case_ids": [
+    "keyence-onsite-v1-001",
+    "keyence-onsite-v1-002",
+    "keyence-onsite-v1-003",
+    "keyence-onsite-v1-004",
+    "keyence-onsite-v1-005",
+    "keyence-onsite-v1-006",
+    "keyence-onsite-v1-007",
+    "keyence-onsite-v1-008",
+    "keyence-onsite-v1-009",
+    "keyence-onsite-v1-010",
+    "keyence-onsite-v1-011",
+    "keyence-onsite-v1-012",
+    "keyence-onsite-v1-013",
+    "keyence-onsite-v1-014",
+    "keyence-onsite-v1-015",
+    "keyence-onsite-v1-016",
+    "keyence-onsite-v1-017",
+    "keyence-onsite-v1-018",
+    "keyence-onsite-v1-019",
+    "keyence-onsite-v1-020"
+  ],
+  "expected_backends": [
+    "langgraph_agent",
+    "llamaindex_agent"
+  ],
+  "coverage": {
+    "expected_cases": 20,
+    "expected_cells": 40,
+    "persisted_cases": 3,
+    "complete_cases": 2,
+    "persisted_cells": 5,
+    "missing_cells": 35,
+    "duplicate_cells": 0,
+    "unexpected_case_ids": [],
+    "unexpected_backends": []
+  },
+  "persisted_totals": {
+    "passed": 3,
+    "failed": 2,
+    "errors": 0,
+    "gate_abstentions": 2,
+    "unsafe_accepted_responses": 0,
+    "artifact_proven_false_negatives": 0
+  },
+  "persisted_cells": [
+    {
+      "case_id": "keyence-onsite-v1-001",
+      "backend": "langgraph_agent",
+      "status": "pass",
+      "supported": true
+    },
+    {
+      "case_id": "keyence-onsite-v1-001",
+      "backend": "llamaindex_agent",
+      "status": "pass",
+      "supported": true
+    },
+    {
+      "case_id": "keyence-onsite-v1-002",
+      "backend": "langgraph_agent",
+      "status": "pass",
+      "supported": true
+    },
+    {
+      "case_id": "keyence-onsite-v1-002",
+      "backend": "llamaindex_agent",
+      "status": "fail",
+      "supported": false,
+      "failure_category": "fail_closed_incomplete_answer",
+      "evidence": "Expected terminal numbers and SG termination were not both answered; expected chunk was not cited."
+    },
+    {
+      "case_id": "keyence-onsite-v1-003",
+      "backend": "langgraph_agent",
+      "status": "fail",
+      "supported": false,
+      "failure_category": "fail_closed_no_verified_answer",
+      "evidence": "Returned an explicit inability to verify, with no citations and no expected answer facets."
+    }
+  ],
+  "missing_coverage": {
+    "keyence-onsite-v1-003": [
+      "llamaindex_agent"
+    ],
+    "keyence-onsite-v1-004_through_keyence-onsite-v1-020": [
+      "langgraph_agent",
+      "llamaindex_agent"
+    ]
+  },
+  "classification_notes": {
+    "gate_abstention_basis": "A persisted cell with checks.supported=false, which the evaluator derives from result.insufficient_evidence=true.",
+    "false_negatives": "None are proven from the persisted artifact. Both abstentions lack artifact evidence that answer-bearing evidence reached the final answer context; 35 cells are absent and unclassifiable.",
+    "unsafe_accepted_responses": "None among the five persisted cells. Every accepted/pass cell satisfies all recorded checks and matches the frozen expected facets; both incomplete responses failed closed."
+  },
+  "canary": {
+    "container": "manuals-evidence-gate-canary",
+    "endpoint": "http://127.0.0.1:18600",
+    "health_at_audit": "ok",
+    "isolated_gate_enabled": true
+  },
+  "changes": {
+    "benchmark_restarted_or_duplicated": false,
+    "production_changed": false,
+    "pull_request_3_merged": false
+  },
+  "failure_categories": [
+    {
+      "category": "writer_disappeared_without_final_artifact",
+      "count": 1
+    },
+    {
+      "category": "missing_backend_cells",
+      "count": 35
+    },
+    {
+      "category": "fail_closed_abstention",
+      "count": 2
+    }
+  ],
+  "rollout_recommendation": "NO-GO. Keep the production evidence gate disabled and do not merge PR #3. The interrupted partial run is diagnostic only and cannot satisfy exact 40-cell acceptance."
+}

@@ -10,6 +10,7 @@ from manuals_rag_parsers.metadata import (
     MetadataExtraction,
     MetadataSourceSegment,
     ScopedMetadataExtraction,
+    ScopedMetadataCandidate,
     _canonical_protocol,
     _canonical_routing_identifier,
     _bisect_metadata_segments,
@@ -115,6 +116,35 @@ def test_infer_document_metadata_extracts_filter_terms(monkeypatch):
     assert "OP-88310" in metadata.part_numbers
     assert {"safety", "communications"}.issubset(set(metadata.document_topics))
     assert "configuration" not in metadata.document_topics
+
+
+def test_infer_document_metadata_rejects_ungrounded_primary_identity(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: (
+            {
+                "manufacturer": "AERA",
+                "companies": ["AERA"],
+                "product_model": "WRONG-9000",
+                "product_models": ["WRONG-9000"],
+                "product_family": "Wrong family",
+                "product_families": ["Wrong family"],
+                "document_kind": "manual",
+                "title": "Wrong Manual",
+            },
+            "{}",
+        ),
+    )
+
+    metadata = infer_document_metadata(
+        "AS_151433_XG-X_UM.pdf",
+        "KEYENCE XG-X Series User Manual. XG-X2700 configuration and safety.",
+    )
+
+    assert metadata.manufacturer == "Unknown"
+    assert metadata.companies == []
+    assert metadata.product_model is None
+    assert metadata.product_models == []
 
 
 def test_alphanumeric_family_is_promoted_when_model_field_is_empty(monkeypatch):
@@ -408,12 +438,72 @@ def test_version_signal_does_not_cross_line_boundaries():
     assert _expected_version_kinds(segments) == set()
 
 
+def test_version_candidate_uses_single_type_key_for_hardware_or_software():
+    from manuals_rag_parsers.metadata import _ground_scoped_candidates
+
+    grounded = _ground_scoped_candidates(
+        ScopedMetadataExtraction(entities=[ScopedMetadataCandidate(
+            value="3.0", kind="version", type="hardware", subject="XG-X",
+            relation="mentioned", source_quote="XG-X firmware version 3.0",
+        )]),
+        [MetadataSourceSegment("XG-X firmware version 3.0", 1, 1)],
+    )
+    assert grounded[0]["kind"] == "firmware_version"
+    assert grounded[0]["type"] == "hardware"
+
+
 def test_version_completeness_detects_named_editor_and_runtime_statements():
     for text in (
         "Using the ExampleEditor(Ver.5.1.0020, Ver.4.2.0020 or later), upload settings.",
         "The ExampleLanguage version used in this system is Ver. 5.1.4.",
     ):
         assert _expected_version_kinds([MetadataSourceSegment(text, 2, 2)]) == {"software_version"}
+
+
+def test_firmware_table_values_are_grounded_without_inventing_applicability():
+    from manuals_rag_parsers.metadata import _deterministic_version_evidence
+
+    segment = MetadataSourceSegment(
+        "PLC model | Firmware version\nKV-3000 | Ver. 2 or later",
+        874,
+        874,
+    )
+    claims = _deterministic_version_evidence([segment], {"firmware_version"})
+    assert claims[0]["value"] == "2"
+    assert claims[0]["subject"] == "firmware"
+    assert claims[0]["relation"] == "applies_to"
+    assert claims[0]["claim_type"] == "applicability"
+    assert claims[0]["promotion"] == "evidence_only"
+
+
+def test_firmware_table_does_not_capture_adjacent_software_version():
+    from manuals_rag_parsers.metadata import _deterministic_version_evidence
+
+    segment = MetadataSourceSegment(
+        "PLC | Firmware version | Software\n"
+        "nj101-9000 | - (built-in in PLC CPU unit) | 1.1.521 | Sysmac Studio | Ver.1.15",
+        120,
+        120,
+    )
+    claims = _deterministic_version_evidence([segment], {"firmware_version"})
+    assert not any(claim["value"] == "115" for claim in claims)
+
+
+def test_firmware_absence_and_ambiguous_mentions_do_not_create_version_claims():
+    from manuals_rag_parsers.metadata import _deterministic_version_evidence
+
+    absent = MetadataSourceSegment("The controller firmware must be updated.", 1, 1)
+    ambiguous = MetadataSourceSegment("Firmware version is displayed on the status screen.", 2, 2)
+    assert _expected_version_kinds([absent]) == set()
+    assert _expected_version_kinds([ambiguous]) == set()
+    assert _deterministic_version_evidence([absent, ambiguous], set()) == []
+
+
+def test_function_suffix_is_not_a_software_version():
+    from manuals_rag_parsers.metadata import _deterministic_version_evidence
+
+    source = MetadataSourceSegment("convcrd2() | co-ordinate conversion 2 | page 3-39", 100, 100)
+    assert _deterministic_version_evidence([source], {"software_version"}) == []
 
 
 def test_plain_ethernet_is_harvested_without_collapsing_ethernet_ip():
@@ -1145,7 +1235,9 @@ def test_unscoped_firmware_version_is_preserved_as_literal_mention(monkeypatch):
         for item in metadata.metadata_claims
         if item["kind"] == "firmware_version" and item["value"] == "5.0"
     )
-    assert claim["relation"] == "mentioned"
+    assert claim["relation"] == "applies_to"
+    assert claim["claim_type"] == "applicability"
+    assert claim["promotion"] == "evidence_only"
     assert claim["subject"] == "firmware"
     assert claim["verification_status"] == "confirmed"
     assert metadata.firmware_applicability == []
@@ -2004,11 +2096,13 @@ def test_incomplete_verification_batch_is_bisected_fail_closed(monkeypatch):
     assert all(item["verification_status"] == "confirmed" for item in verified)
 
 
-def test_scoped_model_rejects_missing_collection(monkeypatch):
+def test_scoped_model_accepts_empty_object_as_empty_batch(monkeypatch):
     monkeypatch.setattr('manuals_rag_parsers.metadata.chat_json', lambda **kwargs: ({}, '{}'))
-    with pytest.raises(MetadataExtractionIncomplete, match='omitted its entities'):
-        _call_scoped_model('manual.pdf', [{'role':'user','content':'Extract entities'}],
-                           purpose='metadata_extraction.scoped_entities')
+    extraction = _call_scoped_model(
+        'manual.pdf', [{'role':'user','content':'Extract entities'}],
+        purpose='metadata_extraction.scoped_entities'
+    )
+    assert extraction.entities == []
 
 
 def test_runtime_version_does_not_become_firmware_without_firmware_evidence():
