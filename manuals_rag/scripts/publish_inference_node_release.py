@@ -21,6 +21,8 @@ def publish(artifact, output, *, private_key, publisher, version, platform):
     artifact=Path(artifact)
     manifest={'format':1,'release_id':str(uuid.uuid4()),'version':version,'platform':platform,
               'filename':FILENAMES[platform],'size':artifact.stat().st_size,'sha256':hashlib.sha256(artifact.read_bytes()).hexdigest()}
+    if platform.startswith('linux-') and artifact.name == 'inference-node.pyz':
+        manifest['filename'] = 'inference-node.pyz'
     document={'manifest':manifest,'publisher':publisher,'signature':base64.b64encode(key.sign(canonical(manifest))).decode()}
     verify_release(document,{publisher:base64.b64encode(key.public_key().public_bytes_raw()).decode()})
     output=Path(output);output.mkdir(parents=True,exist_ok=True)

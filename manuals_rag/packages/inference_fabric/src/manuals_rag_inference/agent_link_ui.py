@@ -42,6 +42,7 @@ class OwnerPanel(tk.Toplevel):
         tk.Label(body, textvariable=self.status, wraplength=660, justify='left', bg=colors['background'], fg=colors['muted']).pack(anchor='w', pady=10)
         controls = tk.Frame(body, bg=colors['background']);controls.pack(fill='x')
         self.local_button = ttk.Button(controls, text='Choose local Codex sessions', command=self._choose, state='disabled');self.local_button.pack(side='left')
+        self.create_button = ttk.Button(controls, text='New owner session', command=self._create_session, state='disabled');self.create_button.pack(side='left', padx=6)
         self.refresh = ttk.Button(controls, text='Refresh remote sessions', command=self._refresh, state='disabled');self.refresh.pack(side='right')
         self.targets = ttk.Treeview(body, columns=('node', 'session'), show='headings', height=5, style='Node.Treeview')
         self.targets.heading('node', text='PC / node');self.targets.heading('session', text='Published session')
@@ -97,7 +98,7 @@ class OwnerPanel(tk.Toplevel):
         self.code = ''
         self.status.set('Owner link signed out.')
         self.signin.configure(state='normal')
-        for button in (self.local_button, self.refresh, self.send_button, self.update_button): button.configure(state='disabled')
+        for button in (self.local_button, self.create_button, self.refresh, self.send_button, self.update_button): button.configure(state='disabled')
         for item in self.targets.get_children(): self.targets.delete(item)
         self.replies.configure(state='normal');self.replies.delete('1.0', 'end');self.replies.configure(state='disabled')
 
@@ -108,6 +109,9 @@ class OwnerPanel(tk.Toplevel):
 
     def _choose(self):
         if self.runtime: self._work(self.runtime.local_sessions, 'local_sessions')
+
+    def _create_session(self):
+        if self.runtime: self._work(self.runtime.create_session, 'session_created')
 
     def _choose_rows(self, rows):
         dialog = tk.Toplevel(self);dialog.title('Publish local Codex sessions');dialog.geometry('640x380')
@@ -166,7 +170,7 @@ class OwnerPanel(tk.Toplevel):
                     self.runtime = OwnerRuntime(gateway, session, lambda kind, value, epoch=epoch: self.emit(kind, value, epoch))
                     self.runtime.external_busy = lambda: bool(self.app.updater and self.app.updater.applying)
                     self.code = '';self.status.set('Owner verified. Choose local sessions to publish, or refresh remote sessions.')
-                    for button in (self.local_button, self.refresh, self.send_button, self.update_button): button.configure(state='normal')
+                    for button in (self.local_button, self.create_button, self.refresh, self.send_button, self.update_button): button.configure(state='normal')
                     self._refresh()
                 elif kind == 'update_data':
                     if self.update_dialog and self.update_dialog.winfo_exists(): self.update_dialog.render(value)
@@ -174,6 +178,7 @@ class OwnerPanel(tk.Toplevel):
                     self.status.set('App update '+value['id']+': '+value['status'])
                     if self.update_dialog: self.update_dialog.refresh()
                 elif kind == 'local_sessions': self._choose_rows(value)
+                elif kind == 'session_created': self.status.set('Owner session created. Choose local sessions to publish it explicitly.')
                 elif kind == 'targets':
                     for item in self.targets.get_children(): self.targets.delete(item)
                     self.target_rows = {}

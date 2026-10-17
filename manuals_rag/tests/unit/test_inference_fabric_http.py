@@ -15,6 +15,8 @@ import manuals_rag_inference.node_agent as node_agent_module
 class FakeOllama:
     def __init__(self):
         self.models = set()
+        self.installed_models = set()
+        self.inventory_calls = []
         self.calls = []
 
     def handler(self):
@@ -33,20 +35,30 @@ class FakeOllama:
                 return json.loads(self.rfile.read(int(self.headers.get("Content-Length") or "0")).decode())
 
             def do_GET(self):  # noqa: N802
-                if self.path == "/api/ps":
+                if self.path == "/api/tags":
+                    owner.inventory_calls.append(self.path)
+                    self._send({"models": [{"name": model} for model in owner.installed_models | owner.models]})
+                elif self.path == "/api/ps":
                     self._send({"models": [{"name": model, "size_vram": 4_000_000_000} for model in owner.models]})
                 else:
                     self.send_error(404)
 
             def do_POST(self):  # noqa: N802
                 payload = self._body()
+                if self.path == "/api/show":
+                    owner.inventory_calls.append(self.path)
+                    self._send({"capabilities": ["completion"]})
+                    return
                 owner.calls.append((self.path, payload))
                 if self.path == "/api/pull":
-                    owner.models.add(payload["model"])
+                    owner.installed_models.add(payload["model"])
                     self._send({"status": "success"})
                 elif self.path == "/api/chat":
                     self._send({"model": payload["model"], "message": {"role": "assistant", "content": "grounded response"}})
                 elif self.path == "/api/generate":
+                    if payload.get("prompt") == "" and payload.get("options", {}).get("num_predict") == 0:
+                        assert payload["model"] in owner.installed_models | owner.models
+                        owner.models.add(payload["model"])
                     self._send({"model": payload["model"], "response": "generated response"})
                 else:
                     self.send_error(404)
@@ -146,7 +158,10 @@ def test_enrollment_heartbeat_pull_and_inference_http_path(monkeypatch):
             generated = json.loads(response.read().decode())
         assert generated["routing"]["node_id"] == "gpu-a"
         assert generated["response"]["response"] == "generated response"
-        assert [path for path, _payload in fake_ollama.calls] == ["/api/pull", "/api/chat", "/api/generate"]
+        assert [path for path, _payload in fake_ollama.calls] == ["/api/pull", "/api/generate", "/api/chat", "/api/generate"]
+        assert fake_ollama.calls[1][1]["options"]["num_predict"] == 0
+        assert fake_ollama.calls[1][1]["prompt"] == ""
+        assert "/api/tags" in fake_ollama.inventory_calls
     finally:
         gateway_server.shutdown()
         node_server.shutdown()

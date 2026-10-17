@@ -19,17 +19,26 @@ The feature is disabled when the owner setting is absent.
    PC. The short-lived owner capability expires after at most one hour, bounded
    by the Microsoft access-token expiry. Microsoft tokens are not saved.
 2. Choose **local Codex sessions** and publish only the desired existing threads.
-   This requires a supported connection to that PC's existing Codex app-server.
-   The connector invokes `codex app-server proxy`; an operator can provide an
-   existing local socket through `PROVIS_CODEX_CONTROL_SOCKET`.
+   Existing-server mode uses `codex app-server proxy`; an operator can provide
+   an existing local socket through `PROVIS_CODEX_CONTROL_SOCKET`.
+   John's approved dedicated mode instead starts a connector-owned Codex
+   app-server over private stdio. It opens no TCP listener and keeps the user's
+   normal model, approval and sandbox defaults. Set `server_mode` to `dedicated`
+   in the private per-user `ProVIS/codex-owner-settings.json` file (under
+   LOCALAPPDATA on Windows or ~/.config on Linux).
+   Choose **New owner session** to create an empty session, then publish it
+   explicitly. Dedicated mode lists only those locally registered sessions;
+   it never imports existing desktop conversations. A per-user lock prevents
+   another dedicated connector from operating those sessions concurrently.
 3. On a sender PC, refresh published sessions, select a destination, and send a
    message. Replies appear only in the private panel, never in node activity.
 4. Busy sessions remain queued until idle. An interrupted, claimed delivery
    becomes **uncertain** and is never automatically resent. Inspect the target
    conversation before deciding whether to send a new request.
 
-The connector does not create threads, change models, override sandbox/approval
-policies, restart Codex, or fall back to a second independent agent server.
+The connector creates a thread only through **New owner session** in explicitly
+selected dedicated mode. It does not change models, override sandbox/approval
+policies, restart the desktop, or silently fall back between connection modes.
 Unsupported approval requests are not granted remotely; the delivery reports
 that a local approval is needed. Normal employee inference is independent.
 
@@ -63,7 +72,8 @@ Authorization, TTL/revocation, explicit publication, claims, duplicate handling,
 busy targets, protected capabilities, and HTTP gates are executable tests.
 The current ProVisWork Codex desktop process uses its private stdio transport;
 its default shared control socket is unavailable (Windows error 10050).
-Connecting that live desktop instance needs a supported control-socket setup.
+The approved dedicated stdio connection initialized successfully on ProVisWork;
+this does not grant control of the live desktop's existing conversations.
 Do not claim a live agent-to-agent round trip until both PC connectors are
 verified and an explicitly authorized synthetic message has returned a reply.
 

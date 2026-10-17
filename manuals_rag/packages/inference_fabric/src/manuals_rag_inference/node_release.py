@@ -8,7 +8,8 @@ from pathlib import Path
 
 DEFAULT_VERSION = '2026.10.16.1'
 MAX_ARTIFACT = 256 * 1024 * 1024
-FILENAMES = {'windows-x86_64': 'PROVISInferenceNode.exe', 'linux-x86_64': 'inference-node.pyz', 'linux-aarch64': 'inference-node.pyz'}
+FILENAMES = {'windows-x86_64': 'PROVISInferenceNode.exe', 'linux-x86_64': 'PROVISInferenceNode', 'linux-aarch64': 'PROVISInferenceNode'}
+LEGACY_LINUX_FILENAME = 'inference-node.pyz'
 
 
 def canonical(value):
@@ -33,7 +34,10 @@ def verify_release(document, keys, *, platform=None, current_version=None):
         raise ValueError('Unsupported release format')
     if str(uuid.UUID(manifest['release_id'])) != manifest['release_id']:
         raise ValueError('Canonical release ID required')
-    if manifest['platform'] not in FILENAMES or manifest['filename'] != FILENAMES[manifest['platform']]:
+    allowed = {FILENAMES.get(manifest['platform'])}
+    if manifest['platform'] in ('linux-x86_64', 'linux-aarch64'):
+        allowed.add(LEGACY_LINUX_FILENAME)
+    if manifest['platform'] not in FILENAMES or manifest['filename'] not in allowed:
         raise ValueError('Fixed node app artifact required')
     version(manifest['version'])
     if type(manifest['size']) is not int or not 1 <= manifest['size'] <= MAX_ARTIFACT:

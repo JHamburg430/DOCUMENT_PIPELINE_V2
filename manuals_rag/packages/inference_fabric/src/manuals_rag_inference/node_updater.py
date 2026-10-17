@@ -75,6 +75,10 @@ def command(app=None):
     if app is None:
         app = sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]
     app = str(Path(app).resolve())
+    if os.name != 'nt':
+        with Path(app).open('rb') as source:
+            if source.read(4) == b'\x7fELF':
+                return [app]
     return [app] if app.lower().endswith('.exe') else [sys.executable, app]
 
 
@@ -96,6 +100,8 @@ def stage(update, *, config_path, settings, gateway, current_version):
             if size > manifest['size']: raise PermissionError('Artifact exceeded signed size')
             output.write(chunk)
     verify_artifact(target, manifest)
+    if os.name != 'nt':
+        target.chmod(0o700)
     private_json(directory/'release.json', update['release'])
     return directory
 

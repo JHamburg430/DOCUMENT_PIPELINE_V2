@@ -1,6 +1,7 @@
-"""Explicit session connector through the existing Codex app-server proxy.
+"""Owner connector: existing proxy or explicitly selected dedicated local server.
 
-No new server, model, thread, approval policy or sandbox is created/overridden.
+Dedicated mode publishes only sessions created through its explicit UI action.
+Model, approval and sandbox defaults are not overridden.
 No shell commands from a remote message are executed by this connector.
 """
 import json
@@ -23,18 +24,29 @@ def codex_executable():
 
 
 class CodexLink:
-    def __init__(self):
+    def __init__(self, mode=None):
+        from .codex_owner_store import server_mode, ServerLock
+        self.mode = server_mode() if mode is None else mode
+        if self.mode not in ('proxy', 'dedicated'):
+            raise ValueError('Explicit supported Codex connection mode required')
+        self.server_lock = None
+        self.process = None
         self.lock = threading.RLock()
         self.pending = {}
         self.counter = 0
         self.turns = {}
         self.allowed = set()
-        command = [codex_executable(), 'app-server', 'proxy']
+        command = [codex_executable(), 'app-server', '--stdio' if self.mode == 'dedicated' else 'proxy']
         socket_path = os.getenv('PROVIS_CODEX_CONTROL_SOCKET', '').strip()
-        if socket_path: command += ['--sock', socket_path]
-        self.process = subprocess.Popen(command, stdin=subprocess.PIPE,
+        if socket_path and self.mode == 'proxy': command += ['--sock', socket_path]
+        try:
+            if self.mode == 'dedicated': self.server_lock = ServerLock()
+            self.process = subprocess.Popen(command, stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                                         creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+        except Exception:
+            self.close()
+            raise
         threading.Thread(target=self._read, daemon=True, name='provis-codex-link').start()
         try:
             self.rpc('initialize', {'clientInfo': {'name': 'provis_agent_link', 'title': 'PROVIS Owner Agent Link', 'version': '1.0.0'}})
@@ -111,8 +123,28 @@ class CodexLink:
                     state['changed'].notify_all()
 
     def sessions(self):
+        if getattr(self, 'mode', 'proxy') == 'dedicated':
+            from .codex_owner_store import owned_sessions
+            return [{'id': identifier, 'name': name} for identifier, name in owned_sessions().items()]
         result = self.rpc('thread/list', {'limit': 60, 'archived': False, 'sourceKinds': ['cli', 'vscode', 'appServer', 'exec', 'unknown']})
         return [{'id': str(row['id']), 'name': str(row.get('name') or row.get('id'))[:160]} for row in result.get('data', [])]
+
+    def create_session(self, name='PROVIS owner session'):
+        if self.mode != 'dedicated':
+            raise PermissionError('Dedicated owner server required')
+        if not isinstance(name, str) or not 1 <= len(name.strip()) <= 160:
+            raise ValueError('Bounded session name required')
+        from .codex_owner_store import root, owned_sessions, add_session
+        if len(owned_sessions()) >= 60:
+            raise ValueError('Owner session capacity reached')
+        workspace = root() / 'owner-workspace'
+        workspace.mkdir(mode=0o700, exist_ok=True)
+        # Start an empty owned session, preserving the user's normal model and
+        # approval defaults. No inference or forwarded message is sent here.
+        result = self.rpc('thread/start', {'cwd': str(workspace)})
+        identifier = result['thread']['id']
+        add_session(identifier, name.strip())
+        return {'id': identifier, 'name': name.strip()}
 
     def publish(self, threads):
         available = {row['id'] for row in self.sessions()}
@@ -160,5 +192,10 @@ class CodexLink:
             with self.lock: self.turns.pop(thread, None)
 
     def close(self):
-        # This stops only our proxy client; the existing Codex server stays running.
-        if self.process.poll() is None: self.process.terminate()
+        # Stop only the connector-owned proxy/dedicated child, never the desktop.
+        if self.process is not None and self.process.poll() is None:
+            self.process.terminate()
+            try: self.process.wait(timeout=10)
+            except subprocess.TimeoutExpired: self.process.kill(); self.process.wait(timeout=5)
+        if getattr(self, 'server_lock', None) is not None:
+            self.server_lock.close(); self.server_lock = None

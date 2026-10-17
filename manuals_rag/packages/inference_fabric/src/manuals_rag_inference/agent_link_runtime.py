@@ -33,6 +33,10 @@ class OwnerRuntime:
         self.request('publish', {'threads': rows})
         self.threads = list(rows)
 
+    def create_session(self):
+        if self.codex is None: self.local_sessions()
+        return self.codex.create_session()
+
     def _poll(self):
         heartbeat = 0
         while not self.stop_event.is_set():
