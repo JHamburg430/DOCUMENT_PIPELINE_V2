@@ -12,7 +12,11 @@ class SingleInstance:
     def __init__(self):
         self.handle = None
         self.existing = False
+        self.linux = None
         if os.name != 'nt':
+            from .node_linux_desktop import LinuxInstance
+            self.linux = LinuxInstance()
+            self.existing = self.linux.existing
             return
         import hashlib
         identity = hashlib.sha256((os.environ.get('USERDOMAIN', '') + '/' + os.environ.get('USERNAME', '')).encode()).hexdigest()[:24]
@@ -30,6 +34,9 @@ class SingleInstance:
             self.kernel.SetEvent(self.handle)
 
     def watch(self, emit):
+        if self.linux is not None:
+            self.linux.watch(emit)
+            return
         if self.handle and not self.existing:
             def wait():
                 while self.kernel.WaitForSingleObject(self.handle, 0xffffffff) == 0:
@@ -37,6 +44,9 @@ class SingleInstance:
             threading.Thread(target=wait, daemon=True, name='provis-show-panel').start()
 
     def close(self):
+        if self.linux is not None:
+            self.linux.close()
+            return
         if self.handle:
             self.kernel.CloseHandle(self.handle)
             self.handle = None
@@ -48,19 +58,21 @@ class NodeTray:
         self.ready = threading.Event()
         self.hwnd = None
         self.error = None
-        if os.name == "nt":
-            threading.Thread(target=self._run, name="provis-tray", daemon=True).start()
-        else:
-            self.error = "unsupported"
-            self.ready.set()
+        self.stopped = threading.Event()
+        threading.Thread(target=self._run, name="provis-tray", daemon=True).start()
 
     def close(self):
+        self.stopped.set()
         if self.hwnd:
             self._post(self.hwnd, 0x0010, 0, 0)
 
     def _run(self):
         try:
-            self._windows_loop()
+            if os.name == 'nt':
+                self._windows_loop()
+            else:
+                from .node_linux_desktop import run_indicator
+                run_indicator(self.emit, self.ready, self.stopped)
         except Exception:
             self.error = "tray_unavailable"
             self.emit("tray_error", None)

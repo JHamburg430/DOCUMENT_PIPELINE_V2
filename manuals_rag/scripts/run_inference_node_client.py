@@ -75,6 +75,18 @@ def _managed_config_candidates() -> tuple[Path, ...]:
 
 
 def _load_managed_gateway_url() -> str:
+    # Linux zipapps carry the same nonsecret bootstrap JSON as the Windows EXE.
+    if not getattr(sys, 'frozen', False) and Path(sys.argv[0]).suffix == '.pyz':
+        import json
+        import zipfile
+        try:
+            with zipfile.ZipFile(sys.argv[0]) as archive:
+                config = json.loads(archive.read('provis-node-config.json'))
+            gateway_url = str(config.get('gateway_url') or '').strip()
+            if _is_managed_gateway_url(gateway_url):
+                return gateway_url.rstrip('/')
+        except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+            pass
     for candidate in _managed_config_candidates():
         try:
             config = _load_node_config(str(candidate))
@@ -98,6 +110,7 @@ def _default_node_id() -> str:
 
 from manuals_rag_inference.node_presentation import public_events, utilization
 from manuals_rag_inference.node_tray import NodeTray, SingleInstance
+from manuals_rag_inference.node_theme import PALETTES, load_theme, save_theme
 
 
 class InferenceNodeClient(tk.Tk):
@@ -109,6 +122,10 @@ class InferenceNodeClient(tk.Tk):
         self.configure(bg="#f3f6fb")
         self.protocol("WM_DELETE_WINDOW", self._close_requested)
         self.config_path = os.getenv("INFERENCE_NODE_CONFIG_PATH", _default_config_path())
+        self.theme_path = Path(self.config_path).with_name('inference-node-ui.json')
+        self.theme = load_theme(self.theme_path)
+        self.ui_font = 'Segoe UI' if os.name == 'nt' else 'DejaVu Sans'
+        self.theme_button_var = tk.StringVar()
         self.server = None
         self.agent = None
         self.gateway_url = ""
@@ -128,6 +145,7 @@ class InferenceNodeClient(tk.Tk):
         self._last_rows = None
         self._metrics_stop = threading.Event()
         self._build_ui()
+        self._apply_theme()
         self.tray = NodeTray(lambda event, value: self.worker_queue.put((event, value)))
         self._load_saved_values()
         threading.Thread(target=self._metrics_worker, daemon=True, name="provis-utilization").start()
@@ -139,23 +157,24 @@ class InferenceNodeClient(tk.Tk):
         navy, muted, blue = "#122743", "#65758c", "#225fe5"
         style = ttk.Style(self)
         style.theme_use("clam")
-        style.configure("TButton", font=("Segoe UI", 10), padding=(10, 8), background="#edf2fa", foreground=navy, borderwidth=0)
+        style.configure("TButton", font=(self.ui_font, 10), padding=(10, 8), background="#edf2fa", foreground=navy, borderwidth=0)
         style.map("TButton", background=[("active", "#dbe7fa")], foreground=[("disabled", "#96a1b2")])
         style.configure("Primary.TButton", background=blue, foreground="white")
         style.map("Primary.TButton", background=[("active", "#174fc9"), ("disabled", "#b3c8ef")])
-        style.configure("Node.Treeview", font=("Segoe UI", 9), rowheight=34, background="white", fieldbackground="white", foreground=navy, borderwidth=0)
-        style.configure("Node.Treeview.Heading", font=("Segoe UI", 9), background="#f3f6fb", foreground=muted, relief="flat")
+        style.configure("Node.Treeview", font=(self.ui_font, 9), rowheight=34, background="white", fieldbackground="white", foreground=navy, borderwidth=0)
+        style.configure("Node.Treeview.Heading", font=(self.ui_font, 9), background="#f3f6fb", foreground=muted, relief="flat")
         style.configure("Node.Horizontal.TProgressbar", background="#1c9b8a", troughcolor="#e8edf5", borderwidth=0)
         header = tk.Frame(self, bg=navy, padx=22, pady=18)
         header.pack(fill="x")
-        tk.Label(header, text="PROVIS", bg=navy, fg="white", font=("Segoe UI", 21, "bold")).pack(anchor="w")
-        tk.Label(header, text="PRIVATE COMPUTE", bg=navy, fg="#96b7eb", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=(1, 0))
+        tk.Button(header, textvariable=self.theme_button_var, command=self._toggle_theme, bg=navy, fg='white', activebackground='#29394d', activeforeground='white', relief='flat', font=(self.ui_font, 9), padx=8, pady=6).pack(side='right')
+        tk.Label(header, text="PROVIS", bg=navy, fg="white", font=(self.ui_font, 21, "bold")).pack(anchor="w")
+        tk.Label(header, text="PRIVATE COMPUTE", bg=navy, fg="#96b7eb", font=(self.ui_font, 9, "bold")).pack(anchor="w", pady=(1, 0))
         root = tk.Frame(self, bg="#f3f6fb", padx=18, pady=14)
         root.pack(fill="both", expand=True)
         connection = tk.Frame(root, bg="white", padx=14, pady=12)
         connection.pack(fill="x")
-        tk.Label(connection, text="Your device", bg="white", fg=navy, font=("Segoe UI", 12, "bold")).grid(row=0, column=0, sticky="w")
-        tk.Label(connection, textvariable=self.status_var, wraplength=315, justify="left", bg="white", fg=muted, font=("Segoe UI", 10)).grid(row=1, column=0, sticky="w", pady=(4, 8))
+        tk.Label(connection, text="Your device", bg="white", fg=navy, font=(self.ui_font, 12, "bold")).grid(row=0, column=0, sticky="w")
+        tk.Label(connection, textvariable=self.status_var, wraplength=315, justify="left", bg="white", fg=muted, font=(self.ui_font, 10)).grid(row=1, column=0, sticky="w", pady=(4, 8))
         self.copy_code_button = ttk.Button(connection, text="Copy", command=self._copy_signin_code)
         self.copy_code_button.grid(row=1, column=1, padx=(6, 0))
         self.copy_code_button.grid_remove()
@@ -163,17 +182,17 @@ class InferenceNodeClient(tk.Tk):
         self.entra_button.grid(row=2, column=0, columnspan=2, sticky="ew")
         metrics = tk.Frame(root, bg="white", padx=14, pady=12)
         metrics.pack(fill="x", pady=(10, 0))
-        tk.Label(metrics, text="Device utilization", bg="white", fg=navy, font=("Segoe UI", 12, "bold")).pack(anchor="w")
+        tk.Label(metrics, text="Device utilization", bg="white", fg=navy, font=(self.ui_font, 12, "bold")).pack(anchor="w")
         self.gpu_var = tk.StringVar(value="GPU  •  Checking…")
         self.memory_var = tk.StringVar(value="GPU memory  •  Checking…")
         self.work_var = tk.StringVar(value="No active work")
-        tk.Label(metrics, textvariable=self.gpu_var, bg="white", fg=muted, font=("Segoe UI", 10)).pack(anchor="w", pady=(8, 3))
+        tk.Label(metrics, textvariable=self.gpu_var, bg="white", fg=muted, font=(self.ui_font, 10)).pack(anchor="w", pady=(8, 3))
         self.gpu_bar = ttk.Progressbar(metrics, style="Node.Horizontal.TProgressbar", maximum=100)
         self.gpu_bar.pack(fill="x")
-        tk.Label(metrics, textvariable=self.memory_var, bg="white", fg=muted, font=("Segoe UI", 10)).pack(anchor="w", pady=(8, 3))
+        tk.Label(metrics, textvariable=self.memory_var, bg="white", fg=muted, font=(self.ui_font, 10)).pack(anchor="w", pady=(8, 3))
         self.memory_bar = ttk.Progressbar(metrics, style="Node.Horizontal.TProgressbar", maximum=100)
         self.memory_bar.pack(fill="x")
-        tk.Label(metrics, textvariable=self.work_var, bg="white", fg=muted, font=("Segoe UI", 9)).pack(anchor="w", pady=(8, 0))
+        tk.Label(metrics, textvariable=self.work_var, bg="white", fg=muted, font=(self.ui_font, 9)).pack(anchor="w", pady=(8, 0))
         controls = tk.Frame(root, bg="#f3f6fb")
         controls.pack(fill="x", pady=10)
         self.enable_button = ttk.Button(controls, text="Resume", command=lambda: self._set_inference(True), state="disabled")
@@ -184,15 +203,52 @@ class InferenceNodeClient(tk.Tk):
         self.disconnect_button.pack(side="right")
         status = tk.Frame(root, bg="#f3f6fb")
         status.pack(fill="x", pady=(0, 8))
-        tk.Label(status, textvariable=self.inference_var, bg="#f3f6fb", fg=muted, font=("Segoe UI", 9)).pack(side="left")
-        tk.Button(status, text="Quit", command=self._quit_requested, bg="#f3f6fb", fg=muted, relief="flat", font=("Segoe UI", 9)).pack(side="right")
-        tk.Label(root, text="Recent events", bg="#f3f6fb", fg=navy, font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 6))
+        tk.Label(status, textvariable=self.inference_var, bg="#f3f6fb", fg=muted, font=(self.ui_font, 9)).pack(side="left")
+        tk.Button(status, text="Quit", command=self._quit_requested, bg="#f3f6fb", fg=muted, relief="flat", font=(self.ui_font, 9)).pack(side="right")
+        tk.Label(root, text="Recent events", bg="#f3f6fb", fg=navy, font=(self.ui_font, 11, "bold")).pack(anchor="w", pady=(0, 6))
         self.activity_view = ttk.Treeview(root, style="Node.Treeview", columns=("time", "event", "status"), show="headings", height=4)
         for column, label, width in (("time", "Time", 66), ("event", "Event", 197), ("status", "Status", 101)):
             self.activity_view.heading(column, text=label)
             self.activity_view.column(column, width=width, stretch=False)
+        tk.Label(root, text="Activity and utilization only.", bg="#f3f6fb", fg=muted, font=(self.ui_font, 8)).pack(side='bottom', anchor="w", pady=(8, 0))
         self.activity_view.pack(fill="both", expand=True)
-        tk.Label(root, text="Private by design. Activity and utilization only.", bg="#f3f6fb", fg=muted, font=("Segoe UI", 8)).pack(anchor="w", pady=(10, 0))
+
+    def _toggle_theme(self):
+        self.theme = 'dark' if self.theme == 'light' else 'light'
+        self._apply_theme()
+        try:
+            save_theme(self.theme_path, self.theme)
+        except OSError:
+            self.status_var.set('Appearance changed for this session; preference could not be saved.')
+
+    def _apply_theme(self):
+        colors = PALETTES[self.theme]
+        self.theme_button_var.set('Light mode' if self.theme == 'dark' else 'Dark mode')
+        background_roles = {'#f3f6fb': 'background', 'white': 'card', '#ffffff': 'card', '#122743': 'header'}
+        foreground_roles = {'#122743': 'text', '#65758c': 'muted'}
+        def visit(widget):
+            if isinstance(widget, (tk.Tk, tk.Frame, tk.Label, tk.Button)):
+                if not hasattr(widget, '_appearance_roles'):
+                    roles = {}
+                    for option, mapping in [('background', background_roles), ('foreground', foreground_roles)]:
+                        try:
+                            role = mapping.get(widget.cget(option))
+                            if role: roles[option] = role
+                        except tk.TclError:
+                            pass
+                    widget._appearance_roles = roles
+                widget.configure(**{option: colors[role] for option, role in widget._appearance_roles.items()})
+            for child in widget.winfo_children(): visit(child)
+        visit(self)
+        style = ttk.Style(self)
+        style.configure('TButton', background=colors['button'], foreground=colors['text'])
+        style.map('TButton', background=[('active', colors['hover'])], foreground=[('disabled', colors['muted'])])
+        style.configure('Primary.TButton', background='#225fe5', foreground='white')
+        style.map('Primary.TButton', background=[('active', '#174fc9'), ('disabled', colors['button'])], foreground=[('disabled', colors['muted'])])
+        style.configure('Node.Treeview', background=colors['card'], fieldbackground=colors['card'], foreground=colors['text'])
+        style.map('Node.Treeview', background=[('selected', '#225fe5')], foreground=[('selected', 'white')])
+        style.configure('Node.Treeview.Heading', background=colors['background'], foreground=colors['muted'])
+        style.configure('Node.Horizontal.TProgressbar', troughcolor=colors['track'], background='#1c9b8a')
 
     def _position_panel(self):
         if os.name == "nt":
@@ -202,6 +258,9 @@ class InferenceNodeClient(tk.Tk):
             if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(area), 0):
                 height = min(740, area.bottom - area.top - 48)
                 self.geometry(f"440x{height}+{max(area.left, area.right - 456)}+{max(area.top, area.bottom - height - 40)}")
+        else:
+            height = min(740, self.winfo_screenheight() - 80)
+            self.geometry(f"440x{height}+{max(0, self.winfo_screenwidth() - 456)}+{max(0, self.winfo_screenheight() - height - 64)}")
 
     def _show_panel(self):
         if self.state() == "withdrawn":

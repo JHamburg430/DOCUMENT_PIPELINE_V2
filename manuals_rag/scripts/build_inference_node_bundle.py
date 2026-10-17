@@ -22,6 +22,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src/manuals_rag_inference"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
 
+LINUX_SETUP = '''#!/bin/sh
+set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export PYTHONPATH="$ROOT/src"
+export PROVIS_NODE_BOOTSTRAP_CONFIG="$ROOT/provis-node-config.json"
+exec python3 "$ROOT/src/run_inference_node_client.py"
+'''
+
 
 WINDOWS_SETUP = r'''param([switch]$NoBrowser)
 $ErrorActionPreference = "Stop"
@@ -186,9 +194,38 @@ node's permanent machine secret.
    client, API scope, node identity, Tailscale endpoint, and approved
    application policy automatically, then opens Microsoft's device sign-in
    page.
-4. Use **Enable inference**, **Disable inference**, and **Disconnect safely**
-   from the same window. The activity table shows routing operations, model,
-   status, duration, and sanitized error type.
+4. Use **Resume**, **Pause**, and **Disconnect** in the tray panel.
+   The panel shows events and GPU utilization only; no prompts, responses,
+   model names, credentials, or raw error text are displayed.
+5. Choose **Dark mode** or **Light mode** in the header. The choice is saved
+   separately from enrollment credentials. Close hides the panel to the tray;
+   relaunching opens the existing node. Use **Quit** to disconnect and exit.
+
+## Linux desktop quick start
+
+Use the same managed bundle and run `sh start-node-setup.sh`, or launch the
+administrator-built `inference-node.pyz` with `python3 inference-node.pyz`.
+Both use the same Microsoft sign-in, code Copy button, appearance controls,
+privacy-safe events, GPU utilization and safe sharing controls as Windows.
+
+On Ubuntu/Debian the desktop dependencies are `python3-tk`, `python3-gi`,
+`gir1.2-gtk-3.0`, and `gir1.2-ayatanaappindicator3-0.1` (installed by your
+administrator). The tray uses the desktop's StatusNotifier/AppIndicator
+support. On GNOME this may require its AppIndicator extension. Use the icon's
+**Open PROVIS** menu to open the panel. If the desktop cannot provide a tray,
+the window stays visible and Close uses the safe Quit flow.
+
+Build the managed Linux zipapp from the repository:
+
+```bash
+python3 manuals_rag/scripts/build_inference_node_app.py \
+  --gateway-url https://<managed-provis-gateway> \
+  --output dist/inference-node.pyz
+```
+
+No root service, browser credentials or node credentials are included. Run the
+desktop app as the employee, not with sudo. The existing headless node service
+is separate; do not run it concurrently on the same node port.
 
 To create a standalone Windows executable, run `build-node-exe.ps1` once from
 the extracted folder. It installs only the build-time PyInstaller tool and
@@ -273,6 +310,8 @@ def build(output: Path, *, gateway_url: str = "") -> Path:
         _write_text(stage, "start-node-setup.cmd", WINDOWS_SETUP_CMD)
         _write_text(stage, "start-node-agent.cmd", WINDOWS_AGENT_CMD)
         _write_text(stage, "build-node-exe.ps1", WINDOWS_EXE_BUILD)
+        _write_text(stage, "start-node-setup.sh", LINUX_SETUP)
+        (stage / 'start-node-setup.sh').chmod(0o755)
         _write_text(stage, "provis-node-config.json", json.dumps({"gateway_url": gateway_url}, indent=2) + "\n")
         _write_text(stage, "README.md", README)
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
