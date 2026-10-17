@@ -37,7 +37,8 @@ off by default and has not been deployed.
    with endpoint refresh still disabled. Preflight, then restart only this
    gateway service. OpenClaw services do not need a restart.
 5. After verifying gateway health and rollback readiness, enable
-   `INFERENCE_NODE_ALLOW_ENDPOINT_REFRESH=true` on the gateway.
+   `INFERENCE_NODE_ALLOW_ENDPOINT_REFRESH=true` on the gateway and restart only
+   `inference-fabric-gateway.service` to load the flag.
 6. For one explicitly approved pilot node only, enable
    `INFERENCE_NODE_ALLOW_PORT_FALLBACK=true`, install the signed node release,
    and restart that node app during an agreed maintenance window. Confirm its
