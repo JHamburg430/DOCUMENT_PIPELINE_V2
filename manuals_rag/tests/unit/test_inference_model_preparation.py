@@ -31,7 +31,7 @@ def test_installed_model_is_reused_without_contacting_registry(monkeypatch):
     agent = node()
     assert pull(agent)["already_installed"] is True
     assert len(calls) == 1
-    assert agent.activity()[-1]["status"] == "already_installed"
+    assert agent.activity()[-1]["operation"] == "model_already_installed"
 
 
 def test_missing_model_is_pulled_automatically(monkeypatch):
@@ -80,3 +80,67 @@ def test_admission_distinguishes_disk_inventory_from_loaded_models(installed, al
     assert decision.admitted is admitted
     if admitted:
         assert decision.requires_model_pull is requires_pull
+        assert decision.requires_model_warm is True
+
+
+def warm(agent):
+    command = {"action": "warm_model", "model": "qwen3.5:9b", "size_bytes": 6603314868, "issued_at": time.time(), "timeout_seconds": 1}
+    return agent.command(command, sign_command(command, agent.secret))
+
+
+def test_installed_model_warms_without_pull_and_confirms_loaded_state(monkeypatch):
+    calls = []
+    def request(url, **kwargs):
+        calls.append((url, kwargs))
+        assert not url.endswith("/api/pull")
+        if url.endswith("/api/generate"):
+            assert kwargs["body"]["prompt"] == ""
+            assert kwargs["body"]["options"]["num_predict"] == 0
+            assert kwargs["body"]["keep_alive"] == 120
+            return {"done": True}
+        return {"models": [{"name": "qwen3.5:9b"}]}
+    monkeypatch.setattr(node_agent, "_json_request", request)
+    agent = node()
+    assert warm(agent)["loaded"] is True
+    assert [url.rsplit("/", 1)[-1] for url, _ in calls] == ["tags", "generate", "ps"]
+    assert agent.activity()[-1]["operation"] == "model_warm_completed"
+
+
+def test_warm_does_not_download_a_missing_model(monkeypatch):
+    calls = []
+    def request(url, **kwargs):
+        calls.append(url)
+        return {"models": []}
+    monkeypatch.setattr(node_agent, "_json_request", request)
+    with pytest.raises(node_agent.ModelPreparationError, match="model_not_installed"):
+        warm(node())
+    assert all(url.endswith("/api/tags") for url in calls)
+
+
+def test_warm_http_500_retains_only_safe_status(monkeypatch):
+    def request(url, **kwargs):
+        if url.endswith("/api/tags"):
+            return {"models": [{"name": "qwen3.5:9b"}]}
+        raise HTTPError(url, 500, "private raw prompt", {}, io.BytesIO(b'private secret'))
+    monkeypatch.setattr(node_agent, "_json_request", request)
+    agent = node()
+    with pytest.raises(node_agent.ModelPreparationError) as failure:
+        warm(agent)
+    assert failure.value.upstream_status == 500
+    assert "private" not in json.dumps(agent.activity())
+    assert agent.activity()[-1]["operation"] == "model_warm_failed"
+
+
+def test_snapshot_reports_installed_capabilities_separately(monkeypatch):
+    def request(url, **kwargs):
+        if url.endswith("/api/tags"):
+            return {"models": [{"name": "qwen3.5:9b", "digest": "test"}]}
+        if url.endswith("/api/show"):
+            return {"capabilities": ["completion", "vision"]}
+        return {"models": []}
+    monkeypatch.setattr(node_agent, "_json_request", request)
+    monkeypatch.setattr(node_agent, "_gpu_snapshots", lambda: ())
+    snapshot = node().snapshot()
+    assert snapshot.installed_models == ("qwen3.5:9b",)
+    assert snapshot.loaded_models == ()
+    assert "chat" in snapshot.installed_model_capabilities["qwen3.5:9b"]

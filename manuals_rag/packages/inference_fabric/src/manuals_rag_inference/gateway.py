@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import json
 import math
+import logging
 import os
 import threading
 import time
@@ -35,6 +36,31 @@ class AuthenticationError(PermissionError):
 
 class AuthorizationError(PermissionError):
     """The caller is authenticated but is not allowed for the operation."""
+
+
+class InferencePhaseError(RuntimeError):
+    def __init__(self, phase: str, model: str, code: str, *, node_id: str | None = None, upstream_status: int | None = None, status: int = 503):
+        super().__init__(code)
+        self.phase, self.model, self.code = phase, model, code
+        self.node_id, self.upstream_status, self.status = node_id, upstream_status, status
+
+    def public(self):
+        return {"detail": "model preparation failed" if self.phase in {"model_pull", "model_warm"} else "inference unavailable", "phase": self.phase, "model": self.model, "code": self.code, "node_id": self.node_id, "upstream_status": self.upstream_status}
+
+
+def _log_phase_failure(error: InferencePhaseError):
+    logging.getLogger(__name__).warning("inference_failure %s", json.dumps(error.public(), sort_keys=True))
+
+
+def _stream_failure(request, routing):
+    error = InferencePhaseError("inference_failed", request.model, "upstream_stream_failed", node_id=routing.get("node_id"))
+    _log_phase_failure(error)
+    return {"error": error.public(), "done": True}
+
+
+def _admission_failure(request, decision):
+    phase = "model_not_installed" if "model_not_installed_and_pull_not_allowed" in decision.reason else "admission_rejected"
+    return InferencePhaseError(phase, request.model, phase)
 
 
 def heartbeat_signature(payload: bytes, secret: bytes) -> str:
@@ -256,7 +282,7 @@ class InferenceGateway:
             raise AuthorizationError("application is not approved for ingress node")
         model = request.get("model")
         if not isinstance(model, str) or model not in self.model_catalog:
-            raise ValueError("model is required and must be in the gateway catalog")
+            raise InferencePhaseError("model_not_in_catalog", "", "model_not_in_catalog", status=400)
         try:
             self.enrollment.claim_inference_request(node_id, request_id, issued_at)
         except PermissionError as error:
@@ -274,7 +300,7 @@ class InferenceGateway:
         payload["model"] = request.model
         decision = self.scheduler.choose_and_reserve(request)
         if not decision.admitted or not decision.endpoint:
-            raise RuntimeError(decision.reason or "request rejected")
+            raise _admission_failure(request, decision)
         try:
             self._prepare_node(request, decision)
             ollama_operation = {"embeddings": "embed"}.get(operation, operation)
@@ -300,6 +326,10 @@ class InferenceGateway:
             else:
                 response = self._post(f"{decision.endpoint}/api/{ollama_operation}", payload, timeout=timeout)
             return {"routing": decision.to_dict(), "response": response}
+        except InferencePhaseError:
+            raise
+        except Exception as error:
+            raise InferencePhaseError("inference_failed", request.model, "worker_inference_failed", node_id=decision.node_id, upstream_status=getattr(error, "code", None)) from None
         finally:
             self.scheduler.release(decision.node_id, request.request_id)
 
@@ -312,7 +342,7 @@ class InferenceGateway:
             raise ValueError("payload model does not match request")
         decision = self.scheduler.choose_and_reserve(request)
         if not decision.admitted or not decision.endpoint:
-            raise RuntimeError("scheduler admission rejected")
+            raise _admission_failure(request, decision)
         stream = None
         deadline = time.monotonic() + max(0.001, min(900, (request.max_latency_ms or 180000) / 1000))
         try:
@@ -327,6 +357,10 @@ class InferenceGateway:
                 raise TimeoutError("inference preparation timed out")
             stream = NDJSONResponse(f"{url.rstrip('/')}/v1/node/inference", {**envelope, "signature": node_request_signature(envelope, secret)}, timeout=remaining)
             yield decision.to_dict(), stream
+        except InferencePhaseError:
+            raise
+        except Exception as error:
+            raise InferencePhaseError("inference_failed", request.model, "worker_stream_failed", node_id=decision.node_id, upstream_status=getattr(error, "code", None)) from None
         finally:
             try:
                 if stream is not None:
@@ -342,17 +376,17 @@ class InferenceGateway:
             return request
         spec = self.model_catalog.get(request.model)
         if spec is None:
-            raise RuntimeError("model_not_in_catalog")
+            raise InferencePhaseError("model_not_in_catalog", "", "model_not_in_catalog", status=400)
         missing = set(request.required_capabilities) - set(spec.capabilities)
         if missing:
-            raise RuntimeError(f"model_catalog_missing_capabilities:{','.join(sorted(missing))}")
+            raise InferencePhaseError("admission_rejected", request.model, "model_capability_unavailable")
         from dataclasses import replace
 
         return replace(request, model_size_bytes=spec.size_bytes, min_vram_mb=spec.min_vram_mb)
 
     def _prepare_node(self, request: InferenceRequest, decision) -> None:
         """Perform only explicitly authorized preparation before inference."""
-        if not decision.requires_model_pull and not decision.eviction_candidates:
+        if not decision.requires_model_pull and not decision.eviction_candidates and not decision.requires_model_warm:
             return
         if decision.eviction_candidates and not request.allow_eviction:
             raise RuntimeError("scheduler returned unauthorized eviction candidates")
@@ -370,29 +404,52 @@ class InferenceGateway:
             if (result.get("result") or {}).get("status") != "completed":
                 raise RuntimeError(f"model eviction failed for {model}")
         if decision.requires_model_pull:
-            result = self.issue_node_command(
+            result = self._preparation_command(request, decision, "pull_model", "model_pull")
+            if (result.get("result") or {}).get("status") != "completed":
+                raise InferencePhaseError("model_pull", request.model, "model_pull_failed", node_id=decision.node_id)
+        if decision.requires_model_warm:
+            result = self._preparation_command(request, decision, "warm_model", "model_warm")
+            if (result.get("result") or {}).get("status") != "completed" or (result.get("result") or {}).get("loaded") is not True:
+                raise InferencePhaseError("model_warm", request.model, "model_readiness_unconfirmed", node_id=decision.node_id)
+
+    def _preparation_command(self, request, decision, action, phase):
+        try:
+            return self.issue_node_command(
                 node_id=decision.node_id,
-                action="pull_model",
+                action=action,
                 model=request.model,
                 size_bytes=request.model_size_bytes,
-                timeout_seconds=max(120, int((request.max_latency_ms or 900000) / 1000)),
+                timeout_seconds=min(900, max(1, int((request.max_latency_ms or 180000) / 1000))),
+                context_tokens=request.context_tokens,
             )
-            if (result.get("result") or {}).get("status") != "completed":
-                raise RuntimeError(f"model pull failed for {request.model}")
+        except urllib.error.HTTPError as error:
+            try:
+                payload = json.loads(error.read(8192))
+                upstream_status = payload.get("upstream_status")
+                if type(upstream_status) is not int or not 100 <= upstream_status <= 599:
+                    upstream_status = None
+            except Exception:
+                upstream_status = None
+            code = f"ollama_http_{upstream_status}" if upstream_status else f"node_http_{error.code}"
+            raise InferencePhaseError(phase, request.model, code, node_id=decision.node_id, upstream_status=upstream_status or error.code) from None
+        except (OSError, urllib.error.URLError):
+            raise InferencePhaseError("selected_node_unreachable", request.model, "selected_node_unreachable", node_id=decision.node_id) from None
 
-    def issue_node_command(self, *, node_id: str, action: str, model: str, size_bytes: int = 0, timeout_seconds: int = 900) -> dict[str, Any]:
-        if action == "pull_model" and self.model_catalog:
+    def issue_node_command(self, *, node_id: str, action: str, model: str, size_bytes: int = 0, timeout_seconds: int = 900, context_tokens: int = 0) -> dict[str, Any]:
+        if action in {"pull_model", "warm_model"} and self.model_catalog:
             spec = self.model_catalog.get(model)
             if spec is None:
                 raise RuntimeError("model_not_in_catalog")
             size_bytes = spec.size_bytes
-        elif action == "pull_model" and self.require_model_catalog:
+        elif action in {"pull_model", "warm_model"} and self.require_model_catalog:
             raise RuntimeError("model_catalog_required")
         secret = self.node_secrets.get(node_id)
         endpoint = self.node_agent_urls.get(node_id)
         if secret is None or endpoint is None:
             raise RuntimeError("node control is not configured for this node")
         command = {"action": action, "model": model, "size_bytes": int(size_bytes), "issued_at": time.time(), "timeout_seconds": int(timeout_seconds)}
+        if action == "warm_model":
+            command["context_tokens"] = int(context_tokens)
         signature = sign_command(command, secret)
         result = self._post(f"{endpoint.rstrip('/')}/v1/node/command", {"command": command, "signature": signature}, timeout=max(30, timeout_seconds + 15))
         return {"node_id": node_id, "command": {"action": action, "model": model}, "result": result}
@@ -443,6 +500,7 @@ def _snapshot_from_payload(payload: dict[str, Any]) -> NodeSnapshot:
         request_accounting_available=bool(payload.get("request_accounting_available", False)),
         inference_enabled=bool(payload.get("inference_enabled", True)),
         installed_models=tuple(str(model) for model in payload.get("installed_models") or []),
+        installed_model_capabilities={str(model): tuple(capabilities) for model, capabilities in (payload.get("installed_model_capabilities") or {}).items()},
     )
 
 
@@ -535,7 +593,7 @@ def create_gateway_handler(gateway: InferenceGateway):
                     if model_payload.get("stream") is True:
                         with gateway.stream_infer(request, operation=operation, payload=model_payload) as (routing, stream):
                             with watch_disconnect(self.connection, stream.cancel):
-                                relay_ndjson(self, stream, wrap=lambda event: {"routing": routing, "response": event})
+                                relay_ndjson(self, stream, wrap=lambda event: {"routing": routing, "response": event}, on_error=lambda error: _stream_failure(request, routing))
                     else:
                         self._send(200, gateway.infer(request, operation=operation, payload=model_payload))
                     return
@@ -610,6 +668,9 @@ def create_gateway_handler(gateway: InferenceGateway):
                     self._send(200, result)
                     return
                 self._send(404, {"detail": "not found"})
+            except InferencePhaseError as error:
+                _log_phase_failure(error)
+                self._send(error.status, error.public())
             except AuthenticationError as error:
                 self._send(401, {"detail": str(error)})
             except AuthorizationError as error:

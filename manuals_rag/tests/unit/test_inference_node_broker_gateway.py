@@ -1,4 +1,5 @@
 import json
+import socket
 import threading
 import time
 import uuid
@@ -65,6 +66,12 @@ def call(url, gateway, body, *, signature=None):
     signature = signature if signature is not None else heartbeat_signature(raw, gateway.node_secrets["ingress"])
     return urlopen(Request(url + "/v1/nodes/inference", data=raw,
         headers={"X-Node-Signature": signature, "Content-Type": "application/json"}), timeout=4)
+
+
+def disconnect_client(response):
+    # Explicitly close the TCP connection, rather than only its buffered reader.
+    response.fp.raw._sock.shutdown(socket.SHUT_RDWR)
+    response.close()
 
 
 def test_node_auth_without_gateway_tokens_selects_different_worker(broker):
@@ -138,6 +145,51 @@ def test_direct_application_authentication_is_unchanged(broker):
     assert not broker.scheduler._reservations
 
 
+@pytest.mark.parametrize("missing", [False, True])
+def test_gateway_prepares_before_inference_without_unneeded_pull(broker, missing):
+    snapshot = next(node for node in broker.scheduler.snapshots() if node.node_id == "worker")
+    broker.scheduler.upsert_node(replace(snapshot, loaded_models=(), installed_models=() if missing else ("test-model",)))
+    operations = []
+    def post(url, body, **kwargs):
+        if url.endswith("/command"):
+            action = body["command"]["action"]
+            operations.append(action)
+            return {"status": "completed", "loaded": action == "warm_model"}
+        operations.append("inference")
+        return {"message": {"content": "fixture"}}
+    broker._post = post
+    body = envelope()
+    body["request"]["allow_model_pull"] = missing
+    with serving(create_gateway_handler(broker)) as url:
+        with call(url, broker, body) as response:
+            assert response.status == 200
+    assert operations == (["pull_model", "warm_model", "inference"] if missing else ["warm_model", "inference"])
+    assert not broker.scheduler._reservations
+
+
+@pytest.mark.parametrize("failure_phase", ["model_pull", "model_warm"])
+def test_gateway_preparation_error_phase_is_safe_and_logged(broker, caplog, failure_phase):
+    import io
+    snapshot = next(node for node in broker.scheduler.snapshots() if node.node_id == "worker")
+    broker.scheduler.upsert_node(replace(snapshot, loaded_models=(), installed_models=("test-model",) if failure_phase == "model_warm" else ()))
+    def post(url, body, **kwargs):
+        raise HTTPError(url, 502, "private raw detail", {}, io.BytesIO(b'{"upstream_status":500,"code":"private secret prompt"}'))
+    broker._post = post
+    body = envelope()
+    body["request"]["allow_model_pull"] = True
+    with serving(create_gateway_handler(broker)) as url:
+        with pytest.raises(HTTPError) as rejected:
+            call(url, broker, body)
+        result = json.load(rejected.value)
+    assert result["phase"] == failure_phase
+    assert result["code"] == "ollama_http_500"
+    assert result["model"] == "test-model"
+    assert failure_phase in caplog.text
+    assert "private" not in caplog.text
+    assert "secret" not in json.dumps(result)
+    assert not broker.scheduler._reservations
+
+
 @pytest.mark.parametrize("mode", ["empty", "error", "buffered"])
 def test_pre_token_failures_are_controlled_503(broker, mode):
     class Worker(BaseHTTPRequestHandler):
@@ -173,7 +225,7 @@ def test_stream_incremental_and_reservation_cleanup(broker, mode):
             self.end_headers()
             self.wfile.write(b'{"message":{"content":"first"},"done":false}\n')
             self.wfile.flush()
-            continue_stream.wait(2)
+            continue_stream.wait(10)
             try:
                 if mode == "upstream_error": return
                 self.wfile.write(b'{"message":{"content":"second"},"done":false}\n')
@@ -195,7 +247,7 @@ def test_stream_incremental_and_reservation_cleanup(broker, mode):
             assert first["routing"]["node_id"] == "worker"
             assert broker.scheduler._reservations
             if mode == "disconnect":
-                response.close()
+                disconnect_client(response)
             else:
                 if mode != "timeout": continue_stream.set()
                 chunks = [json.loads(line) for line in response]
@@ -241,7 +293,7 @@ def test_real_node_streams_ollama_incrementally_and_cleans_accounting(broker, di
                 assert json.loads(response.readline())["response"]["message"]["content"] == "first"
                 assert agent._active_by_model == {"test-model": 1}
                 if disconnect:
-                    response.close()
+                    disconnect_client(response)
                 else:
                     finish.set()
                     assert [json.loads(line) for line in response][-1]["response"]["done"] is True

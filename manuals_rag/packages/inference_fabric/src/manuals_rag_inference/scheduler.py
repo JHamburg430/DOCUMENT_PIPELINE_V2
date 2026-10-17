@@ -64,6 +64,9 @@ class InferenceScheduler:
         missing = set(request.required_capabilities) - set(node.capabilities)
         if missing:
             return False, f"missing_capabilities:{','.join(sorted(missing))}", False, 0
+        model_capabilities = node.installed_model_capabilities.get(request.model)
+        if model_capabilities and set(request.required_capabilities) - set(model_capabilities):
+            return False, "missing_model_capabilities", False, 0
         reserved = len(self._reservations.get(node.node_id, set()))
         if node.queued_requests + reserved >= self.policy.max_queue_depth:
             return False, "queue_full", False, 0
@@ -120,7 +123,7 @@ class InferenceScheduler:
         if not candidates:
             return AdmissionDecision(False, request.request_id, reason="; ".join(rejected) or "no_eligible_nodes")
         score, node, requires_pull, evictions = max(candidates, key=lambda item: item[0])
-        return AdmissionDecision(True, request.request_id, node.node_id, node.endpoint, "eligible", score, requires_pull, evictions)
+        return AdmissionDecision(True, request.request_id, node.node_id, node.endpoint, "eligible", score, requires_pull, evictions, requires_model_warm=not any(model.name == request.model for model in node.loaded_models))
 
     def choose(self, request: InferenceRequest) -> AdmissionDecision:
         with self._lock:

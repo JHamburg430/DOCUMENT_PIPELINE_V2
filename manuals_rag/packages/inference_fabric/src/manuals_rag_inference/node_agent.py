@@ -157,6 +157,31 @@ class OllamaNode:
         self._inference_enabled = True
         self._activity: deque[dict[str, object]] = deque(maxlen=200)
         self._probe_health: dict[str, tuple[str, str]] = {}
+        self._inventory_lock = threading.Lock()
+        self._model_metadata: dict[str, tuple[str, tuple[str, ...]]] = {}
+
+    def _inventory(self) -> tuple[tuple[str, ...], dict[str, tuple[str, ...]]]:
+        payload = _json_request(f"{self.endpoint}/api/tags")
+        installed = _installed_model_names(payload)
+        deadline = time.monotonic() + 2
+        with self._inventory_lock:
+            for item in payload.get("models") or []:
+                model = str(item.get("name") or item.get("model") or "")
+                digest = str(item.get("digest") or "")
+                if not model or (model in self._model_metadata and self._model_metadata[model][0] == digest):
+                    continue
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                try:
+                    metadata = _json_request(f"{self.endpoint}/api/show", method="POST", body={"model": model}, timeout=remaining)
+                    capabilities = tuple("embeddings" if value == "embedding" else value for value in metadata.get("capabilities", []) if value in {"chat", "completion", "embedding", "embeddings", "vision", "tools", "thinking", "insert"})
+                    if "completion" in capabilities and "chat" not in capabilities:
+                        capabilities += ("chat",)
+                    self._model_metadata[model] = (digest, capabilities)
+                except Exception:
+                    pass
+            return installed, {model: self._model_metadata.get(model, ("", ()))[1] for model in installed}
 
     def _record_probe(self, operation: str, status: str, error: str = "") -> None:
         state = (status, error)
@@ -211,10 +236,11 @@ class OllamaNode:
         if ollama_healthy:
             self._record_probe("ollama", "healthy")
         try:
-            installed_models = _installed_model_names(_json_request(f"{self.endpoint}/api/tags"))
+            installed_models, model_capabilities = self._inventory()
             self._record_probe("model_inventory", "available")
         except Exception as error:
             installed_models = ()
+            model_capabilities = {}
             self._record_probe("model_inventory", "unavailable", error.__class__.__name__)
         gpus = _gpu_snapshots()
         self._record_probe("gpu", "detected" if gpus else "unavailable", "" if gpus else "gpu_probe_unavailable")
@@ -233,6 +259,7 @@ class OllamaNode:
             healthy=ollama_healthy,
             inference_enabled=self.inference_enabled,
             installed_models=installed_models,
+            installed_model_capabilities=model_capabilities,
         )
 
     def _authorize_inference(self, envelope: dict, signature: str) -> tuple[str, dict, str]:
@@ -352,13 +379,15 @@ class OllamaNode:
             self._record_activity("pull_model", model, "started")
             try:
                 try:
+                    self._record_activity("model_inventory_check", model, "started")
                     installed = _installed_model_names(_json_request(f"{self.endpoint}/api/tags"))
                 except Exception:
                     installed = ()
                 if model in installed:
-                    self._record_activity("pull_model", model, "already_installed", started_at=started_at)
+                    self._record_activity("model_already_installed", model, "completed", started_at=started_at)
                     return {"action": action, "model": model, "status": "completed", "already_installed": True}
-                result = _json_request(f"{self.endpoint}/api/pull", method="POST", body={"model": model, "stream": False}, timeout=float(command.get("timeout_seconds") or 900))
+                self._record_activity("model_pull_started", model, "started")
+                result = _json_request(f"{self.endpoint}/api/pull", method="POST", body={"model": model, "stream": False}, timeout=min(900, max(1, float(command.get("timeout_seconds") or 900))))
                 if result.get("error"):
                     raise ModelPreparationError(_model_error_category(str(result["error"])))
                 if result.get("status") != "success":
@@ -371,10 +400,38 @@ class OllamaNode:
                 except Exception:
                     message = ""
                 category = _model_error_category(message)
-                self._record_activity("pull_model", model, "failed", started_at=started_at, error=f"HTTP_{error.code}:{category}")
+                self._record_activity("model_pull_failed", model, "failed", started_at=started_at, error=f"HTTP_{error.code}:{category}")
                 raise ModelPreparationError(category, error.code) from None
             except Exception as error:
-                self._record_activity("pull_model", model, "failed", started_at=started_at, error=error.category if isinstance(error, ModelPreparationError) else type(error).__name__)
+                self._record_activity("model_pull_failed", model, "failed", started_at=started_at, error=error.category if isinstance(error, ModelPreparationError) else type(error).__name__)
+                raise
+        if action == "warm_model":
+            started_at = time.time()
+            deadline = time.monotonic() + min(900, max(1, float(command.get("timeout_seconds") or 120)))
+            self._record_activity("model_warm_started", model, "started")
+            try:
+                self._record_activity("model_inventory_check", model, "started")
+                installed = _installed_model_names(_json_request(f"{self.endpoint}/api/tags", timeout=min(3, max(.001, deadline - time.monotonic()))))
+                if model not in installed:
+                    raise ModelPreparationError("model_not_installed")
+                context_tokens = int(command.get("context_tokens") or 4096)
+                if not 512 <= context_tokens <= 1_000_000:
+                    raise ModelPreparationError("invalid_warm_context")
+                reply = _json_request(f"{self.endpoint}/api/generate", method="POST", body={"model": model, "prompt": "", "stream": False, "keep_alive": 120, "options": {"num_predict": 0, "num_ctx": context_tokens}}, timeout=max(.001, deadline - time.monotonic()))
+                if reply.get("error"):
+                    raise ModelPreparationError(_model_error_category(str(reply["error"])))
+                while time.monotonic() < deadline:
+                    loaded = _installed_model_names(_json_request(f"{self.endpoint}/api/ps", timeout=min(3, max(.001, deadline - time.monotonic()))))
+                    if model in loaded:
+                        self._record_activity("model_warm_completed", model, "completed", started_at=started_at)
+                        return {"action": action, "model": model, "status": "completed", "loaded": True}
+                    time.sleep(min(.2, max(0, deadline - time.monotonic())))
+                raise ModelPreparationError("model_readiness_unconfirmed")
+            except HTTPError as error:
+                self._record_activity("model_warm_failed", model, "failed", started_at=started_at, error=f"HTTP_{error.code}")
+                raise ModelPreparationError(f"ollama_http_{error.code}", error.code) from None
+            except Exception as error:
+                self._record_activity("model_warm_failed", model, "failed", started_at=started_at, error=error.category if isinstance(error, ModelPreparationError) else type(error).__name__)
                 raise
         if action == "evict_model":
             with self._request_lock:

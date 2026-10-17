@@ -13,10 +13,17 @@ from urllib.request import Request, urlopen
 
 def _interrupt(response) -> None:
     # Interrupt a blocked readline before closing its buffered file.
-    raw_socket = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
+    raw = getattr(getattr(response, "fp", None), "raw", None)
+    raw_socket = getattr(raw, "_sock", None)
     if raw_socket is not None:
         try:
             raw_socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        # urllib may already have closed the socket object while its SocketIO
+        # retains the descriptor. Close that raw owner to cancel Windows reads.
+        try:
+            raw.close()
         except OSError:
             pass
 
@@ -94,7 +101,7 @@ def watch_disconnect(connection, cancel):
         worker.join(timeout=0.3)
 
 
-def relay_ndjson(handler, stream, *, wrap=lambda event: event):
+def relay_ndjson(handler, stream, *, wrap=lambda event: event, on_error=None):
     """Validate the first event before headers; send later errors only once."""
     first = next(stream)
     handler.send_response(200)
@@ -111,10 +118,11 @@ def relay_ndjson(handler, stream, *, wrap=lambda event: event):
             handler.wfile.flush()
     except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
         stream.cancel()
-    except Exception:
+    except Exception as error:
         # No raw upstream error text, response, prompt, or credential is exposed.
         try:
-            handler.wfile.write(b'{"error":{"code":"upstream_stream_failed"},"done":true}\n')
+            failure = on_error(error) if on_error else {"error": {"code": "upstream_stream_failed"}, "done": True}
+            handler.wfile.write(json.dumps(failure).encode() + b"\n")
             handler.wfile.flush()
         except OSError:
             pass
