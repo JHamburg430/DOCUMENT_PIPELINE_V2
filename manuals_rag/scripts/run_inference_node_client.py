@@ -135,6 +135,7 @@ from manuals_rag_inference.node_system import (
 )
 from manuals_rag_inference.node_tray import NodeTray, SingleInstance
 from manuals_rag_inference.node_theme import PALETTES, load_theme, save_theme
+from manuals_rag_inference.endpoint_ui import copy_endpoint_to_clipboard, local_broker_endpoints
 
 
 class InferenceNodeClient(tk.Tk):
@@ -167,7 +168,9 @@ class InferenceNodeClient(tk.Tk):
         self.status_var = tk.StringVar(value="Not connected")
         self.signin_code = ""
         self.inference_var = tk.StringVar(value="Inference disabled")
-        self.local_endpoint_var = tk.StringVar(value="OpenAI-compatible local endpoint: http://127.0.0.1:8767/v1")
+        self.local_endpoint_var = tk.StringVar(value="http://127.0.0.1:8767/v1")
+        self.container_endpoint_var = tk.StringVar(value="http://host.docker.internal:8767/v1")
+        self.endpoint_copy_var = tk.StringVar(value="")
         self._quitting = False
         self._last_rows = None
         self._metrics_stop = threading.Event()
@@ -217,6 +220,22 @@ class InferenceNodeClient(tk.Tk):
         self.copy_code_button.grid_remove()
         self.entra_button = ttk.Button(connection, text="Sign in with Microsoft 365", style="Primary.TButton", command=self._entra_connect)
         self.entra_button.grid(row=2, column=0, columnspan=2, sticky="ew")
+        shared_compute = tk.LabelFrame(connection, text="PROVIS shared compute — OpenAI-compatible endpoint", bg="white", fg=navy, padx=8, pady=7, font=(self.ui_font, 9, "bold"))
+        shared_compute.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        tk.Label(shared_compute, text="Use as the OpenAI base URL for LLM workflows and apps on this PC:", wraplength=340, justify="left", bg="white", fg=muted, font=(self.ui_font, 9)).grid(row=0, column=0, columnspan=3, sticky="w")
+        tk.Label(shared_compute, text="This PC", bg="white", fg=navy, font=(self.ui_font, 9, "bold")).grid(row=1, column=0, sticky="w", pady=(5, 0))
+        tk.Label(shared_compute, textvariable=self.local_endpoint_var, bg="white", fg="#165d69", font=(self.ui_font, 9)).grid(row=1, column=1, sticky="w", padx=(6, 6), pady=(5, 0))
+        ttk.Button(shared_compute, text="Copy URL", command=lambda: self._copy_inference_endpoint(self.local_endpoint_var.get())).grid(row=1, column=2, pady=(5, 0))
+        tk.Label(shared_compute, text="Docker", bg="white", fg=navy, font=(self.ui_font, 9, "bold")).grid(row=2, column=0, sticky="w", pady=(4, 0))
+        tk.Label(shared_compute, textvariable=self.container_endpoint_var, bg="white", fg="#165d69", font=(self.ui_font, 9)).grid(row=2, column=1, sticky="w", padx=(6, 6), pady=(4, 0))
+        ttk.Button(shared_compute, text="Copy URL", command=lambda: self._copy_inference_endpoint(self.container_endpoint_var.get())).grid(row=2, column=2, pady=(4, 0))
+        tk.Label(shared_compute, text=(
+            "The enrolled node forwards requests to PROVIS shared compute. PROVIS OpenClaw models are configured for this route; "
+            "employee-built workflows and apps can use it too. Select an allowed app with X-ProVIS-Application. "
+            "This is a local PC endpoint; gateway credentials stay inside the node."
+        ), wraplength=360, justify="left", bg="white", fg=muted, font=(self.ui_font, 8)).grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        tk.Label(connection, textvariable=self.endpoint_copy_var, wraplength=315, justify="left", bg="white", fg=muted, font=(self.ui_font, 8)).grid(row=4, column=0, columnspan=2, sticky="w", pady=(3, 0))
+        shared_compute.grid_columnconfigure(1, weight=1)
         metrics = tk.Frame(root, bg="white", padx=14, pady=12)
         metrics.pack(fill="x", pady=(10, 0))
         tk.Label(metrics, text="Device utilization", bg="white", fg=navy, font=(self.ui_font, 12, "bold")).pack(anchor="w")
@@ -471,8 +490,10 @@ class InferenceNodeClient(tk.Tk):
         config = _load_node_config(self.config_path)
         tailscale_ipv4 = _detect_tailscale_ipv4()
         port = str(config.get("port") or os.getenv("INFERENCE_NODE_PORT", "8765"))
-        broker_port = str(config.get("local_broker_port") or os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", "8767"))
-        self.local_endpoint_var.set(f"OpenAI-compatible local endpoint: http://127.0.0.1:{broker_port}/v1 (containers: http://host.docker.internal:{broker_port}/v1)")
+        broker_port = config.get("local_broker_port") or os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", "8767")
+        local_endpoint, container_endpoint = local_broker_endpoints(broker_port)
+        self.local_endpoint_var.set(local_endpoint)
+        self.container_endpoint_var.set(container_endpoint)
         values = {
             "gateway_url": _load_managed_gateway_url() or str(config.get("gateway_url") or ""),
             "entra_tenant_id": config.get("entra_tenant_id") or os.getenv("INFERENCE_ENTRA_TENANT_ID", ""),
@@ -525,6 +546,19 @@ class InferenceNodeClient(tk.Tk):
         self.clipboard_append(code)
         self.copy_code_button.configure(text="Copied")
         self.after(1500, lambda: self.copy_code_button.configure(text="Copy") if self.signin_code == code else None)
+
+    def _copy_inference_endpoint(self, endpoint: str) -> None:
+        copied = copy_endpoint_to_clipboard(
+            endpoint,
+            (self.local_endpoint_var.get(), self.container_endpoint_var.get()),
+            clipboard_clear=self.clipboard_clear,
+            clipboard_append=self.clipboard_append,
+            update=self.update,
+        )
+        self.endpoint_copy_var.set(
+            "Endpoint URL copied. Local API authentication may be required by your administrator."
+            if copied else "Endpoint could not be copied."
+        )
 
     def _resolve_values(self, values: dict[str, str]) -> dict[str, str]:
         config = _load_node_config(self.config_path)

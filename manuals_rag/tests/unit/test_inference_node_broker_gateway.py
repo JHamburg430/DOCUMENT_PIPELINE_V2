@@ -6,6 +6,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -16,6 +17,7 @@ from manuals_rag_inference.gateway import InferenceGateway, create_gateway_handl
 from manuals_rag_inference.models import GpuSnapshot, LoadedModel, ModelSpec, NodeSnapshot
 from manuals_rag_inference.scheduler import InferenceScheduler, SchedulerPolicy
 from manuals_rag_inference.node_agent import OllamaNode, create_handler
+from manuals_rag_inference.endpoint_ui import copy_endpoint_to_clipboard, local_broker_endpoints
 
 
 @contextmanager
@@ -72,6 +74,41 @@ def disconnect_client(response):
     # Explicitly close the TCP connection, rather than only its buffered reader.
     response.fp.raw._sock.shutdown(socket.SHUT_RDWR)
     response.close()
+
+
+def test_endpoint_display_uses_local_broker_port_and_copy_allowlist():
+    endpoints = local_broker_endpoints("8769")
+    assert endpoints == (
+        "http://127.0.0.1:8769/v1",
+        "http://host.docker.internal:8769/v1",
+    )
+    assert local_broker_endpoints("invalid") == local_broker_endpoints(8767)
+    clipboard = []
+    actions = []
+    assert copy_endpoint_to_clipboard(
+        endpoints[1], endpoints,
+        clipboard_clear=lambda: actions.append("clear"),
+        clipboard_append=clipboard.append,
+        update=lambda: actions.append("update"),
+    )
+    assert clipboard == [endpoints[1]]
+    assert actions == ["clear", "update"]
+    assert not copy_endpoint_to_clipboard(
+        "https://gateway.example.test/?token=secret", endpoints,
+        clipboard_clear=lambda: pytest.fail("unknown URL must not clear clipboard"),
+        clipboard_append=lambda _: pytest.fail("unknown URL must not be copied"),
+        update=lambda: pytest.fail("unknown URL must not update clipboard"),
+    )
+
+
+def test_signed_updater_app_explains_shared_compute_endpoint():
+    source = Path(__file__).parents[2] / "scripts" / "run_inference_node_client.py"
+    text = source.read_text(encoding="utf-8")
+    assert "PROVIS shared compute — OpenAI-compatible endpoint" in text
+    assert 'text="Copy URL"' in text
+    assert "employee-built workflows and apps can use it too" in text
+    assert "This is a local PC endpoint" in text
+    assert "local_broker_endpoints(broker_port)" in text
 
 
 def test_node_auth_without_gateway_tokens_selects_different_worker(broker):
