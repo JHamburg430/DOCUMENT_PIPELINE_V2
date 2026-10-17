@@ -42,7 +42,7 @@ class OwnerRuntime:
         while not self.stop_event.is_set():
             try:
                 if time.time() >= self.session['expires_at_epoch']:
-                    self.emit('status', 'Owner sign-in expired. Sign in again to reconnect agent sessions.')
+                    self.emit('expired', None)
                     self.close();return
                 if time.monotonic() - heartbeat > 10:
                     if self.threads: self.request('publish', {'threads': list(self.threads)})

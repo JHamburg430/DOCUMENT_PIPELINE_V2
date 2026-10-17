@@ -17,9 +17,9 @@ class OwnerPanel(tk.Toplevel):
     def __init__(self, app):
         super().__init__(app)
         self.app = app
-        self.title('PROVIS • Owner Agent Link')
+        self.title('PROVIS • Private workspace')
         self.geometry('720x690')
-        self.protocol('WM_DELETE_WINDOW', self.withdraw)
+        self.protocol('WM_DELETE_WINDOW', self._back_to_node)
         self.events = queue.Queue(maxsize=30)
         self.runtime = None
         self.auth_epoch = 0
@@ -28,33 +28,56 @@ class OwnerPanel(tk.Toplevel):
         self.configure(bg=colors['background'])
         body = tk.Frame(self, bg=colors['background'], padx=18, pady=16)
         body.pack(fill='both', expand=True)
-        tk.Label(body, text='Owner Agent Link', bg=colors['background'], fg=colors['text'], font=(app.ui_font, 18, 'bold')).pack(anchor='w')
-        tk.Label(body, text='Only explicitly published sessions are reachable. Existing agent approvals stay in force.', wraplength=660, justify='left', bg=colors['background'], fg=colors['muted']).pack(anchor='w', pady=(4, 12))
+        ttk.Button(body, text='Back to node', command=self._back_to_node).pack(anchor='w', pady=(0, 12))
+        tk.Label(body, text='Private workspace', bg=colors['background'], fg=colors['text'], font=(app.ui_font, 18, 'bold')).pack(anchor='w')
+        tk.Label(body, text='Verify your Microsoft account to open your private workspace.', wraplength=660, justify='left', bg=colors['background'], fg=colors['muted']).pack(anchor='w', pady=(4, 12))
         login = tk.Frame(body, bg=colors['background']);login.pack(fill='x')
         self.signin = ttk.Button(login, text='Verify Microsoft account', command=self._sign_in)
         self.signin.pack(side='left')
         ttk.Button(login, text='Copy code', command=self._copy).pack(side='left', padx=8)
         ttk.Button(login, text='Sign out owner link', command=self._sign_out).pack(side='right')
         self.update_button = ttk.Button(login, text='App updates', command=self._updates, state='disabled')
-        self.update_button.pack(side='left')
+        # Private actions are not displayed before server-verified owner sign-in.
         self.update_dialog = None
         self.status = tk.StringVar(value='Sign in to verify owner access. This does not change inference enrollment.')
         tk.Label(body, textvariable=self.status, wraplength=660, justify='left', bg=colors['background'], fg=colors['muted']).pack(anchor='w', pady=10)
-        controls = tk.Frame(body, bg=colors['background']);controls.pack(fill='x')
+        self.body = body
+        self.private = None
+        self.target_rows = {}
+        self.after(200, self._drain)
+
+    def _back_to_node(self):
+        self.withdraw()
+        self.app.deiconify()
+        self.app.lift()
+
+    def _show_private(self):
+        if not self.runtime or self.private is not None: return
+        colors = PALETTES[self.app.theme]
+        private = self.private = tk.Frame(self.body, bg=colors['background'])
+        private.pack(fill='both', expand=True)
+        self.update_button.pack(side='left')
+        tk.Label(private, text='Agent communication', bg=colors['background'], fg=colors['text'], font=(self.app.ui_font, 15, 'bold')).pack(anchor='w', pady=(0, 6))
+        controls = tk.Frame(private, bg=colors['background']);controls.pack(fill='x')
         self.local_button = ttk.Button(controls, text='Choose local Codex sessions', command=self._choose, state='disabled');self.local_button.pack(side='left')
         self.create_button = ttk.Button(controls, text='New owner session', command=self._create_session, state='disabled');self.create_button.pack(side='left', padx=6)
         self.refresh = ttk.Button(controls, text='Refresh remote sessions', command=self._refresh, state='disabled');self.refresh.pack(side='right')
-        self.targets = ttk.Treeview(body, columns=('node', 'session'), show='headings', height=5, style='Node.Treeview')
+        self.targets = ttk.Treeview(private, columns=('node', 'session'), show='headings', height=5, style='Node.Treeview')
         self.targets.heading('node', text='PC / node');self.targets.heading('session', text='Published session')
         self.targets.column('node', width=180);self.targets.column('session', width=460)
         self.targets.pack(fill='x', pady=10)
-        tk.Label(body, text='Message to selected session', bg=colors['background'], fg=colors['text']).pack(anchor='w')
-        self.message = tk.Text(body, height=4, wrap='word', bg=colors['card'], fg=colors['text'], insertbackground=colors['text'], font=(app.ui_font, 10));self.message.pack(fill='x', pady=5)
-        self.send_button = ttk.Button(body, text='Send message', command=self._send, state='disabled');self.send_button.pack(anchor='e')
-        tk.Label(body, text='Delivery and replies', bg=colors['background'], fg=colors['text']).pack(anchor='w', pady=(10, 4))
-        self.replies = tk.Text(body, height=9, wrap='word', bg=colors['card'], fg=colors['text'], font=(app.ui_font, 10), state='disabled');self.replies.pack(fill='both', expand=True)
+        tk.Label(private, text='Message to selected session', bg=colors['background'], fg=colors['text']).pack(anchor='w')
+        self.message = tk.Text(private, height=4, wrap='word', bg=colors['card'], fg=colors['text'], insertbackground=colors['text'], font=(self.app.ui_font, 10));self.message.pack(fill='x', pady=5)
+        self.send_button = ttk.Button(private, text='Send message', command=self._send, state='disabled');self.send_button.pack(anchor='e')
+        tk.Label(private, text='Delivery and replies', bg=colors['background'], fg=colors['text']).pack(anchor='w', pady=(10, 4))
+        self.replies = tk.Text(private, height=9, wrap='word', bg=colors['card'], fg=colors['text'], font=(self.app.ui_font, 10), state='disabled');self.replies.pack(fill='both', expand=True)
+
+    def _hide_private(self):
+        self.update_button.pack_forget()
+        if self.private is not None:
+            self.private.destroy()
+            self.private = None
         self.target_rows = {}
-        self.after(200, self._drain)
 
     def emit(self, kind, value, epoch=None):
         try: self.events.put_nowait((self.auth_epoch if epoch is None else epoch, kind, value))
@@ -98,9 +121,7 @@ class OwnerPanel(tk.Toplevel):
         self.code = ''
         self.status.set('Owner link signed out.')
         self.signin.configure(state='normal')
-        for button in (self.local_button, self.create_button, self.refresh, self.send_button, self.update_button): button.configure(state='disabled')
-        for item in self.targets.get_children(): self.targets.delete(item)
-        self.replies.configure(state='normal');self.replies.delete('1.0', 'end');self.replies.configure(state='disabled')
+        self._hide_private()
 
     def _updates(self):
         if not self.runtime: return
@@ -152,7 +173,10 @@ class OwnerPanel(tk.Toplevel):
                         _, gateway, session = value
                         threading.Thread(target=lambda: call(gateway, session['session_token'], 'logout'), daemon=True).start()
                     continue
-                if kind in ('status', 'sent'):
+                if kind == 'expired':
+                    self._sign_out()
+                    self.status.set('Owner access expired. Verify your Microsoft account again.')
+                elif kind in ('status', 'sent'):
                     self.status.set(str(value))
                     self.signin.configure(state='normal' if self.runtime is None else 'disabled')
                     if self.runtime: self.send_button.configure(state='normal')
@@ -169,6 +193,7 @@ class OwnerPanel(tk.Toplevel):
                     save_session({**session, 'gateway_url': gateway})
                     self.runtime = OwnerRuntime(gateway, session, lambda kind, value, epoch=epoch: self.emit(kind, value, epoch))
                     self.runtime.external_busy = lambda: bool(self.app.updater and self.app.updater.applying)
+                    self._show_private()
                     self.code = '';self.status.set('Owner verified. Choose local sessions to publish, or refresh remote sessions.')
                     for button in (self.local_button, self.create_button, self.refresh, self.send_button, self.update_button): button.configure(state='normal')
                     self._refresh()
@@ -190,6 +215,7 @@ class OwnerPanel(tk.Toplevel):
         self.after(200, self._drain)
 
     def stop(self):
+        self._hide_private()
         self.auth_epoch += 1
         if self.runtime: self.runtime.close();self.runtime = None
 
