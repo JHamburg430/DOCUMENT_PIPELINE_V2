@@ -11,21 +11,14 @@ class OwnerDrawer:
         self.dock = tk.Frame(app, bg=colors['background'])
         self.arrow = ttk.Button(self.dock, text='▴', width=3, command=self.toggle)
         self.arrow.pack(side='bottom', pady=(0, 4))
-        self.viewport = tk.Frame(self.dock, bg=colors['background'])
-        self.canvas = tk.Canvas(self.viewport, height=min(400, app.winfo_screenheight()//2), highlightthickness=0, bg=colors['background'])
-        scrollbar = ttk.Scrollbar(self.viewport, orient='vertical', command=self.canvas.yview)
-        scrollbar.pack(side='right', fill='y')
-        self.canvas.pack(side='left', fill='both', expand=True)
-        self.canvas.configure(yscrollcommand=scrollbar.set)
-        self.content = tk.Frame(self.canvas, bg=colors['background'], padx=18, pady=10)
-        self.content_id = self.canvas.create_window((0, 0), window=self.content, anchor='nw')
-        self.content.bind('<Configure>', lambda event: self.canvas.configure(scrollregion=self.canvas.bbox('all')))
-        self.canvas.bind('<Configure>', lambda event: self.canvas.itemconfigure(self.content_id, width=event.width))
+        self.viewport = tk.Frame(app.main_body, bg=colors['background'])
+        self.content = tk.Frame(self.viewport, bg=colors['background'], pady=12)
+        self.content.pack(fill='both', expand=True)
 
     def set_verified(self, verified):
         self.verified = bool(verified)
         if self.verified:
-            self.dock.pack(side='bottom', fill='x', before=self.app.main_body)
+            self.dock.pack(side='bottom', fill='x', before=self.app.body_scroll)
         else:
             self.expanded = False
             self.viewport.pack_forget()
@@ -42,8 +35,10 @@ class OwnerDrawer:
             panel._sign_out();return
         self.expanded = not self.expanded
         if self.expanded:
-            self.viewport.pack(side='top', fill='both', expand=True)
+            self.viewport.pack(side='top', fill='x')
+            self.app.after_idle(lambda: self.app.body_scroll.reveal(self.viewport))
         else:
             self.viewport.pack_forget()
+            self.app.body_scroll.canvas.yview_moveto(0)
         self.arrow.configure(text='▾' if self.expanded else '▴')
         self.app._position_panel()

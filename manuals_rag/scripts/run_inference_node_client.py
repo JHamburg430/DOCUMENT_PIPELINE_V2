@@ -204,8 +204,10 @@ class InferenceNodeClient(tk.Tk):
         tk.Button(header, textvariable=self.theme_button_var, command=self._toggle_theme, bg=navy, fg='white', activebackground='#29394d', activeforeground='white', relief='flat', font=(self.ui_font, 9), padx=8, pady=6).pack(side='right')
         tk.Label(header, text="PROVIS", bg=navy, fg="white", font=(self.ui_font, 21, "bold")).pack(anchor="w")
         tk.Label(header, text="PRIVATE COMPUTE", bg=navy, fg="#96b7eb", font=(self.ui_font, 9, "bold")).pack(anchor="w", pady=(1, 0))
-        root = self.main_body = tk.Frame(self, bg="#f3f6fb", padx=18, pady=14)
-        root.pack(fill="both", expand=True)
+        from manuals_rag_inference.scrollable_body import ScrollableBody
+        self.body_scroll = ScrollableBody(self)
+        self.body_scroll.pack(fill="both", expand=True)
+        root = self.main_body = self.body_scroll.content
         connection = tk.Frame(root, bg="white", padx=14, pady=12)
         connection.pack(fill="x")
         tk.Label(connection, text="Your device", bg="white", fg=navy, font=(self.ui_font, 12, "bold")).grid(row=0, column=0, sticky="w")
@@ -245,8 +247,8 @@ class InferenceNodeClient(tk.Tk):
         for column, label, width in (("time", "Time", 66), ("event", "Event", 197), ("status", "Status", 101)):
             self.activity_view.heading(column, text=label)
             self.activity_view.column(column, width=width, stretch=False)
-        tk.Label(root, text="Activity and utilization only.", bg="#f3f6fb", fg=muted, font=(self.ui_font, 8)).pack(side='bottom', anchor="w", pady=(8, 0))
-        self.activity_view.pack(fill="both", expand=True)
+        self.activity_view.pack(fill="x")
+        tk.Label(root, text="Activity and utilization only.", bg="#f3f6fb", fg=muted, font=(self.ui_font, 8)).pack(anchor="w", pady=(8, 0))
 
     def _toggle_theme(self):
         self.theme = 'dark' if self.theme == 'light' else 'light'
