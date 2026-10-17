@@ -122,6 +122,17 @@ def _default_node_id() -> str:
 
 
 from manuals_rag_inference.node_presentation import public_events, utilization
+from manuals_rag_inference.node_system import (
+    OLLAMA_DOWNLOAD_PAGE,
+    TAILSCALE_DOWNLOAD_PAGE,
+    launch_managed_installer,
+    managed_installer,
+    official_installer_url,
+    system_status,
+    tailscale_disconnect,
+    tailscale_reconnect,
+    vendor_driver_page,
+)
 from manuals_rag_inference.node_tray import NodeTray, SingleInstance
 from manuals_rag_inference.node_theme import PALETTES, load_theme, save_theme
 
@@ -162,6 +173,9 @@ class InferenceNodeClient(tk.Tk):
         self._metrics_stop = threading.Event()
         self._build_ui()
         self.owner_panel = None
+        self.settings_panel = None
+        self.settings_vars: dict[str, tk.StringVar] = {}
+        self.settings_buttons: dict[str, ttk.Button] = {}
         self.bind_all('<Control-Shift-A>', self._open_owner_panel)
         self._apply_theme()
         self.tray = NodeTray(lambda event, value: self.worker_queue.put((event, value)))
@@ -184,6 +198,7 @@ class InferenceNodeClient(tk.Tk):
         style.configure("Node.Horizontal.TProgressbar", background="#1c9b8a", troughcolor="#e8edf5", borderwidth=0)
         header = tk.Frame(self, bg=navy, padx=22, pady=18)
         header.pack(fill="x")
+        tk.Button(header, text="Settings", command=self._open_settings, bg=navy, fg='white', activebackground='#29394d', activeforeground='white', relief='flat', font=(self.ui_font, 9), padx=8, pady=6).pack(side='right', padx=(4, 0))
         tk.Button(header, textvariable=self.theme_button_var, command=self._toggle_theme, bg=navy, fg='white', activebackground='#29394d', activeforeground='white', relief='flat', font=(self.ui_font, 9), padx=8, pady=6).pack(side='right')
         tk.Label(header, text="PROVIS", bg=navy, fg="white", font=(self.ui_font, 21, "bold")).pack(anchor="w")
         tk.Label(header, text="PRIVATE COMPUTE", bg=navy, fg="#96b7eb", font=(self.ui_font, 9, "bold")).pack(anchor="w", pady=(1, 0))
@@ -247,6 +262,140 @@ class InferenceNodeClient(tk.Tk):
             self.owner_panel = OwnerPanel(self)
         self.owner_panel.deiconify();self.owner_panel.lift()
 
+    def _open_settings(self):
+        if self.settings_panel is not None and self.settings_panel.winfo_exists():
+            self.settings_panel.deiconify(); self.settings_panel.lift()
+            self._refresh_settings()
+            return
+        panel = self.settings_panel = tk.Toplevel(self)
+        panel.title("PROVIS • Settings")
+        panel.geometry("560x620")
+        panel.resizable(False, True)
+        panel.protocol("WM_DELETE_WINDOW", panel.withdraw)
+        colors = PALETTES[self.theme]
+        panel.configure(bg=colors["background"])
+        body = tk.Frame(panel, bg=colors["background"], padx=20, pady=18)
+        body.pack(fill="both", expand=True)
+        tk.Label(body, text="Settings", bg=colors["background"], fg=colors["text"], font=(self.ui_font, 18, "bold")).pack(anchor="w")
+        tk.Label(body, text="Local prerequisites and private-network controls", bg=colors["background"], fg=colors["muted"], font=(self.ui_font, 10)).pack(anchor="w", pady=(3, 14))
+        refresh = ttk.Button(body, text="Refresh status", command=self._refresh_settings)
+        refresh.pack(anchor="e", pady=(0, 8))
+
+        def row(key: str, title: str, description: str):
+            card = tk.Frame(body, bg=colors["card"], padx=12, pady=10)
+            card.pack(fill="x", pady=5)
+            top = tk.Frame(card, bg=colors["card"])
+            top.pack(fill="x")
+            tk.Label(top, text=title, bg=colors["card"], fg=colors["text"], font=(self.ui_font, 11, "bold")).pack(side="left")
+            status_var = tk.StringVar(value="Checking…")
+            tk.Label(top, textvariable=status_var, bg=colors["card"], fg=colors["muted"], font=(self.ui_font, 10)).pack(side="right")
+            detail_var = tk.StringVar(value=description)
+            tk.Label(card, textvariable=detail_var, bg=colors["card"], fg=colors["muted"], justify="left", wraplength=500, font=(self.ui_font, 9)).pack(anchor="w", pady=(4, 7))
+            controls = tk.Frame(card, bg=colors["card"])
+            controls.pack(fill="x")
+            return card, status_var, detail_var, controls
+
+        _, status, detail, controls = row("ollama", "Ollama", "Local inference engine; Install downloads the latest official installer")
+        self.settings_vars.update({"ollama_status": status, "ollama_detail": detail})
+        self.settings_buttons["ollama_install"] = ttk.Button(controls, text="Install", command=lambda: self._start_managed_install("ollama"), state="disabled")
+        self.settings_buttons["ollama_install"].pack(side="left")
+        ttk.Button(controls, text="Official download", command=lambda: self._open_settings_link(OLLAMA_DOWNLOAD_PAGE, "Ollama download page opened.")).pack(side="left", padx=8)
+
+        _, status, detail, controls = row("gpu", "GPU driver", "NVIDIA driver and accelerator availability")
+        self.settings_vars.update({"gpu_status": status, "gpu_detail": detail})
+        ttk.Button(controls, text="Check for updates", command=self._check_driver_updates).pack(side="left")
+        self.settings_buttons["gpu_install"] = ttk.Button(controls, text="Install driver", command=lambda: self._start_managed_install("gpu"), state="disabled")
+        self.settings_buttons["gpu_install"].pack(side="left", padx=8)
+
+        _, status, detail, controls = row("tailscale", "Tailscale", "Private network connection; Install downloads the latest official client")
+        self.settings_vars.update({"tailscale_status": status, "tailscale_detail": detail})
+        self.settings_buttons["tailscale_install"] = ttk.Button(controls, text="Install", command=lambda: self._start_managed_install("tailscale"), state="disabled")
+        self.settings_buttons["tailscale_install"].pack(side="left")
+        self.settings_buttons["tailscale_disconnect"] = ttk.Button(controls, text="Disconnect", command=lambda: self._tailscale_action("disconnect"), state="disabled")
+        self.settings_buttons["tailscale_disconnect"].pack(side="left", padx=8)
+        self.settings_buttons["tailscale_reconnect"] = ttk.Button(controls, text="Reconnect", command=lambda: self._tailscale_action("reconnect"), state="disabled")
+        self.settings_buttons["tailscale_reconnect"].pack(side="left")
+        ttk.Button(controls, text="Official download", command=lambda: self._open_settings_link(TAILSCALE_DOWNLOAD_PAGE, "Tailscale download page opened.")).pack(side="right")
+
+        note = tk.StringVar(value="Install actions are enabled only when an administrator-bundled installer is present.")
+        self.settings_vars["settings_note"] = note
+        tk.Label(body, textvariable=note, bg=colors["background"], fg=colors["muted"], justify="left", wraplength=510, font=(self.ui_font, 9)).pack(anchor="w", pady=(14, 0))
+        self._apply_theme()
+        self._refresh_settings()
+
+    def _open_settings_link(self, url: str, message: str) -> None:
+        webbrowser.open(url)
+        if "settings_note" in self.settings_vars:
+            self.settings_vars["settings_note"].set(message)
+
+    def _refresh_settings(self) -> None:
+        if self.settings_panel is None or not self.settings_panel.winfo_exists():
+            return
+        for key in ("ollama_status", "gpu_status", "tailscale_status"):
+            if key in self.settings_vars:
+                self.settings_vars[key].set("Checking…")
+        endpoint = self.fields["ollama_url"].get() if "ollama_url" in self.fields else "http://127.0.0.1:11434"
+        threading.Thread(target=self._settings_status_worker, args=(endpoint,), daemon=True, name="provis-settings-status").start()
+
+    def _settings_status_worker(self, endpoint: str) -> None:
+        try:
+            result = system_status(endpoint)
+            self.worker_queue.put(("settings_status", result))
+        except Exception as error:
+            self.worker_queue.put(("settings_status_error", error.__class__.__name__))
+
+    def _render_settings(self, statuses: dict[str, dict[str, object]]) -> None:
+        if self.settings_panel is None or not self.settings_panel.winfo_exists():
+            return
+        ollama = statuses.get("ollama", {})
+        gpu = statuses.get("gpu", {})
+        tailscale = statuses.get("tailscale", {})
+        self.settings_vars["ollama_status"].set(str(ollama.get("status", "unknown")).replace("_", " ").title())
+        ollama_detail = str(ollama.get("version") or "Local API is not responding")
+        self.settings_vars["ollama_detail"].set(f"Version: {ollama_detail}")
+        self.settings_vars["gpu_status"].set(str(gpu.get("status", "unknown")).replace("_", " ").title())
+        gpu_names = ", ".join(str(name) for name in gpu.get("gpus", [])[:3])
+        self.settings_vars["gpu_detail"].set(f"Driver: {gpu.get('driver') or 'not detected'}" + (f" • {gpu_names}" if gpu_names else ""))
+        self.settings_vars["tailscale_status"].set(str(tailscale.get("status", "unknown")).replace("_", " ").title())
+        tail_detail = str(tailscale.get("version") or "")
+        if tailscale.get("ipv4"):
+            tail_detail += (" • " if tail_detail else "") + f"IPv4: {tailscale['ipv4']}"
+        self.settings_vars["tailscale_detail"].set(tail_detail or "Tailscale is not installed")
+        ollama_installed = bool(ollama.get("installed"))
+        tailscale_installed = bool(tailscale.get("installed"))
+        self.settings_buttons["ollama_install"].configure(state="disabled" if ollama_installed or (managed_installer("ollama") is None and official_installer_url("ollama") is None) else "normal")
+        self.settings_buttons["gpu_install"].configure(state="normal" if managed_installer("gpu") is not None else "disabled")
+        self.settings_buttons["tailscale_install"].configure(state="disabled" if tailscale_installed or (managed_installer("tailscale") is None and official_installer_url("tailscale") is None) else "normal")
+        self.settings_buttons["tailscale_disconnect"].configure(state="normal" if tailscale.get("connected") else "disabled")
+        self.settings_buttons["tailscale_reconnect"].configure(state="normal" if tailscale_installed and not tailscale.get("connected") else "disabled")
+
+    def _start_managed_install(self, component: str) -> None:
+        if managed_installer(component) is None and official_installer_url(component) is None:
+            self.settings_vars["settings_note"].set("No supported official installer is available for this platform.")
+            return
+        source = "bundled" if managed_installer(component) is not None else "official online"
+        if not messagebox.askyesno("Install component", f"Download and launch the {source} {component} installer? The operating system may request administrator approval.", parent=self.settings_panel):
+            return
+        threading.Thread(target=self._installer_worker, args=(component,), daemon=True, name=f"provis-install-{component}").start()
+
+    def _installer_worker(self, component: str) -> None:
+        self.worker_queue.put(("settings_action", (component, launch_managed_installer(component))))
+
+    def _check_driver_updates(self) -> None:
+        self._open_settings_link(vendor_driver_page(), "The vendor driver page was opened. Review the offered driver before installing it.")
+
+    def _tailscale_action(self, action: str) -> None:
+        if action == "disconnect" and self.agent is not None:
+            self.settings_vars["settings_note"].set("Disconnect the PROVIS node from the gateway first, then disconnect Tailscale.")
+            return
+        if not messagebox.askyesno("Tailscale", f"{action.title()} the private Tailscale connection?", parent=self.settings_panel):
+            return
+        threading.Thread(target=self._tailscale_worker, args=(action,), daemon=True, name=f"provis-tailscale-{action}").start()
+
+    def _tailscale_worker(self, action: str) -> None:
+        result = tailscale_disconnect() if action == "disconnect" else tailscale_reconnect()
+        self.worker_queue.put(("settings_action", (f"Tailscale {action}", result)))
+
     def _apply_theme(self):
         colors = PALETTES[self.theme]
         self.theme_button_var.set('Light mode' if self.theme == 'dark' else 'Dark mode')
@@ -270,6 +419,8 @@ class InferenceNodeClient(tk.Tk):
                 if isinstance(widget, tk.Text): widget.configure(insertbackground=colors['text'])
             for child in widget.winfo_children(): visit(child)
         visit(self)
+        if self.settings_panel is not None and self.settings_panel.winfo_exists():
+            visit(self.settings_panel)
         style = ttk.Style(self)
         style.configure('TButton', background=colors['button'], foreground=colors['text'])
         style.map('TButton', background=[('active', colors['hover'])], foreground=[('disabled', colors['muted'])])
@@ -530,6 +681,19 @@ class InferenceNodeClient(tk.Tk):
                     self.memory_var.set(f"GPU memory  •  {used / 1024:.1f} / {total / 1024:.1f} GB" if total else "GPU memory unavailable")
                     self.gpu_bar["value"] = load
                     self.memory_bar["value"] = 100 * used / total if total else 0
+                elif event == "settings_status":
+                    self._render_settings(value)
+                elif event == "settings_status_error":
+                    if self.settings_panel is not None and self.settings_panel.winfo_exists():
+                        for key in ("ollama_status", "gpu_status", "tailscale_status"):
+                            self.settings_vars[key].set("Unavailable")
+                        self.settings_vars["settings_note"].set("Local prerequisite checks could not complete; try Refresh status.")
+                elif event == "settings_action":
+                    action, result = value
+                    status = str(result.get("status", "failed")) if isinstance(result, dict) else "failed"
+                    if self.settings_panel is not None and self.settings_panel.winfo_exists():
+                        self.settings_vars["settings_note"].set(f"{action}: {status}.")
+                        self.after(1200, self._refresh_settings)
                 elif event == "connected":
                     self._clear_signin_code()
                     self.server, self.agent, self.gateway_url = value

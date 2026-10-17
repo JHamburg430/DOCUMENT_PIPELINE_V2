@@ -24,6 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_PARENT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src"
 APP_SOURCE = REPO_ROOT / "manuals_rag/scripts/run_inference_node_client.py"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
+INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
 
 
 def _optional_tray_imports() -> list[str]:
@@ -49,7 +50,7 @@ def _optional_tray_imports() -> list[str]:
 def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[str]:
     """Return the reproducible one-file build command for tests and tooling."""
     separator = os.pathsep
-    return [
+    args = [
         sys.executable,
         "-m",
         "PyInstaller",
@@ -76,6 +77,9 @@ def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[s
         *_optional_tray_imports(),
         str(APP_SOURCE),
     ]
+    if INSTALLER_ROOT.is_dir():
+        args[-1:-1] = ["--add-data", f"{INSTALLER_ROOT}{separator}installers"]
+    return args
 
 
 def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:

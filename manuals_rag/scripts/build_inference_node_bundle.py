@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src/manuals_rag_inference"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
+INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
 
 LINUX_SETUP = '''#!/bin/sh
 set -eu
@@ -154,6 +155,11 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Installing the build-only signature verification runtime from PyPI..."
     & $Python @PythonArgs -m pip install --user "cryptography>=42,<51"
 }
+$InstallerArgs = @()
+$InstallerRoot = Join-Path $Root "installers"
+if (Test-Path $InstallerRoot -PathType Container) {
+    $InstallerArgs = @("--add-data", ($InstallerRoot + ";installers"))
+}
 & $Python @PythonArgs -m PyInstaller --noconfirm --clean --onefile --noconsole `
     --name PROVISInferenceNode `
     --distpath (Join-Path $Root "dist") `
@@ -162,6 +168,7 @@ if ($LASTEXITCODE -ne 0) {
     --paths (Join-Path $Root "src") `
     --add-data ((Join-Path $Root "provis-node-config.json") + ";.") `
     --collect-all cryptography `
+    @InstallerArgs `
     (Join-Path $Root "src\run_inference_node_client.py")
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 $Output = Join-Path $Root "dist\PROVISInferenceNode.exe"
@@ -235,6 +242,15 @@ The older `inference-node.pyz` and `start-node-setup.sh` remain available for
 developer/source environments, but they intentionally require system Python
 and Tk and are not the managed employee artifact. The employee machine still
 needs a graphical desktop session and Ollama.
+
+The Settings page reports Ollama, GPU-driver, and Tailscale state. Tailscale
+Disconnect and Reconnect reuse the existing local profile. On supported Windows
+and Linux hosts, Install downloads the latest installer from a fixed official
+vendor endpoint, saves it in a private temporary directory, and asks for
+confirmation before launching it. An administrator-bundled installer under
+`manuals_rag/installers` takes precedence. GPU update checking opens the vendor
+page for review, while driver installation remains an explicit
+administrator-managed action.
 
 Build the managed Linux zipapp from the repository:
 
@@ -352,6 +368,8 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
         _write_text(stage, "build-node-exe.ps1", WINDOWS_EXE_BUILD)
         _write_text(stage, "start-node-setup.sh", LINUX_SETUP)
         (stage / 'start-node-setup.sh').chmod(0o755)
+        if INSTALLER_ROOT.is_dir():
+            shutil.copytree(INSTALLER_ROOT, stage / "installers")
         _write_text(stage, "provis-node-config.json", json.dumps(managed_config(gateway_url, update_config), indent=2) + "\n")
         _write_text(stage, "README.md", README)
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
