@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 from urllib.parse import urlsplit
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from .node_release import DEFAULT_VERSION, canonical, verify_release, verify_artifact
@@ -57,7 +58,7 @@ def root_for(config_path):
     return root
 
 
-def request(gateway, secret, action, payload):
+def request(gateway, secret, action, payload, *, timeout=20):
     url = urlsplit(gateway)
     if url.scheme != 'https' or not url.hostname or url.username or url.password or url.query or url.fragment:
         raise ValueError('Managed HTTPS gateway required')
@@ -65,7 +66,7 @@ def request(gateway, secret, action, payload):
     signature = hmac.new(secret, body, hashlib.sha256).hexdigest()
     req = Request(gateway.rstrip('/')+'/v1/nodes/updates/'+action, data=body,
                   headers={'Content-Type':'application/json', 'X-Node-Signature':signature})
-    with build_opener(NoRedirect()).open(req, timeout=20) as response:
+    with build_opener(NoRedirect()).open(req, timeout=timeout) as response:
         raw = response.read(65537)
     if len(raw)>65536: raise ValueError('Bounded update response required')
     return json.loads(raw)
@@ -289,8 +290,25 @@ def helper(plan_path, config_path, settings, *, launch=None, sleep=time.sleep):
 def _report_plan(plan, status):
     try:
         config=json.loads(Path(plan['config_path']).read_text(encoding='utf-8'))
-        request(plan['gateway'], config['shared_secret'].encode(), 'report', {'node_id':plan['node_id'], 'id':plan['id'], 'claim':plan['claim'], 'status':status})
-    except Exception: pass  # local receipt remains available; never expose credentials
+    except Exception:
+        return False
+    payload={'node_id':plan['node_id'], 'id':plan['id'], 'claim':plan['claim'], 'status':status}
+    for attempt in range(3):
+        try:
+            request(plan['gateway'], config['shared_secret'].encode(), 'report', payload, timeout=5)
+            return True
+        except HTTPError as exc:
+            # Authentication, claim and transition errors are permanent. Only
+            # ask the gateway again for a server-side failure.
+            if exc.code < 500:
+                break
+        except (URLError, TimeoutError, ConnectionError, OSError):
+            pass
+        except Exception:
+            break
+        if attempt < 2:
+            time.sleep(0.5 * (2 ** attempt))
+    return False  # retain the local signed receipt; never expose credentials
 
 
 def active_app(config_path, settings):

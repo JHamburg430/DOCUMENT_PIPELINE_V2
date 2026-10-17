@@ -150,6 +150,43 @@ def test_helper_commits_only_after_reconnection_receipt(tmp_path,release,monkeyp
     assert updater.active_app(config,settings)==directory/release.manifest['filename']
 
 
+def test_final_update_report_retries_transient_gateway_failure(tmp_path,monkeypatch):
+    config=tmp_path/'config.json'
+    config.write_text(json.dumps({'shared_secret':'fixture-secret'}),encoding='utf-8')
+    plan={'config_path':str(config),'gateway':'https://gateway.fixture.invalid',
+          'node_id':'john','id':'update-id','claim':'single-use-claim'}
+    attempts=[]
+    def send(gateway,secret,action,payload,*,timeout):
+        attempts.append((gateway,secret,action,payload,timeout))
+        if len(attempts)==1:
+            raise updater.URLError('temporary network failure')
+        return {'status':'healthy'}
+    monkeypatch.setattr(updater,'request',send)
+    monkeypatch.setattr(updater.time,'sleep',lambda _:None)
+
+    assert updater._report_plan(plan,'healthy') is True
+    assert len(attempts)==2
+    assert attempts[-1][1:3]==(b'fixture-secret','report')
+    assert attempts[-1][3]['status']=='healthy'
+    assert all(item[4]==5 for item in attempts)
+
+
+def test_final_update_report_does_not_retry_rejected_claim(tmp_path,monkeypatch):
+    config=tmp_path/'config.json'
+    config.write_text(json.dumps({'shared_secret':'fixture-secret'}),encoding='utf-8')
+    plan={'config_path':str(config),'gateway':'https://gateway.fixture.invalid',
+          'node_id':'john','id':'update-id','claim':'single-use-claim'}
+    attempts=[]
+    def send(*args,**kwargs):
+        attempts.append(True)
+        raise updater.HTTPError('https://gateway.fixture.invalid',409,'claim rejected',{},None)
+    monkeypatch.setattr(updater,'request',send)
+    monkeypatch.setattr(updater.time,'sleep',lambda _:None)
+
+    assert updater._report_plan(plan,'healthy') is False
+    assert attempts==[True]
+
+
 def test_failed_start_relaunches_previous_and_restores_config(tmp_path,release,monkeypatch):
     config,directory,plan,settings=plan_fixture(tmp_path,release)
     config.write_text('{"broken":true}',encoding='utf-8')
