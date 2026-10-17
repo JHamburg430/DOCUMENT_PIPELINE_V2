@@ -67,3 +67,37 @@ def test_bad_session_registry_is_not_imported(owner_root):
     (owner_root / 'codex-owner-sessions.json').write_text(json.dumps({'foreign-thread': 'Desktop'}))
     with pytest.raises(ValueError):
         store.owned_sessions()
+
+def test_new_dedicated_thread_sends_without_resuming_unpersisted_rollout():
+    import threading
+    connector = CodexLink.__new__(CodexLink)
+    connector.mode = 'dedicated'
+    connector.lock = threading.RLock();connector.turns = {};connector.allowed = {'new'}
+    calls = []
+    def rpc(method, params, **kwargs):
+        calls.append(method)
+        if method == 'thread/read': return {'thread': {'status': {'type': 'idle'}}}
+        if method == 'thread/resume': pytest.fail('New loaded thread has no persisted rollout yet')
+        if method == 'turn/start':
+            connector.turns['new']['events']['turn'] = {'done': True, 'text': 'PROVIS_LINK_OK', 'status': 'completed'}
+            return {'turn': {'id': 'turn'}}
+    connector.rpc = rpc
+    assert connector.send('new','fixture')['status'] == 'completed'
+    assert calls == ['thread/read','turn/start']
+
+def test_unloaded_dedicated_thread_resumes_before_sending():
+    import threading
+    connector = CodexLink.__new__(CodexLink)
+    connector.mode = 'dedicated'
+    connector.lock = threading.RLock();connector.turns = {};connector.allowed = {'saved'}
+    calls = []
+    def rpc(method, params, **kwargs):
+        calls.append(method)
+        if method == 'thread/read': return {'thread': {'status': {'type': 'notLoaded'}}}
+        if method == 'thread/resume': return {'thread': {'id': 'saved'}}
+        if method == 'turn/start':
+            connector.turns['saved']['events']['turn'] = {'done': True, 'text': 'ok', 'status': 'completed'}
+            return {'turn': {'id': 'turn'}}
+    connector.rpc = rpc
+    assert connector.send('saved','fixture')['status'] == 'completed'
+    assert calls == ['thread/read','thread/resume','turn/start']

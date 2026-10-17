@@ -164,7 +164,10 @@ class CodexLink:
         metadata = self.rpc('thread/read', {'threadId': thread})['thread']
         if (metadata.get('status') or {}).get('type') == 'active':
             return {'status': 'blocked', 'result': 'Target session is busy; no message was injected.'}
-        self.rpc('thread/resume', {'threadId': thread, 'excludeTurns': True})
+        # A newly created dedicated thread is already loaded but has no rollout
+        # until its first turn. Resuming it would fail before any message is sent.
+        if getattr(self, 'mode', 'proxy') != 'dedicated' or (metadata.get('status') or {}).get('type') == 'notLoaded':
+            self.rpc('thread/resume', {'threadId': thread, 'excludeTurns': True})
         state = {'events': {}, 'blocked_turns': set(), 'changed': threading.Condition(self.lock)}
         with self.lock: self.turns[thread] = state
         try:

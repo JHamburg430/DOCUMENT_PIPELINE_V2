@@ -1,6 +1,6 @@
 # Owner Agent Link
 
-The private node panel is opened with **Ctrl+Shift+A**. It does not grant access
+Owner verification is opened with **Ctrl+Shift+A**. After successful Microsoft owner verification, a small arrow appears at the bottom of the main node panel. It expands or collapses the owner controls inside the app; ordinary employees do not see the arrow. Signing out or expiry removes the controls and arrow. It does not grant access
 by itself. Fresh Microsoft sign-in is checked by the gateway against the
 configured tenant, approved public client, delegated scope, enrollment role,
 and the owner's exact Entra object ID. Node/app/operator inference credentials

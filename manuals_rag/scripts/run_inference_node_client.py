@@ -172,6 +172,8 @@ class InferenceNodeClient(tk.Tk):
         self._last_rows = None
         self._metrics_stop = threading.Event()
         self._build_ui()
+        from manuals_rag_inference.owner_drawer import OwnerDrawer
+        self.owner_drawer = OwnerDrawer(self)
         self.owner_panel = None
         self.settings_panel = None
         self.settings_vars: dict[str, tk.StringVar] = {}
@@ -202,7 +204,7 @@ class InferenceNodeClient(tk.Tk):
         tk.Button(header, textvariable=self.theme_button_var, command=self._toggle_theme, bg=navy, fg='white', activebackground='#29394d', activeforeground='white', relief='flat', font=(self.ui_font, 9), padx=8, pady=6).pack(side='right')
         tk.Label(header, text="PROVIS", bg=navy, fg="white", font=(self.ui_font, 21, "bold")).pack(anchor="w")
         tk.Label(header, text="PRIVATE COMPUTE", bg=navy, fg="#96b7eb", font=(self.ui_font, 9, "bold")).pack(anchor="w", pady=(1, 0))
-        root = tk.Frame(self, bg="#f3f6fb", padx=18, pady=14)
+        root = self.main_body = tk.Frame(self, bg="#f3f6fb", padx=18, pady=14)
         root.pack(fill="both", expand=True)
         connection = tk.Frame(root, bg="white", padx=14, pady=12)
         connection.pack(fill="x")
@@ -245,8 +247,6 @@ class InferenceNodeClient(tk.Tk):
             self.activity_view.column(column, width=width, stretch=False)
         tk.Label(root, text="Activity and utilization only.", bg="#f3f6fb", fg=muted, font=(self.ui_font, 8)).pack(side='bottom', anchor="w", pady=(8, 0))
         self.activity_view.pack(fill="both", expand=True)
-        ttk.Label(root, textvariable=self.local_endpoint_var, foreground="#165d69").pack(anchor="w", pady=(8, 0))
-        ttk.Label(root, text="Use X-ProVIS-Application to select an allowed application; gateway credentials stay inside the node.", foreground="#5c6770").pack(anchor="w")
 
     def _toggle_theme(self):
         self.theme = 'dark' if self.theme == 'light' else 'light'
@@ -260,7 +260,10 @@ class InferenceNodeClient(tk.Tk):
         from manuals_rag_inference.agent_link_ui import OwnerPanel
         if self.owner_panel is None or not self.owner_panel.winfo_exists():
             self.owner_panel = OwnerPanel(self)
-        self.owner_panel.deiconify();self.owner_panel.lift()
+        if self.owner_panel.runtime:
+            self.owner_drawer.toggle()
+        else:
+            self.owner_panel.deiconify();self.owner_panel.lift()
 
     def _open_settings(self):
         if self.settings_panel is not None and self.settings_panel.winfo_exists():
@@ -405,7 +408,7 @@ class InferenceNodeClient(tk.Tk):
             background_roles.update({palette[role]: role for role in ('background', 'card', 'header')})
             foreground_roles.update({palette[role]: role for role in ('text', 'muted')})
         def visit(widget):
-            if isinstance(widget, (tk.Tk, tk.Toplevel, tk.Frame, tk.Label, tk.Button, tk.Text)):
+            if isinstance(widget, (tk.Tk, tk.Toplevel, tk.Frame, tk.Label, tk.Button, tk.Text, tk.Canvas)):
                 if not hasattr(widget, '_appearance_roles'):
                     roles = {}
                     for option, mapping in [('background', background_roles), ('foreground', foreground_roles)]:
@@ -432,16 +435,18 @@ class InferenceNodeClient(tk.Tk):
         style.configure('Node.Horizontal.TProgressbar', troughcolor=colors['track'], background='#1c9b8a')
 
     def _position_panel(self):
+        expanded = bool(getattr(self, 'owner_drawer', None) and self.owner_drawer.expanded)
+        width, target_height = (760, 1040) if expanded else (440, 740)
         if os.name == "nt":
             import ctypes
             from ctypes import wintypes
             area = wintypes.RECT()
             if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(area), 0):
-                height = min(740, area.bottom - area.top - 48)
-                self.geometry(f"440x{height}+{max(area.left, area.right - 456)}+{max(area.top, area.bottom - height - 40)}")
+                height = min(target_height, area.bottom - area.top - 48)
+                self.geometry(f"{width}x{height}+{max(area.left, area.right - width - 16)}+{max(area.top, area.bottom - height - 40)}")
         else:
-            height = min(740, self.winfo_screenheight() - 80)
-            self.geometry(f"440x{height}+{max(0, self.winfo_screenwidth() - 456)}+{max(0, self.winfo_screenheight() - height - 64)}")
+            height = min(target_height, self.winfo_screenheight() - 80)
+            self.geometry(f"{width}x{height}+{max(0, self.winfo_screenwidth() - width - 16)}+{max(0, self.winfo_screenheight() - height - 64)}")
 
     def _show_panel(self):
         if self.state() == "withdrawn":

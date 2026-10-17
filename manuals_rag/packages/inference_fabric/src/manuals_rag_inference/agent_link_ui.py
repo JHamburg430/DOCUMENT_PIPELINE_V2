@@ -54,9 +54,16 @@ class OwnerPanel(tk.Toplevel):
     def _show_private(self):
         if not self.runtime or self.private is not None: return
         colors = PALETTES[self.app.theme]
-        private = self.private = tk.Frame(self.body, bg=colors['background'])
+        host = self.app.owner_drawer.content if hasattr(self.app, 'owner_drawer') else self.body
+        private = self.private = tk.Frame(host, bg=colors['background'])
         private.pack(fill='both', expand=True)
-        self.update_button.pack(side='left')
+        if hasattr(self.app, 'owner_drawer'):
+            actions = tk.Frame(private, bg=colors['background']);actions.pack(fill='x', pady=(0, 8))
+            self.update_button = ttk.Button(actions, text='App updates', command=self._updates, state='disabled');self.update_button.pack(side='left')
+            ttk.Button(actions, text='Sign out owner link', command=self._sign_out).pack(side='right')
+            tk.Label(private, textvariable=self.status, bg=colors['background'], fg=colors['muted'], wraplength=680, justify='left').pack(anchor='w', pady=(0, 8))
+        else:
+            self.update_button.pack(side='left')
         tk.Label(private, text='Agent communication', bg=colors['background'], fg=colors['text'], font=(self.app.ui_font, 15, 'bold')).pack(anchor='w', pady=(0, 6))
         controls = tk.Frame(private, bg=colors['background']);controls.pack(fill='x')
         self.local_button = ttk.Button(controls, text='Choose local Codex sessions', command=self._choose, state='disabled');self.local_button.pack(side='left')
@@ -73,7 +80,8 @@ class OwnerPanel(tk.Toplevel):
         self.replies = tk.Text(private, height=9, wrap='word', bg=colors['card'], fg=colors['text'], font=(self.app.ui_font, 10), state='disabled');self.replies.pack(fill='both', expand=True)
 
     def _hide_private(self):
-        self.update_button.pack_forget()
+        if self.update_button.winfo_exists(): self.update_button.pack_forget()
+        if hasattr(self.app, 'owner_drawer'): self.app.owner_drawer.set_verified(False)
         if self.private is not None:
             self.private.destroy()
             self.private = None
@@ -196,6 +204,10 @@ class OwnerPanel(tk.Toplevel):
                     self._show_private()
                     self.code = '';self.status.set('Owner verified. Choose local sessions to publish, or refresh remote sessions.')
                     for button in (self.local_button, self.create_button, self.refresh, self.send_button, self.update_button): button.configure(state='normal')
+                    if hasattr(self.app, 'owner_drawer'):
+                        self.app.owner_drawer.set_verified(True)
+                        self.withdraw()
+                        self.app.deiconify();self.app.lift()
                     self._refresh()
                 elif kind == 'update_data':
                     if self.update_dialog and self.update_dialog.winfo_exists(): self.update_dialog.render(value)

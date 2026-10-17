@@ -281,11 +281,8 @@ def test_launch_failure_recovers_previous_app(tmp_path,release,monkeypatch):
 
 
 @pytest.fixture(scope='module')
-def updater_gui_root():
-    import tkinter as tk
-    root=tk.Tk();root.withdraw()
-    yield root
-    root.destroy()
+def updater_gui_root(inference_gui_root):
+    yield inference_gui_root
 
 
 @pytest.mark.parametrize('theme',['light','dark'])

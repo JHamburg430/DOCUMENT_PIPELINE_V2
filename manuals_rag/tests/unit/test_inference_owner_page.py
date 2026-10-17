@@ -5,8 +5,8 @@ import pytest
 from manuals_rag_inference import agent_link_ui as ui
 
 @pytest.fixture
-def panel():
-    app = tk.Tk()
+def panel(inference_gui_root):
+    app = tk.Toplevel(inference_gui_root)
     app.withdraw()
     app.theme, app.ui_font = 'dark', 'Segoe UI'
     page = ui.OwnerPanel(app)
