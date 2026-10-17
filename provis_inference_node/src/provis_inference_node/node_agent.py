@@ -18,6 +18,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from .control import ControlPolicy, verify_command
+from .openai_broker import OpenAIBrokerMixin, create_openai_broker_server, local_broker_networks, local_broker_peer_allowed
 from .gateway import heartbeat_signature, node_request_signature
 from .models import GpuSnapshot, LoadedModel, NodeSnapshot
 
@@ -86,28 +87,6 @@ def _csv_values(value: object) -> tuple[str, ...]:
     return tuple(item.strip() for item in str(value or "").split(",") if item.strip())
 
 
-def _local_broker_networks(value: object = None) -> tuple[ipaddress._BaseNetwork, ...]:
-    raw = value if value is not None else os.getenv(
-        "INFERENCE_NODE_LOCAL_BROKER_CIDRS",
-        "127.0.0.0/8,172.16.0.0/12,::1/128",
-    )
-    networks = []
-    for item in _csv_values(raw):
-        try:
-            networks.append(ipaddress.ip_network(item, strict=False))
-        except ValueError:
-            continue
-    return tuple(networks)
-
-
-def _local_broker_allowed(source: str, networks: tuple[ipaddress._BaseNetwork, ...]) -> bool:
-    try:
-        address = ipaddress.ip_address(source)
-    except ValueError:
-        return False
-    return any(address in network for network in networks)
-
-
 def _detect_tailscale_ipv4() -> str | None:
     """Return a local Tailscale IPv4 address without accepting public output."""
     try:
@@ -152,7 +131,7 @@ def _gpu_snapshots() -> tuple[GpuSnapshot, ...]:
     return tuple(snapshots)
 
 
-class OllamaNode:
+class OllamaNode(OpenAIBrokerMixin):
     def __init__(self, *, node_id: str, endpoint: str, tailnet_name: str, secret: bytes, policy: ControlPolicy | None = None, proxy_only: bool = False, allowed_applications: tuple[str, ...] = ()) -> None:
         self.node_id = node_id
         self.endpoint = endpoint.rstrip("/")
@@ -400,218 +379,6 @@ class OllamaNode:
             self._finish_stream(operation, model, started_at, error=error.__class__.__name__)
             raise
 
-    def broker_infer(self, envelope: dict, gateway_url: str) -> dict:
-        """Forward a local application request through this node's gateway identity."""
-        if not gateway_url.strip():
-            raise RuntimeError("node gateway is not configured")
-        request = envelope.get("request")
-        payload = envelope.get("payload")
-        operation = str(envelope.get("operation") or "")
-        if not isinstance(request, dict) or not isinstance(payload, dict):
-            raise ValueError("broker inference requires request and payload objects")
-        application = str(request.get("application") or "")
-        if application not in self.allowed_applications:
-            raise PermissionError("application is not allowed on this node")
-        if operation not in {"chat", "generate", "embeddings"}:
-            raise ValueError("unsupported inference operation")
-        body = {
-            "node_id": self.node_id,
-            "issued_at": time.time(),
-            "request": request,
-            "operation": operation,
-            "payload": payload,
-        }
-        raw = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
-        request_obj = Request(
-            f"{gateway_url.rstrip('/')}/v1/nodes/inference",
-            data=raw,
-            method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "X-Node-Signature": heartbeat_signature(raw, self.secret),
-            },
-        )
-        with urlopen(request_obj, timeout=900.0) as response:
-            return json.loads(response.read().decode())
-
-    def broker_stream(self, envelope: dict, gateway_url: str):
-        """Forward a broker request and return the unbuffered NDJSON response."""
-        if not gateway_url.strip():
-            raise RuntimeError("node gateway is not configured")
-        request = envelope.get("request")
-        payload = envelope.get("payload")
-        operation = str(envelope.get("operation") or "")
-        if not isinstance(request, dict) or not isinstance(payload, dict):
-            raise ValueError("broker inference requires request and payload objects")
-        application = str(request.get("application") or "")
-        if application not in self.allowed_applications:
-            raise PermissionError("application is not allowed on this node")
-        if operation not in {"chat", "generate"} or payload.get("stream") is not True:
-            raise ValueError("streaming is only supported for chat and generate")
-        body = {
-            "node_id": self.node_id,
-            "issued_at": time.time(),
-            "request": request,
-            "operation": operation,
-            "payload": payload,
-        }
-        raw = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
-        request_obj = Request(
-            f"{gateway_url.rstrip('/')}/v1/nodes/inference",
-            data=raw,
-            method="POST",
-            headers={"Content-Type": "application/json", "X-Node-Signature": heartbeat_signature(raw, self.secret)},
-        )
-        response = urlopen(request_obj, timeout=900.0)
-        if response.headers.get_content_type() != "application/x-ndjson":
-            response.close()
-            raise RuntimeError("gateway did not return an NDJSON stream")
-        return response
-
-    def openai_stream(self, payload: dict, *, operation: str, application: str, gateway_url: str):
-        """Translate a local OpenAI stream into a broker stream."""
-        model = str(payload.get("model") or "")
-        if not model:
-            raise ValueError("model is required")
-        options = {
-            key: payload[key]
-            for key in ("temperature", "top_p", "seed", "num_ctx", "num_batch")
-            if payload.get(key) is not None
-        }
-        if payload.get("max_tokens") is not None:
-            options["num_predict"] = payload["max_tokens"]
-        if payload.get("options") and isinstance(payload["options"], dict):
-            options.update(payload["options"])
-        if operation == "chat":
-            messages = payload.get("messages")
-            if not isinstance(messages, list) or not messages:
-                raise ValueError("messages must be a non-empty list")
-            upstream = {"model": model, "messages": messages, "stream": True}
-            if payload.get("think") is not None:
-                upstream["think"] = payload["think"]
-        elif operation == "generate":
-            prompt = payload.get("prompt")
-            if not isinstance(prompt, (str, list)):
-                raise ValueError("prompt is required")
-            if isinstance(prompt, list):
-                prompt = "\n".join(str(item) for item in prompt)
-            upstream = {"model": model, "prompt": prompt, "stream": True}
-            if payload.get("think") is not None:
-                upstream["think"] = payload["think"]
-        else:
-            raise ValueError("streaming is only supported for chat and generate")
-        if options:
-            upstream["options"] = options
-        request = {
-            "request_id": f"openai-{secrets.token_hex(12)}",
-            "application": application,
-            "workload": f"openai_{operation}",
-            "model": model,
-            "context_tokens": int(options.get("num_ctx") or 0),
-            "required_capabilities": ["chat"],
-            "max_latency_ms": int(payload.get("timeout_ms") or 900000),
-            "allow_model_pull": payload.get("allow_model_pull") is True,
-            "allow_eviction": payload.get("allow_eviction") is True,
-        }
-        response = self.broker_stream({"request": request, "operation": operation, "payload": upstream}, gateway_url)
-        return response, model, operation
-
-    def openai_infer(self, payload: dict, *, operation: str, application: str, gateway_url: str) -> dict:
-        """Translate a local OpenAI-compatible request to the broker protocol."""
-        model = str(payload.get("model") or "")
-        if not model:
-            raise ValueError("model is required")
-        if payload.get("stream") is True:
-            raise ValueError("streaming requests must use the streaming node handler")
-        options = {
-            key: payload[key]
-            for key in ("temperature", "top_p", "seed", "num_ctx", "num_batch")
-            if payload.get(key) is not None
-        }
-        if payload.get("max_tokens") is not None:
-            options["num_predict"] = payload["max_tokens"]
-        if payload.get("options") and isinstance(payload["options"], dict):
-            options.update(payload["options"])
-        if operation == "chat":
-            messages = payload.get("messages")
-            if not isinstance(messages, list) or not messages:
-                raise ValueError("messages must be a non-empty list")
-            upstream = {"model": model, "messages": messages, "stream": False}
-            if payload.get("think") is not None:
-                upstream["think"] = payload["think"]
-            if options:
-                upstream["options"] = options
-        elif operation == "generate":
-            prompt = payload.get("prompt")
-            if not isinstance(prompt, (str, list)):
-                raise ValueError("prompt is required")
-            if isinstance(prompt, list):
-                prompt = "\n".join(str(item) for item in prompt)
-            upstream = {"model": model, "prompt": prompt, "stream": False}
-            if payload.get("think") is not None:
-                upstream["think"] = payload["think"]
-            if options:
-                upstream["options"] = options
-        elif operation == "embeddings":
-            inputs = payload.get("input")
-            if isinstance(inputs, str):
-                inputs = [inputs]
-            if not isinstance(inputs, list) or not inputs:
-                raise ValueError("input must be a non-empty string or list")
-            upstream = {"model": model, "input": inputs}
-        else:
-            raise ValueError("unsupported OpenAI operation")
-        request = {
-            "request_id": f"openai-{secrets.token_hex(12)}",
-            "application": application,
-            "workload": f"openai_{operation}",
-            "model": model,
-            "context_tokens": int(options.get("num_ctx") or 0),
-            "required_capabilities": ["embeddings"] if operation == "embeddings" else ["chat"],
-            "max_latency_ms": int(payload.get("timeout_ms") or 900000),
-            "allow_model_pull": payload.get("allow_model_pull") is True,
-            "allow_eviction": payload.get("allow_eviction") is True,
-        }
-        result = self.broker_infer(
-            {"request": request, "operation": operation, "payload": upstream},
-            gateway_url,
-        )
-        response = dict(result.get("response") or {})
-        routing = result.get("routing") or {}
-        if operation == "embeddings":
-            vectors = response.get("embeddings") or []
-            return {
-                "object": "list",
-                "data": [{"object": "embedding", "embedding": vector, "index": index} for index, vector in enumerate(vectors)],
-                "model": model,
-                "usage": {"prompt_tokens": 0, "total_tokens": 0},
-                "_inference_routing": routing,
-            }
-        if operation == "generate":
-            text = str(response.get("response") or "")
-            return {
-                "id": f"cmpl-{secrets.token_hex(12)}",
-                "object": "text_completion",
-                "created": int(time.time()),
-                "model": model,
-                "choices": [{"index": 0, "text": text, "finish_reason": "stop"}],
-                "_inference_routing": routing,
-            }
-        message = dict(response.get("message") or {})
-        content = str(message.get("content") or response.get("response") or "")
-        return {
-            "id": f"chatcmpl-{secrets.token_hex(12)}",
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": model,
-            "choices": [{
-                "index": 0,
-                "message": {"role": str(message.get("role") or "assistant"), "content": content},
-                "finish_reason": "stop",
-            }],
-            "_inference_routing": routing,
-        }
-
     def disconnect(self, gateway_url: str) -> dict:
         payload = {"node_id": self.node_id, "issued_at": time.time()}
         raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
@@ -667,11 +434,6 @@ def create_handler(
     *,
     local_control_token: str = "",
     gateway_url: str = "",
-    local_broker_only: bool = False,
-    local_broker_networks: tuple[ipaddress._BaseNetwork, ...] = (),
-    local_api_token: str = "",
-    require_local_api_token: bool = False,
-    default_application: str = "manuals_rag",
 ):
     class Handler(BaseHTTPRequestHandler):
         def _send(self, status: int, payload: dict) -> None:
@@ -682,70 +444,7 @@ def create_handler(
             self.end_headers()
             self.wfile.write(data)
 
-        def _send_openai_stream(self, response, model: str, operation: str) -> None:
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream")
-            self.send_header("Cache-Control", "no-cache")
-            self.send_header("Connection", "close")
-            self.end_headers()
-            self.close_connection = True
-            try:
-                for line in response:
-                    event = json.loads(line)
-                    if not isinstance(event, dict):
-                        raise ValueError("invalid gateway stream event")
-                    if event.get("error"):
-                        payload = {"error": {"message": "inference stream failed", "type": "gateway_error"}}
-                        self.wfile.write(f"data: {json.dumps(payload)}\n\n".encode())
-                        self.wfile.flush()
-                        return
-                    data = event.get("response", {})
-                    if not isinstance(data, dict):
-                        raise ValueError("invalid gateway stream response")
-                    done = data.get("done") is True
-                    if operation == "chat":
-                        message = data.get("message") or {}
-                        delta = {} if done else {key: str(message[key]) for key in ("role", "content") if message.get(key) is not None}
-                        chunk = {
-                            "id": f"chatcmpl-{secrets.token_hex(8)}",
-                            "object": "chat.completion.chunk",
-                            "created": int(time.time()),
-                            "model": model,
-                            "choices": [{"index": 0, "delta": delta, "finish_reason": "stop" if done else None}],
-                        }
-                    else:
-                        chunk = {
-                            "id": f"cmpl-{secrets.token_hex(8)}",
-                            "object": "text_completion",
-                            "created": int(time.time()),
-                            "model": model,
-                            "choices": [{"index": 0, "text": "" if done else str(data.get("response") or ""), "finish_reason": "stop" if done else None}],
-                        }
-                    self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
-                    self.wfile.flush()
-                    if done:
-                        break
-                self.wfile.write(b"data: [DONE]\n\n")
-                self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
-                return
-
         def do_GET(self) -> None:  # noqa: N802
-            if local_broker_only:
-                if self.path in {"/v1/models", "/models"}:
-                    try:
-                        if not _local_broker_allowed(self.client_address[0], local_broker_networks):
-                            raise PermissionError("local broker access is restricted")
-                        models = _csv_values(os.getenv("INFERENCE_NODE_ADVERTISED_MODELS", ""))
-                        self._send(200, {
-                            "object": "list",
-                            "data": [{"id": model, "object": "model", "owned_by": "provis-inference-node"} for model in models],
-                        })
-                    except PermissionError as error:
-                        self._send(403, {"detail": str(error)})
-                    return
-                self._send(404, {"detail": "not found"})
-                return
             if self.path == "/health":
                 self._send(200, {"status": "ok", "node_id": agent.node_id})
             elif self.path == "/v1/node/snapshot":
@@ -762,52 +461,9 @@ def create_handler(
                 self._send(404, {"detail": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
-            if local_broker_only and self.path in {"/v1/chat/completions", "/chat/completions", "/v1/completions", "/completions", "/v1/embeddings", "/embeddings"}:
-                try:
-                    if not _local_broker_allowed(self.client_address[0], local_broker_networks):
-                        raise PermissionError("local broker access is restricted")
-                    if require_local_api_token:
-                        authorization = str(self.headers.get("Authorization") or "")
-                        scheme, _, supplied = authorization.partition(" ")
-                        if scheme.lower() != "bearer" or not hmac.compare_digest(supplied, local_api_token):
-                            raise PermissionError("local inference API authentication required")
-                    length = int(self.headers.get("Content-Length") or "0")
-                    if length > 2_000_000:
-                        raise ValueError("inference body too large")
-                    payload = json.loads(self.rfile.read(length).decode())
-                    application = str(
-                        self.headers.get("X-ProVIS-Application")
-                        or self.headers.get("X-Inference-Application")
-                        or default_application
-                    ).strip()
-                    if self.path.endswith("chat/completions"):
-                        operation = "chat"
-                    elif self.path.endswith("/completions"):
-                        operation = "generate"
-                    else:
-                        operation = "embeddings"
-                    if payload.get("stream") is True:
-                        response, model, stream_operation = agent.openai_stream(
-                            payload, operation=operation, application=application, gateway_url=gateway_url,
-                        )
-                        try:
-                            self._send_openai_stream(response, model, stream_operation)
-                        finally:
-                            response.close()
-                        return
-                    self._send(200, agent.openai_infer(payload, operation=operation, application=application, gateway_url=gateway_url))
-                except PermissionError as error:
-                    self._send(403, {"detail": str(error)})
-                except (KeyError, ValueError, json.JSONDecodeError) as error:
-                    self._send(400, {"detail": str(error)})
-                except HTTPError as error:
-                    self._send(error.code if 400 <= error.code < 600 else 502, {"detail": f"gateway broker rejected request ({error.code})"})
-                except Exception as error:
-                    self._send(502, {"detail": f"gateway broker failed: {error.__class__.__name__}"})
-                return
             if self.path == "/v1/node/broker/inference":
                 try:
-                    if not _local_broker_allowed(self.client_address[0], local_broker_networks):
+                    if not local_broker_peer_allowed(self.client_address[0]):
                         raise PermissionError("local broker access is restricted")
                     length = int(self.headers.get("Content-Length") or "0")
                     if length > 2_000_000:
@@ -820,9 +476,6 @@ def create_handler(
                     self._send(400, {"detail": str(error)})
                 except Exception as error:
                     self._send(502, {"detail": f"gateway broker failed: {error.__class__.__name__}"})
-                return
-            if local_broker_only:
-                self._send(404, {"detail": "not found"})
                 return
             if self.path == "/v1/node/inference":
                 try:
@@ -996,9 +649,40 @@ def create_node_server(config_path: str | None = None) -> tuple[ThreadingHTTPSer
         if not result.ok:
             raise RuntimeError("node preflight failed: " + "; ".join(result.errors))
     local_control_token = os.getenv("INFERENCE_NODE_LOCAL_CONTROL_TOKEN") or str(config.get("local_control_token") or secrets.token_urlsafe(32))
-    config["local_control_token"] = local_control_token
-    _save_node_config(config_path, config)
     stop_event = threading.Event()
+    server = ThreadingHTTPServer((bind, port), create_handler(agent, local_control_token=local_control_token))
+    local_broker_server = None
+    broker_port = int(os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", str(config.get("local_broker_port") or "8767")))
+    try:
+        if broker_port:
+            if broker_port == server.server_port:
+                raise ValueError("local broker port must differ from the node control port")
+            broker_bind = os.getenv("INFERENCE_NODE_LOCAL_BROKER_BIND", "127.0.0.1").strip()
+            local_api_token = os.getenv("INFERENCE_NODE_LOCAL_API_TOKEN") or str(config.get("local_api_token") or secrets.token_urlsafe(32))
+            require_local_api_token = os.getenv("INFERENCE_NODE_REQUIRE_LOCAL_API_TOKEN", "false").lower() == "true"
+            default_application = os.getenv("INFERENCE_NODE_DEFAULT_APPLICATION") or str(config.get("default_application") or (allowed_applications[0] if allowed_applications else "manuals_rag"))
+            local_broker_server = create_openai_broker_server(
+                agent, gateway_url=gateway_url, port=broker_port, bind=broker_bind,
+                local_api_token=local_api_token, require_local_api_token=require_local_api_token,
+                default_application=default_application,
+                advertised_models=_csv_values(os.getenv("INFERENCE_NODE_ADVERTISED_MODELS", "")),
+            )
+            config["local_broker_port"] = broker_port
+            config["local_api_token"] = local_api_token
+            config["default_application"] = default_application
+        config["port"] = server.server_port
+        config["local_control_token"] = local_control_token
+        _save_node_config(config_path, config)
+    except Exception:
+        if local_broker_server is not None:
+            local_broker_server.server_close()
+        server.server_close()
+        stop_event.set()
+        raise
+    server.local_broker_server = local_broker_server
+    server.local_broker_thread = None
+    server.inference_stop_event = stop_event
+    server.inference_gateway_url = gateway_url
     if gateway_url:
         interval = max(2.0, float(os.getenv("INFERENCE_HEARTBEAT_INTERVAL_SECONDS", "5")))
 
@@ -1011,47 +695,25 @@ def create_node_server(config_path: str | None = None) -> tuple[ThreadingHTTPSer
                 stop_event.wait(interval)
 
         threading.Thread(target=heartbeat_loop, daemon=True, name="inference-heartbeat").start()
-    broker_port = int(os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", "8767"))
-    broker_bind = os.getenv("INFERENCE_NODE_LOCAL_BROKER_BIND", "0.0.0.0")
-    broker_networks = _local_broker_networks()
-    local_api_token = os.getenv("INFERENCE_NODE_LOCAL_API_TOKEN") or str(config.get("local_api_token") or secrets.token_urlsafe(32))
-    require_local_api_token = os.getenv("INFERENCE_NODE_REQUIRE_LOCAL_API_TOKEN", "false").lower() == "true"
-    default_application = os.getenv("INFERENCE_NODE_DEFAULT_APPLICATION") or str(config.get("default_application") or (allowed_applications[0] if allowed_applications else "manuals_rag"))
-    config["local_broker_port"] = broker_port
-    config["local_api_token"] = local_api_token
-    config["default_application"] = default_application
-    _save_node_config(config_path, config)
-    server = ThreadingHTTPServer((bind, port), create_handler(agent, local_control_token=local_control_token))
-    local_broker_server = None
-    if broker_port > 0 and broker_port != port:
-        local_broker_server = ThreadingHTTPServer(
-            (broker_bind, broker_port),
-            create_handler(
-                agent,
-                gateway_url=gateway_url,
-                local_broker_only=True,
-                local_broker_networks=broker_networks,
-                local_api_token=local_api_token,
-                require_local_api_token=require_local_api_token,
-                default_application=default_application,
-            ),
-        )
-    server.local_broker_server = local_broker_server
-    server.inference_stop_event = stop_event
-    server.inference_gateway_url = gateway_url
     return server, agent, gateway_url
 
 
 def run_node_agent() -> None:
     server, _agent, _gateway_url = create_node_server()
     local_broker_server = getattr(server, "local_broker_server", None)
-    if local_broker_server is not None:
-        threading.Thread(target=local_broker_server.serve_forever, daemon=True, name="inference-local-broker").start()
+    broker_thread = None
     try:
+        if local_broker_server is not None:
+            broker_thread = threading.Thread(target=local_broker_server.serve_forever, daemon=True, name="inference-local-broker")
+            broker_thread.start()
+            server.local_broker_thread = broker_thread
         server.serve_forever()
     finally:
         server.inference_stop_event.set()
         if local_broker_server is not None:
-            local_broker_server.shutdown()
+            if broker_thread is not None and broker_thread.is_alive():
+                local_broker_server.shutdown()
             local_broker_server.server_close()
+            if broker_thread is not None:
+                broker_thread.join(timeout=5)
         server.server_close()

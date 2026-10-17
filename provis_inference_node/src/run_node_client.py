@@ -122,8 +122,8 @@ class InferenceNodeClient(tk.Tk):
         }
         self.status_var = tk.StringVar(value="Not connected")
         self.inference_var = tk.StringVar(value="Inference disabled")
-        self.local_endpoint_var = tk.StringVar(value="http://127.0.0.1:8767/v1")
-        self.container_endpoint_var = tk.StringVar(value="http://host.docker.internal:8767/v1")
+        self.local_endpoint_var = tk.StringVar(value="Available after node connects")
+        self.local_endpoint_copy_button = None
         self.device_code_var = tk.StringVar()
         self.device_message_var = tk.StringVar()
         self._build_ui()
@@ -171,16 +171,11 @@ class InferenceNodeClient(tk.Tk):
         endpoint_row.pack(fill="x", pady=(5, 0))
         ttk.Label(endpoint_row, text="This PC:").pack(side="left")
         ttk.Label(endpoint_row, textvariable=self.local_endpoint_var, foreground="#165d69").pack(side="left", padx=(6, 6))
-        ttk.Button(endpoint_row, text="Copy URL", command=lambda: self._copy_inference_endpoint(self.local_endpoint_var.get())).pack(side="left")
-        container_row = ttk.Frame(shared_compute)
-        container_row.pack(fill="x", pady=(5, 0))
-        ttk.Label(container_row, text="Docker containers:").pack(side="left")
-        ttk.Label(container_row, textvariable=self.container_endpoint_var, foreground="#165d69").pack(side="left", padx=(6, 6))
-        ttk.Button(container_row, text="Copy URL", command=lambda: self._copy_inference_endpoint(self.container_endpoint_var.get())).pack(side="left")
+        self.local_endpoint_copy_button = ttk.Button(endpoint_row, text="Copy URL", command=lambda: self._copy_inference_endpoint(self.local_endpoint_var.get()), state="disabled")
+        self.local_endpoint_copy_button.pack(side="left")
         ttk.Label(shared_compute, text=(
-            "Requests are forwarded by the enrolled node to PROVIS shared compute. "
-            "The PROVIS OpenClaw models are configured for this route; employee-built workflows and apps can use it too. "
-            "Select an allowed application with X-ProVIS-Application. This endpoint is local to this PC; gateway credentials stay inside the node."
+            "Requests are forwarded by the enrolled node to PROVIS shared compute. This endpoint is loopback-only and works for apps on this PC. "
+            "Docker container access is not enabled. OpenClaw can use the shared gateway when configured; gateway credentials stay inside the node."
         ), wraplength=860, justify="left", foreground="#5c6770").pack(anchor="w", pady=(7, 0))
         ttk.Label(root, textvariable=self.device_message_var, foreground="#5c6770").pack(anchor="w", pady=(4, 0))
 
@@ -202,10 +197,6 @@ class InferenceNodeClient(tk.Tk):
         config = _load_node_config(self.config_path)
         tailscale_ipv4 = _detect_tailscale_ipv4()
         port = str(config.get("port") or os.getenv("INFERENCE_NODE_PORT", "8765"))
-        broker_port = config.get("local_broker_port") or os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", "8767")
-        local_endpoint, container_endpoint = local_broker_endpoints(broker_port)
-        self.local_endpoint_var.set(local_endpoint)
-        self.container_endpoint_var.set(container_endpoint)
         values = {
             "gateway_url": _load_managed_gateway_url() or str(config.get("gateway_url") or ""),
             "entra_tenant_id": config.get("entra_tenant_id") or os.getenv("INFERENCE_ENTRA_TENANT_ID", ""),
@@ -266,7 +257,7 @@ class InferenceNodeClient(tk.Tk):
     def _copy_inference_endpoint(self, endpoint: str) -> None:
         copied = copy_endpoint_to_clipboard(
             endpoint,
-            (self.local_endpoint_var.get(), self.container_endpoint_var.get()),
+            local_broker_endpoints(getattr(getattr(self.server, "local_broker_server", None), "server_port", 0)),
             clipboard_clear=self.clipboard_clear,
             clipboard_append=self.clipboard_append,
             update=self.update,
@@ -322,9 +313,20 @@ class InferenceNodeClient(tk.Tk):
         server, agent, gateway_url = create_node_server(self.config_path)
         thread = threading.Thread(target=server.serve_forever, daemon=True, name="provis-inference-node-server")
         thread.start()
+        server.inference_server_thread = thread
         local_broker_server = getattr(server, "local_broker_server", None)
         if local_broker_server is not None:
-            threading.Thread(target=local_broker_server.serve_forever, daemon=True, name="provis-inference-local-broker").start()
+            broker_thread = threading.Thread(target=local_broker_server.serve_forever, daemon=True, name="provis-inference-local-broker")
+            try:
+                broker_thread.start()
+            except Exception:
+                server.inference_stop_event.set()
+                server.shutdown()
+                server.server_close()
+                local_broker_server.server_close()
+                thread.join(timeout=5)
+                raise
+            server.local_broker_thread = broker_thread
         return server, agent, gateway_url
 
     def _connect_worker(self, values: dict[str, str]) -> None:
@@ -415,6 +417,10 @@ class InferenceNodeClient(tk.Tk):
                 event, value = self.worker_queue.get_nowait()
                 if event == "connected":
                     self.server, self.agent, self.gateway_url = value
+                    broker_server = getattr(self.server, "local_broker_server", None)
+                    endpoints = local_broker_endpoints(getattr(broker_server, "server_port", 0))
+                    self.local_endpoint_var.set(endpoints[0] if endpoints else "Local inference endpoint disabled")
+                    self.local_endpoint_copy_button.configure(state="normal" if endpoints else "disabled")
                     self._clear_device_prompt()
                     self.status_var.set(f"Connected: {self.agent.node_id}")
                     self._update_controls()
@@ -482,11 +488,21 @@ class InferenceNodeClient(tk.Tk):
         if server is not None:
             server.inference_stop_event.set()
             local_broker_server = getattr(server, "local_broker_server", None)
+            broker_thread = getattr(server, "local_broker_thread", None)
             if local_broker_server is not None:
-                local_broker_server.shutdown()
+                if broker_thread is not None and broker_thread.is_alive():
+                    local_broker_server.shutdown()
                 local_broker_server.server_close()
+                if broker_thread is not None:
+                    broker_thread.join(timeout=5)
             server.shutdown()
             server.server_close()
+            main_thread = getattr(server, "inference_server_thread", None)
+            if main_thread is not None:
+                main_thread.join(timeout=5)
+        self.local_endpoint_var.set("Available after node connects")
+        if self.local_endpoint_copy_button is not None:
+            self.local_endpoint_copy_button.configure(state="disabled")
 
     def _close_requested(self) -> None:
         if self.agent is None:

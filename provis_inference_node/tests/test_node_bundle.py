@@ -32,6 +32,7 @@ class NodeBundleTests(unittest.TestCase):
                 self.assertIn("provis-inference-node/start-node-setup.sh", names)
                 self.assertIn("provis-inference-node/build-node-linux.sh", names)
                 self.assertIn("provis-inference-node/src/provis_inference_node/node_agent.py", names)
+                self.assertIn("provis-inference-node/src/provis_inference_node/openai_broker.py", names)
                 config = json.loads(archive.read("provis-inference-node/provis-node-config.json"))
                 self.assertEqual(config, {"gateway_url": "https://inference.example.test"})
                 for name in ("start-node-setup.sh", "start-node-agent.sh", "build-node-linux.sh"):
@@ -65,13 +66,12 @@ class NodeBundleTests(unittest.TestCase):
     def test_local_broker_urls_follow_validated_configured_port(self) -> None:
         self.assertEqual(local_broker_endpoints(9001), (
             "http://127.0.0.1:9001/v1",
-            "http://host.docker.internal:9001/v1",
         ))
         self.assertEqual(local_broker_endpoints("bad"), (
             "http://127.0.0.1:8767/v1",
-            "http://host.docker.internal:8767/v1",
         ))
         self.assertEqual(local_broker_endpoints(70000), local_broker_endpoints(8767))
+        self.assertEqual(local_broker_endpoints(0), ())
 
     def test_endpoint_copy_is_limited_to_displayed_urls(self) -> None:
         copied: list[str] = []
@@ -98,9 +98,10 @@ class NodeBundleTests(unittest.TestCase):
         text = source.read_text(encoding="utf-8")
         self.assertIn("PROVIS shared compute — OpenAI-compatible endpoint", text)
         self.assertIn('text="Copy URL"', text)
-        self.assertIn("employee-built workflows and apps can use it too", text)
-        self.assertIn("This endpoint is local to this PC", text)
-        self.assertIn("local_broker_endpoints(broker_port)", text)
+        self.assertIn("loopback-only and works for apps on this PC", text)
+        self.assertIn('local_broker_endpoints(getattr(broker_server, "server_port", 0))', text)
+        self.assertIn("Docker container access is not enabled", text)
+        self.assertNotIn("host.docker.internal", text)
 
     def test_node_diagnostics_are_sanitized(self) -> None:
         source = Path(__file__).parents[1] / "src" / "provis_inference_node" / "node_agent.py"

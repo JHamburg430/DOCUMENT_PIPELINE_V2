@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "manuals_rag/packages/inference_fabric/**"
+      - "provis_inference_node/src/provis_inference_node/openai_broker.py"
+      - "provis_inference_node/src/provis_inference_node/endpoint_ui.py"
       - "manuals_rag/scripts/build_inference_node_*.py"
       - "manuals_rag/tests/unit/test_inference_node_*.py"
       - "manuals_rag/tests/unit/test_inference_native_linux_updates.py"
@@ -16,6 +18,8 @@ on:
       - codex/provis-node-reconcile-20261017
     paths:
       - "manuals_rag/packages/inference_fabric/**"
+      - "provis_inference_node/src/provis_inference_node/openai_broker.py"
+      - "provis_inference_node/src/provis_inference_node/endpoint_ui.py"
       - "manuals_rag/scripts/build_inference_node_*.py"
       - "manuals_rag/tests/unit/test_inference_node_*.py"
       - "manuals_rag/tests/unit/test_inference_native_linux_updates.py"
@@ -45,7 +49,7 @@ jobs:
         run: python -m pip install -r manuals_rag/requirements-node-ci.txt
       - name: Run updater, gateway, listener, and desktop UI tests
         env:
-          PYTHONPATH: manuals_rag/packages/inference_fabric/src:manuals_rag/scripts
+          PYTHONPATH: manuals_rag/packages/inference_fabric/src:manuals_rag/scripts:provis_inference_node/src
         run: |
           xvfb-run --auto-servernum python -m pytest -q \
             manuals_rag/tests/unit/test_inference_node_updates.py \
@@ -54,7 +58,7 @@ jobs:
             manuals_rag/tests/unit/test_inference_node_broker_gateway.py
       - name: Build unsigned Linux smoke artifact
         env:
-          PYTHONPATH: manuals_rag/packages/inference_fabric/src:manuals_rag/scripts
+          PYTHONPATH: manuals_rag/packages/inference_fabric/src:manuals_rag/scripts:provis_inference_node/src
         run: |
           python manuals_rag/scripts/build_inference_node_linux.py \
             --gateway-url https://gateway.invalid:8445 \

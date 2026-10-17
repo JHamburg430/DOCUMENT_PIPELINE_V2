@@ -19,6 +19,7 @@ from build_inference_node_bundle import _validate_managed_gateway_url, managed_c
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src/manuals_rag_inference"
+BROKER_PACKAGE_ROOT = REPO_ROOT / "provis_inference_node/src/provis_inference_node"
 APP_SOURCE = REPO_ROOT / "manuals_rag/scripts/run_inference_node_client.py"
 INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
 
@@ -30,6 +31,7 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
     with tempfile.TemporaryDirectory(prefix="inference-node-build-") as temporary:
         stage = Path(temporary)
         shutil.copytree(PACKAGE_ROOT, stage / "manuals_rag_inference", ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+        shutil.copytree(BROKER_PACKAGE_ROOT, stage / "provis_inference_node", ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         shutil.copy2(APP_SOURCE, stage / "node_app.py")
         shutil.copy2(REPO_ROOT / 'manuals_rag/scripts/provis_agent_link.py', stage / 'provis_agent_link.py')
         if INSTALLER_ROOT.is_dir():

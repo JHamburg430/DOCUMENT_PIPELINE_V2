@@ -23,6 +23,7 @@ from .control import ControlPolicy, verify_command
 from .gateway import heartbeat_signature, node_request_signature
 from .models import GpuSnapshot, LoadedModel, NodeSnapshot
 from .streaming import NDJSONResponse, relay_ndjson, watch_disconnect
+from provis_inference_node.openai_broker import OpenAIBrokerMixin, create_openai_broker_handler, create_openai_broker_server
 
 
 TAILSCALE_IPV4_RANGE = ipaddress.ip_network("100.64.0.0/10")
@@ -204,7 +205,7 @@ def _gpu_snapshots() -> tuple[GpuSnapshot, ...]:
     return tuple(snapshots)
 
 
-class OllamaNode:
+class OllamaNode(OpenAIBrokerMixin):
     def __init__(self, *, node_id: str, endpoint: str, tailnet_name: str, secret: bytes, policy: ControlPolicy | None = None, proxy_only: bool = False, allowed_applications: tuple[str, ...] = ()) -> None:
         self.node_id = node_id
         self.endpoint = endpoint.rstrip("/")
@@ -551,7 +552,23 @@ class OllamaNode:
         return result
 
 
-def create_handler(agent: OllamaNode, *, local_control_token: str = ""):
+def create_handler(
+    agent: OllamaNode,
+    *,
+    local_control_token: str = "",
+    gateway_url: str = "",
+    local_broker_only: bool = False,
+    local_api_token: str = "",
+    require_local_api_token: bool = False,
+    default_application: str = "manuals_rag",
+    advertised_models: tuple[str, ...] = (),
+):
+    if local_broker_only:
+        return create_openai_broker_handler(
+            agent, gateway_url=gateway_url,
+            local_api_token=local_api_token, require_local_api_token=require_local_api_token,
+            default_application=default_application, advertised_models=advertised_models,
+        )
     class Handler(BaseHTTPRequestHandler):
         def _send(self, status: int, payload: dict) -> None:
             data = json.dumps(payload, default=str).encode()
@@ -761,6 +778,38 @@ def create_node_server(config_path: str | None = None, *, app_metadata=None, sta
             raise
         config["agent_url"] = refreshed_url
         _save_node_config(config_path, config)
+    broker_server = None
+    broker_port = int(os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", str(config.get("local_broker_port") or "8767")))
+    if broker_port:
+        if not 1 <= broker_port <= 65535 or broker_port == server.server_port:
+            server.server_close()
+            raise RuntimeError("local broker port must be a valid port distinct from the node control listener")
+        broker_bind = os.getenv("INFERENCE_NODE_LOCAL_BROKER_BIND", "127.0.0.1").strip()
+        try:
+            default_application = str(
+                os.getenv("INFERENCE_NODE_DEFAULT_APPLICATION")
+                or config.get("default_application")
+                or (allowed_applications[0] if allowed_applications else "manuals_rag")
+            ).strip()
+            local_api_token = os.getenv("INFERENCE_NODE_LOCAL_API_TOKEN", "")
+            require_local_api_token = os.getenv("INFERENCE_NODE_REQUIRE_LOCAL_API_TOKEN", "false").lower() == "true"
+            broker_server = create_openai_broker_server(
+                agent, gateway_url=gateway_url, port=broker_port, bind=broker_bind,
+                local_api_token=local_api_token, require_local_api_token=require_local_api_token,
+                default_application=default_application,
+                advertised_models=tuple(item.strip() for item in os.getenv("INFERENCE_NODE_ADVERTISED_MODELS", "").split(",") if item.strip()),
+            )
+            config["local_broker_port"] = broker_port
+            config["default_application"] = default_application
+            _save_node_config(config_path, config)
+        except Exception:
+            server.server_close()
+            stop_event.set()
+            raise
+    server.local_broker_server = broker_server
+    server.local_broker_thread = None
+    server.inference_stop_event = stop_event
+    server.inference_gateway_url = gateway_url
     if gateway_url:
         interval = max(2.0, float(os.getenv("INFERENCE_HEARTBEAT_INTERVAL_SECONDS", "5")))
 
@@ -773,15 +822,25 @@ def create_node_server(config_path: str | None = None, *, app_metadata=None, sta
                 stop_event.wait(interval)
 
         threading.Thread(target=heartbeat_loop, daemon=True, name="inference-heartbeat").start()
-    server.inference_stop_event = stop_event
-    server.inference_gateway_url = gateway_url
     return server, agent, gateway_url
 
 
 def run_node_agent() -> None:
     server, _agent, _gateway_url = create_node_server()
+    broker_server = getattr(server, "local_broker_server", None)
+    broker_thread = None
     try:
+        if broker_server is not None:
+            broker_thread = threading.Thread(target=broker_server.serve_forever, daemon=True, name="provis-inference-local-broker")
+            broker_thread.start()
+            server.local_broker_thread = broker_thread
         server.serve_forever()
     finally:
         server.inference_stop_event.set()
+        if broker_server is not None:
+            if broker_thread is not None and broker_thread.is_alive():
+                broker_server.shutdown()
+            broker_server.server_close()
+            if broker_thread is not None:
+                broker_thread.join(timeout=5)
         server.server_close()

@@ -18,6 +18,7 @@ from manuals_rag_inference.models import GpuSnapshot, LoadedModel, ModelSpec, No
 from manuals_rag_inference.scheduler import InferenceScheduler, SchedulerPolicy
 from manuals_rag_inference.node_agent import OllamaNode, create_handler
 from manuals_rag_inference.endpoint_ui import copy_endpoint_to_clipboard, local_broker_endpoints
+from provis_inference_node.openai_broker import create_openai_broker_server
 
 
 @contextmanager
@@ -78,20 +79,19 @@ def disconnect_client(response):
 
 def test_endpoint_display_uses_local_broker_port_and_copy_allowlist():
     endpoints = local_broker_endpoints("8769")
-    assert endpoints == (
-        "http://127.0.0.1:8769/v1",
-        "http://host.docker.internal:8769/v1",
-    )
+    assert endpoints == ("http://127.0.0.1:8769/v1",)
     assert local_broker_endpoints("invalid") == local_broker_endpoints(8767)
+    assert local_broker_endpoints(0) == ()
+    assert "host.docker.internal" not in " ".join(endpoints)
     clipboard = []
     actions = []
     assert copy_endpoint_to_clipboard(
-        endpoints[1], endpoints,
+        endpoints[0], endpoints,
         clipboard_clear=lambda: actions.append("clear"),
         clipboard_append=clipboard.append,
         update=lambda: actions.append("update"),
     )
-    assert clipboard == [endpoints[1]]
+    assert clipboard == [endpoints[0]]
     assert actions == ["clear", "update"]
     assert not copy_endpoint_to_clipboard(
         "https://gateway.example.test/?token=secret", endpoints,
@@ -106,9 +106,10 @@ def test_signed_updater_app_explains_shared_compute_endpoint():
     text = source.read_text(encoding="utf-8")
     assert "PROVIS shared compute — OpenAI-compatible endpoint" in text
     assert 'text="Copy URL"' in text
-    assert "employee-built workflows and apps can use it too" in text
-    assert "This is a local PC endpoint" in text
-    assert "local_broker_endpoints(broker_port)" in text
+    assert "loopback-only and works for apps on this PC" in text
+    assert "Docker container access is not enabled" in text
+    assert "Available after node connects" in text
+    assert "host.docker.internal" not in text
 
 
 def test_node_auth_without_gateway_tokens_selects_different_worker(broker):
@@ -120,6 +121,77 @@ def test_node_auth_without_gateway_tokens_selects_different_worker(broker):
         with pytest.raises(HTTPError) as rejected:
             urlopen(Request(url + "/v1/inference", data=b'{}'))
         assert rejected.value.code in (400, 401)
+    assert not broker.scheduler._reservations
+
+
+def test_local_openai_routes_dispatch_through_signed_gateway_to_selected_worker(broker):
+    class Ollama(BaseHTTPRequestHandler):
+        def do_POST(self):
+            payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            if self.path == "/api/chat":
+                result = {"message": {"role": "assistant", "content": "chat-routed"}, "done": True}
+            elif self.path == "/api/generate":
+                result = {"response": "completion-routed", "done": True}
+            elif self.path == "/api/embed":
+                result = {"embeddings": [[0.25, 0.75]]}
+            else:
+                self.send_error(404)
+                return
+            assert payload["model"] == "test-model"
+            data = json.dumps(result).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        def log_message(self, *args): pass
+
+    with serving(Ollama) as ollama_url:
+        worker = OllamaNode(node_id="worker", endpoint=ollama_url, tailnet_name="test",
+            secret=broker.node_secrets["worker"], allowed_applications=("manuals_rag",))
+        with serving(create_handler(worker)) as worker_url:
+            broker.node_agent_urls["worker"] = worker_url
+            broker._post = broker._post_http
+            ingress = OllamaNode(node_id="ingress", endpoint=ollama_url, tailnet_name="test",
+                secret=broker.node_secrets["ingress"], allowed_applications=("manuals_rag",))
+            try:
+                with serving(create_gateway_handler(broker)) as gateway_url:
+                    local = create_openai_broker_server(ingress, gateway_url=gateway_url,
+                        port=0, default_application="manuals_rag", advertised_models=("test-model",))
+                    thread = threading.Thread(target=local.serve_forever, daemon=True)
+                    thread.start()
+                    try:
+                        base = f"http://127.0.0.1:{local.server_port}/v1"
+                        with urlopen(base + "/models") as response:
+                            assert json.load(response)["data"][0]["id"] == "test-model"
+                        cases = [
+                            ("chat/completions", {"model": "test-model", "messages": [{"role": "user", "content": "hi"}]}, "chat.completion", "chat-routed"),
+                            ("completions", {"model": "test-model", "prompt": "hi"}, "text_completion", "completion-routed"),
+                            ("embeddings", {"model": "test-model", "input": "hi"}, "list", None),
+                        ]
+                        for route, payload, object_type, expected in cases:
+                            request = Request(base + "/" + route, data=json.dumps(payload).encode(),
+                                headers={"Content-Type": "application/json"})
+                            with urlopen(request) as response:
+                                result = json.load(response)
+                            assert result["object"] == object_type
+                            assert result["_inference_routing"]["node_id"] == "worker"
+                            if expected:
+                                value = result["choices"][0].get("message", {}).get("content") or result["choices"][0].get("text")
+                                assert value == expected
+                            else:
+                                assert result["data"][0]["embedding"] == [0.25, 0.75]
+                        with pytest.raises(HTTPError) as rejected:
+                            urlopen(Request(base + "/chat/completions", data=json.dumps({
+                                "model": "test-model", "messages": [{"role": "user", "content": "hi"}]},
+                                headers={"Content-Type": "application/json", "X-ProVIS-Application": "other-app"})))
+                        assert rejected.value.code == 403
+                    finally:
+                        local.shutdown()
+                        local.server_close()
+                        thread.join(timeout=2)
+            finally:
+                local.server_close()
     assert not broker.scheduler._reservations
 
 

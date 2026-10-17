@@ -25,6 +25,7 @@ def test_managed_bundle_contains_nonsecret_config_and_pyinstaller_data_contract(
         names = set(archive.namelist())
         assert "provis-inference-node/provis-node-config.json" in names
         assert "provis-inference-node/src/run_inference_node_client.py" in names
+        assert "provis-inference-node/src/provis_inference_node/openai_broker.py" in names
         config = json.loads(archive.read("provis-inference-node/provis-node-config.json"))
         assert config == {"gateway_url": "https://inference.example.test"}
         build_script = archive.read("provis-inference-node/build-node-exe.ps1").decode()
@@ -46,3 +47,4 @@ def test_linux_release_is_one_file_and_embeds_managed_config(tmp_path):
     assert f"{config}{os.pathsep}." in args
     assert str(linux_builder.PACKAGE_PARENT) in args
     assert str(linux_builder.SOURCE_ROOT) in args
+    assert str(linux_builder.BROKER_PARENT) in args

@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src/manuals_rag_inference"
+BROKER_PACKAGE_ROOT = REPO_ROOT / "provis_inference_node/src/provis_inference_node"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
 INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
 
@@ -352,6 +353,11 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
         shutil.copytree(
             PACKAGE_ROOT,
             source / "manuals_rag_inference",
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+        )
+        shutil.copytree(
+            BROKER_PACKAGE_ROOT,
+            source / "provis_inference_node",
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
         for name in (

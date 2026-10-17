@@ -22,6 +22,7 @@ from build_inference_node_bundle import _validate_managed_gateway_url, managed_c
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_PARENT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src"
+BROKER_PARENT = REPO_ROOT / "provis_inference_node/src"
 APP_SOURCE = REPO_ROOT / "manuals_rag/scripts/run_inference_node_client.py"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
 INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
@@ -70,6 +71,8 @@ def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[s
         str(PACKAGE_PARENT),
         "--paths",
         str(SOURCE_ROOT),
+        "--paths",
+        str(BROKER_PARENT),
         "--add-data",
         f"{config_path}{separator}.",
         "--collect-all",

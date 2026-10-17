@@ -14,17 +14,21 @@ The local endpoint is:
 http://127.0.0.1:8767/v1
 ```
 
-From the RAG Docker network it is:
+This is a loopback-only endpoint for applications running on the same PC.
+Docker access is disabled in the signed desktop release. Do not configure
+`host.docker.internal` as if it were a working endpoint: a container cannot
+reach a service bound to the host's loopback address. Enabling Docker access
+requires a separately approved host-only bind address, exact bridge CIDR
+allowlist, and mandatory bearer authentication with a securely provisioned
+container token. Do not bind to `0.0.0.0` or widen a firewall rule.
 
-```text
-http://host.docker.internal:8767/v1
-```
-
-The node-side implementation is present in both the Manuals RAG inference
-fabric and the standalone PROVIS Inference Node. The deployed gateway must
+The signed desktop publisher builds the Manuals RAG inference client and its
+bundled `manuals_rag_inference` package. The shared OpenAI broker implementation
+is packaged from `provis_inference_node/src/provis_inference_node/openai_broker.py`;
+the standalone app is not the signed release source. The deployed gateway must
 still be updated: it currently returns `404` for the required route, so do
-not claim end-to-end readiness until the route and streaming checks below pass
-against the droplet deployment.
+not claim end-to-end readiness until route and streaming checks pass against
+the droplet deployment.
 
 ## 1. Add the node-authenticated gateway route
 
@@ -153,9 +157,9 @@ remain incremental end-to-end.
 - The RAG containers receive only the nonsecret node-broker URL.
 - Gateway operator tokens, application tokens, node secrets, and Microsoft
   access tokens remain outside RAG and outside the local OpenAI request.
-- Keep the local broker restricted to loopback and approved Docker bridge CIDRs;
-  do not expose it on the public interface or tailnet without an additional
-  authentication boundary.
+- Keep the local broker restricted to loopback. Docker bridge access has not
+  been approved or enabled. Do not expose it on a LAN, public interface, or
+  tailnet.
 - Keep `X-ProVIS-Application`/`X-Inference-Application` constrained to the
   node's approved application list.
 - Never use the OpenClaw employee portal URL as the inference gateway URL.
@@ -194,10 +198,10 @@ Verify from a connected node:
 curl --fail https://<verified-gateway>/health
 ```
 
-Then verify the local node endpoint from the RAG container:
+Then verify the local node endpoint from a host application on the same PC:
 
 ```bash
-curl http://host.docker.internal:8767/v1/models
+curl http://127.0.0.1:8767/v1/models
 ```
 
 Run one non-streaming and one streaming smoke request using an approved test
