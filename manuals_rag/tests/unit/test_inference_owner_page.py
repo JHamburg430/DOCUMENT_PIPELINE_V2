@@ -58,3 +58,16 @@ def test_verified_owner_page_is_removed_on_signout_and_expiry(panel, monkeypatch
     page.emit('messages', [{'id':'old'}], page.auth_epoch-1)
     page._drain()
     assert page.private is None
+
+
+def test_session_chooser_reserves_visible_publication_button(panel):
+    app,page=panel
+    page._choose_rows([{'id':'fixture','name':'Synthetic session'}])
+    app.update()
+    dialog=next(w for w in page.winfo_children() if isinstance(w,tk.Toplevel))
+    try:
+        button=next(w for w in dialog.winfo_children() if w.winfo_class()=='TButton')
+        assert button.cget('text')=='Publish selected sessions'
+        assert button.winfo_rooty()>=dialog.winfo_rooty()
+        assert button.winfo_rooty()+button.winfo_height()<=dialog.winfo_rooty()+dialog.winfo_height()
+    finally:dialog.destroy()

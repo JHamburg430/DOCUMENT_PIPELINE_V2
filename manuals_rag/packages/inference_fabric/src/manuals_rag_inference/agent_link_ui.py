@@ -154,7 +154,7 @@ class OwnerPanel(tk.Toplevel):
             if self.runtime:
                 self._work(lambda: (self.runtime.publish(selected), 'Local sessions published.')[1])
             dialog.destroy()
-        ttk.Button(dialog, text='Publish selected sessions', command=publish).pack(pady=10)
+        ttk.Button(dialog, text='Publish selected sessions', command=publish).pack(side='bottom', pady=10, before=tree)
 
     def _refresh(self):
         if self.runtime: self._work(lambda: self.runtime.request('targets')['targets'], 'targets')
