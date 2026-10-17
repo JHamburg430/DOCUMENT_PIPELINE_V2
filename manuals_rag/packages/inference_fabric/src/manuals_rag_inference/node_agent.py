@@ -15,6 +15,7 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
@@ -25,6 +26,56 @@ from .streaming import NDJSONResponse, relay_ndjson, watch_disconnect
 
 
 TAILSCALE_IPV4_RANGE = ipaddress.ip_network("100.64.0.0/10")
+NODE_LISTENER_FALLBACK_PORTS = 8
+
+
+def bind_node_listener(bind: str, port: int, handler, *, allow_fallback: bool = False, server_factory=None):
+    """Bind only the configured port and a small contiguous fallback window."""
+    if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+        raise ValueError("node listener port must be between 1 and 65535")
+    if allow_fallback and port > 65528:
+        raise ValueError("fallback requires an eight-port window below 65536")
+    factory = server_factory or ThreadingHTTPServer
+    last_error = None
+    attempts = NODE_LISTENER_FALLBACK_PORTS if allow_fallback else 1
+    for candidate in range(port, min(65535, port + attempts - 1) + 1):
+        try:
+            return factory((bind, candidate), handler)
+        except OSError as error:
+            last_error = error
+    if last_error is not None:
+        raise last_error
+    raise OSError("no node listener ports available")
+
+
+def node_agent_url_for_port(value: str, port: int) -> str:
+    parsed = urlsplit(value)
+    if (parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password
+            or parsed.query or parsed.fragment or parsed.path not in ("", "/") or not 1 <= port <= 65535):
+        raise ValueError("valid enrolled node listener URL required")
+    host = parsed.hostname
+    if ":" in host:
+        host = f"[{host}]"
+    return urlunsplit((parsed.scheme, f"{host}:{port}", "", "", ""))
+
+
+def publish_agent_endpoint(gateway_url: str, node_id: str, secret: bytes, agent_url: str) -> dict:
+    gateway = urlsplit(gateway_url)
+    if (gateway.scheme != "https" or not gateway.hostname or gateway.username or gateway.password
+            or gateway.query or gateway.fragment):
+        raise ValueError("listener refresh requires the configured HTTPS gateway")
+    payload = {"node_id": node_id, "agent_url": agent_url, "issued_at": time.time(), "nonce": secrets.token_urlsafe(24)}
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    request = Request(f"{gateway_url.rstrip('/')}/v1/nodes/agent-endpoint", data=raw, method="POST",
+                      headers={"Content-Type": "application/json", "X-Node-Signature": heartbeat_signature(raw, secret)})
+    with urlopen(request, timeout=5) as response:
+        body = response.read(4097)
+    if len(body) > 4096:
+        raise ValueError("bounded node listener response required")
+    result = json.loads(body.decode())
+    if result.get("status") != "accepted" or result.get("node_id") != node_id:
+        raise PermissionError("gateway rejected node listener refresh")
+    return result
 
 
 class ModelPreparationError(RuntimeError):
@@ -674,6 +725,21 @@ def create_node_server(config_path: str | None = None, *, app_metadata=None, sta
     config["local_control_token"] = local_control_token
     _save_node_config(config_path, config)
     stop_event = threading.Event()
+    allow_port_fallback = os.getenv("INFERENCE_NODE_ALLOW_PORT_FALLBACK", "false").lower() == "true"
+    server = bind_node_listener(bind, port, create_handler(agent, local_control_token=local_control_token),
+                                allow_fallback=allow_port_fallback)
+    if server.server_port != port:
+        if not gateway_url:
+            server.server_close()
+            raise RuntimeError("gateway is required to publish a fallback listener endpoint")
+        refreshed_url = node_agent_url_for_port(agent_url, server.server_port)
+        try:
+            publish_agent_endpoint(gateway_url, node_id, shared_secret.encode(), refreshed_url)
+        except Exception:
+            server.server_close()
+            raise
+        config["agent_url"] = refreshed_url
+        _save_node_config(config_path, config)
     if gateway_url:
         interval = max(2.0, float(os.getenv("INFERENCE_HEARTBEAT_INTERVAL_SECONDS", "5")))
 
@@ -686,7 +752,6 @@ def create_node_server(config_path: str | None = None, *, app_metadata=None, sta
                 stop_event.wait(interval)
 
         threading.Thread(target=heartbeat_loop, daemon=True, name="inference-heartbeat").start()
-    server = ThreadingHTTPServer((bind, port), create_handler(agent, local_control_token=local_control_token))
     server.inference_stop_event = stop_event
     server.inference_gateway_url = gateway_url
     return server, agent, gateway_url

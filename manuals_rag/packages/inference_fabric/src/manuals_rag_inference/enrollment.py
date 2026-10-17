@@ -9,7 +9,7 @@ import re
 import secrets
 import threading
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -30,6 +30,12 @@ def validate_node_endpoint(
         raise ValueError("node endpoint must use http/https and include a host")
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError("node endpoint must not contain credentials, query, or fragment")
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError("node endpoint port is invalid") from error
+    if port is not None and not 1 <= port <= 65535:
+        raise ValueError("node endpoint port must be between 1 and 65535")
     hostname = parsed.hostname.rstrip(".").lower()
     try:
         address = ipaddress.ip_address(hostname)
@@ -59,6 +65,32 @@ class EnrolledNode:
     identity_subject: str = ""
     identity_tenant: str = ""
     allowed_applications: tuple[str, ...] = ()
+    agent_port_base: int = 0
+
+
+def validate_agent_endpoint_refresh(value: str, enrolled_url: str, *, base_port: int,
+                                    allowed_host_suffixes: tuple[str, ...],
+                                    allow_local_endpoints: bool) -> None:
+    """Allow a listener port change only within the enrolled host's fixed window."""
+    candidate, enrolled = urlparse(value), urlparse(enrolled_url)
+    validate_node_endpoint(value, allowed_host_suffixes=allowed_host_suffixes,
+                           allow_local_endpoints=allow_local_endpoints)
+    if (candidate.scheme != enrolled.scheme or candidate.username or candidate.password
+            or candidate.query or candidate.fragment or candidate.path not in ("", "/")):
+        raise ValueError("node listener refresh must preserve its enrolled URL origin")
+    if (enrolled.username or enrolled.password or enrolled.query or enrolled.fragment
+            or enrolled.path not in ("", "/")):
+        raise ValueError("enrolled node listener URL is invalid")
+    if candidate.hostname.rstrip(".").lower() != enrolled.hostname.rstrip(".").lower():
+        raise PermissionError("node listener refresh cannot change the enrolled host")
+    try:
+        candidate_port = candidate.port or (443 if candidate.scheme == "https" else 80)
+        original_port = enrolled.port or (443 if enrolled.scheme == "https" else 80)
+    except ValueError as error:
+        raise ValueError("node listener port is invalid") from error
+    fixed_base = int(base_port or original_port)
+    if not 1 <= fixed_base <= 65528 or candidate_port not in range(fixed_base, fixed_base + 8):
+        raise ValueError("node listener port is outside the bounded fallback window")
 
 
 class EnrollmentManager:
@@ -158,6 +190,7 @@ class EnrollmentManager:
                 identity_subject=identity_subject,
                 identity_tenant=identity_tenant,
                 allowed_applications=allowed_applications,
+                agent_port_base=urlparse(agent_url).port or (443 if urlparse(agent_url).scheme == "https" else 80),
             )
             record["used"] = True
             self._nodes[node_id] = node
@@ -167,6 +200,22 @@ class EnrollmentManager:
     def nodes(self) -> tuple[EnrolledNode, ...]:
         with self._lock:
             return tuple(self._nodes.values())
+
+    def refresh_agent_url(self, node_id: str, agent_url: str, *, issued_at: float, nonce: str) -> EnrolledNode:
+        with self._lock:
+            node = self._nodes.get(node_id)
+            if node is None:
+                raise PermissionError("node is not enrolled")
+            validate_agent_endpoint_refresh(agent_url, node.agent_url, base_port=node.agent_port_base,
+                                            allowed_host_suffixes=self._allowed_host_suffixes,
+                                            allow_local_endpoints=self._allow_local_endpoints)
+            # Persist the nonce before accepting a changed destination so a
+            # replay remains rejected after a gateway restart.
+            self.claim_inference_request(node_id, "agent-endpoint:" + nonce, issued_at)
+            updated = replace(node, agent_url=agent_url.rstrip("/"))
+            self._nodes[node_id] = updated
+            self._persist()
+            return updated
 
     def claim_inference_request(self, node_id: str, request_id: str, issued_at: float) -> None:
         """Persist accepted nonces so a service restart cannot permit replay."""

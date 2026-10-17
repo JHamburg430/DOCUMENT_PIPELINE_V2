@@ -187,6 +187,26 @@ def test_final_update_report_does_not_retry_rejected_claim(tmp_path,monkeypatch)
     assert attempts==[True]
 
 
+def test_final_update_report_preserves_local_receipt_after_total_network_failure(tmp_path,monkeypatch):
+    config=tmp_path/'config.json'
+    config.write_text(json.dumps({'shared_secret':'fixture-secret'}),encoding='utf-8')
+    receipt=tmp_path/'healthy.json'
+    expected={'nonce':'probe-nonce','version':'2026.10.17.8','node_id':'john'}
+    receipt.write_text(json.dumps(expected),encoding='utf-8')
+    plan={'config_path':str(config),'gateway':'https://gateway.fixture.invalid',
+          'node_id':'john','id':'update-id','claim':'single-use-claim'}
+    attempts=[]
+    def send(*args,**kwargs):
+        attempts.append(True)
+        raise updater.URLError('temporary network failure')
+    monkeypatch.setattr(updater,'request',send)
+    monkeypatch.setattr(updater.time,'sleep',lambda _:None)
+
+    assert updater._report_plan(plan,'healthy') is False
+    assert len(attempts)==3
+    assert json.loads(receipt.read_text(encoding='utf-8'))==expected
+
+
 def test_failed_start_relaunches_previous_and_restores_config(tmp_path,release,monkeypatch):
     config,directory,plan,settings=plan_fixture(tmp_path,release)
     config.write_text('{"broken":true}',encoding='utf-8')

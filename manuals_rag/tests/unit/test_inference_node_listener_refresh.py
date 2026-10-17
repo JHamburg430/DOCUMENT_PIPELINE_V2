@@ -1,0 +1,158 @@
+import json
+import threading
+import time
+from http.server import ThreadingHTTPServer
+from urllib.request import Request, urlopen
+
+import pytest
+
+from manuals_rag_inference.enrollment import EnrollmentManager
+from manuals_rag_inference.gateway import InferenceGateway, create_gateway_handler, heartbeat_signature
+from manuals_rag_inference.node_agent import bind_node_listener, node_agent_url_for_port
+
+
+def enrolled_gateway(tmp_path, *, enabled=True):
+    manager = EnrollmentManager(tmp_path / "gateway-state.json",
+                                allowed_host_suffixes=(".ts.net",),
+                                allow_local_endpoints=False)
+    token = manager.create_pairing_token()["token"]
+    manager.enroll(pairing_token=token, node_id="msi-node",
+                   endpoint="http://ollama.msi-node.ts.net:11434",
+                   agent_url="https://msi-node.ts.net:8765",
+                   tailnet_name="msi-node")
+    gateway = InferenceGateway(enrollment=manager,
+                               allow_node_agent_endpoint_refresh=enabled)
+    return manager, gateway, manager.nodes()[0]
+
+
+def endpoint_payload(node, url, *, nonce="one-time-endpoint-proof"):
+    return json.dumps({"node_id": node.node_id, "agent_url": url,
+                       "issued_at": time.time(), "nonce": nonce},
+                      sort_keys=True, separators=(",", ":")).encode()
+
+
+def test_listener_refresh_is_off_by_default(tmp_path):
+    _manager, gateway, node = enrolled_gateway(tmp_path, enabled=False)
+    raw = endpoint_payload(node, "https://msi-node.ts.net:8766")
+    signature = heartbeat_signature(raw, node.secret.encode())
+    with pytest.raises(PermissionError, match="disabled"):
+        gateway.refresh_node_agent_endpoint(raw, signature)
+
+
+def test_authenticated_same_host_port_refresh_persists_and_rejects_replay(tmp_path):
+    _manager, gateway, node = enrolled_gateway(tmp_path)
+    raw = endpoint_payload(node, "https://msi-node.ts.net:8769")
+    signature = heartbeat_signature(raw, node.secret.encode())
+    assert gateway.refresh_node_agent_endpoint(raw, signature) == {
+        "status": "accepted", "node_id": "msi-node"}
+    assert gateway.node_agent_urls[node.node_id] == "https://msi-node.ts.net:8769"
+
+    restored = EnrollmentManager(tmp_path / "gateway-state.json",
+                                 allowed_host_suffixes=(".ts.net",),
+                                 allow_local_endpoints=False)
+    assert restored.nodes()[0].agent_url == "https://msi-node.ts.net:8769"
+    restarted_gateway = InferenceGateway(enrollment=restored,
+                                        allow_node_agent_endpoint_refresh=True)
+    with pytest.raises(PermissionError, match="replayed"):
+        restarted_gateway.refresh_node_agent_endpoint(raw, signature)
+
+
+def test_authenticated_endpoint_refresh_http_route(tmp_path):
+    _manager, gateway, node = enrolled_gateway(tmp_path)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), create_gateway_handler(gateway))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        raw = endpoint_payload(node, "https://msi-node.ts.net:8766")
+        request = Request(f"http://127.0.0.1:{server.server_port}/v1/nodes/agent-endpoint",
+                          data=raw, method="POST", headers={
+                              "Content-Type": "application/json",
+                              "X-Node-Signature": heartbeat_signature(raw, node.secret.encode()),
+                          })
+        with urlopen(request, timeout=3) as response:
+            assert json.load(response) == {"status": "accepted", "node_id": node.node_id}
+        assert gateway.node_agent_urls[node.node_id] == "https://msi-node.ts.net:8766"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+@pytest.mark.parametrize("url", [
+    "https://another-node.ts.net:8766",
+    "https://msi-node.ts.net:8773",
+    "https://user@msi-node.ts.net:8766",
+    "https://msi-node.ts.net:8766/path",
+    "https://msi-node.ts.net:443",
+])
+def test_listener_refresh_rejects_host_substitution_and_unbounded_url(tmp_path, url):
+    _manager, gateway, node = enrolled_gateway(tmp_path)
+    raw = endpoint_payload(node, url, nonce="distinct-endpoint-proof")
+    signature = heartbeat_signature(raw, node.secret.encode())
+    before = gateway.node_agent_urls[node.node_id]
+    with pytest.raises((PermissionError, ValueError)):
+        gateway.refresh_node_agent_endpoint(raw, signature)
+    assert gateway.node_agent_urls[node.node_id] == before
+
+
+def test_listener_refresh_rejects_invalid_signature(tmp_path):
+    _manager, gateway, node = enrolled_gateway(tmp_path)
+    raw = endpoint_payload(node, "https://msi-node.ts.net:8766")
+    with pytest.raises(PermissionError, match="authentication"):
+        gateway.refresh_node_agent_endpoint(raw, "invalid")
+    assert gateway.node_agent_urls[node.node_id] == node.agent_url
+
+
+def test_listener_fallback_is_bounded_and_does_not_stop_existing_processes():
+    attempts = []
+
+    def exhausted(address, _handler):
+        attempts.append(address[1])
+        raise OSError("address already in use")
+
+    with pytest.raises(OSError, match="address already in use"):
+        bind_node_listener("100.64.0.8", 8765, object(), allow_fallback=True,
+                           server_factory=exhausted)
+    assert attempts == list(range(8765, 8773))
+
+
+def test_listener_fallback_off_tries_only_configured_port():
+    attempts = []
+
+    def occupied(address, _handler):
+        attempts.append(address[1])
+        raise OSError("address already in use")
+
+    with pytest.raises(OSError):
+        bind_node_listener("100.64.0.8", 8765, object(), server_factory=occupied)
+    assert attempts == [8765]
+
+
+def test_listener_fallback_binds_first_available_port():
+    attempts = []
+
+    class Server:
+        def __init__(self, address, _handler):
+            self.server_port = address[1]
+
+    def occupied_twice_then_bind(address, handler):
+        attempts.append(address[1])
+        if len(attempts) < 3:
+            raise OSError("address already in use")
+        return Server(address, handler)
+
+    server = bind_node_listener("100.64.0.8", 8765, object(), allow_fallback=True,
+                                server_factory=occupied_twice_then_bind)
+    assert attempts == [8765, 8766, 8767]
+    assert server.server_port == 8767
+
+
+def test_listener_fallback_rejects_port_without_full_bounded_window():
+    with pytest.raises(ValueError, match="eight-port window"):
+        bind_node_listener("100.64.0.8", 65529, object(), allow_fallback=True)
+
+
+def test_advertised_url_uses_actual_listener_port_only():
+    assert node_agent_url_for_port("https://msi-node.ts.net:8765", 8767) == "https://msi-node.ts.net:8767"
+    with pytest.raises(ValueError):
+        node_agent_url_for_port("https://other.ts.net:8765/path", 8767)

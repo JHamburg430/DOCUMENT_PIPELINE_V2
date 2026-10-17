@@ -88,7 +88,7 @@ def validate_gateway_runtime_security(
 class InferenceGateway:
     """Registry, admission, and forwarding boundary for Ollama requests."""
 
-    def __init__(self, scheduler: InferenceScheduler | None = None, *, node_secrets: dict[str, bytes] | None = None, node_agent_urls: dict[str, str] | None = None, gateway_token: str | None = None, post: Callable[..., dict[str, Any]] | None = None, enrollment: EnrollmentManager | None = None, require_node_agents: bool = False, model_catalog: dict[str, ModelSpec] | None = None, require_model_catalog: bool = False, application_tokens: dict[str, str] | None = None, require_application_identity: bool = False, entra_validator: EntraTokenValidator | None = None, require_entra_enrollment: bool = False, entra_client_id: str = "", entra_scope: str = "", node_default_tailnet: str = "", node_default_applications: tuple[str, ...] = (), node_default_port: int = 8765, application_worker_allowlist: dict[str, tuple[str, ...]] | None = None) -> None:
+    def __init__(self, scheduler: InferenceScheduler | None = None, *, node_secrets: dict[str, bytes] | None = None, node_agent_urls: dict[str, str] | None = None, gateway_token: str | None = None, post: Callable[..., dict[str, Any]] | None = None, enrollment: EnrollmentManager | None = None, require_node_agents: bool = False, model_catalog: dict[str, ModelSpec] | None = None, require_model_catalog: bool = False, application_tokens: dict[str, str] | None = None, require_application_identity: bool = False, entra_validator: EntraTokenValidator | None = None, require_entra_enrollment: bool = False, entra_client_id: str = "", entra_scope: str = "", node_default_tailnet: str = "", node_default_applications: tuple[str, ...] = (), node_default_port: int = 8765, application_worker_allowlist: dict[str, tuple[str, ...]] | None = None, allow_node_agent_endpoint_refresh: bool = False) -> None:
         self.scheduler = scheduler or InferenceScheduler()
         self.node_secrets = node_secrets or {}
         self.node_agent_urls = node_agent_urls or {}
@@ -105,6 +105,7 @@ class InferenceGateway:
         self.node_default_tailnet = node_default_tailnet.strip()
         self.node_default_applications = tuple(item for item in node_default_applications if item)
         self.node_default_port = int(node_default_port)
+        self.allow_node_agent_endpoint_refresh = allow_node_agent_endpoint_refresh is True
         self.application_worker_allowlist = dict(application_worker_allowlist or {})
         if any(not isinstance(app, str) or not app or not isinstance(nodes, (list, tuple)) or not nodes or any(not isinstance(node, str) or not node for node in nodes) for app, nodes in self.application_worker_allowlist.items()):
             raise ValueError("invalid application worker allowlist")
@@ -253,6 +254,30 @@ class InferenceGateway:
                 raise PermissionError("replayed node heartbeat")
             self._last_heartbeat_observed[snapshot.node_id] = observed_at
         self.scheduler.upsert_node(snapshot)
+
+    def refresh_node_agent_endpoint(self, raw_body: bytes, signature: str) -> dict[str, str]:
+        if not self.allow_node_agent_endpoint_refresh or self.enrollment is None:
+            raise PermissionError("node listener endpoint refresh is disabled")
+        try:
+            payload = json.loads(raw_body)
+        except (TypeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid node listener refresh request") from error
+        if not isinstance(payload, dict):
+            raise ValueError("invalid node listener refresh request")
+        node_id, agent_url = payload.get("node_id"), payload.get("agent_url")
+        issued_at, nonce = payload.get("issued_at"), payload.get("nonce")
+        secret = self.node_secrets.get(node_id) if isinstance(node_id, str) else None
+        if secret is None or not hmac.compare_digest(heartbeat_signature(raw_body, secret), signature):
+            raise AuthenticationError("invalid node listener authentication")
+        now = time.time()
+        if (isinstance(issued_at, bool) or not isinstance(issued_at, (int, float))
+                or not math.isfinite(issued_at) or abs(now - issued_at) > 60
+                or not isinstance(nonce, str) or not 16 <= len(nonce) <= 128
+                or not isinstance(agent_url, str) or len(agent_url) > 512):
+            raise AuthenticationError("fresh node listener proof required")
+        node = self.enrollment.refresh_agent_url(node_id, agent_url, issued_at=issued_at, nonce=nonce)
+        self.node_agent_urls[node_id] = node.agent_url
+        return {"status": "accepted", "node_id": node_id}
 
     def admit(self, request: InferenceRequest):
         return self.scheduler.choose(self._authoritative_request(request))
@@ -660,6 +685,12 @@ def create_gateway_handler(gateway: InferenceGateway):
                     gateway.register_heartbeat(snapshot, raw, self.headers.get("X-Node-Signature") or "")
                     self._send(200, {"status": "accepted", "node_id": snapshot.node_id})
                     return
+                if self.path == "/v1/nodes/agent-endpoint":
+                    if len(raw) > 4096:
+                        raise ValueError("bounded node listener refresh required")
+                    result = gateway.refresh_node_agent_endpoint(raw, self.headers.get("X-Node-Signature") or "")
+                    self._send(200, result)
+                    return
                 if self.path == "/v1/nodes/disconnect":
                     result = gateway.disconnect_node(
                         node_id=str(payload["node_id"]),
@@ -821,6 +852,7 @@ def run_gateway() -> None:
         node_default_applications=node_default_applications,
         node_default_port=int(os.getenv("INFERENCE_NODE_DEFAULT_PORT", "8765")),
         application_worker_allowlist=json.loads(os.getenv("INFERENCE_APPLICATION_WORKER_ALLOWLIST_JSON", "{}")),
+        allow_node_agent_endpoint_refresh=os.getenv("INFERENCE_NODE_ALLOW_ENDPOINT_REFRESH", "false").lower() == "true",
         enrollment=EnrollmentManager(
             enrollment_path,
             allowed_host_suffixes=tuple(
