@@ -46,6 +46,7 @@ class NodeSnapshot:
     request_accounting_available: bool = False
     inference_enabled: bool = True
     installed_models: tuple[str, ...] = ()
+    installed_model_capabilities: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -93,6 +94,7 @@ class AdmissionDecision:
     score: float | None = None
     requires_model_pull: bool = False
     eviction_candidates: tuple[str, ...] = ()
+    requires_model_warm: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -12,10 +12,18 @@ from urllib.request import Request, urlopen
 
 
 def _interrupt(response) -> None:
-    raw_socket = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
+    # Interrupt a blocked readline before closing its buffered file.
+    raw = getattr(getattr(response, "fp", None), "raw", None)
+    raw_socket = getattr(raw, "_sock", None)
     if raw_socket is not None:
         try:
             raw_socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        # urllib may already have closed the socket object while its SocketIO
+        # retains the descriptor. Close that raw owner to cancel Windows reads.
+        try:
+            raw.close()
         except OSError:
             pass
 
@@ -48,6 +56,8 @@ class NDJSONResponse:
             raise TimeoutError("upstream stream cancelled or timed out")
         line = self.response.readline(2_000_001)
         if not line:
+            if self.done:
+                raise StopIteration
             raise RuntimeError("upstream stream ended without completion")
         if len(line) > 2_000_000:
             raise ValueError("upstream stream event too large")
@@ -63,8 +73,14 @@ class NDJSONResponse:
 
     def close(self):
         self.timer.cancel()
-        self.cancel()
-        self.response.close()
+        if not self.done:
+            self.cancel()
+        try:
+            self.response.close()
+        except (OSError, ValueError):
+            # Cancellation may have closed SocketIO beneath its buffered reader.
+            # Cleanup must never append a second HTTP response to an NDJSON body.
+            pass
 
 
 @contextmanager
@@ -91,7 +107,7 @@ def watch_disconnect(connection, cancel):
         worker.join(timeout=0.3)
 
 
-def relay_ndjson(handler, stream, *, wrap=lambda event: event):
+def relay_ndjson(handler, stream, *, wrap=lambda event: event, on_error=None):
     """Validate the first event before headers; send later errors only once."""
     first = next(stream)
     handler.send_response(200)
@@ -108,9 +124,11 @@ def relay_ndjson(handler, stream, *, wrap=lambda event: event):
             handler.wfile.flush()
     except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
         stream.cancel()
-    except Exception:
+    except Exception as error:
+        # No raw upstream error text, response, prompt, or credential is exposed.
         try:
-            handler.wfile.write(b'{"error":{"code":"upstream_stream_failed"},"done":true}\n')
+            failure = on_error(error) if on_error else {"error": {"code": "upstream_stream_failed"}, "done": True}
+            handler.wfile.write(json.dumps(failure).encode() + b"\n")
             handler.wfile.flush()
         except OSError:
             pass

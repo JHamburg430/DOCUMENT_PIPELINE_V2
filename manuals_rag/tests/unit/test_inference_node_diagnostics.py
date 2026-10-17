@@ -8,12 +8,7 @@ from manuals_rag_inference import node_agent
 
 
 def test_heartbeat_failure_and_recovery_are_visible_without_response_secrets(monkeypatch):
-    agent = node_agent.OllamaNode(
-        node_id="test",
-        endpoint="http://localhost:11434",
-        tailnet_name="test",
-        secret=b"private-test-secret",
-    )
+    agent = node_agent.OllamaNode(node_id="test", endpoint="http://localhost:11434", tailnet_name="test", secret=b"private-test-secret")
     monkeypatch.setattr(node_agent, "_json_request", lambda *args, **kwargs: {"models": []})
     monkeypatch.setattr(node_agent, "_gpu_snapshots", lambda: ())
 

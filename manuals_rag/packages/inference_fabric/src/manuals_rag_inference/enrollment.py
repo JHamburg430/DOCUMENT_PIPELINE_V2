@@ -169,13 +169,10 @@ class EnrollmentManager:
             return tuple(self._nodes.values())
 
     def claim_inference_request(self, node_id: str, request_id: str, issued_at: float) -> None:
-        """Persist accepted request IDs so a restart cannot permit replay."""
+        """Persist accepted nonces so a service restart cannot permit replay."""
         with self._lock:
             now = self._clock()
-            self._inference_nonces = {
-                key: stamp for key, stamp in self._inference_nonces.items()
-                if stamp >= now - 60
-            }
+            self._inference_nonces = {key: stamp for key, stamp in self._inference_nonces.items() if stamp >= now - 60}
             key = json.dumps([node_id, request_id], separators=(",", ":"))
             if key in self._inference_nonces:
                 raise PermissionError("replayed node inference request")

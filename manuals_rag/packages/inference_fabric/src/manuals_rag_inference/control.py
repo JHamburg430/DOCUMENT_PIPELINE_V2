@@ -27,12 +27,12 @@ def verify_command(command: dict[str, Any], signature: str, secret: bytes, *, no
     now = time.time() if now is None else now
     if abs(now - float(command.get("issued_at", 0))) > policy.max_clock_skew_seconds:
         return False
-    if command.get("action") not in {"pull_model", "evict_model"}:
+    if command.get("action") not in {"pull_model", "warm_model", "evict_model"}:
         return False
     model = str(command.get("model") or "")
     if not any(model.startswith(prefix) for prefix in policy.allowed_model_prefixes):
         return False
-    if command.get("action") == "pull_model":
+    if command.get("action") in {"pull_model", "warm_model"}:
         size_bytes = int(command.get("size_bytes") or 0)
         if size_bytes <= 0 or size_bytes > policy.max_model_size_bytes:
             return False
