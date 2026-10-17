@@ -103,6 +103,18 @@ def _load_managed_gateway_url() -> str:
     return ""
 
 
+def _managed_update_settings():
+    import json
+    from manuals_rag_inference.node_updater import bootstrap
+    if not getattr(sys, 'frozen', False) and Path(sys.argv[0]).suffix == '.pyz':
+        import zipfile
+        with zipfile.ZipFile(sys.argv[0]) as archive:
+            return bootstrap(json.loads(archive.read('provis-node-config.json')))
+    for candidate in _managed_config_candidates():
+        if candidate.is_file(): return bootstrap(_load_node_config(str(candidate)))
+    return bootstrap({})
+
+
 def _default_node_id() -> str:
     value = re.sub(r"[^A-Za-z0-9._-]+", "-", platform.node()).strip("-")
     return value or "provis-inference-node"
@@ -126,6 +138,8 @@ class InferenceNodeClient(tk.Tk):
         self.theme = load_theme(self.theme_path)
         self.ui_font = 'Segoe UI' if os.name == 'nt' else 'DejaVu Sans'
         self.theme_button_var = tk.StringVar()
+        self.updater = None
+        self.update_settings = _managed_update_settings()
         self.server = None
         self.agent = None
         self.gateway_url = ""
@@ -387,7 +401,12 @@ class InferenceNodeClient(tk.Tk):
             "entra_scope": values.get("entra_scope", ""),
         })
         _save_node_config(self.config_path, config)
-        server, agent, gateway_url = create_node_server(self.config_path)
+        from manuals_rag_inference.node_updater import platform_id
+        plan = getattr(self, 'update_plan', None)
+        startup_enabled = plan['previous_enabled'] if plan else True
+        metadata = {'node_app_version': self.update_settings['version'], 'node_app_platform': platform_id(),
+                    'remote_updates_enabled': self.update_settings['enabled'] and (bool(getattr(sys, 'frozen', False)) or Path(sys.argv[0]).suffix == '.pyz')}
+        server, agent, gateway_url = create_node_server(self.config_path, app_metadata=metadata, startup_enabled=startup_enabled)
         thread = threading.Thread(target=server.serve_forever, daemon=True, name="provis-inference-node-server")
         thread.start()
         return server, agent, gateway_url
@@ -449,6 +468,7 @@ class InferenceNodeClient(tk.Tk):
             self.worker_queue.put(("error", str(error)))
 
     def _set_inference(self, enabled: bool) -> None:
+        if self.updater and self.updater.applying: return
         if self.agent is None:
             return
         self.agent.set_inference_enabled(enabled)
@@ -504,8 +524,21 @@ class InferenceNodeClient(tk.Tk):
                 elif event == "connected":
                     self._clear_signin_code()
                     self.server, self.agent, self.gateway_url = value
+                    from manuals_rag_inference.node_updater import UpdateWorker
+                    if self.update_settings['enabled'] and self.agent.app_metadata['remote_updates_enabled']:
+                        self.updater = UpdateWorker(self.agent, self.gateway_url, self.config_path, self.update_settings,
+                            self._owner_busy,
+                            lambda plan: self.worker_queue.put(('app_update_apply', plan)))
                     self.status_var.set("Connected to PROVIS")
                     self._update_controls()
+                elif event == 'app_update_apply':
+                    from manuals_rag_inference.node_updater import command
+                    import subprocess
+                    flags = {'creationflags':subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {}
+                    subprocess.Popen(command()+['--update-helper',str(value)], **flags)
+                    self._stop_server()
+                    self._finish_quit()
+                    return
                 elif event == "disconnected":
                     self._clear_signin_code()
                     self._stop_server()
@@ -528,7 +561,7 @@ class InferenceNodeClient(tk.Tk):
     def _update_controls(self) -> None:
         connected = self.agent is not None
         self.entra_button.configure(state="disabled" if connected else "normal")
-        state = "normal" if connected else "disabled"
+        state = "normal" if connected and not (self.updater and self.updater.applying) else "disabled"
         self.enable_button.configure(state=state)
         self.disable_button.configure(state=state)
         self.disconnect_button.configure(state=state)
@@ -538,6 +571,7 @@ class InferenceNodeClient(tk.Tk):
             self.inference_var.set("Inference disabled")
 
     def _refresh_activity(self) -> None:
+        self._update_controls()
         if self.agent is not None:
             events = self.agent.activity()
             heartbeat = next((event for event in reversed(events) if event.get("operation") == "heartbeat"), None)
@@ -559,7 +593,14 @@ class InferenceNodeClient(tk.Tk):
             self.work_var.set(f"{active} active request" + ("s" if active != 1 else "") if active else "No active work")
         self.after(1000, self._refresh_activity)
 
+    def _owner_busy(self):
+        runtime = self.owner_panel.runtime if self.owner_panel else None
+        if runtime:
+            with runtime.delivery_lock: return runtime.busy.is_set()
+        return False
+
     def _stop_server(self) -> None:
+        if self.updater: self.updater.stop.set();self.updater = None
         server = self.server
         self.server = None
         self.agent = None
@@ -588,6 +629,7 @@ class InferenceNodeClient(tk.Tk):
             self._finish_quit()
 
     def _finish_quit(self):
+        if self.updater: self.updater.stop.set()
         if self.owner_panel is not None: self.owner_panel.stop()
         self._metrics_stop.set()
         self.tray.close()
@@ -609,12 +651,46 @@ def main() -> None:
         from provis_agent_link import main as owner_tool
         owner_tool()
         return
+    from manuals_rag_inference.node_updater import helper, active_app, command, validate_plan, private_json, _report_plan
+    import subprocess
+    settings = _managed_update_settings()
+    config_path = os.getenv('INFERENCE_NODE_CONFIG_PATH', _default_config_path())
+    mode = sys.argv[1] if len(sys.argv)>1 else ''
+    if mode in ('--update-helper', '--update-probe', '--update-rollback') and (not settings['enabled'] or len(sys.argv)!=3):
+        raise PermissionError('Trusted updater bootstrap required')
+    if mode == '--update-helper':
+        helper(sys.argv[2], config_path, settings)
+        return
+    probe = None
+    if mode in ('--update-probe','--update-rollback'):
+        probe = validate_plan(sys.argv[2], config_path, settings)
+    elif settings['enabled']:
+        target = active_app(config_path, settings)
+        if target:
+            subprocess.Popen(command(target), creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+            return
     instance = SingleInstance()
     if instance.existing:
         instance.close()
         return
     try:
         app = InferenceNodeClient()
+        if probe:
+            path, plan, manifest = probe
+            app.update_plan = plan
+            def check_update_health():
+                if app.agent and app.server and app.agent.heartbeat_accepted.is_set() and app.agent.node_id == plan['node_id']:
+                    if mode == '--update-probe':
+                        if app.update_settings['version'] != manifest['version']:
+                            app._stop_server();app._finish_quit();return
+                        private_json(path.parent/'healthy.json', {'nonce':plan['probe_nonce'], 'version':manifest['version'], 'node_id':plan['node_id']})
+                    else: _report_plan(plan,'rolled_back')
+                    return
+                if time.monotonic() > health_deadline:
+                    app._stop_server();app._finish_quit();return
+                app.after(500, check_update_health)
+            health_deadline = time.monotonic()+75
+            app.after(500,check_update_health)
         instance.watch(lambda event, value: app.worker_queue.put((event, value)))
         app.mainloop()
     finally:

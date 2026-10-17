@@ -12,6 +12,8 @@ class OwnerRuntime:
         self.threads = []
         self.codex = None
         self.busy = threading.Event()
+        self.external_busy = lambda: False
+        self.delivery_lock = threading.Lock()
         threading.Thread(target=self._poll, daemon=True, name='provis-owner-mailbox').start()
 
     def request(self, action, payload=None):
@@ -42,12 +44,13 @@ class OwnerRuntime:
                     if self.threads: self.request('publish', {'threads': list(self.threads)})
                     self.emit('messages', self.request('messages')['messages'])
                     heartbeat = time.monotonic()
-                if self.threads and not self.busy.is_set():
-                    ready = self.codex.ready_threads()
-                    job = self.request('poll', {'ready_thread_ids': ready}).get('job') if ready else None
-                    if job:
-                        self.busy.set()
-                        threading.Thread(target=self._deliver, args=(job,), daemon=True, name='provis-owner-delivery').start()
+                with self.delivery_lock:
+                    if self.threads and not self.busy.is_set() and not self.external_busy():
+                        ready = self.codex.ready_threads()
+                        job = self.request('poll', {'ready_thread_ids': ready}).get('job') if ready else None
+                        if job:
+                            self.busy.set()
+                            threading.Thread(target=self._deliver, args=(job,), daemon=True, name='provis-owner-delivery').start()
             except Exception:
                 self.emit('status', 'Owner link unavailable; retrying connection. No message is resent automatically.')
             self.stop_event.wait(3)

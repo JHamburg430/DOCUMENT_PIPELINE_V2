@@ -21,6 +21,7 @@ class AgentLink:
         self.lock = threading.RLock()
         self.sessions = {}
         self.targets = {}
+        self.updates = None
         self.db = sqlite3.connect(str(path), check_same_thread=False)
         if str(path) != ':memory:': Path(path).chmod(0o600)
         self.db.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, source TEXT, target TEXT, thread TEXT, message TEXT, status TEXT, result TEXT, created REAL, claimed REAL, claim_hash TEXT, message_hash TEXT)')
@@ -71,6 +72,9 @@ class AgentLink:
             record = next((node for node in self.enrollment.nodes() if node.node_id == node_id), None)
             if record is None or self._hash(record.secret) != enrollment_pin:
                 raise PermissionError('Current enrollment required')
+            if action in ('update-nodes', 'update-releases', 'request-update', 'update-status'):
+                if self.updates is None: raise PermissionError('Remote updates are not configured')
+                return self.updates.owner(action, node_id, payload)
             if action == 'publish':
                 threads = payload.get('threads')
                 if type(threads) is not list or len(threads) > 16:

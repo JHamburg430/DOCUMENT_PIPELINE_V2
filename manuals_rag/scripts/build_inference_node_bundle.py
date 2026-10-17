@@ -290,7 +290,20 @@ def _validate_managed_gateway_url(value: str) -> str:
     return parsed.geturl().rstrip("/")
 
 
-def build(output: Path, *, gateway_url: str = "") -> Path:
+def managed_config(gateway_url, update_config=None):
+    config = {'gateway_url': gateway_url}
+    if update_config is not None:
+        import base64
+        from manuals_rag_inference.node_updater import bootstrap
+        settings = bootstrap({'app_update':update_config})
+        if not settings['enabled']: raise ValueError('Updater requires explicit enablement and pinned publisher keys')
+        if any(not isinstance(key,str) or len(base64.b64decode(value,validate=True))!=32 for key,value in settings['public_keys'].items()):
+            raise ValueError('Ed25519 publisher public keys required')
+        config['app_update'] = settings
+    return config
+
+
+def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
     gateway_url = _validate_managed_gateway_url(gateway_url)
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -312,7 +325,7 @@ def build(output: Path, *, gateway_url: str = "") -> Path:
         _write_text(stage, "build-node-exe.ps1", WINDOWS_EXE_BUILD)
         _write_text(stage, "start-node-setup.sh", LINUX_SETUP)
         (stage / 'start-node-setup.sh').chmod(0o755)
-        _write_text(stage, "provis-node-config.json", json.dumps({"gateway_url": gateway_url}, indent=2) + "\n")
+        _write_text(stage, "provis-node-config.json", json.dumps(managed_config(gateway_url, update_config), indent=2) + "\n")
         _write_text(stage, "README.md", README)
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for item in sorted(stage.rglob("*")):
@@ -333,8 +346,9 @@ def main() -> None:
         default=os.getenv("PROVIS_INFERENCE_GATEWAY_URL", ""),
         help="Managed gateway URL embedded for employees; tenant/client/scope are discovered from the gateway",
     )
+    parser.add_argument('--update-config', type=Path, help='Nonsecret JSON: enabled, version, pinned public_keys')
     args = parser.parse_args()
-    print(build(args.output, gateway_url=args.gateway_url))
+    print(build(args.output, gateway_url=args.gateway_url, update_config=json.loads(args.update_config.read_text(encoding='utf-8')) if args.update_config else None))
 
 
 if __name__ == "__main__":

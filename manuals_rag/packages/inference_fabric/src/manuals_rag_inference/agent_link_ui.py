@@ -35,6 +35,9 @@ class OwnerPanel(tk.Toplevel):
         self.signin.pack(side='left')
         ttk.Button(login, text='Copy code', command=self._copy).pack(side='left', padx=8)
         ttk.Button(login, text='Sign out owner link', command=self._sign_out).pack(side='right')
+        self.update_button = ttk.Button(login, text='App updates', command=self._updates, state='disabled')
+        self.update_button.pack(side='left')
+        self.update_dialog = None
         self.status = tk.StringVar(value='Sign in to verify owner access. This does not change inference enrollment.')
         tk.Label(body, textvariable=self.status, wraplength=660, justify='left', bg=colors['background'], fg=colors['muted']).pack(anchor='w', pady=10)
         controls = tk.Frame(body, bg=colors['background']);controls.pack(fill='x')
@@ -88,13 +91,20 @@ class OwnerPanel(tk.Toplevel):
 
     def _sign_out(self):
         self.auth_epoch += 1
+        if self.update_dialog and self.update_dialog.winfo_exists(): self.update_dialog.destroy()
+        self.update_dialog = None
         if self.runtime: self.runtime.close();self.runtime = None
         self.code = ''
         self.status.set('Owner link signed out.')
         self.signin.configure(state='normal')
-        for button in (self.local_button, self.refresh, self.send_button): button.configure(state='disabled')
+        for button in (self.local_button, self.refresh, self.send_button, self.update_button): button.configure(state='disabled')
         for item in self.targets.get_children(): self.targets.delete(item)
         self.replies.configure(state='normal');self.replies.delete('1.0', 'end');self.replies.configure(state='disabled')
+
+    def _updates(self):
+        if not self.runtime: return
+        if self.update_dialog and self.update_dialog.winfo_exists(): self.update_dialog.lift();return
+        self.update_dialog = UpdatePanel(self)
 
     def _choose(self):
         if self.runtime: self._work(self.runtime.local_sessions, 'local_sessions')
@@ -154,9 +164,15 @@ class OwnerPanel(tk.Toplevel):
                     if self.runtime: self.runtime.close()
                     save_session({**session, 'gateway_url': gateway})
                     self.runtime = OwnerRuntime(gateway, session, lambda kind, value, epoch=epoch: self.emit(kind, value, epoch))
+                    self.runtime.external_busy = lambda: bool(self.app.updater and self.app.updater.applying)
                     self.code = '';self.status.set('Owner verified. Choose local sessions to publish, or refresh remote sessions.')
-                    for button in (self.local_button, self.refresh, self.send_button): button.configure(state='normal')
+                    for button in (self.local_button, self.refresh, self.send_button, self.update_button): button.configure(state='normal')
                     self._refresh()
+                elif kind == 'update_data':
+                    if self.update_dialog and self.update_dialog.winfo_exists(): self.update_dialog.render(value)
+                elif kind == 'update_requested':
+                    self.status.set('App update '+value['id']+': '+value['status'])
+                    if self.update_dialog: self.update_dialog.refresh()
                 elif kind == 'local_sessions': self._choose_rows(value)
                 elif kind == 'targets':
                     for item in self.targets.get_children(): self.targets.delete(item)
@@ -171,3 +187,61 @@ class OwnerPanel(tk.Toplevel):
     def stop(self):
         self.auth_epoch += 1
         if self.runtime: self.runtime.close();self.runtime = None
+
+
+class UpdatePanel(tk.Toplevel):
+    def __init__(self, owner):
+        super().__init__(owner)
+        self.owner = owner
+        self.title('PROVIS • Remote app updates')
+        self.geometry('830x620')
+        colors=PALETTES[owner.app.theme]
+        self.configure(bg=colors['background'])
+        tk.Label(self,text='Node app updates',bg=colors['background'],fg=colors['text'],font=(owner.app.ui_font,18,'bold')).pack(anchor='w',padx=18,pady=12)
+        tk.Label(self,text='Signed PROVIS releases only. Active work finishes before restart. The previous app stays available for recovery.',wraplength=790,justify='left',bg=colors['background'],fg=colors['muted']).pack(anchor='w',padx=18)
+        self.nodes=ttk.Treeview(self,columns=('node','version','platform','enabled'),show='headings',height=5,style='Node.Treeview',selectmode='browse')
+        for key,label in zip(('node','version','platform','enabled'),('PC / node','Current version','Platform','Updater ready')): self.nodes.heading(key,text=label);self.nodes.column(key,width=190)
+        self.nodes.pack(fill='x',padx=18,pady=10)
+        self.releases=ttk.Treeview(self,columns=('version','platform','publisher'),show='headings',height=4,style='Node.Treeview',selectmode='browse')
+        for key in ('version','platform','publisher'): self.releases.heading(key,text=key.title())
+        self.releases.pack(fill='x',padx=18,pady=8)
+        row=tk.Frame(self,bg=colors['background']);row.pack(fill='x',padx=18)
+        ttk.Button(row,text='Refresh',command=self.refresh).pack(side='left')
+        ttk.Button(row,text='Update selected PC',command=self.send).pack(side='right')
+        self.history=tk.Text(self,height=8,state='disabled',bg=colors['card'],fg=colors['text'],wrap='word')
+        self.history.pack(fill='both',expand=True,padx=18,pady=12)
+        self.node_rows={};self.release_rows={}
+        self.refresh()
+        self.after(10000,self._tick)
+    def _tick(self):
+        if self.winfo_exists():
+            self.refresh();self.after(10000,self._tick)
+    def refresh(self):
+        runtime=self.owner.runtime
+        if runtime:
+            self.owner._work(lambda:(runtime.request('update-nodes'),runtime.request('update-releases'),runtime.request('update-status')),'update_data')
+    def render(self,data):
+        nodes,releases,status=data
+        for tree in (self.nodes,self.releases):
+            for item in tree.get_children(): tree.delete(item)
+        self.node_rows={};self.release_rows={}
+        for node in nodes['nodes']:
+            key=self.nodes.insert('', 'end',values=(node['node_id'],node['version'] or 'Bootstrap needed',node['platform'],'Yes' if node['updates_enabled'] else 'No'))
+            self.node_rows[key]=node
+        for release in releases['releases']:
+            m=release['manifest'];key=self.releases.insert('', 'end',values=(m['version'],m['platform'],release['publisher']))
+            self.release_rows[key]=m
+        self.history.configure(state='normal');self.history.delete('1.0','end')
+        self.history.insert('1.0','\n'.join(row['node_id']+' • '+row['status']+' • '+row['detail'] for row in status['updates']) or 'No app updates requested.')
+        self.history.configure(state='disabled')
+    def send(self):
+        from tkinter import messagebox
+        a,b=self.nodes.selection(),self.releases.selection()
+        if not self.owner.runtime or len(a)!=1 or len(b)!=1: return
+        node,release=self.node_rows[a[0]],self.release_rows[b[0]]
+        if not node['updates_enabled'] or node['platform']!=release['platform']:
+            messagebox.showinfo('App update','Select a compatible PC with a trusted updater bootstrap.',parent=self);return
+        if not messagebox.askyesno('Update node app', 'Update '+node['node_id']+' from '+node['version']+' to '+release['version']+'? Active work finishes before the app restarts.',parent=self): return
+        payload={'id':str(uuid.uuid4()),'node_id':node['node_id'],'release_id':release['release_id']}
+        runtime=self.owner.runtime
+        self.owner._work(lambda:runtime.request('request-update',payload),'update_requested')

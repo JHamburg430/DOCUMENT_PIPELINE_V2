@@ -48,6 +48,16 @@ def validate_gateway_environment(env: Mapping[str, str]) -> PreflightResult:
             errors.append('Owner agent link requires one canonical Entra object ID')
         if str(env.get('INFERENCE_GATEWAY_REQUIRE_ENTRA_ENROLLMENT') or '').lower() != 'true':
             errors.append('Owner agent link requires Entra authentication')
+    release_dir = str(env.get('INFERENCE_NODE_UPDATE_RELEASE_DIR') or '').strip()
+    release_keys = str(env.get('INFERENCE_NODE_UPDATE_PUBLIC_KEYS_JSON') or '').strip()
+    if release_dir or release_keys:
+        import base64
+        keys = _json_object(release_keys, 'INFERENCE_NODE_UPDATE_PUBLIC_KEYS_JSON', errors)
+        if not owner or not release_dir or not keys:
+            errors.append('Remote updates require owner identity, release directory and publisher public keys')
+        try:
+            if any(not isinstance(key, str) or not key or len(base64.b64decode(value, validate=True)) != 32 for key, value in keys.items()): raise ValueError
+        except (ValueError, TypeError): errors.append('Remote updates require Ed25519 publisher public keys')
     token = str(env.get("INFERENCE_GATEWAY_TOKEN") or "")
     bind = str(env.get("INFERENCE_GATEWAY_BIND") or "127.0.0.1")
     allow_public = str(env.get("INFERENCE_GATEWAY_ALLOW_PUBLIC_BIND") or "false").lower() == "true"

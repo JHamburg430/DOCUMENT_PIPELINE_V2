@@ -155,6 +155,10 @@ class OllamaNode:
         self._last_used_by_model: dict[str, float] = {}
         self._seen_inference_requests: dict[str, float] = {}
         self._inference_enabled = True
+        self._updating = False
+        self._active_commands = 0
+        self.app_metadata = {}
+        self.heartbeat_accepted = threading.Event()
         self._activity: deque[dict[str, object]] = deque(maxlen=200)
         self._probe_health: dict[str, tuple[str, str]] = {}
         self._inventory_lock = threading.Lock()
@@ -198,8 +202,19 @@ class OllamaNode:
 
     def set_inference_enabled(self, enabled: bool) -> None:
         with self._request_lock:
+            if enabled and self._updating: raise PermissionError("App update is draining active work")
             self._inference_enabled = bool(enabled)
         self._record_activity("control", "", "enabled" if enabled else "disabled")
+
+    def begin_update(self):
+        with self._request_lock:
+            self._updating = True
+            self._inference_enabled = False
+
+    def cancel_update(self, previous):
+        with self._request_lock:
+            self._updating = False
+            self._inference_enabled = previous
 
     def activity(self) -> list[dict[str, object]]:
         with self._request_lock:
@@ -258,6 +273,7 @@ class OllamaNode:
             request_accounting_available=self.proxy_only,
             healthy=ollama_healthy,
             inference_enabled=self.inference_enabled,
+            **self.app_metadata,
             installed_models=installed_models,
             installed_model_capabilities=model_capabilities,
         )
@@ -303,6 +319,7 @@ class OllamaNode:
         started_at = time.time()
         self._record_activity(operation, model, "started")
         with self._request_lock:
+            if self._updating: raise PermissionError("App update is draining active work")
             self._active_by_model[model] = self._active_by_model.get(model, 0) + 1
             self._last_used_by_model[model] = time.time()
         try:
@@ -334,6 +351,7 @@ class OllamaNode:
         stream = None
         self._record_activity(operation, model, "started")
         with self._request_lock:
+            if self._updating: raise PermissionError("App update is draining active work")
             self._active_by_model[model] = self._active_by_model.get(model, 0) + 1
             self._last_used_by_model[model] = time.time()
         try:
@@ -370,6 +388,14 @@ class OllamaNode:
         return result
 
     def command(self, command: dict, signature: str) -> dict:
+        with self._request_lock:
+            if self._updating: raise PermissionError('App update is draining active work')
+            self._active_commands += 1
+        try: return self._command(command, signature)
+        finally:
+            with self._request_lock: self._active_commands -= 1
+
+    def _command(self, command: dict, signature: str) -> dict:
         if not verify_command(command, signature, self.secret, policy=self.policy):
             raise PermissionError("invalid or unauthorized node command")
         action = command["action"]
@@ -457,6 +483,7 @@ class OllamaNode:
             category = f"HTTP_{error.code}" if isinstance(error, HTTPError) else error.__class__.__name__
             self._record_activity("heartbeat", "", "failed", started_at=started_at, error=category)
             raise
+        self.heartbeat_accepted.set()
         self._record_activity("heartbeat", "", "accepted", started_at=started_at)
         return result
 
@@ -552,7 +579,7 @@ def create_handler(agent: OllamaNode, *, local_control_token: str = ""):
     return Handler
 
 
-def create_node_server(config_path: str | None = None) -> tuple[ThreadingHTTPServer, OllamaNode, str]:
+def create_node_server(config_path: str | None = None, *, app_metadata=None, startup_enabled=True) -> tuple[ThreadingHTTPServer, OllamaNode, str]:
     configured_path = os.getenv("INFERENCE_NODE_CONFIG_PATH", "").strip()
     if configured_path:
         config_path = configured_path
@@ -624,6 +651,8 @@ def create_node_server(config_path: str | None = None) -> tuple[ThreadingHTTPSer
         proxy_only=os.getenv("INFERENCE_NODE_PROXY_ONLY", "false").lower() == "true",
         allowed_applications=allowed_applications,
     )
+    agent.app_metadata = dict(app_metadata or {})
+    agent.set_inference_enabled(startup_enabled)
     bind = os.getenv("INFERENCE_NODE_BIND") or str(config.get("bind") or tailscale_ipv4 or "127.0.0.1")
     if os.getenv("INFERENCE_NODE_REQUIRE_PRODUCTION", "false").lower() == "true":
         from .preflight import validate_node_environment

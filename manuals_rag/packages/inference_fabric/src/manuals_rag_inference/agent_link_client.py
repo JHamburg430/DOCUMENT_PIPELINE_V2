@@ -10,7 +10,7 @@ def call(gateway, token, action, payload=None):
     parsed = urlsplit(gateway)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError('Managed HTTPS gateway required')
-    if action not in {'availability', 'session', 'publish', 'targets', 'send', 'poll', 'complete', 'messages', 'logout'}:
+    if action not in {'availability', 'session', 'publish', 'targets', 'send', 'poll', 'complete', 'messages', 'logout', 'update-nodes', 'update-releases', 'request-update', 'update-status'}:
         raise ValueError('Unsupported owner action')
     request = Request(gateway.rstrip('/') + '/v1/agent-link/' + action,
                       data=None if action == 'availability' else json.dumps(payload or {}).encode(), headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token})

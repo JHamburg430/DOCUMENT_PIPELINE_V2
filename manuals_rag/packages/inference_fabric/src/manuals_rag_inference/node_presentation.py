@@ -5,6 +5,7 @@ import math
 import time
 
 LABELS = {
+    "app_update": "App update",
     "heartbeat": "Gateway connection", "ollama": "Local engine", "control": "Compute sharing",
     "model_inventory": "Resources checked", "model_inventory_check": "Checking resources",
     "model_already_installed": "Local resources available", "model_pull_started": "Downloading resources",
@@ -15,6 +16,8 @@ LABELS = {
     "tailscale": "Private connection", "pull_model": "Preparing resources",
 }
 STATES = {
+    "downloading": "Downloading", "verified": "Verified", "waiting_for_idle": "Waiting for active work",
+    "restarting": "Restarting app", "rolled_back": "Previous app restored", "interrupted": "Needs attention",
     "accepted": "Connected", "healthy": "Available", "available": "Available", "completed": "Complete",
     "success": "Complete", "started": "In progress", "failed": "Needs attention", "unavailable": "Unavailable",
     "enabled": "Enabled", "disabled": "Paused", "skipped": "Already available", "connected": "Connected",

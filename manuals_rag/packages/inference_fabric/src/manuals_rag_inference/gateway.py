@@ -512,6 +512,9 @@ def _snapshot_from_payload(payload: dict[str, Any]) -> NodeSnapshot:
         healthy=bool(payload.get("healthy", True)),
         request_accounting_available=bool(payload.get("request_accounting_available", False)),
         inference_enabled=bool(payload.get("inference_enabled", True)),
+        node_app_version=str(payload.get("node_app_version") or "")[:40],
+        node_app_platform=str(payload.get("node_app_platform") or "")[:40],
+        remote_updates_enabled=payload.get("remote_updates_enabled") is True,
         installed_models=tuple(str(model) for model in payload.get("installed_models") or []),
         installed_model_capabilities={str(model): tuple(capabilities) for model, capabilities in (payload.get("installed_model_capabilities") or {}).items()},
     )
@@ -586,6 +589,19 @@ def create_gateway_handler(gateway: InferenceGateway):
             elif self.path == "/v1/nodes":
                 gateway.authorize_operator(self.headers.get("X-Gateway-Token"))
                 self._send(200, {"nodes": [node.to_dict() for node in gateway.scheduler.snapshots()]})
+            elif self.path.startswith('/v1/node-releases/'):
+                try:
+                    updates = gateway.agent_link.updates if gateway.agent_link else None
+                    if updates is None: raise PermissionError('Updates unavailable')
+                    _, artifact = updates.catalog.get(self.path.removeprefix('/v1/node-releases/'))
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/octet-stream')
+                    self.send_header('Content-Length', str(artifact.stat().st_size))
+                    self.end_headers()
+                    with artifact.open('rb') as stream:
+                        while chunk := stream.read(65536): self.wfile.write(chunk)
+                except (OSError, ValueError, PermissionError):
+                    self._send(404, {'detail': 'Release unavailable'})
             else:
                 self._send(404, {"detail": "not found"})
 
@@ -593,7 +609,16 @@ def create_gateway_handler(gateway: InferenceGateway):
             try:
                 raw = self._body()
                 payload = json.loads(raw.decode())
+                if self.path in ('/v1/nodes/updates/poll', '/v1/nodes/updates/report'):
+                    updates = gateway.agent_link.updates if gateway.agent_link else None
+                    if updates is None:
+                        self._send(503, {'detail': 'Remote updates are not enabled'})
+                        return
+                    if len(raw) > 16384: raise ValueError('Bounded update request required')
+                    self._send(200, updates.node(self.path.rsplit('/', 1)[1], raw, self.headers.get('X-Node-Signature', '')))
+                    return
                 if self.path.startswith('/v1/agent-link/'):
+
                     if gateway.agent_link is None:
                         self._send(503, {'detail': 'Owner agent link is not enabled'})
                         return
@@ -815,5 +840,16 @@ def run_gateway() -> None:
             raise RuntimeError('Entra authentication required for owner agent link')
         gateway.agent_link = AgentLink(entra_validator, gateway.enrollment, owner_object_id=owner_object_id,
                                       path=Path(enrollment_path).parent / 'agent-link.sqlite3')
+    release_dir = os.getenv('INFERENCE_NODE_UPDATE_RELEASE_DIR', '').strip()
+    release_keys = os.getenv('INFERENCE_NODE_UPDATE_PUBLIC_KEYS_JSON', '').strip()
+    if release_dir or release_keys:
+        from .node_release import ReleaseCatalog
+        from .node_update_queue import NodeUpdateQueue
+        if not gateway.agent_link or not release_dir or not release_keys:
+            raise RuntimeError('Owner identity, release directory and publisher keys required for updates')
+        catalog = ReleaseCatalog(release_dir, json.loads(release_keys))
+        catalog.list()  # refuse startup with unverified releases
+        gateway.agent_link.updates = NodeUpdateQueue(catalog, gateway.enrollment, gateway.scheduler,
+                                                   gateway.agent_link.db, gateway.agent_link.lock)
     server = ThreadingHTTPServer((bind, int(os.getenv("INFERENCE_GATEWAY_PORT", "8780"))), create_gateway_handler(gateway))
     server.serve_forever()
