@@ -55,6 +55,12 @@ python3 -m unittest discover -s tests -v
 
 After the node connects, it exposes a local broker on port `8767`:
 
+The node app labels this as **PROVIS shared compute — OpenAI-compatible
+endpoint** and provides Copy URL buttons for the host and Docker variants. The
+PROVIS OpenClaw models are configured for this shared-compute route, and
+employee-built LLM workflows and applications can use it too. These URLs are
+local to the enrolled PC, not direct public gateway addresses.
+
 ```text
 http://127.0.0.1:8767/v1
 ```

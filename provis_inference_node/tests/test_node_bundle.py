@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
+
 from tools.build_node_bundle import build
+from provis_inference_node.ui_helpers import copy_endpoint_to_clipboard, local_broker_endpoints
 
 
 class NodeBundleTests(unittest.TestCase):
@@ -57,6 +61,46 @@ class NodeBundleTests(unittest.TestCase):
         self.assertIn("clipboard_append(code)", text)
         self.assertIn('"user_code"', text)
         self.assertIn('"verification_url"', text)
+
+    def test_local_broker_urls_follow_validated_configured_port(self) -> None:
+        self.assertEqual(local_broker_endpoints(9001), (
+            "http://127.0.0.1:9001/v1",
+            "http://host.docker.internal:9001/v1",
+        ))
+        self.assertEqual(local_broker_endpoints("bad"), (
+            "http://127.0.0.1:8767/v1",
+            "http://host.docker.internal:8767/v1",
+        ))
+        self.assertEqual(local_broker_endpoints(70000), local_broker_endpoints(8767))
+
+    def test_endpoint_copy_is_limited_to_displayed_urls(self) -> None:
+        copied: list[str] = []
+        actions: list[str] = []
+        endpoints = local_broker_endpoints(8767)
+        allowed = copy_endpoint_to_clipboard(
+            endpoints[0], endpoints,
+            clipboard_clear=lambda: actions.append("clear"),
+            clipboard_append=copied.append,
+            update=lambda: actions.append("update"),
+        )
+        self.assertTrue(allowed)
+        self.assertEqual(copied, [endpoints[0]])
+        self.assertEqual(actions, ["clear", "update"])
+        self.assertFalse(copy_endpoint_to_clipboard(
+            "https://gateway.example.test/?token=secret", endpoints,
+            clipboard_clear=lambda: self.fail("unlisted URL must not clear clipboard"),
+            clipboard_append=lambda _: self.fail("unlisted URL must not be copied"),
+            update=lambda: self.fail("unlisted URL must not update clipboard"),
+        ))
+
+    def test_app_explains_shared_compute_endpoint_and_copy_controls(self) -> None:
+        source = Path(__file__).parents[1] / "src" / "run_node_client.py"
+        text = source.read_text(encoding="utf-8")
+        self.assertIn("PROVIS shared compute — OpenAI-compatible endpoint", text)
+        self.assertIn('text="Copy URL"', text)
+        self.assertIn("employee-built workflows and apps can use it too", text)
+        self.assertIn("This endpoint is local to this PC", text)
+        self.assertIn("local_broker_endpoints(broker_port)", text)
 
     def test_node_diagnostics_are_sanitized(self) -> None:
         source = Path(__file__).parents[1] / "src" / "provis_inference_node" / "node_agent.py"

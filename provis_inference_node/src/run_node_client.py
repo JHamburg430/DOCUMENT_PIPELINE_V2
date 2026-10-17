@@ -29,6 +29,7 @@ from provis_inference_node.entra_client import (
     poll_device_token,
     request_device_code,
 )
+from provis_inference_node.ui_helpers import copy_endpoint_to_clipboard, local_broker_endpoints
 
 
 def _default_config_path() -> str:
@@ -121,7 +122,8 @@ class InferenceNodeClient(tk.Tk):
         }
         self.status_var = tk.StringVar(value="Not connected")
         self.inference_var = tk.StringVar(value="Inference disabled")
-        self.local_endpoint_var = tk.StringVar(value="OpenAI-compatible local endpoint: http://127.0.0.1:8767/v1")
+        self.local_endpoint_var = tk.StringVar(value="http://127.0.0.1:8767/v1")
+        self.container_endpoint_var = tk.StringVar(value="http://host.docker.internal:8767/v1")
         self.device_code_var = tk.StringVar()
         self.device_message_var = tk.StringVar()
         self._build_ui()
@@ -162,8 +164,25 @@ class InferenceNodeClient(tk.Tk):
         self.disconnect_button = ttk.Button(controls, text="Disconnect safely", command=self._disconnect, state="disabled")
         self.disconnect_button.pack(side="left")
         ttk.Label(controls, textvariable=self.inference_var).pack(side="left", padx=16)
-        ttk.Label(root, textvariable=self.local_endpoint_var, foreground="#165d69").pack(anchor="w", pady=(8, 0))
-        ttk.Label(root, text="Use X-ProVIS-Application to select an allowed application; gateway credentials stay inside the node.", foreground="#5c6770").pack(anchor="w")
+        shared_compute = ttk.LabelFrame(root, text="PROVIS shared compute — OpenAI-compatible endpoint", padding=10)
+        shared_compute.pack(fill="x", pady=(10, 0))
+        ttk.Label(shared_compute, text="Use this base URL for LLM workflows and applications running on this PC:").pack(anchor="w")
+        endpoint_row = ttk.Frame(shared_compute)
+        endpoint_row.pack(fill="x", pady=(5, 0))
+        ttk.Label(endpoint_row, text="This PC:").pack(side="left")
+        ttk.Label(endpoint_row, textvariable=self.local_endpoint_var, foreground="#165d69").pack(side="left", padx=(6, 6))
+        ttk.Button(endpoint_row, text="Copy URL", command=lambda: self._copy_inference_endpoint(self.local_endpoint_var.get())).pack(side="left")
+        container_row = ttk.Frame(shared_compute)
+        container_row.pack(fill="x", pady=(5, 0))
+        ttk.Label(container_row, text="Docker containers:").pack(side="left")
+        ttk.Label(container_row, textvariable=self.container_endpoint_var, foreground="#165d69").pack(side="left", padx=(6, 6))
+        ttk.Button(container_row, text="Copy URL", command=lambda: self._copy_inference_endpoint(self.container_endpoint_var.get())).pack(side="left")
+        ttk.Label(shared_compute, text=(
+            "Requests are forwarded by the enrolled node to PROVIS shared compute. "
+            "The PROVIS OpenClaw models are configured for this route; employee-built workflows and apps can use it too. "
+            "Select an allowed application with X-ProVIS-Application. This endpoint is local to this PC; gateway credentials stay inside the node."
+        ), wraplength=860, justify="left", foreground="#5c6770").pack(anchor="w", pady=(7, 0))
+        ttk.Label(root, textvariable=self.device_message_var, foreground="#5c6770").pack(anchor="w", pady=(4, 0))
 
         monitor = ttk.LabelFrame(root, text="PROVIS node activity (prompts and credentials are never displayed)", padding=8)
         monitor.pack(fill="both", expand=True, pady=(12, 0))
@@ -183,8 +202,10 @@ class InferenceNodeClient(tk.Tk):
         config = _load_node_config(self.config_path)
         tailscale_ipv4 = _detect_tailscale_ipv4()
         port = str(config.get("port") or os.getenv("INFERENCE_NODE_PORT", "8765"))
-        broker_port = str(config.get("local_broker_port") or os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", "8767"))
-        self.local_endpoint_var.set(f"OpenAI-compatible local endpoint: http://127.0.0.1:{broker_port}/v1 (containers: http://host.docker.internal:{broker_port}/v1)")
+        broker_port = config.get("local_broker_port") or os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", "8767")
+        local_endpoint, container_endpoint = local_broker_endpoints(broker_port)
+        self.local_endpoint_var.set(local_endpoint)
+        self.container_endpoint_var.set(container_endpoint)
         values = {
             "gateway_url": _load_managed_gateway_url() or str(config.get("gateway_url") or ""),
             "entra_tenant_id": config.get("entra_tenant_id") or os.getenv("INFERENCE_ENTRA_TENANT_ID", ""),
@@ -241,6 +262,19 @@ class InferenceNodeClient(tk.Tk):
         self.clipboard_append(code)
         self.update()
         self.status_var.set("Microsoft code copied to clipboard")
+
+    def _copy_inference_endpoint(self, endpoint: str) -> None:
+        copied = copy_endpoint_to_clipboard(
+            endpoint,
+            (self.local_endpoint_var.get(), self.container_endpoint_var.get()),
+            clipboard_clear=self.clipboard_clear,
+            clipboard_append=self.clipboard_append,
+            update=self.update,
+        )
+        if not copied:
+            self.device_message_var.set("Endpoint could not be copied.")
+            return
+        self.device_message_var.set("Endpoint URL copied. Local API authentication may be required by your administrator.")
 
     def _open_verification_url(self) -> None:
         if self._verification_url:
