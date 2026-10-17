@@ -73,8 +73,14 @@ class NDJSONResponse:
 
     def close(self):
         self.timer.cancel()
-        self.cancel()
-        self.response.close()
+        if not self.done:
+            self.cancel()
+        try:
+            self.response.close()
+        except (OSError, ValueError):
+            # Cancellation may have closed SocketIO beneath its buffered reader.
+            # Cleanup must never append a second HTTP response to an NDJSON body.
+            pass
 
 
 @contextmanager
