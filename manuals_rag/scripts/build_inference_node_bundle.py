@@ -149,6 +149,11 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Installing the pinned build-only PyInstaller tool from PyPI..."
     & $Python @PythonArgs -m pip install --user "pyinstaller>=6.11,<7"
 }
+& $Python @PythonArgs -m pip show cryptography *> $null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Installing the build-only signature verification runtime from PyPI..."
+    & $Python @PythonArgs -m pip install --user "cryptography>=42,<51"
+}
 & $Python @PythonArgs -m PyInstaller --noconfirm --clean --onefile --noconsole `
     --name PROVISInferenceNode `
     --distpath (Join-Path $Root "dist") `
@@ -156,6 +161,7 @@ if ($LASTEXITCODE -ne 0) {
     --specpath $Root `
     --paths (Join-Path $Root "src") `
     --add-data ((Join-Path $Root "provis-node-config.json") + ";.") `
+    --collect-all cryptography `
     (Join-Path $Root "src\run_inference_node_client.py")
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 $Output = Join-Path $Root "dist\PROVISInferenceNode.exe"
@@ -176,7 +182,6 @@ It uses Python's standard library and does not install packages at runtime.
 
 - The machine is already joined to the organization's Tailscale network.
 - Ollama is installed and running locally at `http://127.0.0.1:11434`.
-- Python 3.10 or newer is installed on Windows (the `py` launcher is preferred).
 - The administrator has built this bundle with the managed PROVIS gateway URL.
 - The PROVIS gateway has an Entra app registration configured for device-code
   sign-in.
@@ -203,17 +208,33 @@ node's permanent machine secret.
 
 ## Linux desktop quick start
 
-Use the same managed bundle and run `sh start-node-setup.sh`, or launch the
-administrator-built `inference-node.pyz` with `python3 inference-node.pyz`.
-Both use the same Microsoft sign-in, code Copy button, appearance controls,
-privacy-safe events, GPU utilization and safe sharing controls as Windows.
+For employee deployment, distribute the administrator-built
+`PROVISInferenceNode` executable. It embeds Python, Tk/Tcl, the client and the
+managed configuration; employees do not need Python, Tk or pip. Build it on a
+Linux build machine with the build-only PyInstaller tool:
 
-On Ubuntu/Debian the desktop dependencies are `python3-tk`, `python3-gi`,
-`gir1.2-gtk-3.0`, and `gir1.2-ayatanaappindicator3-0.1` (installed by your
-administrator). The tray uses the desktop's StatusNotifier/AppIndicator
-support. On GNOME this may require its AppIndicator extension. Use the icon's
-**Open PROVIS** menu to open the panel. If the desktop cannot provide a tray,
-the window stays visible and Close uses the safe Quit flow.
+```bash
+PYTHONPATH=manuals_rag/packages/inference_fabric/src:manuals_rag/scripts \
+python3 manuals_rag/scripts/build_inference_node_linux.py \
+  --gateway-url https://<managed-provis-gateway> \
+  --output dist/PROVISInferenceNode
+```
+
+Run `./PROVISInferenceNode` as the employee. It provides the same Microsoft
+sign-in, code Copy button, appearance controls, privacy-safe events, GPU
+utilization and safe sharing controls as Windows. The optional native tray
+indicator is enabled when the desktop provides AppIndicator support; the main
+toolbar window remains usable when a minimal desktop does not.
+
+For a clean-machine smoke check before opening the UI, run
+`./PROVISInferenceNode --self-test`. It reports only whether the managed
+gateway is configured, whether signed updates are enabled, and whether the
+binary is running as an embedded executable.
+
+The older `inference-node.pyz` and `start-node-setup.sh` remain available for
+developer/source environments, but they intentionally require system Python
+and Tk and are not the managed employee artifact. The employee machine still
+needs a graphical desktop session and Ollama.
 
 Build the managed Linux zipapp from the repository:
 
@@ -230,7 +251,8 @@ is separate; do not run it concurrently on the same node port.
 To create a standalone Windows executable, run `build-node-exe.ps1` once from
 the extracted folder. It installs only the build-time PyInstaller tool and
 creates `dist\PROVISInferenceNode.exe`; the resulting app does not need
-Python at runtime.
+Python or Tk at runtime. The Linux builder creates the equivalent
+`PROVISInferenceNode` one-file executable.
 
 The builder clears stale `PYTHONHOME`/`PYTHONPATH` values and skips broken or
 embeddable Python installations. If it reports that no complete Python was
@@ -316,7 +338,12 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
             source / "manuals_rag_inference",
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
-        for name in ("run_inference_node_client.py", "run_inference_node_agent.py", "provis_agent_link.py"):
+        for name in (
+            "run_inference_node_client.py",
+            "run_inference_node_agent.py",
+            "provis_agent_link.py",
+            "build_inference_node_linux.py",
+        ):
             shutil.copy2(SOURCE_ROOT / name, source / name)
         _write_text(stage, "start-node-setup.ps1", WINDOWS_SETUP)
         _write_text(stage, "start-node-agent.ps1", WINDOWS_AGENT)

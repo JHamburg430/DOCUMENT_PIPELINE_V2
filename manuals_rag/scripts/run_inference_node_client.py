@@ -7,6 +7,7 @@ import os
 import platform
 import queue
 import re
+import json
 import sys
 import threading
 import time
@@ -668,6 +669,13 @@ def main() -> None:
     settings = _managed_update_settings()
     config_path = os.getenv('INFERENCE_NODE_CONFIG_PATH', _default_config_path())
     mode = sys.argv[1] if len(sys.argv)>1 else ''
+    if mode == '--self-test':
+        print(json.dumps({
+            'gateway_configured': bool(_load_managed_gateway_url()),
+            'updater_enabled': bool(settings['enabled']),
+            'python_embedded': bool(getattr(sys, 'frozen', False)),
+        }, sort_keys=True))
+        return
     if mode in ('--update-helper', '--update-probe', '--update-rollback') and (not settings['enabled'] or len(sys.argv)!=3):
         raise PermissionError('Trusted updater bootstrap required')
     if mode == '--update-helper':

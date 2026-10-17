@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Build the managed Linux desktop zipapp (system Python/Tk; optional GTK tray)."""
+"""Build the legacy managed Linux zipapp (system Python/Tk; optional GTK tray).
+
+Use build_inference_node_linux.py for employee deployment; it produces a
+self-contained one-file executable with Python and Tk embedded.
+"""
 
 from __future__ import annotations
 
