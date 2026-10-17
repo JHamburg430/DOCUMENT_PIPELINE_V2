@@ -171,6 +171,25 @@ def test_final_update_report_retries_transient_gateway_failure(tmp_path,monkeypa
     assert all(item[4]==5 for item in attempts)
 
 
+@pytest.mark.parametrize('status',[408,429,503])
+def test_final_update_report_retries_transient_http_status(tmp_path,monkeypatch,status):
+    config=tmp_path/'config.json'
+    config.write_text(json.dumps({'shared_secret':'fixture-secret'}),encoding='utf-8')
+    plan={'config_path':str(config),'gateway':'https://gateway.fixture.invalid',
+          'node_id':'john','id':'update-id','claim':'single-use-claim'}
+    attempts=[]
+    def send(*args,**kwargs):
+        attempts.append(True)
+        if len(attempts)==1:
+            raise updater.HTTPError('https://gateway.fixture.invalid',status,'temporary',{},None)
+        return {'status':'healthy'}
+    monkeypatch.setattr(updater,'request',send)
+    monkeypatch.setattr(updater.time,'sleep',lambda _:None)
+
+    assert updater._report_plan(plan,'healthy') is True
+    assert len(attempts)==2
+
+
 def test_final_update_report_does_not_retry_rejected_claim(tmp_path,monkeypatch):
     config=tmp_path/'config.json'
     config.write_text(json.dumps({'shared_secret':'fixture-secret'}),encoding='utf-8')
@@ -357,6 +376,60 @@ def test_owner_updates_panel_renders_metadata_only(release,theme,updater_gui_roo
         assert len(panel.nodes.get_children())==1 and len(panel.releases.get_children())==1
         assert panel.nodes.item(panel.nodes.get_children()[0])['values'][0]=='fixture-pc'
         assert 'verified' in panel.history.get('1.0','end')
+    finally: panel.destroy()
+
+
+def test_update_panel_refresh_discovers_nodes_releases_and_status(updater_gui_root):
+    from manuals_rag_inference.agent_link_ui import UpdatePanel
+    root=updater_gui_root
+    root.app=SimpleNamespace(theme='light',ui_font='Segoe UI')
+    requests=[]
+    root.runtime=SimpleNamespace(request=lambda *args:requests.append(args) or {})
+    root._work=lambda action,kind:action()
+    panel=UpdatePanel(root);panel.withdraw()
+    try:
+        assert [request[0] for request in requests]==['update-nodes','update-releases','update-status']
+        requests.clear()
+        panel.refresh()
+        assert [request[0] for request in requests]==['update-nodes','update-releases','update-status']
+    finally: panel.destroy()
+
+
+@pytest.mark.parametrize('compatible,confirmed,submitted',[(True,True,True),(True,False,False),(False,True,False)])
+def test_update_panel_submits_only_compatible_confirmed_selection(
+    release,updater_gui_root,monkeypatch,compatible,confirmed,submitted
+):
+    import tkinter.messagebox as messagebox
+    from manuals_rag_inference.agent_link_ui import UpdatePanel
+    root=updater_gui_root
+    root.app=SimpleNamespace(theme='light',ui_font='Segoe UI')
+    requests=[]
+    root.runtime=SimpleNamespace(request=lambda *args:requests.append(args) or {'id':'fixture'})
+    work=[]
+    root._work=lambda action,kind:work.append((kind,action()))
+    prompts=[]
+    monkeypatch.setattr(messagebox,'askyesno',lambda *args,**kwargs:prompts.append('confirm') or confirmed)
+    monkeypatch.setattr(messagebox,'showinfo',lambda *args,**kwargs:prompts.append('incompatible'))
+    panel=UpdatePanel(root);panel.withdraw()
+    try:
+        # Ignore the constructor's initial read-only refresh.
+        requests.clear();work.clear()
+        panel.render(({'nodes':[{'node_id':'fixture-pc','version':'2026.10.16.1',
+                                 'platform':release.manifest['platform'] if compatible else 'other-platform',
+                                 'updates_enabled':True}]},
+                      {'releases':[{'manifest':release.manifest,'publisher':'fixture'}]},
+                      {'updates':[]}))
+        panel.nodes.selection_set(panel.nodes.get_children()[0])
+        panel.releases.selection_set(panel.releases.get_children()[0])
+        panel.send()
+        update_calls=[args for args in requests if args[0]=='request-update']
+        assert bool(update_calls)==submitted
+        assert bool(prompts and prompts[0]=='confirm')==compatible
+        assert bool(prompts and prompts[0]=='incompatible')==(not compatible)
+        if submitted:
+            assert update_calls[0][1]['node_id']=='fixture-pc'
+            assert update_calls[0][1]['release_id']==release.manifest['release_id']
+            assert work[-1][0]=='update_requested'
     finally: panel.destroy()
 
 

@@ -300,7 +300,7 @@ def _report_plan(plan, status):
         except HTTPError as exc:
             # Authentication, claim and transition errors are permanent. Only
             # ask the gateway again for a server-side failure.
-            if exc.code < 500:
+            if exc.code < 500 and exc.code not in {408, 429}:
                 break
         except (URLError, TimeoutError, ConnectionError, OSError):
             pass

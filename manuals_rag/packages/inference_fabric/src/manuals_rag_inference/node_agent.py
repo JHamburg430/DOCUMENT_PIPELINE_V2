@@ -59,6 +59,18 @@ def node_agent_url_for_port(value: str, port: int) -> str:
     return urlunsplit((parsed.scheme, f"{host}:{port}", "", "", ""))
 
 
+def listener_endpoint_needs_refresh(agent_url: str, listener_port: int) -> bool:
+    """Whether the gateway-advertised port differs from the bound listener."""
+    try:
+        parsed = urlsplit(agent_url)
+        advertised_port = parsed.port
+    except ValueError as error:
+        raise ValueError("valid advertised node listener URL required") from error
+    if advertised_port is None:
+        advertised_port = 443 if parsed.scheme == "https" else 80
+    return advertised_port != listener_port
+
+
 def publish_agent_endpoint(gateway_url: str, node_id: str, secret: bytes, agent_url: str) -> dict:
     gateway = urlsplit(gateway_url)
     if (gateway.scheme != "https" or not gateway.hostname or gateway.username or gateway.password
@@ -728,7 +740,16 @@ def create_node_server(config_path: str | None = None, *, app_metadata=None, sta
     allow_port_fallback = os.getenv("INFERENCE_NODE_ALLOW_PORT_FALLBACK", "false").lower() == "true"
     server = bind_node_listener(bind, port, create_handler(agent, local_control_token=local_control_token),
                                 allow_fallback=allow_port_fallback)
-    if server.server_port != port:
+    # The persisted advertised URL may point at a previous fallback port even
+    # though this restart successfully reclaimed the configured primary port.
+    # Compare the listener against the advertised endpoint, not just the
+    # configured bind port, so the gateway is refreshed in both directions.
+    try:
+        endpoint_changed = listener_endpoint_needs_refresh(agent_url, server.server_port)
+    except ValueError as error:
+        server.server_close()
+        raise RuntimeError("invalid advertised node listener URL") from error
+    if endpoint_changed:
         if not gateway_url:
             server.server_close()
             raise RuntimeError("gateway is required to publish a fallback listener endpoint")

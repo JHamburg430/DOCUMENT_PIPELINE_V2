@@ -1,0 +1,71 @@
+name: PROVIS Inference Node CI
+
+on:
+  pull_request:
+    paths:
+      - "manuals_rag/packages/inference_fabric/**"
+      - "manuals_rag/scripts/build_inference_node_*.py"
+      - "manuals_rag/tests/unit/test_inference_node_*.py"
+      - "manuals_rag/tests/unit/test_inference_native_linux_updates.py"
+      - "manuals_rag/requirements-node-ci.txt"
+      - ".github/workflows/provis-inference-node-ci.yml"
+  push:
+    branches:
+      - main
+      - master
+      - codex/provis-node-reconcile-20261017
+    paths:
+      - "manuals_rag/packages/inference_fabric/**"
+      - "manuals_rag/scripts/build_inference_node_*.py"
+      - "manuals_rag/tests/unit/test_inference_node_*.py"
+      - "manuals_rag/tests/unit/test_inference_native_linux_updates.py"
+      - "manuals_rag/requirements-node-ci.txt"
+      - ".github/workflows/provis-inference-node-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provis-inference-node-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python, Tk, and display support
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes python3-venv python3-tk xvfb
+          python3 -m venv --system-site-packages "$RUNNER_TEMP/provis-node-ci-venv"
+          echo "$RUNNER_TEMP/provis-node-ci-venv/bin" >> "$GITHUB_PATH"
+      - name: Install focused build and test dependencies
+        run: python -m pip install -r manuals_rag/requirements-node-ci.txt
+      - name: Run updater, gateway, listener, and desktop UI tests
+        env:
+          PYTHONPATH: manuals_rag/packages/inference_fabric/src:manuals_rag/scripts
+        run: |
+          xvfb-run --auto-servernum python -m pytest -q \
+            manuals_rag/tests/unit/test_inference_node_updates.py \
+            manuals_rag/tests/unit/test_inference_node_listener_refresh.py \
+            manuals_rag/tests/unit/test_inference_native_linux_updates.py \
+            manuals_rag/tests/unit/test_inference_node_broker_gateway.py
+      - name: Build unsigned Linux smoke artifact
+        env:
+          PYTHONPATH: manuals_rag/packages/inference_fabric/src:manuals_rag/scripts
+        run: |
+          python manuals_rag/scripts/build_inference_node_linux.py \
+            --gateway-url https://gateway.invalid:8445 \
+            --output "$RUNNER_TEMP/PROVISInferenceNode-unsigned"
+          test -x "$RUNNER_TEMP/PROVISInferenceNode-unsigned"
+          sha256sum "$RUNNER_TEMP/PROVISInferenceNode-unsigned" > "$RUNNER_TEMP/PROVISInferenceNode-unsigned.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PROVISInferenceNode-unsigned-linux-x86_64
+          path: |
+            ${{ runner.temp }}/PROVISInferenceNode-unsigned
+            ${{ runner.temp }}/PROVISInferenceNode-unsigned.sha256
+          if-no-files-found: error
+          retention-days: 7

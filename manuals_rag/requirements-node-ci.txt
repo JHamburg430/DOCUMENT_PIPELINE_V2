@@ -1,0 +1,4 @@
+# Focused dependencies for the PROVIS Inference Node CI job.
+pytest==8.4.2
+cryptography==46.0.3
+pyinstaller==6.17.0

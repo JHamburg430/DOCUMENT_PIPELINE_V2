@@ -117,7 +117,10 @@ class InferenceGateway:
         if self.enrollment is not None:
             for node in self.enrollment.nodes():
                 self.node_secrets.setdefault(node.node_id, node.secret.encode())
-                self.node_agent_urls.setdefault(node.node_id, node.agent_url)
+                # Enrolled state is durable and is updated by authenticated
+                # endpoint refresh. A static environment mapping is only a
+                # bootstrap for non-enrolled nodes and must not shadow it.
+                self.node_agent_urls[node.node_id] = node.agent_url
 
     def create_pairing_token(self, *, ttl_seconds: int = 600) -> dict[str, Any]:
         if self.enrollment is None:
