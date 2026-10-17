@@ -280,11 +280,19 @@ def test_launch_failure_recovers_previous_app(tmp_path,release,monkeypatch):
     assert launched[-1][-2:]==['--update-rollback',str(directory/'plan.json')]
 
 
+@pytest.fixture(scope='module')
+def updater_gui_root():
+    import tkinter as tk
+    root=tk.Tk();root.withdraw()
+    yield root
+    root.destroy()
+
+
 @pytest.mark.parametrize('theme',['light','dark'])
-def test_owner_updates_panel_renders_metadata_only(release,theme):
+def test_owner_updates_panel_renders_metadata_only(release,theme,updater_gui_root):
     import tkinter as tk
     from manuals_rag_inference.agent_link_ui import UpdatePanel
-    root=tk.Tk();root.withdraw()
+    root=updater_gui_root
     root.app=SimpleNamespace(theme=theme,ui_font='Segoe UI')
     root.runtime=None
     root._work=lambda *args:None
@@ -295,7 +303,7 @@ def test_owner_updates_panel_renders_metadata_only(release,theme):
         assert len(panel.nodes.get_children())==1 and len(panel.releases.get_children())==1
         assert panel.nodes.item(panel.nodes.get_children()[0])['values'][0]=='fixture-pc'
         assert 'verified' in panel.history.get('1.0','end')
-    finally: panel.destroy();root.destroy()
+    finally: panel.destroy()
 
 
 def test_stage_download_checks_size_and_never_follows_redirect(tmp_path,release,monkeypatch):
