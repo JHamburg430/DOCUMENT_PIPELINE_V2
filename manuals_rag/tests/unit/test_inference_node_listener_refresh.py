@@ -106,6 +106,7 @@ def test_fallback_to_primary_restart_refreshes_gateway_endpoint(tmp_path, monkey
     monkeypatch.setattr(node_agent, "_detect_tailscale_ipv4", lambda: None)
     monkeypatch.setattr(node_agent, "OllamaNode", Agent)
     monkeypatch.setattr(node_agent, "create_handler", lambda *args, **kwargs: object())
+    monkeypatch.setattr(node_agent, "create_openai_broker_server", lambda *args, **kwargs: Server(kwargs["port"]))
     monkeypatch.setattr(node_agent, "bind_node_listener", lambda *args, **kwargs: next(servers))
     monkeypatch.setattr(node_agent, "publish_agent_endpoint", lambda gateway, node, secret, url: refreshed.append(url))
     monkeypatch.setattr(node_agent.threading, "Thread", NoStartThread)
