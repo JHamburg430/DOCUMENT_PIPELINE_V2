@@ -89,7 +89,9 @@ def test_fallback_to_primary_restart_refreshes_gateway_endpoint(tmp_path, monkey
         def server_close(self): pass
 
     class Agent:
-        def __init__(self, **_kwargs): self.app_metadata = {}
+        def __init__(self, **_kwargs):
+            self.app_metadata = {}
+            self.allowed_applications = ("manuals_rag",)
         def set_inference_enabled(self, _enabled): pass
         def publish_heartbeat(self, _gateway): pass
 

@@ -183,8 +183,10 @@ def test_local_openai_routes_dispatch_through_signed_gateway_to_selected_worker(
                                 assert result["data"][0]["embedding"] == [0.25, 0.75]
                         with pytest.raises(HTTPError) as rejected:
                             urlopen(Request(base + "/chat/completions", data=json.dumps({
-                                "model": "test-model", "messages": [{"role": "user", "content": "hi"}]},
-                                headers={"Content-Type": "application/json", "X-ProVIS-Application": "other-app"})))
+                                "model": "test-model", "messages": [{"role": "user", "content": "hi"}]}
+                            ).encode(), headers={
+                                "Content-Type": "application/json", "X-ProVIS-Application": "other-app",
+                            }))
                         assert rejected.value.code == 403
                     finally:
                         local.shutdown()
