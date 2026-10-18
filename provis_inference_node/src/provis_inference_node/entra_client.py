@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import hmac
+import secrets
 import time
 from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
@@ -152,3 +155,52 @@ def enroll_node_with_entra(*, gateway_url: str, access_token: str, node_id: str,
     )
     with urlopen(request, timeout=15) as response:
         return json.loads(response.read().decode())
+
+
+def verify_node_registration_with_entra(*, gateway_url: str, access_token: str, node_id: str, shared_secret: str) -> bool:
+    """Ask the gateway to verify this signed-in owner against a saved registration."""
+    if not node_id.strip() or not shared_secret:
+        return False
+    challenge = secrets.token_urlsafe(32)
+    proof = json.dumps({"node_id": node_id, "challenge": challenge}, sort_keys=True, separators=(",", ":")).encode()
+    signature = hmac.new(shared_secret.encode(), proof, hashlib.sha256).hexdigest()
+    request = Request(
+        f"{gateway_url.rstrip('/')}/v1/nodes/verify-registration/entra",
+        data=json.dumps({"node_id": node_id, "challenge": challenge, "signature": signature}).encode(),
+        method="POST",
+        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            result = _decode_json_object(response.read())
+    except HTTPError as error:
+        if error.code in {401, 403, 404}:
+            return False
+        raise EntraHttpError(error.code) from None
+    except URLError:
+        raise EntraNetworkError() from None
+    return result.get("status") == "accepted"
+
+
+def reuse_or_enroll_node_with_entra(*, config: dict, gateway_url: str, access_token: str, node_id: str, endpoint: str, agent_url: str, tailnet_name: str) -> dict:
+    """Reuse verified saved credentials, enrolling only when no credentials exist."""
+    saved_secret = str(config.get("shared_secret") or "")
+    if saved_secret:
+        saved_node_id = str(config.get("node_id") or "")
+        if not verify_node_registration_with_entra(
+            gateway_url=gateway_url,
+            access_token=access_token,
+            node_id=saved_node_id,
+            shared_secret=saved_secret,
+        ):
+            raise PermissionError("saved node registration could not be verified")
+        return config
+    result = enroll_node_with_entra(
+        gateway_url=gateway_url,
+        access_token=access_token,
+        node_id=node_id,
+        endpoint=endpoint,
+        agent_url=agent_url,
+        tailnet_name=tailnet_name,
+    )
+    return {**config, **result}

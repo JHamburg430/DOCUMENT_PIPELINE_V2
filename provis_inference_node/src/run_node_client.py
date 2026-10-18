@@ -24,10 +24,10 @@ from provis_inference_node.node_agent import (
     enroll_node,
 )
 from provis_inference_node.entra_client import (
-    enroll_node_with_entra,
     fetch_enrollment_config,
     poll_device_token,
     request_device_code,
+    reuse_or_enroll_node_with_entra,
 )
 from provis_inference_node.connect_diagnostics import append_connect_diagnostic
 from provis_inference_node.ui_helpers import copy_endpoint_to_clipboard, local_broker_endpoints
@@ -384,7 +384,8 @@ class InferenceNodeClient(tk.Tk):
             )
             phase = "entra_enrollment"
             config = _load_node_config(self.config_path)
-            result = enroll_node_with_entra(
+            config = reuse_or_enroll_node_with_entra(
+                config=config,
                 gateway_url=values["gateway_url"],
                 access_token=str(token["access_token"]),
                 node_id=values["node_id"],
@@ -392,7 +393,6 @@ class InferenceNodeClient(tk.Tk):
                 agent_url=values["agent_url"],
                 tailnet_name=values["tailnet_name"],
             )
-            config.update(result)
             config.update({"entra_tenant_id": values["entra_tenant_id"], "entra_client_id": values["entra_client_id"], "entra_scope": values["entra_scope"]})
             phase = "local_service_start"
             self.worker_queue.put(("connected", self._persist_and_start(config, values)))
