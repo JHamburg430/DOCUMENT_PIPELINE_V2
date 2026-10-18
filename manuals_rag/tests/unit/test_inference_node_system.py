@@ -37,6 +37,53 @@ def test_tailscale_status_is_sanitized_and_reports_connection(monkeypatch):
     assert "private-host" not in str(result)
 
 
+def test_tailscale_access_denied_is_unknown_not_disconnected(monkeypatch):
+    monkeypatch.setattr(node_system.shutil, "which", lambda name: "tailscale.exe" if name == "tailscale" else None)
+
+    def fake_run(command, *, timeout):
+        if command == ["tailscale", "status", "--json"]:
+            return 1, "", "Access is denied: private pipe detail"
+        return 1, "", "Access is denied"
+
+    monkeypatch.setattr(node_system, "_run_fixed", fake_run)
+    result = node_system.tailscale_status()
+
+    assert result["status"] == "unknown"
+    assert result["connected"] is None
+    assert result["installed"] is True
+    assert "private pipe detail" not in str(result)
+
+
+def test_tailscale_explicit_stopped_state_is_disconnected(monkeypatch):
+    monkeypatch.setattr(node_system.shutil, "which", lambda name: "tailscale.exe" if name == "tailscale" else None)
+
+    def fake_run(command, *, timeout):
+        if command == ["tailscale", "status", "--json"]:
+            return 0, '{"BackendState":"Stopped"}', ""
+        return 1, "", ""
+
+    monkeypatch.setattr(node_system, "_run_fixed", fake_run)
+    result = node_system.tailscale_status()
+
+    assert result["status"] == "disconnected"
+    assert result["connected"] is False
+
+
+def test_tailscale_unrecognized_backend_state_is_unknown(monkeypatch):
+    monkeypatch.setattr(node_system.shutil, "which", lambda name: "tailscale.exe" if name == "tailscale" else None)
+
+    def fake_run(command, *, timeout):
+        if command == ["tailscale", "status", "--json"]:
+            return 0, '{"BackendState":"SomeFutureState"}', ""
+        return 1, "", ""
+
+    monkeypatch.setattr(node_system, "_run_fixed", fake_run)
+    result = node_system.tailscale_status()
+
+    assert result["status"] == "unknown"
+    assert result["connected"] is None
+
+
 def test_gpu_driver_status_returns_bounded_inventory(monkeypatch):
     monkeypatch.setattr(node_system.shutil, "which", lambda name: "/usr/bin/nvidia-smi" if name == "nvidia-smi" else None)
     monkeypatch.setattr(

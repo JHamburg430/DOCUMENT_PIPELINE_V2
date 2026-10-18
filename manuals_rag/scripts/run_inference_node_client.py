@@ -394,6 +394,8 @@ class InferenceNodeClient(tk.Tk):
         ollama = statuses.get("ollama", {})
         gpu = statuses.get("gpu", {})
         tailscale = statuses.get("tailscale", {})
+        ollama_installed = bool(ollama.get("installed"))
+        tailscale_installed = bool(tailscale.get("installed"))
         self.settings_vars["ollama_status"].set(str(ollama.get("status", "unknown")).replace("_", " ").title())
         ollama_detail = str(ollama.get("version") or "Local API is not responding")
         self.settings_vars["ollama_detail"].set(f"Version: {ollama_detail}")
@@ -404,14 +406,16 @@ class InferenceNodeClient(tk.Tk):
         tail_detail = str(tailscale.get("version") or "")
         if tailscale.get("ipv4"):
             tail_detail += (" • " if tail_detail else "") + f"IPv4: {tailscale['ipv4']}"
-        self.settings_vars["tailscale_detail"].set(tail_detail or "Tailscale is not installed")
-        ollama_installed = bool(ollama.get("installed"))
-        tailscale_installed = bool(tailscale.get("installed"))
+        if not tailscale_installed:
+            tail_detail = "Tailscale is not installed"
+        elif tailscale.get("status") == "unknown":
+            tail_detail = "Could not confirm Tailscale status; check permissions or refresh status"
+        self.settings_vars["tailscale_detail"].set(tail_detail)
         self.settings_buttons["ollama_install"].configure(state="disabled" if ollama_installed or (managed_installer("ollama") is None and official_installer_url("ollama") is None) else "normal")
         self.settings_buttons["gpu_install"].configure(state="normal" if managed_installer("gpu") is not None else "disabled")
         self.settings_buttons["tailscale_install"].configure(state="disabled" if tailscale_installed or (managed_installer("tailscale") is None and official_installer_url("tailscale") is None) else "normal")
         self.settings_buttons["tailscale_disconnect"].configure(state="normal" if tailscale.get("connected") else "disabled")
-        self.settings_buttons["tailscale_reconnect"].configure(state="normal" if tailscale_installed and not tailscale.get("connected") else "disabled")
+        self.settings_buttons["tailscale_reconnect"].configure(state="normal" if tailscale_installed and tailscale.get("status") == "disconnected" else "disabled")
 
     def _start_managed_install(self, component: str) -> None:
         if managed_installer(component) is None and official_installer_url(component) is None:

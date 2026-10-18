@@ -91,13 +91,17 @@ def tailscale_status() -> dict[str, object]:
     if shutil.which("tailscale") is None:
         return {"status": "not_installed", "installed": False, "connected": False, "version": "", "ipv4": ""}
     code, stdout, _ = _run_fixed(["tailscale", "status", "--json"], timeout=5)
-    connected = False
+    connected: bool | None = None
     if code == 0:
         try:
             payload = json.loads(stdout)
-            connected = str(payload.get("BackendState") or "").lower() == "running"
+            state = str(payload.get("BackendState") or "").strip().lower()
+            if state == "running":
+                connected = True
+            elif state in {"stopped", "needslogin", "needsmachineauth"}:
+                connected = False
         except (TypeError, ValueError):
-            connected = False
+            pass
     ip_code, ip_stdout, _ = _run_fixed(["tailscale", "ip", "-4"], timeout=3)
     ipv4 = ""
     if ip_code == 0:
@@ -107,7 +111,7 @@ def tailscale_status() -> dict[str, object]:
                 ipv4 = value
                 break
     return {
-        "status": "connected" if connected else "disconnected",
+        "status": "connected" if connected is True else "disconnected" if connected is False else "unknown",
         "installed": True,
         "connected": connected,
         "version": _tailscale_version(),
