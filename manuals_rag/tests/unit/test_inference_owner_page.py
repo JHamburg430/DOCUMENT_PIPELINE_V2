@@ -51,6 +51,7 @@ def test_verified_owner_page_is_removed_on_signout_and_expiry(panel, monkeypatch
     page._drain()
     assert page.runtime is runtime
     assert page.private is not None
+    assert str(page.update_button.cget('state')) == 'normal'
     assert any(page.notebook.tab(tab, 'text') == 'Node Channel' for tab in page.notebook.tabs())
     assert not any(text in labels(page) for text in ('New owner session', 'Refresh remote sessions', 'Choose local Codex sessions'))
     assert len(page.conversation_tabs) == 1
@@ -60,6 +61,7 @@ def test_verified_owner_page_is_removed_on_signout_and_expiry(panel, monkeypatch
     assert page.runtime is None
     assert closed
     assert not page.update_button.winfo_manager()
+    assert str(page.update_button.cget('state')) == 'disabled'
     assert not page.notebook.winfo_exists()
     page.emit('workspace', {'workspace': {}, 'histories': {}}, page.auth_epoch-1)
     page._drain()

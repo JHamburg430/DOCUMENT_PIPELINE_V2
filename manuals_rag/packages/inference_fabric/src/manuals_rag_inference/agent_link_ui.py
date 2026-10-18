@@ -164,7 +164,9 @@ class OwnerPanel(tk.Toplevel):
         row['composer'].delete('1.0', 'end')
 
     def _hide_private(self):
-        if self.update_button.winfo_exists(): self.update_button.pack_forget()
+        if self.update_button.winfo_exists():
+            self.update_button.configure(state='disabled')
+            self.update_button.pack_forget()
         if hasattr(self.app, 'owner_drawer'): self.app.owner_drawer.set_verified(False)
         if self.private is not None:
             self.private.destroy()
@@ -257,6 +259,7 @@ class OwnerPanel(tk.Toplevel):
                     self.runtime = OwnerRuntime(gateway, session, lambda kind, value, epoch=epoch: self.emit(kind, value, epoch))
                     self.runtime.external_busy = lambda: bool(self.app.updater and self.app.updater.applying)
                     self._show_private()
+                    self.update_button.configure(state='normal')
                     self.code = '';self.status.set('Owner verified. Connecting to local Codex and discovering workspace nodes.')
                     if hasattr(self.app, 'owner_drawer'):
                         self.app.owner_drawer.set_verified(True)
