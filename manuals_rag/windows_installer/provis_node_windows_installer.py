@@ -617,13 +617,13 @@ def main(argv: list[str] | None = None, *, icon_png: bytes | None = None) -> int
     try:
         if argv == ["--self-test"]:
             from manuals_rag_inference.node_release import verify_release
-            import provis_node_windows_installer_gui  # noqa: F401
             manifest = verify_release(RELEASE_DOCUMENT, PUBLIC_KEYS, platform="windows-x86_64")
             if icon_png is None:
                 icon_path = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1] / "assets" / "brand")) / "provis-lens.png"
                 icon_png = icon_path.read_bytes()
             _png_to_ico(icon_png)
-            return 0
+            from provis_node_windows_installer_gui import run_gui
+            return run_gui(icon_png, smoke_test=True)
         if argv:
             raise InstallError("This installer uses its Windows window; no command-line install switches are supported.")
         if icon_png is None:
@@ -636,7 +636,7 @@ def main(argv: list[str] | None = None, *, icon_png: bytes | None = None) -> int
     except (InstallError, OSError, PermissionError, ValueError) as error:
         if sys.stderr:
             print(json.dumps({"status": "error", "detail": str(error)}), file=sys.stderr)
-        else:
+        elif argv != ["--self-test"]:
             try:
                 from tkinter import messagebox
                 messagebox.showerror("PROVIS Inference Node Setup", str(error))

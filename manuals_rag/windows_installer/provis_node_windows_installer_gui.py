@@ -16,14 +16,16 @@ from provis_node_windows_installer import (
 )
 
 
-def run_gui(icon_png: bytes) -> int:
+def run_gui(icon_png: bytes, *, smoke_test: bool = False) -> int:
     root = tk.Tk()
     root.title("PROVIS Inference Node Setup")
     root.geometry("520x260")
     root.minsize(460, 240)
     root.resizable(False, False)
     root.configure(background="#101820")
-    root.option_add("*Font", "Segoe UI 10")
+    # Tk uses its platform's named default font. Passing a family with spaces
+    # as a flat Tcl font string (for example, "Segoe UI 10") is parsed as
+    # separate fields and can fail before the installer window is created.
 
     frame = ttk.Frame(root, padding=22)
     frame.pack(fill="both", expand=True)
@@ -154,5 +156,9 @@ def run_gui(icon_png: bytes) -> int:
     close_button.pack(side="right")
     root.protocol("WM_DELETE_WINDOW", request_close)
     root.after(100, process_events)
+    if smoke_test:
+        # Exercise the real window/widget initialization path in CI without
+        # requiring a click or ever starting an install operation.
+        root.after(250, root.destroy)
     root.mainloop()
     return 0

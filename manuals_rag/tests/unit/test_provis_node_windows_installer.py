@@ -184,7 +184,12 @@ def test_checked_in_installer_release_pin_verifies_with_existing_publisher_key()
     assert manifest["sha256"] == "e635207ca0b1d13869523f7b679b0100ba05234222af487c9fadebaa94b914f2"
 
 
-def test_non_mutating_standalone_self_test():
+def test_standalone_self_test_starts_and_closes_real_gui_without_install(monkeypatch):
+    def reject_install(*args, **kwargs):
+        raise AssertionError("GUI startup smoke test must not start an installation")
+
+    monkeypatch.setattr(WindowsNodeInstaller, "install_or_repair", reject_install)
+    monkeypatch.setattr(WindowsNodeInstaller, "uninstall_owned", reject_install)
     assert main(["--self-test"], icon_png=_png()) == 0
 
 

@@ -91,7 +91,7 @@ jobs:
           python-version: "3.11"
       - name: Install focused build and test dependencies
         run: python -m pip install -r manuals_rag/requirements-node-ci.txt
-      - name: Run Windows installer unit tests
+      - name: Run Windows installer unit tests including real Tk GUI startup
         env:
           PYTHONPATH: manuals_rag/packages/inference_fabric/src;provis_inference_node/src
         run: python -m pytest -q manuals_rag/tests/unit/test_provis_node_windows_installer.py
@@ -106,6 +106,8 @@ jobs:
           $env:PYTHONPATH = ""
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           Push-Location $env:RUNNER_TEMP
+          # This initializes the packaged Tk window and closes it automatically;
+          # it never invokes Install / Repair or launches the node application.
           & $installer --self-test
           Pop-Location
           if ($LASTEXITCODE -ne 0) { throw "Frozen installer self-test failed" }
