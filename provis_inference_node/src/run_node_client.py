@@ -29,6 +29,7 @@ from provis_inference_node.entra_client import (
     poll_device_token,
     request_device_code,
 )
+from provis_inference_node.connect_diagnostics import append_connect_diagnostic
 from provis_inference_node.ui_helpers import copy_endpoint_to_clipboard, local_broker_endpoints
 
 
@@ -107,6 +108,7 @@ class InferenceNodeClient(tk.Tk):
         self.minsize(760, 520)
         self.protocol("WM_DELETE_WINDOW", self._close_requested)
         self.config_path = os.getenv("INFERENCE_NODE_CONFIG_PATH", _default_config_path())
+        self.connect_diagnostics_path = str(Path(self.config_path).with_name("inference-node-diagnostics.jsonl"))
         self.server = None
         self.agent = None
         self.gateway_url = ""
@@ -330,9 +332,11 @@ class InferenceNodeClient(tk.Tk):
         return server, agent, gateway_url
 
     def _connect_worker(self, values: dict[str, str]) -> None:
+        phase = "saved_registration_load"
         try:
             config = _load_node_config(self.config_path)
             if not config.get("shared_secret"):
+                phase = "legacy_enrollment"
                 if not values["gateway_url"] or not values["pairing_token"]:
                     raise RuntimeError("use Sign in with Microsoft 365 for first connection, or provide a legacy pairing token")
                 result = enroll_node(
@@ -344,13 +348,18 @@ class InferenceNodeClient(tk.Tk):
                     tailnet_name=values["tailnet_name"],
                 )
                 config.update(result)
+            phase = "local_service_start"
             self.worker_queue.put(("connected", self._persist_and_start(config, values)))
+            append_connect_diagnostic(self.connect_diagnostics_path, "connect_complete")
         except Exception as error:
+            append_connect_diagnostic(self.connect_diagnostics_path, phase, error=error)
             self.worker_queue.put(("error", str(error)))
 
     def _entra_connect_worker(self, values: dict[str, str]) -> None:
+        phase = "gateway_discovery"
         try:
             values = self._resolve_values(values)
+            phase = "device_code_request"
             device = request_device_code(
                 tenant_id=values["entra_tenant_id"],
                 client_id=values["entra_client_id"],
@@ -365,6 +374,7 @@ class InferenceNodeClient(tk.Tk):
             }))
             if verification_url:
                 webbrowser.open(verification_url)
+            phase = "device_code_poll"
             token = poll_device_token(
                 tenant_id=values["entra_tenant_id"],
                 client_id=values["entra_client_id"],
@@ -372,6 +382,7 @@ class InferenceNodeClient(tk.Tk):
                 interval=int(device.get("interval") or 5),
                 expires_in=int(device.get("expires_in") or 900),
             )
+            phase = "entra_enrollment"
             config = _load_node_config(self.config_path)
             result = enroll_node_with_entra(
                 gateway_url=values["gateway_url"],
@@ -383,8 +394,11 @@ class InferenceNodeClient(tk.Tk):
             )
             config.update(result)
             config.update({"entra_tenant_id": values["entra_tenant_id"], "entra_client_id": values["entra_client_id"], "entra_scope": values["entra_scope"]})
+            phase = "local_service_start"
             self.worker_queue.put(("connected", self._persist_and_start(config, values)))
+            append_connect_diagnostic(self.connect_diagnostics_path, "connect_complete")
         except Exception as error:
+            append_connect_diagnostic(self.connect_diagnostics_path, phase, error=error)
             self.worker_queue.put(("error", str(error)))
 
     def _set_inference(self, enabled: bool) -> None:

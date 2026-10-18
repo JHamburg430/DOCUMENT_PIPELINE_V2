@@ -9,6 +9,38 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
+class _HttpResult(dict):
+    """OAuth response fields with protocol status kept out of the payload."""
+
+    def __init__(self, values: dict, http_status: object = None) -> None:
+        super().__init__(values)
+        self.http_status = http_status
+
+
+class EntraHttpError(RuntimeError):
+    """Safe request failure that retains only the numeric HTTP status."""
+
+    def __init__(self, http_status: int) -> None:
+        self.http_status = http_status
+        super().__init__("Entra authentication request failed")
+
+
+class EntraNetworkError(ConnectionError):
+    """Safe connectivity failure without the underlying URL or message."""
+
+    def __init__(self) -> None:
+        super().__init__("Entra authentication service is unavailable")
+
+
+def _raise_with_http_status(error: Exception, response: dict, *, category: str | None = None) -> None:
+    status = getattr(response, "http_status", None)
+    if status is not None:
+        error.http_status = status
+    if category is not None:
+        error.diagnostic_category = category
+    raise error
+
+
 def fetch_enrollment_config(*, gateway_url: str) -> dict:
     request = Request(f"{gateway_url.rstrip('/')}/v1/node/enrollment-config", method="GET")
     with urlopen(request, timeout=10) as response:
@@ -43,7 +75,7 @@ def _post_form(url: str, values: dict[str, str], *, timeout: float = 10.0) -> di
     )
     try:
         with urlopen(request, timeout=timeout) as response:
-            return _decode_json_object(response.read())
+            return _HttpResult(_decode_json_object(response.read()), getattr(response, "status", None))
     except HTTPError as error:
         # Microsoft Entra uses HTTP 400 for normal device-code states such as
         # authorization_pending and slow_down. Return only the parsed OAuth
@@ -51,13 +83,13 @@ def _post_form(url: str, values: dict[str, str], *, timeout: float = 10.0) -> di
         # or surfacing raw authentication responses.
         try:
             result = _decode_json_object(error.read(64 * 1024))
-        except Exception as parse_error:
-            raise RuntimeError(f"Entra authentication request failed (HTTP {error.code})") from parse_error
+        except Exception:
+            raise EntraHttpError(error.code) from None
         if str(result.get("error") or ""):
-            return result
-        raise RuntimeError(f"Entra authentication request failed (HTTP {error.code})")
-    except URLError as error:
-        raise RuntimeError("Entra authentication service is unavailable") from error
+            return _HttpResult(result, error.code)
+        raise EntraHttpError(error.code) from None
+    except URLError:
+        raise EntraNetworkError() from None
 
 
 def request_device_code(*, tenant_id: str, client_id: str, scope: str) -> dict:
@@ -69,7 +101,11 @@ def request_device_code(*, tenant_id: str, client_id: str, scope: str) -> dict:
         {"client_id": client_id.strip(), "scope": scope.strip()},
     )
     if not result.get("device_code"):
-        raise RuntimeError("Entra device sign-in could not be started")
+        _raise_with_http_status(
+            RuntimeError("Entra device sign-in could not be started"),
+            result,
+            category="invalid_response",
+        )
     return result
 
 
@@ -95,10 +131,10 @@ def poll_device_token(*, tenant_id: str, client_id: str, device_code: str, inter
             time.sleep(min(wait_seconds, max(0.0, remaining)))
             continue
         if error in {"authorization_declined", "access_denied"}:
-            raise PermissionError("Microsoft sign-in was denied")
+            _raise_with_http_status(PermissionError("Microsoft sign-in was denied"), result)
         if error in {"expired_token", "bad_verification_code", "invalid_grant"}:
-            raise TimeoutError("Microsoft sign-in expired or was cancelled")
-        raise RuntimeError("Microsoft sign-in could not be completed")
+            _raise_with_http_status(TimeoutError("Microsoft sign-in expired or was cancelled"), result)
+        _raise_with_http_status(RuntimeError("Microsoft sign-in could not be completed"), result)
 
 
 def enroll_node_with_entra(*, gateway_url: str, access_token: str, node_id: str, endpoint: str, agent_url: str, tailnet_name: str) -> dict:
