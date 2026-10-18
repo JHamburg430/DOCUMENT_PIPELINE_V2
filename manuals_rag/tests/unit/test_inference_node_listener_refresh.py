@@ -99,7 +99,9 @@ def test_fallback_to_primary_restart_refreshes_gateway_endpoint(tmp_path, monkey
         def __init__(self, **_kwargs): pass
         def start(self): pass
 
-    servers = iter((Server(8766), Server(8765)))
+    servers = iter((Server(8766), Server(8765), Server(8765)))
+    fallback_options = []
+    excluded = []
     refreshed = []
     monkeypatch.setattr(node_agent, "_load_node_config", lambda _path: config)
     monkeypatch.setattr(node_agent, "_save_node_config", lambda _path, value: saved.append(dict(value)))
@@ -107,7 +109,11 @@ def test_fallback_to_primary_restart_refreshes_gateway_endpoint(tmp_path, monkey
     monkeypatch.setattr(node_agent, "OllamaNode", Agent)
     monkeypatch.setattr(node_agent, "create_handler", lambda *args, **kwargs: object())
     monkeypatch.setattr(node_agent, "create_openai_broker_server", lambda *args, **kwargs: Server(kwargs["port"]))
-    monkeypatch.setattr(node_agent, "bind_node_listener", lambda *args, **kwargs: next(servers))
+    def capture_fallback(*args, **kwargs):
+        fallback_options.append(kwargs["allow_fallback"])
+        excluded.append(kwargs["excluded_ports"])
+        return next(servers)
+    monkeypatch.setattr(node_agent, "bind_node_listener", capture_fallback)
     monkeypatch.setattr(node_agent, "publish_agent_endpoint", lambda gateway, node, secret, url: refreshed.append(url))
     monkeypatch.setattr(node_agent.threading, "Thread", NoStartThread)
     monkeypatch.setenv("INFERENCE_NODE_BIND", "127.0.0.1")
@@ -115,14 +121,38 @@ def test_fallback_to_primary_restart_refreshes_gateway_endpoint(tmp_path, monkey
     monkeypatch.delenv("INFERENCE_NODE_ADVERTISE_URL", raising=False)
     monkeypatch.delenv("INFERENCE_NODE_ID", raising=False)
     monkeypatch.delenv("INFERENCE_GATEWAY_URL", raising=False)
+    monkeypatch.delenv("INFERENCE_NODE_ALLOW_PORT_FALLBACK", raising=False)
 
     first, _, _ = node_agent.create_node_server(str(tmp_path / "node.json"))
+    assert fallback_options == [True]
+    assert excluded == [{8767}]
     assert refreshed == []
     assert config["agent_url"] == "https://msi-node.ts.net:8766"
     second, _, _ = node_agent.create_node_server(str(tmp_path / "node.json"))
+    assert fallback_options == [True, True]
     assert refreshed == ["https://msi-node.ts.net:8765"]
     assert config["agent_url"] == "https://msi-node.ts.net:8765"
-    first.server_close(); second.server_close()
+    monkeypatch.setenv("INFERENCE_NODE_ALLOW_PORT_FALLBACK", "false")
+    third, _, _ = node_agent.create_node_server(str(tmp_path / "node.json"))
+    assert fallback_options == [True, True, False]
+    first.server_close(); second.server_close(); third.server_close()
+
+
+def test_automatic_listener_fallback_skips_local_broker_port():
+    attempts = []
+
+    class Server:
+        def __init__(self, address, _handler):
+            self.server_port = address[1]
+
+    def bind(address, handler):
+        attempts.append(address[1])
+        return Server(address, handler)
+
+    server = bind_node_listener("100.64.0.8", 8767, object(), allow_fallback=True,
+                                excluded_ports={8767}, server_factory=bind)
+    assert attempts == [8768]
+    assert server.server_port == 8768
 
 
 def test_authenticated_endpoint_refresh_http_route(tmp_path):

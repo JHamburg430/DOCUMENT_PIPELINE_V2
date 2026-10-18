@@ -1,13 +1,18 @@
 # PROVIS inference-node listener fallback
 
-Status: code and tests are being prepared on an isolated branch. The feature is
-off by default and has not been deployed.
+Status: bounded listener fallback is enabled by default in app builds containing
+the automatic-fallback change. Existing signed releases retain their original
+behavior until they are updated. A host can explicitly opt out with
+`INFERENCE_NODE_ALLOW_PORT_FALLBACK=false`.
 
 ## Behavior
 
-- The node tries its configured listener port first. Only when
-  `INFERENCE_NODE_ALLOW_PORT_FALLBACK=true`, it may try the next seven adjacent
-  TCP ports. With the current default of 8765, the bounded range is 8765–8772.
+- The node tries its configured listener port first, then automatically tries
+  the next seven adjacent TCP ports when needed. With the current default of
+  8765, the bounded range is 8765-8772. Set
+  `INFERENCE_NODE_ALLOW_PORT_FALLBACK=false` to disable this behavior on a host.
+- The local-only OpenAI broker port is excluded from node-listener selection so
+  a saved port conflict cannot prevent the signed gateway listener from starting.
 - It does not inspect, stop, or signal a process that owns a port. If every
   candidate is unavailable, startup fails without publishing a healthy
   heartbeat.
@@ -39,9 +44,9 @@ off by default and has not been deployed.
 5. After verifying gateway health and rollback readiness, enable
    `INFERENCE_NODE_ALLOW_ENDPOINT_REFRESH=true` on the gateway and restart only
    `inference-fabric-gateway.service` to load the flag.
-6. For one explicitly approved pilot node only, enable
-   `INFERENCE_NODE_ALLOW_PORT_FALLBACK=true`, install the signed node release,
-   and restart that node app during an agreed maintenance window. Confirm its
+6. For one explicitly approved pilot node only, install the signed node release
+   containing automatic fallback and restart that node app during an agreed
+   maintenance window. Confirm its
    signed update receipt, actual listener port, gateway persisted URL, fresh
    heartbeat, authenticated inference, and monitor telemetry.
 7. Repeat per approved PC after the pilot passes. Do not expand the existing
@@ -57,7 +62,7 @@ action time. A node-app restart briefly interrupts inference on that node; if
 the selected fallback port cannot be reached through the approved tailnet
 firewall, that node will remain unavailable until its prior listener is restored.
 
-Rollback: disable `INFERENCE_NODE_ALLOW_PORT_FALLBACK` on the affected PC and
+Rollback: set `INFERENCE_NODE_ALLOW_PORT_FALLBACK=false` on the affected PC and
 return the node to its previous signed release; restore its prior enrolled URL
 using the protected gateway-state backup/operator procedure; then restart only
 the node app and verify a fresh heartbeat. If gateway rollback is needed,

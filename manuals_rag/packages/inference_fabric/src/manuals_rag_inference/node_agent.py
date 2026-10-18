@@ -30,16 +30,23 @@ TAILSCALE_IPV4_RANGE = ipaddress.ip_network("100.64.0.0/10")
 NODE_LISTENER_FALLBACK_PORTS = 8
 
 
-def bind_node_listener(bind: str, port: int, handler, *, allow_fallback: bool = False, server_factory=None):
+def bind_node_listener(bind: str, port: int, handler, *, allow_fallback: bool = False,
+                       excluded_ports=(), server_factory=None):
     """Bind only the configured port and a small contiguous fallback window."""
     if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
         raise ValueError("node listener port must be between 1 and 65535")
     if allow_fallback and port > 65528:
         raise ValueError("fallback requires an eight-port window below 65536")
+    excluded_ports = set(excluded_ports)
+    if any(isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 65535
+           for value in excluded_ports):
+        raise ValueError("excluded listener ports must be valid TCP ports")
     factory = server_factory or ThreadingHTTPServer
     last_error = None
     attempts = NODE_LISTENER_FALLBACK_PORTS if allow_fallback else 1
     for candidate in range(port, min(65535, port + attempts - 1) + 1):
+        if candidate in excluded_ports:
+            continue
         try:
             return factory((bind, candidate), handler)
         except OSError as error:
@@ -754,9 +761,15 @@ def create_node_server(config_path: str | None = None, *, app_metadata=None, sta
     config["local_control_token"] = local_control_token
     _save_node_config(config_path, config)
     stop_event = threading.Event()
-    allow_port_fallback = os.getenv("INFERENCE_NODE_ALLOW_PORT_FALLBACK", "false").lower() == "true"
+    # The bounded fallback is automatic for current app builds. Operators can
+    # disable it explicitly for a host with INFERENCE_NODE_ALLOW_PORT_FALLBACK=false.
+    allow_port_fallback = os.getenv("INFERENCE_NODE_ALLOW_PORT_FALLBACK", "true").strip().lower() == "true"
+    broker_port = int(os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", str(config.get("local_broker_port") or "8767")))
+    if broker_port and not 1 <= broker_port <= 65535:
+        raise RuntimeError("local broker port must be a valid TCP port")
     server = bind_node_listener(bind, port, create_handler(agent, local_control_token=local_control_token),
-                                allow_fallback=allow_port_fallback)
+                                allow_fallback=allow_port_fallback,
+                                excluded_ports={broker_port} if broker_port else ())
     # The persisted advertised URL may point at a previous fallback port even
     # though this restart successfully reclaimed the configured primary port.
     # Compare the listener against the advertised endpoint, not just the
@@ -779,9 +792,8 @@ def create_node_server(config_path: str | None = None, *, app_metadata=None, sta
         config["agent_url"] = refreshed_url
         _save_node_config(config_path, config)
     broker_server = None
-    broker_port = int(os.getenv("INFERENCE_NODE_LOCAL_BROKER_PORT", str(config.get("local_broker_port") or "8767")))
     if broker_port:
-        if not 1 <= broker_port <= 65535 or broker_port == server.server_port:
+        if broker_port == server.server_port:
             server.server_close()
             raise RuntimeError("local broker port must be a valid port distinct from the node control listener")
         broker_bind = os.getenv("INFERENCE_NODE_LOCAL_BROKER_BIND", "127.0.0.1").strip()
