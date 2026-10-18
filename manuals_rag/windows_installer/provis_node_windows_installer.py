@@ -8,6 +8,7 @@ never creates update plans or changes enrollment/configuration data.
 from __future__ import annotations
 
 import ctypes
+from io import BytesIO
 import json
 import os
 import shutil
@@ -187,15 +188,31 @@ def _download_artifact(url: str, destination: Path, expected_size: int,
 
 
 def _png_to_ico(png: bytes) -> bytes:
-    """Wrap the packaged PNG in a Vista+ ICO directory entry."""
+    """Resize the packaged PNG to an ICO-supported size and wrap it."""
     if len(png) < 24 or png[:8] != b"\x89PNG\r\n\x1a\n":
         raise InstallError("The packaged PROVIS icon is not a valid PNG.")
     width, height = struct.unpack(">II", png[16:24])
-    if not 1 <= width <= 256 or not 1 <= height <= 256:
+    if not 1 <= width <= 8192 or not 1 <= height <= 8192:
         raise InstallError("The packaged icon dimensions are unsupported.")
-    entry = struct.pack("<BBBBHHII", width & 0xFF, height & 0xFF, 0, 0,
-                        1, 32, len(png), 22)
-    return struct.pack("<HHH", 0, 1, 1) + entry + png
+    try:
+        from PIL import Image
+
+        with Image.open(BytesIO(png)) as source:
+            source.load()
+            image = source.convert("RGBA")
+            image.thumbnail((256, 256), Image.Resampling.LANCZOS)
+            encoded = BytesIO()
+            image.save(encoded, format="PNG", optimize=True)
+            icon_png = encoded.getvalue()
+    except Exception as error:
+        raise InstallError("The packaged PROVIS icon could not be decoded.") from error
+    width, height = image.size
+    # ICO encodes 256 as zero in the directory entry. The embedded PNG has
+    # matching dimensions, as required by Vista and newer icon readers.
+    entry = struct.pack("<BBBBHHII", width & 0xFF if width < 256 else 0,
+                        height & 0xFF if height < 256 else 0, 0, 0,
+                        1, 32, len(icon_png), 22)
+    return struct.pack("<HHH", 0, 1, 1) + entry + icon_png
 
 
 def _path_is_within(path: Path, parent: Path) -> bool:

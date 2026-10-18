@@ -108,7 +108,7 @@ jobs:
           Push-Location $env:RUNNER_TEMP
           # This initializes the packaged Tk window and closes it automatically;
           # it never invokes Install / Repair or launches the node application.
-          & $installer --self-test
+          $selfTest = Start-Process -FilePath $installer -ArgumentList '--self-test' -PassThru -Wait
           Pop-Location
-          if ($LASTEXITCODE -ne 0) { throw "Frozen installer self-test failed" }
+          if ($selfTest.ExitCode -ne 0) { throw "Frozen installer self-test failed with exit code $($selfTest.ExitCode)" }
           Get-FileHash $installer -Algorithm SHA256 | Format-List

@@ -4,10 +4,12 @@ import json
 import struct
 import sys
 import uuid
+from io import BytesIO
 from pathlib import Path
 from urllib.error import HTTPError
 
 import pytest
+from PIL import Image
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -58,8 +60,10 @@ def _release(data=b"signed-node-payload"):
 
 
 def _png(width=16, height=16):
-    # The icon builder only reads the PNG signature and IHDR dimensions.
-    return b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\x0dIHDR" + struct.pack(">II", width, height) + b"\x08\x06\x00\x00\x00" + b"fixture"
+    image = Image.new("RGBA", (width, height), (24, 60, 90, 255))
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 class Response:
@@ -384,6 +388,16 @@ def test_ico_wraps_png_dimensions_and_rejects_bad_assets():
     assert struct.unpack("<BBBBHHII", ico[6:22])[:2] == (32, 24)
     with pytest.raises(InstallError):
         _png_to_ico(b"not a png")
+
+
+def test_ico_resizes_the_production_lens_asset():
+    source = (ROOT / "assets" / "brand" / "provis-lens.png").read_bytes()
+    ico = _png_to_ico(source)
+    entry = struct.unpack("<BBBBHHII", ico[6:22])
+    icon_png = ico[entry[7]:entry[7] + entry[6]]
+    width, height = struct.unpack(">II", icon_png[16:24])
+    assert width == height == 256
+    assert entry[:2] == (0, 0)  # ICO's zero dimension means 256 pixels.
 
 
 def test_install_progress_reports_download_and_verification(folders):
