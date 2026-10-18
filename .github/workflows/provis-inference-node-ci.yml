@@ -112,3 +112,5 @@ jobs:
           Pop-Location
           if ($selfTest.ExitCode -ne 0) { throw "Frozen installer self-test failed with exit code $($selfTest.ExitCode)" }
           Get-FileHash $installer -Algorithm SHA256 | Format-List
+      - name: Build, install, and launch the actual Windows node app in an isolated profile
+        run: python manuals_rag/scripts/verify_windows_node_postinstall_launch.py

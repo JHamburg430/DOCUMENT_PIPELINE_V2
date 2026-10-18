@@ -54,7 +54,9 @@ def private_json(path, value):
 def root_for(config_path):
     root = Path(config_path).resolve().parent / 'app-updates'
     if root.is_symlink(): raise PermissionError('Private updater directory required')
-    root.mkdir(mode=0o700, exist_ok=True)
+    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if root.is_symlink() or not root.is_dir():
+        raise PermissionError('Private updater directory required')
     return root
 
 

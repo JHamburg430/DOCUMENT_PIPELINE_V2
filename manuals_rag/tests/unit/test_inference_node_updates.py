@@ -116,6 +116,22 @@ def test_old_node_needs_bootstrap(queue,release):
     with pytest.raises(PermissionError): enqueue(queue,release)
 
 
+def test_root_for_bootstraps_missing_config_parent_and_preserves_existing_config(tmp_path):
+    first_run_config=tmp_path/'first-run'/'Local'/'ProVIS'/'inference-node.json'
+    assert not first_run_config.parent.exists()
+    first_run_root=updater.root_for(first_run_config)
+    assert first_run_root == first_run_config.parent/'app-updates'
+    assert first_run_root.is_dir()
+
+    existing_config=tmp_path/'existing'/'Local'/'ProVIS'/'inference-node.json'
+    existing_config.parent.mkdir(parents=True)
+    original=b'{"gateway_url":"https://fixture.invalid","node_id":"fixture"}'
+    existing_config.write_bytes(original)
+    existing_root=updater.root_for(existing_config)
+    assert existing_root.is_dir()
+    assert existing_config.read_bytes()==original
+
+
 def plan_fixture(tmp_path,release):
     config=tmp_path/'employee.json';config.write_text('{"shared_secret":"fixture"}',encoding='utf-8')
     directory=updater.root_for(config)/release.manifest['release_id'];directory.mkdir()
