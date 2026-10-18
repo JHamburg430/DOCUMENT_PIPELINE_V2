@@ -1,10 +1,12 @@
 # PROVIS Inference Node Windows installer
 
-This is a separate, per-user bootstrapper pinned to the already published
-`2026.10.17.10` Windows release. It downloads the artifact from the existing
-gateway catalog, verifies the embedded Ed25519 release document against the
-existing public key, checks the artifact size and SHA-256, then installs it
-under the Windows user's `Programs\PROVIS\2026.10.17.10` directory.
+This is a standalone, per-user Windows installer with a graphical progress
+window. It includes its Python runtime and does not require Codex, Python, a
+source checkout, developer tools, or environment variables. After the installer
+starts, it downloads the pinned `2026.10.17.10` Windows app from the existing
+node catalog, verifies the embedded Ed25519 release document and artifact
+SHA-256, then installs it under the current Windows user's
+`Programs\PROVIS\2026.10.17.10` directory.
 
 The installer uses `SHGetKnownFolderPath` for Local AppData, Desktop, and the
 user Start Menu. It never derives install paths from `LOCALAPPDATA`, `APPDATA`,
@@ -41,10 +43,17 @@ an installer. Any distribution requires a separate review of installer
 publisher trust, signing, and rollout approval. Do not run an unsigned
 candidate through a Windows warning or policy prompt by bypassing it.
 
-The source-level installer tests use a local fake catalog response and temporary
-folders. The repository CI workflow runs these tests and an unsigned Windows
-PyInstaller smoke build on a Windows runner. They verify signature/hash rejection
-before install, reparse-point rejection, rollback-folder preservation, config
-preservation, shortcut ownership, transactional shortcut repair, and uninstall
-behavior. Only a normal interactive Windows session can verify the installed
-shortcuts and app UI end to end.
+The installer itself is distributed through a separate signed manifest type
+(`provis-node-installer`), a separate gateway catalog directory, and the
+`/v1/installer-releases/{id}/manifest.json` and `/artifact` endpoints. Installer
+entries are never returned from node update inventory. The separate Ed25519
+manifest authenticates installer bytes to an independent verifier; it does not
+create a Windows Authenticode signature. Do not bypass Windows or browser
+security warnings. A normal interactive Windows session is still required to
+verify desktop launch, OS trust prompts, and the app UI end to end.
+
+The repository CI runs cross-type signature/catalog tests, installer behavior
+tests, a standalone Windows PyInstaller smoke build, and a non-mutating frozen
+executable self-test. Tests do not verify Windows SmartScreen, Authenticode trust,
+real Desktop/Start Menu COM shortcuts, or installation under an actual standard
+user profile.

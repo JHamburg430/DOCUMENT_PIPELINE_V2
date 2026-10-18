@@ -111,6 +111,7 @@ class InferenceGateway:
             raise ValueError("invalid application worker allowlist")
         self._heartbeat_lock = threading.Lock()
         self.agent_link = None
+        self.installer_catalog = None
         self._last_heartbeat_observed: dict[str, float] = {}
         self._post = post or self._post_json
         self.enrollment = enrollment
@@ -630,6 +631,32 @@ def create_gateway_handler(gateway: InferenceGateway):
                         while chunk := stream.read(65536): self.wfile.write(chunk)
                 except (OSError, ValueError, PermissionError):
                     self._send(404, {'detail': 'Release unavailable'})
+            elif self.path.startswith('/v1/installer-releases/'):
+                try:
+                    catalog = gateway.installer_catalog
+                    parts = self.path.split('/')
+                    if catalog is None or len(parts) != 5 or parts[1:3] != ['v1', 'installer-releases']:
+                        raise PermissionError('Installer releases unavailable')
+                    release_id, kind = parts[3], parts[4]
+                    document, artifact = catalog.get(release_id)
+                    if kind == 'manifest.json':
+                        data = json.dumps(document, sort_keys=True, separators=(',', ':')).encode()
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'application/json')
+                        self.send_header('Content-Length', str(len(data)))
+                        self.end_headers()
+                        self.wfile.write(data)
+                    elif kind == 'artifact':
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'application/octet-stream')
+                        self.send_header('Content-Length', str(artifact.stat().st_size))
+                        self.end_headers()
+                        with artifact.open('rb') as stream:
+                            while chunk := stream.read(65536): self.wfile.write(chunk)
+                    else:
+                        self._send(404, {'detail': 'Installer release unavailable'})
+                except (OSError, ValueError, PermissionError):
+                    self._send(404, {'detail': 'Installer release unavailable'})
             else:
                 self._send(404, {"detail": "not found"})
 
@@ -886,5 +913,13 @@ def run_gateway() -> None:
         catalog.list()  # refuse startup with unverified releases
         gateway.agent_link.updates = NodeUpdateQueue(catalog, gateway.enrollment, gateway.scheduler,
                                                    gateway.agent_link.db, gateway.agent_link.lock)
+    installer_release_dir = os.getenv('INFERENCE_INSTALLER_RELEASE_DIR', '').strip()
+    if installer_release_dir:
+        if not release_keys:
+            raise RuntimeError('Existing publisher public keys required for installer releases')
+        from .installer_release import InstallerReleaseCatalog
+        catalog = InstallerReleaseCatalog(installer_release_dir, json.loads(release_keys))
+        catalog.validate_all()  # isolate validation; never attach to NodeUpdateQueue
+        gateway.installer_catalog = catalog
     server = ThreadingHTTPServer((bind, int(os.getenv("INFERENCE_GATEWAY_PORT", "8780"))), create_gateway_handler(gateway))
     server.serve_forever()

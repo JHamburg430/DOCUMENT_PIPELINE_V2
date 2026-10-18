@@ -28,6 +28,7 @@ from provis_node_windows_installer import (  # noqa: E402
     PUBLIC_KEYS,
     RELEASE_DOCUMENT,
     WindowsNodeInstaller,
+    main,
     _NoRedirect,
     _artifact_url,
     _png_to_ico,
@@ -150,6 +151,21 @@ def test_reparse_components_are_rejected_before_install_destination_is_used(tmp_
         _assert_no_reparse_components(program_root / "2026.10.17.10", stop_at=local)
 
 
+def test_install_refuses_version_folder_junction_before_reading_it(folders, monkeypatch):
+    import provis_node_windows_installer as installer_module
+
+    installer, _ = _installer(folders)
+    installer.program_root.mkdir(parents=True, exist_ok=True)
+    version_root = installer.version_root
+    real_check = installer_module._is_reparse_point
+    monkeypatch.setattr(
+        installer_module, "_is_reparse_point",
+        lambda path: Path(path) == version_root or real_check(path),
+    )
+    with pytest.raises(InstallError, match="symlink or junction"):
+        installer.install_or_repair()
+
+
 def test_installer_pins_https_catalog_and_rejects_non_https_or_credentials():
     assert _artifact_url(GATEWAY_BASE, "39fd973c-c97a-4b54-97de-938a2f88bd6c").endswith(
         "/v1/node-releases/39fd973c-c97a-4b54-97de-938a2f88bd6c")
@@ -166,6 +182,10 @@ def test_checked_in_installer_release_pin_verifies_with_existing_publisher_key()
     assert manifest["version"] == "2026.10.17.10"
     assert manifest["release_id"] == "39fd973c-c97a-4b54-97de-938a2f88bd6c"
     assert manifest["sha256"] == "e635207ca0b1d13869523f7b679b0100ba05234222af487c9fadebaa94b914f2"
+
+
+def test_non_mutating_standalone_self_test():
+    assert main(["--self-test"], icon_png=_png()) == 0
 
 
 def test_signature_and_hash_are_verified_before_files_or_shortcuts_change(folders):
@@ -312,12 +332,27 @@ def test_uninstall_removes_only_receipted_release_and_preserves_user_data(folder
 
     removed = installer.uninstall_owned()
 
-    assert installed.parent in removed
+    assert installed in removed
+    assert not installed.exists()
     assert not installed.parent.exists()
     assert config.read_bytes() == b"keep me"
     assert old_binary.read_bytes() == b"old release"
     assert not (folders.desktop / APP_SHORTCUT_NAME).exists()
     assert not (folders.programs / APP_SHORTCUT_NAME).exists()
+
+
+def test_uninstall_preserves_unrecognized_files_in_version_directory(folders):
+    installer, _ = _installer(folders)
+    installed = installer.install_or_repair()
+    extra = installed.parent / "operator-notes.txt"
+    extra.write_text("keep this", encoding="utf-8")
+
+    removed = installer.uninstall_owned()
+
+    assert installed in removed
+    assert not installed.exists()
+    assert extra.read_text(encoding="utf-8") == "keep this"
+    assert installed.parent.exists()
 
 
 def test_uninstall_does_not_remove_unreceipted_preexisting_release(folders):
@@ -344,3 +379,24 @@ def test_ico_wraps_png_dimensions_and_rejects_bad_assets():
     assert struct.unpack("<BBBBHHII", ico[6:22])[:2] == (32, 24)
     with pytest.raises(InstallError):
         _png_to_ico(b"not a png")
+
+
+def test_install_progress_reports_download_and_verification(folders):
+    installer, _ = _installer(folders)
+    progress = []
+    installer.install_or_repair(progress=lambda *args: progress.append(args))
+    assert any(label == "Downloading the signed application" and total > 0 for label, _, total in progress)
+    assert any(label == "Verifying the signed application" for label, _, _ in progress)
+
+
+def test_repair_rewrites_corrupt_icon_without_redownloading(folders):
+    installer, _ = _installer(folders)
+    installed = installer.install_or_repair()
+    icon = installed.parent / "provis-lens.ico"
+    icon.write_bytes(b"bad icon")
+    installer.download_opener = Opener(error=OSError("network must not be used for a valid local repair"))
+
+    installer.install_or_repair()
+
+    assert icon.read_bytes().startswith(b"\x00\x00\x01\x00")
+    assert installer.download_opener.requests == []

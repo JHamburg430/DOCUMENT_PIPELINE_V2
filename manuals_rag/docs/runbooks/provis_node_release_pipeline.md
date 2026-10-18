@@ -66,3 +66,33 @@ and a healthy post-restart heartbeat on each supported OS. Record each
 installed/running version and hash. Linux desktop runtime and live signed
 release acceptance remain separate operational checks. The detailed existing
 operator flow is in [the remote update runbook](provis_node_remote_updates.md).
+
+## Separate Windows installer releases
+
+Standalone installers use `installer_release.py`, never
+`publish_inference_node_release.py`. Their exact signed manifest has the
+`artifact_type` discriminator `provis-node-installer`, fixed filename
+`PROVISInferenceNodeInstaller.exe`, Windows platform, version, release UUID,
+size and SHA-256, plus the exact node application release UUID and SHA-256 the
+installer will deploy. The signature is over the canonical full manifest. The
+protected publisher must verify the bound app release with the node-app schema
+and existing trusted key before signing the installer manifest; the caller
+supplies a signature from the existing protected publisher to
+`write_signed_installer_release`. That API accepts no private-key path and
+verifies the returned signature with the public key before writing.
+
+Installers are stored in an isolated directory configured through
+`INFERENCE_INSTALLER_RELEASE_DIR`, distinct from
+`INFERENCE_NODE_UPDATE_RELEASE_DIR`. The gateway exposes only per-ID retrieval
+at `/v1/installer-releases/{id}/manifest.json` and
+`/v1/installer-releases/{id}/artifact`; it provides no installer listing or
+update action. Do not copy installer files into the node release directory or
+add them to node inventory. Node `ReleaseCatalog` rejects this schema.
+
+The custom Ed25519 manifest authenticates the installer artifact to a verifier;
+it is not a Windows Authenticode signature and does not change SmartScreen or
+Defender reputation. Before distributing to a normal Windows user, the operator
+must verify the installer through an already trusted pre-launch verifier and
+confirm the existing Windows trust route does not require bypassing a warning.
+If no such approved route exists, do not launch the artifact or create new
+signing credentials as a workaround.

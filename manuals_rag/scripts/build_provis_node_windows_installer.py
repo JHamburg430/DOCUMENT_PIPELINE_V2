@@ -33,12 +33,13 @@ def build(output: Path, *, python: str | None = None, runner=subprocess.run) -> 
     with tempfile.TemporaryDirectory(prefix="provis-node-installer-build-") as temp_name:
         temp = Path(temp_name)
         command = [
-            python, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--console",
+            python, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--windowed",
             "--name", "PROVISInferenceNodeInstaller",
             "--distpath", str(temp / "dist"),
             "--workpath", str(temp / "work"),
             "--specpath", str(temp / "spec"),
             "--paths", str(SOURCE_ROOT),
+            "--hidden-import", "provis_node_windows_installer_gui",
             "--add-data", f"{ICON_PATH};provis-lens.png",
             "--collect-all", "cryptography",
             str(ENTRYPOINT),

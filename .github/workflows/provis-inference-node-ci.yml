@@ -61,7 +61,8 @@ jobs:
             manuals_rag/tests/unit/test_inference_node_updates.py \
             manuals_rag/tests/unit/test_inference_node_listener_refresh.py \
             manuals_rag/tests/unit/test_inference_native_linux_updates.py \
-            manuals_rag/tests/unit/test_inference_node_broker_gateway.py
+            manuals_rag/tests/unit/test_inference_node_broker_gateway.py \
+            manuals_rag/tests/unit/test_installer_release.py
       - name: Build unsigned Linux smoke artifact
         env:
           PYTHONPATH: manuals_rag/packages/inference_fabric/src:manuals_rag/scripts:provis_inference_node/src
@@ -99,5 +100,12 @@ jobs:
           PYTHONPATH: manuals_rag/packages/inference_fabric/src
         run: |
           python manuals_rag/scripts/build_provis_node_windows_installer.py --output "$env:RUNNER_TEMP\PROVISInferenceNodeInstaller.exe"
-          if (-not (Test-Path "$env:RUNNER_TEMP\PROVISInferenceNodeInstaller.exe")) { throw "Installer build output missing" }
-          Get-FileHash "$env:RUNNER_TEMP\PROVISInferenceNodeInstaller.exe" -Algorithm SHA256 | Format-List
+          $installer = "$env:RUNNER_TEMP\PROVISInferenceNodeInstaller.exe"
+          if (-not (Test-Path $installer)) { throw "Installer build output missing" }
+          $env:PYTHONPATH = ""
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          Push-Location $env:RUNNER_TEMP
+          & $installer --self-test
+          Pop-Location
+          if ($LASTEXITCODE -ne 0) { throw "Frozen installer self-test failed" }
+          Get-FileHash $installer -Algorithm SHA256 | Format-List

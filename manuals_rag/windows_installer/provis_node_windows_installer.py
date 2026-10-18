@@ -7,7 +7,6 @@ never creates update plans or changes enrollment/configuration data.
 
 from __future__ import annotations
 
-import argparse
 import ctypes
 import json
 import os
@@ -151,7 +150,7 @@ def _artifact_url(base_url: str, release_id: str) -> str:
 
 
 def _download_artifact(url: str, destination: Path, expected_size: int,
-                       *, opener=None, clock=time.monotonic) -> None:
+                       *, opener=None, clock=time.monotonic, progress=None) -> None:
     if not (1 <= expected_size <= MAX_ARTIFACT):
         raise InstallError("The signed release size is outside the supported limit.")
     if opener is None:
@@ -173,6 +172,8 @@ def _download_artifact(url: str, destination: Path, expected_size: int,
                 if total > expected_size:
                     raise InstallError("The release artifact exceeded its signed size.")
                 output.write(chunk)
+                if progress:
+                    progress("Downloading the signed application", total, expected_size)
             if total != expected_size:
                 raise InstallError("The release artifact was incomplete.")
     except (HTTPError, URLError, OSError, TimeoutError) as error:
@@ -301,16 +302,19 @@ class WindowsNodeInstaller:
         self.exe_path = self.version_root / APP_EXE_NAME
         self.data_root = self.folders.local_app_data / APP_DIR_NAME
 
-    def install_or_repair(self) -> Path:
+    def install_or_repair(self, progress=None) -> Path:
         """Install the pinned release side-by-side, then atomically repair shortcuts.
 
         Existing version folders and per-user app data are never deleted or
         overwritten. A same-version hash conflict must be inspected manually.
         The app is not restarted or launched by this operation.
         """
+        if progress:
+            progress("Checking Windows user folders", 0, 0)
         _assert_no_reparse_components(self.program_root, stop_at=self.folders.local_app_data)
         self.program_root.mkdir(parents=True, exist_ok=True)
         _assert_no_reparse_components(self.program_root, stop_at=self.folders.local_app_data)
+        _assert_no_reparse_components(self.version_root, stop_at=self.program_root)
         existing = self._existing_target()
         created = False
         backup: Path | None = None
@@ -321,7 +325,12 @@ class WindowsNodeInstaller:
             try:
                 artifact = stage_dir / APP_EXE_NAME
                 url = _artifact_url(self.gateway_base, self.manifest["release_id"])
-                _download_artifact(url, artifact, self.manifest["size"], opener=self.download_opener)
+                if progress:
+                    progress("Downloading the signed application", 0, self.manifest["size"])
+                _download_artifact(url, artifact, self.manifest["size"], opener=self.download_opener,
+                                   progress=progress)
+                if progress:
+                    progress("Verifying the signed application", 0, 0)
                 verify_artifact(artifact, self.manifest)
                 if artifact.is_symlink():
                     raise InstallError("A symlinked release artifact is not allowed.")
@@ -340,9 +349,8 @@ class WindowsNodeInstaller:
                 (stage_dir / "installer-release.json").write_text(
                     json.dumps(receipt, sort_keys=True, separators=(",", ":")), encoding="utf-8"
                 )
+                _assert_no_reparse_components(self.version_root, stop_at=self.program_root)
                 if self.version_root.exists():
-                    if self.version_root.is_symlink():
-                        raise InstallError("The target version folder is a symlink; refusing it.")
                     backup = self.program_root / (self.manifest["version"] + ".preserved-" + uuid.uuid4().hex[:8])
                     os.replace(self.version_root, backup)
                 os.replace(stage_dir, self.version_root)
@@ -355,10 +363,14 @@ class WindowsNodeInstaller:
                 raise
 
         self._verify_installed()
+        _assert_no_reparse_components(self.version_root, stop_at=self.program_root)
         icon_path = self.version_root / "provis-lens.ico"
-        if not icon_path.is_file():
+        expected_icon = _png_to_ico(self.icon_png)
+        if not icon_path.is_file() or icon_path.is_symlink() or icon_path.read_bytes() != expected_icon:
             icon_path.write_bytes(_png_to_ico(self.icon_png))
         try:
+            if progress:
+                progress("Creating Desktop and Start Menu shortcuts", 0, 0)
             self._repair_shortcuts(icon_path)
         except Exception:
             if created and self.version_root.exists() and not self.process_check(self.exe_path):
@@ -369,10 +381,9 @@ class WindowsNodeInstaller:
         return self.exe_path
 
     def _existing_target(self) -> bool:
+        _assert_no_reparse_components(self.version_root, stop_at=self.program_root)
         if not self.version_root.exists():
             return False
-        if self.version_root.is_symlink():
-            raise InstallError("The target version folder is a symlink; refusing it.")
         if not self.exe_path.is_file() or self.exe_path.is_symlink():
             raise InstallError("The target version folder exists but has no regular app executable.")
         try:
@@ -493,10 +504,11 @@ class WindowsNodeInstaller:
             return relative.parts[0]
         return None
 
-    def uninstall_owned(self, *, purge_user_data: bool = False) -> list[Path]:
+    def uninstall_owned(self, *, purge_user_data: bool = False, progress=None) -> list[Path]:
         """Remove only installer-receipted binaries/owned links; preserve user data by default."""
         if purge_user_data:
             raise InstallError("Purging enrollment or user configuration is not supported by this installer.")
+        _assert_no_reparse_components(self.version_root, stop_at=self.program_root)
         if not self._is_receipted_install():
             return []
         if self.process_check(self.exe_path):
@@ -504,9 +516,21 @@ class WindowsNodeInstaller:
         self._verify_installed()
         removed: list[Path] = []
         shortcut_backups: list[tuple[Path, Path]] = []
+        known_files = [self.exe_path, self.version_root / "installer-release.json",
+                       self.version_root / "provis-lens.ico"]
         version_backup = self.program_root / (self.manifest["version"] + ".uninstalling-" + uuid.uuid4().hex[:8])
-        os.replace(self.version_root, version_backup)
+        version_backup.mkdir(parents=False)
+        backed_up: list[tuple[Path, Path]] = []
         try:
+            for source in known_files:
+                if source.exists():
+                    if _is_reparse_point(source):
+                        raise InstallError("A reparse point exists in the installer-owned release; refusing removal.")
+                    backup = version_backup / source.name
+                    shutil.copy2(source, backup)
+                    backed_up.append((source, backup))
+            if progress:
+                progress("Removing managed shortcuts and installer-owned files", 0, 0)
             for folder in (self.folders.desktop, self.folders.programs):
                 if not folder.is_dir():
                     continue
@@ -521,7 +545,13 @@ class WindowsNodeInstaller:
                         os.replace(link, backup)
                         shortcut_backups.append((link, backup))
                         removed.append(link)
-            shutil.rmtree(version_backup)
+            for source, _ in backed_up:
+                source.unlink()
+            # Preserve any files the user added to this version directory.
+            try:
+                self.version_root.rmdir()
+            except OSError:
+                pass
             for _, backup in shortcut_backups:
                 try:
                     backup.unlink(missing_ok=True)
@@ -529,17 +559,21 @@ class WindowsNodeInstaller:
                     # Leave the hidden recoverable shortcut copy behind rather
                     # than turning a completed uninstall into a partial rollback.
                     pass
-            removed.append(self.version_root)
+            removed.extend(source for source, _ in backed_up)
+            shutil.rmtree(version_backup, ignore_errors=True)
         except Exception:
-            if not self.version_root.exists() and version_backup.exists():
-                os.replace(version_backup, self.version_root)
+            for source, backup in backed_up:
+                if backup.exists() and not source.exists():
+                    os.replace(backup, source)
             for original, backup in reversed(shortcut_backups):
                 if backup.exists() and not original.exists():
                     os.replace(backup, original)
+            shutil.rmtree(version_backup, ignore_errors=True)
             raise
         return removed
 
     def _is_receipted_install(self) -> bool:
+        _assert_no_reparse_components(self.version_root, stop_at=self.program_root)
         receipt_path = self.version_root / "installer-release.json"
         if not receipt_path.is_file() or receipt_path.is_symlink():
             return False
@@ -578,41 +612,36 @@ def _is_image_running(image_path: Path) -> bool:
 
 
 def main(argv: list[str] | None = None, *, icon_png: bytes | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Install or repair the signed PROVIS Inference Node for this Windows user.")
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--install", action="store_true", help="download and install the pinned signed release")
-    mode.add_argument("--repair", action="store_true", help="verify the pinned release and repair its owned shortcuts")
-    mode.add_argument("--uninstall", action="store_true", help="remove installer-owned files; keep enrollment/configuration")
-    parser.add_argument("--purge-user-data", action="store_true", help=argparse.SUPPRESS)
-    args = parser.parse_args(argv)
+    """Launch the standalone GUI, or run the non-mutating packaging smoke test."""
+    argv = list(sys.argv[1:] if argv is None else argv)
     try:
-        if args.uninstall:
-            confirmation = input("Remove installer-owned PROVIS node files and shortcuts? User configuration will remain. [y/N] ")
-            if confirmation.strip().casefold() != "y":
-                print("Uninstall cancelled.")
-                return 0
-        else:
-            confirmation = input("Install or repair signed PROVIS Inference Node " + RELEASE_DOCUMENT["manifest"]["version"] + "? [y/N] ")
-            if confirmation.strip().casefold() != "y":
-                print("Installation cancelled.")
-                return 0
-        folders = resolve_known_folders()
+        if argv == ["--self-test"]:
+            from manuals_rag_inference.node_release import verify_release
+            import provis_node_windows_installer_gui  # noqa: F401
+            manifest = verify_release(RELEASE_DOCUMENT, PUBLIC_KEYS, platform="windows-x86_64")
+            if icon_png is None:
+                icon_path = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1] / "assets" / "brand")) / "provis-lens.png"
+                icon_png = icon_path.read_bytes()
+            _png_to_ico(icon_png)
+            return 0
+        if argv:
+            raise InstallError("This installer uses its Windows window; no command-line install switches are supported.")
         if icon_png is None:
             icon_path = Path(__file__).resolve().parents[1] / "assets" / "brand" / "provis-lens.png"
             if getattr(sys, "frozen", False):
                 icon_path = Path(getattr(sys, "_MEIPASS", "")) / "provis-lens.png"
             icon_png = icon_path.read_bytes()
-        installer = WindowsNodeInstaller(folders=folders, icon_png=icon_png)
-        if args.uninstall:
-            removed = installer.uninstall_owned(purge_user_data=args.purge_user_data)
-            print(f"Removed {len(removed)} installer-owned item(s). User configuration was preserved.")
-        else:
-            exe = installer.install_or_repair()
-            print(f"Verified signed PROVIS Inference Node {installer.manifest['version']}: {exe}")
-            print("Use the Desktop or Start Menu shortcut to open it in your normal Windows session.")
-        return 0
+        from provis_node_windows_installer_gui import run_gui
+        return run_gui(icon_png)
     except (InstallError, OSError, PermissionError, ValueError) as error:
-        print(f"Installation stopped: {error}", file=sys.stderr)
+        if sys.stderr:
+            print(json.dumps({"status": "error", "detail": str(error)}), file=sys.stderr)
+        else:
+            try:
+                from tkinter import messagebox
+                messagebox.showerror("PROVIS Inference Node Setup", str(error))
+            except Exception:
+                pass
         return 2
 
 
