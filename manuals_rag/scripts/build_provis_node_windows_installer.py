@@ -39,8 +39,9 @@ def build(output: Path, *, python: str | None = None, runner=subprocess.run) -> 
             "--workpath", str(temp / "work"),
             "--specpath", str(temp / "spec"),
             "--paths", str(SOURCE_ROOT),
+            "--paths", str(INSTALLER_ROOT),
             "--hidden-import", "provis_node_windows_installer_gui",
-            "--add-data", f"{ICON_PATH};provis-lens.png",
+            "--add-data", f"{ICON_PATH};.",
             "--collect-all", "cryptography",
             str(ENTRYPOINT),
         ]

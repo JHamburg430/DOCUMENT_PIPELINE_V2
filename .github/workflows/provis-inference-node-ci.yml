@@ -102,6 +102,7 @@ jobs:
           python manuals_rag/scripts/build_provis_node_windows_installer.py --output "$env:RUNNER_TEMP\PROVISInferenceNodeInstaller.exe"
           $installer = "$env:RUNNER_TEMP\PROVISInferenceNodeInstaller.exe"
           if (-not (Test-Path $installer)) { throw "Installer build output missing" }
+          python manuals_rag/scripts/verify_provis_node_windows_installer_archive.py $installer
           $env:PYTHONPATH = ""
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           Push-Location $env:RUNNER_TEMP
