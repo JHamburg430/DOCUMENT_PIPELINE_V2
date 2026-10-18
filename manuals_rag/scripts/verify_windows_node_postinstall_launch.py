@@ -85,7 +85,58 @@ class _Shortcuts:
         }), encoding="utf-8")
 
 
-def _visible_app_window(pid: int) -> bool:
+def _process_tree(root_pid: int) -> set[int]:
+    """Return the root and current descendants of a PyInstaller process."""
+    class PROCESSENTRY32W(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+            ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_size_t),
+            ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+            ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+            ("dwFlags", wintypes.DWORD), ("szExeFile", wintypes.WCHAR * 260),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    create_snapshot = kernel32.CreateToolhelp32Snapshot
+    create_snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    create_snapshot.restype = wintypes.HANDLE
+    snapshot = create_snapshot(0x00000002, 0)  # TH32CS_SNAPPROCESS
+    invalid_handle = ctypes.c_void_p(-1).value
+    if snapshot == invalid_handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(entry)
+        rows: list[tuple[int, int]] = []
+        first = kernel32.Process32FirstW
+        first.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+        first.restype = wintypes.BOOL
+        next_process = kernel32.Process32NextW
+        next_process.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+        next_process.restype = wintypes.BOOL
+        if first(snapshot, ctypes.byref(entry)):
+            while True:
+                rows.append((int(entry.th32ProcessID), int(entry.th32ParentProcessID)))
+                if not next_process(snapshot, ctypes.byref(entry)):
+                    break
+        descendants = {root_pid}
+        changed = True
+        while changed:
+            changed = False
+            for pid, parent_pid in rows:
+                if parent_pid in descendants and pid not in descendants:
+                    descendants.add(pid)
+                    changed = True
+        return descendants
+    finally:
+        close_handle = kernel32.CloseHandle
+        close_handle.argtypes = [wintypes.HANDLE]
+        close_handle.restype = wintypes.BOOL
+        close_handle(snapshot)
+
+
+def _visible_app_window_in_tree(root_pid: int) -> bool:
+    pids = _process_tree(root_pid)
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     enum_windows = user32.EnumWindows
     enum_windows.argtypes = [ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM), wintypes.LPARAM]
@@ -106,7 +157,7 @@ def _visible_app_window(pid: int) -> bool:
         nonlocal found
         window_pid = wintypes.DWORD()
         get_pid(hwnd, ctypes.byref(window_pid))
-        if window_pid.value != pid or not is_visible(hwnd):
+        if window_pid.value not in pids or not is_visible(hwnd):
             return True
         length = get_text_length(hwnd)
         title = ctypes.create_unicode_buffer(max(length + 1, 2))
@@ -151,20 +202,25 @@ def _launch_and_wait(executable: Path, config_path: Path, expected_config: bytes
             exit_code = process.poll()
             if exit_code is not None:
                 raise AssertionError(f"Installed app exited before its main window (exit {exit_code})")
-            if update_root.is_dir() and _visible_app_window(process.pid):
+            if update_root.is_dir() and _visible_app_window_in_tree(process.pid):
                 if expected_config is not None:
                     assert config_path.read_bytes() == expected_config, "App startup changed existing config"
                 return
             time.sleep(0.25)
-        raise AssertionError("Installed app did not create app-updates and show its main window within 25 seconds")
+        raise AssertionError(
+            "Installed app did not create app-updates and show its main window within 25 seconds; "
+            f"update_root_exists={update_root.is_dir()}, process_returncode={process.poll()}"
+        )
     finally:
         if process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
+            # PyInstaller one-file uses a child process; terminate only this
+            # test's process tree so the extracted executable is released.
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=10, check=False,
+            )
+            process.wait(timeout=5)
 
 
 def main() -> int:
