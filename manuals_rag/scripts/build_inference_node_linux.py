@@ -26,6 +26,7 @@ BROKER_PARENT = REPO_ROOT / "provis_inference_node/src"
 APP_SOURCE = REPO_ROOT / "manuals_rag/scripts/run_inference_node_client.py"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
 INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
+BRAND_ASSET_ROOT = REPO_ROOT / "manuals_rag/assets/brand"
 
 
 def _optional_tray_imports() -> list[str]:
@@ -75,6 +76,8 @@ def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[s
         str(BROKER_PARENT),
         "--add-data",
         f"{config_path}{separator}.",
+        "--add-data",
+        f"{BRAND_ASSET_ROOT / 'provis-lens.png'}{separator}assets/brand",
         "--collect-all",
         "cryptography",
         *_optional_tray_imports(),
@@ -93,6 +96,8 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
         root = Path(temporary)
         config_path = root / "provis-node-config.json"
         config_path.write_text(json.dumps(managed_config(gateway_url, update_config)), encoding="utf-8")
+        if not (BRAND_ASSET_ROOT / "provis-lens.png").is_file():
+            raise RuntimeError("PROVIS Lens icon asset is missing from the source tree")
         try:
             import PyInstaller  # noqa: F401
         except ImportError as exc:

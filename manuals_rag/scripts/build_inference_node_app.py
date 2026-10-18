@@ -22,6 +22,7 @@ PACKAGE_ROOT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src/manuals_ra
 BROKER_PACKAGE_ROOT = REPO_ROOT / "provis_inference_node/src/provis_inference_node"
 APP_SOURCE = REPO_ROOT / "manuals_rag/scripts/run_inference_node_client.py"
 INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
+BRAND_ASSET_ROOT = REPO_ROOT / "manuals_rag/assets/brand"
 
 
 def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
@@ -34,6 +35,7 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
         shutil.copytree(BROKER_PACKAGE_ROOT, stage / "provis_inference_node", ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         shutil.copy2(APP_SOURCE, stage / "node_app.py")
         shutil.copy2(REPO_ROOT / 'manuals_rag/scripts/provis_agent_link.py', stage / 'provis_agent_link.py')
+        shutil.copytree(BRAND_ASSET_ROOT, stage / "assets" / "brand")
         if INSTALLER_ROOT.is_dir():
             shutil.copytree(INSTALLER_ROOT, stage / "installers")
         (stage / "__main__.py").write_text("from node_app import main\n\nmain()\n", encoding='utf-8')

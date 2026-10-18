@@ -45,8 +45,9 @@ def test_all_owner_controls_are_reachable_at_short_window_height(inference_gui_r
         assert canvas.yview()[1]-canvas.yview()[0]<1
         canvas.yview_moveto(1);app.update()
         assert canvas.yview()[1]>.99
-        assert page.replies.winfo_rooty()+page.replies.winfo_height()<=canvas.winfo_rooty()+canvas.winfo_height()+2
-        assert page.send_button.winfo_rootx()+page.send_button.winfo_width()<=canvas.winfo_rootx()+canvas.winfo_width()+2
+        assert page.notebook.winfo_rooty()+page.notebook.winfo_height()<=canvas.winfo_rooty()+canvas.winfo_height()+2
+        send_button=next(iter(page.conversation_tabs.values()))['send']
+        assert send_button.winfo_rootx()+send_button.winfo_width()<=canvas.winfo_rootx()+canvas.winfo_width()+2
         assert drawer.arrow.winfo_rooty()+drawer.arrow.winfo_height()<=app.winfo_rooty()+app.winfo_height()
         drawer.toggle();app.update()
         assert canvas.yview()[0]==0

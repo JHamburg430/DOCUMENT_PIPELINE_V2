@@ -27,6 +27,8 @@ def test_theme_preference_survives_restart_and_does_not_touch_enrollment(tmp_pat
     assert load_theme(appearance) == 'light'
     with pytest.raises(ValueError): save_theme(appearance, 'arbitrary')
     assert PALETTES['dark']['background'] != PALETTES['light']['background']
+    assert PALETTES['dark']['link'] != PALETTES['dark']['card']
+    assert client._application_asset_path('provis-lens.png').is_file()
 
 
 def test_managed_linux_zipapp_uses_shared_desktop_and_embedded_url(tmp_path, monkeypatch):
@@ -35,6 +37,8 @@ def test_managed_linux_zipapp_uses_shared_desktop_and_embedded_url(tmp_path, mon
         source = archive.read('node_app.py').decode()
         assert 'InferenceNodeClient' in source and 'public_events(events)' in source
         assert '_toggle_theme' in source and 'Copy' in source
+        assert 'assets/brand/provis-lens.png' in archive.namelist()
+        assert archive.read('assets/brand/provis-lens.png').startswith(b'\x89PNG\r\n\x1a\n')
         assert 'manuals_rag_inference/node_linux_desktop.py' in archive.namelist()
         assert json.loads(archive.read('provis-node-config.json')) == {'gateway_url': 'https://gateway.example.test:8445'}
         assert not any('__pycache__' in name for name in archive.namelist())

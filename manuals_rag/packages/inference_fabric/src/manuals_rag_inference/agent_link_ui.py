@@ -43,7 +43,8 @@ class OwnerPanel(tk.Toplevel):
         tk.Label(body, textvariable=self.status, wraplength=660, justify='left', bg=colors['background'], fg=colors['muted']).pack(anchor='w', pady=10)
         self.body = body
         self.private = None
-        self.target_rows = {}
+        self.conversation_tabs = {}
+        self.workspace_view = None
         self.after(200, self._drain)
 
     def _back_to_node(self):
@@ -65,19 +66,102 @@ class OwnerPanel(tk.Toplevel):
         else:
             self.update_button.pack(side='left')
         tk.Label(private, text='Agent communication', bg=colors['background'], fg=colors['text'], font=(self.app.ui_font, 15, 'bold')).pack(anchor='w', pady=(0, 6))
-        controls = tk.Frame(private, bg=colors['background']);controls.pack(fill='x')
-        self.local_button = ttk.Button(controls, text='Choose local Codex sessions', command=self._choose, state='disabled');self.local_button.pack(side='left')
-        self.create_button = ttk.Button(controls, text='New owner session', command=self._create_session, state='disabled');self.create_button.pack(side='left', padx=6)
-        self.refresh = ttk.Button(controls, text='Refresh remote sessions', command=self._refresh, state='disabled');self.refresh.pack(side='right')
-        self.targets = ttk.Treeview(private, columns=('node', 'session'), show='headings', height=3, style='Node.Treeview')
-        self.targets.heading('node', text='PC / node');self.targets.heading('session', text='Published session')
-        self.targets.column('node', width=180);self.targets.column('session', width=460)
-        self.targets.pack(fill='x', pady=10)
-        tk.Label(private, text='Message to selected session', bg=colors['background'], fg=colors['text']).pack(anchor='w')
-        self.message = tk.Text(private, height=3, wrap='word', bg=colors['card'], fg=colors['text'], insertbackground=colors['text'], font=(self.app.ui_font, 10));self.message.pack(fill='x', pady=5)
-        self.send_button = ttk.Button(private, text='Send message', command=self._send, state='disabled');self.send_button.pack(anchor='e')
-        tk.Label(private, text='Delivery and replies', bg=colors['background'], fg=colors['text']).pack(anchor='w', pady=(10, 4))
-        self.replies = tk.Text(private, height=9, wrap='word', bg=colors['card'], fg=colors['text'], font=(self.app.ui_font, 10), state='disabled');self.replies.pack(fill='both', expand=True)
+        tk.Label(private, text='The Node Channel reaches the fixed workspace snapshot for each post. Direct conversations keep their own history.', bg=colors['background'], fg=colors['muted'], wraplength=680, justify='left').pack(anchor='w', pady=(0, 8))
+        self.notebook = ttk.Notebook(private)
+        self.notebook.pack(fill='both', expand=True)
+        self.conversation_tabs = {}
+        self.workspace_view = None
+        self._add_conversation_tab('channel:pending', 'Node Channel', 'channel', None)
+
+    def _add_conversation_tab(self, conversation_id, title, kind, peer):
+        if conversation_id in self.conversation_tabs:
+            return self.conversation_tabs[conversation_id]
+        colors = PALETTES[self.app.theme]
+        page = tk.Frame(self.notebook, bg=colors['background'], padx=8, pady=8)
+        transcript = tk.Text(page, height=12, wrap='word', bg=colors['card'], fg=colors['text'],
+                             insertbackground=colors['text'], font=(self.app.ui_font, 10), state='disabled')
+        transcript.pack(fill='both', expand=True)
+        status = tk.StringVar(value='Connecting to local Codex and workspace…')
+        tk.Label(page, textvariable=status, bg=colors['background'], fg=colors['muted'], anchor='w').pack(fill='x', pady=(5, 2))
+        composer = tk.Text(page, height=3, wrap='word', bg=colors['card'], fg=colors['text'],
+                           insertbackground=colors['text'], font=(self.app.ui_font, 10))
+        composer.pack(fill='x')
+        send = ttk.Button(page, text='Send', command=lambda key=conversation_id: self._send_conversation(key), state='disabled')
+        send.pack(anchor='e', pady=(5, 0))
+        self.notebook.add(page, text=title)
+        row = {'page': page, 'transcript': transcript, 'status': status, 'composer': composer,
+               'send': send, 'kind': kind, 'peer': peer, 'title': title}
+        self.conversation_tabs[conversation_id] = row
+        return row
+
+    def _apply_workspace(self, payload):
+        view = payload.get('workspace') or {}
+        self.workspace_view = view
+        channel_id = view.get('channel_id')
+        if channel_id:
+            row = self.conversation_tabs.pop('channel:pending', None)
+            if row:
+                self.notebook.forget(row['page'])
+                self.conversation_tabs[channel_id] = row
+                row['title'] = 'Node Channel'
+                self.notebook.add(row['page'], text='Node Channel')
+        own_node = view.get('node_id')
+        participants = {item['node_id']: item for item in view.get('participants') or []}
+        for peer, conversation_id in (view.get('direct_conversations') or {}).items():
+            if peer == own_node:
+                continue
+            participant = participants.get(peer, {'online': False})
+            label = ('● ' if participant.get('online') else '○ ') + peer
+            row = self.conversation_tabs.get(conversation_id)
+            if row is None:
+                row = self._add_conversation_tab(conversation_id, label, 'dm', peer)
+            else:
+                row['title'] = label
+                self.notebook.tab(row['page'], text=label)
+            agent = participant.get('agent_id')
+            agent_label = (' · agent ' + agent[:8]) if agent else ''
+            row['status'].set(('Online' if participant.get('online') else 'Offline') + ' · node ' + peer + agent_label)
+        histories = payload.get('histories') or {}
+        for conversation_id, history in histories.items():
+            self._render_history(conversation_id, history)
+        for conversation_id, row in self.conversation_tabs.items():
+            row['send'].configure(state='normal' if self.runtime and conversation_id != 'channel:pending' else 'disabled')
+        self.status.set('Local Codex connected. Workspace conversations are synchronized automatically.')
+
+    def _render_history(self, conversation_id, history):
+        row = self.conversation_tabs.get(conversation_id)
+        if not row:
+            return
+        transcript = row['transcript']
+        messages = []
+        for message in history.get('messages') or []:
+            messages.append(f"[{message['source_node']}] {message['body']}")
+            for recipient in message.get('recipients') or []:
+                state = recipient.get('status', 'queued')
+                executor = recipient.get('executing_node')
+                agent = recipient.get('agent_id')
+                detail = f" · agent {agent[:8]} executing on {executor}" if executor and agent else (f" · executing on {executor}" if executor else '')
+                messages.append(f"  {recipient['node_id']}: {state}{detail}")
+                result = recipient.get('result')
+                if result and result != '[NO_RESPONSE]':
+                    messages.append(f"  ↳ {recipient['node_id']}: {result}")
+        transcript.configure(state='normal')
+        transcript.delete('1.0', 'end')
+        transcript.insert('1.0', '\n\n'.join(messages) or 'No messages yet.')
+        transcript.configure(state='disabled')
+
+    def _send_conversation(self, conversation_id):
+        row = self.conversation_tabs.get(conversation_id)
+        if not self.runtime or not row:
+            return
+        message = row['composer'].get('1.0', 'end-1c').strip()
+        if not message:
+            return
+        row['send'].configure(state='disabled')
+        row['status'].set('Queueing message…')
+        kind, peer = row['kind'], row['peer']
+        self._work(lambda: self.runtime.post(kind, peer, message), 'posted')
+        row['composer'].delete('1.0', 'end')
 
     def _hide_private(self):
         if self.update_button.winfo_exists(): self.update_button.pack_forget()
@@ -85,7 +169,8 @@ class OwnerPanel(tk.Toplevel):
         if self.private is not None:
             self.private.destroy()
             self.private = None
-        self.target_rows = {}
+        self.conversation_tabs = {}
+        self.workspace_view = None
 
     def emit(self, kind, value, epoch=None):
         try: self.events.put_nowait((self.auth_epoch if epoch is None else epoch, kind, value))
@@ -136,42 +221,6 @@ class OwnerPanel(tk.Toplevel):
         if self.update_dialog and self.update_dialog.winfo_exists(): self.update_dialog.lift();return
         self.update_dialog = UpdatePanel(self)
 
-    def _choose(self):
-        if self.runtime: self._work(self.runtime.local_sessions, 'local_sessions')
-
-    def _create_session(self):
-        if self.runtime: self._work(self.runtime.create_session, 'session_created')
-
-    def _choose_rows(self, rows):
-        dialog = tk.Toplevel(self);dialog.title('Publish local Codex sessions');dialog.geometry('640x380')
-        tree = ttk.Treeview(dialog, columns=('session',), show='headings', selectmode='extended', style='Node.Treeview')
-        tree.heading('session', text='Select only sessions you want this link to reach')
-        tree.pack(fill='both', expand=True)
-        indexed = {}
-        for row in rows: indexed[tree.insert('', 'end', values=(row['name'],))] = row
-        def publish():
-            selected = [indexed[item] for item in tree.selection()]
-            if self.runtime:
-                self._work(lambda: (self.runtime.publish(selected), 'Local sessions published.')[1])
-            dialog.destroy()
-        ttk.Button(dialog, text='Publish selected sessions', command=publish).pack(side='bottom', pady=10, before=tree)
-
-    def _refresh(self):
-        if self.runtime: self._work(lambda: self.runtime.request('targets')['targets'], 'targets')
-
-    def _send(self):
-        selected = self.targets.selection()
-        text = self.message.get('1.0', 'end-1c').strip()
-        if not self.runtime or len(selected) != 1 or not text: return
-        row = self.target_rows[selected[0]]
-        payload = {'id': str(uuid.uuid4()), 'node_id': row['node_id'], 'thread_id': row['thread_id'], 'message': text}
-        self.send_button.configure(state='disabled')
-        self.status.set('Sending '+payload['id']+'…')
-        def send():
-            result = self.runtime.request('send', payload)
-            return 'Delivery '+result['id']+': '+result['status']
-        self._work(send, 'sent')
-
     def _drain(self):
         try:
             while True:
@@ -184,10 +233,16 @@ class OwnerPanel(tk.Toplevel):
                 if kind == 'expired':
                     self._sign_out()
                     self.status.set('Owner access expired. Verify your Microsoft account again.')
-                elif kind in ('status', 'sent'):
+                elif kind == 'status':
                     self.status.set(str(value))
                     self.signin.configure(state='normal' if self.runtime is None else 'disabled')
-                    if self.runtime: self.send_button.configure(state='normal')
+                elif kind == 'posted':
+                    self._render_history(value.get('conversation_id'), value)
+                    for row in self.conversation_tabs.values():
+                        row['send'].configure(state='normal')
+                        row['status'].set('Message saved; recipient delivery is tracked below.')
+                elif kind == 'workspace':
+                    self._apply_workspace(value)
                 elif kind == 'code': self.code = value;self.status.set(value)
                 elif kind == 'authenticated':
                     if value is None:
@@ -202,27 +257,16 @@ class OwnerPanel(tk.Toplevel):
                     self.runtime = OwnerRuntime(gateway, session, lambda kind, value, epoch=epoch: self.emit(kind, value, epoch))
                     self.runtime.external_busy = lambda: bool(self.app.updater and self.app.updater.applying)
                     self._show_private()
-                    self.code = '';self.status.set('Owner verified. Choose local sessions to publish, or refresh remote sessions.')
-                    for button in (self.local_button, self.create_button, self.refresh, self.send_button, self.update_button): button.configure(state='normal')
+                    self.code = '';self.status.set('Owner verified. Connecting to local Codex and discovering workspace nodes.')
                     if hasattr(self.app, 'owner_drawer'):
                         self.app.owner_drawer.set_verified(True)
                         self.withdraw()
                         self.app.deiconify();self.app.lift()
-                    self._refresh()
                 elif kind == 'update_data':
                     if self.update_dialog and self.update_dialog.winfo_exists(): self.update_dialog.render(value)
                 elif kind == 'update_requested':
                     self.status.set('App update '+value['id']+': '+value['status'])
                     if self.update_dialog: self.update_dialog.refresh()
-                elif kind == 'local_sessions': self._choose_rows(value)
-                elif kind == 'session_created': self.status.set('Owner session created. Choose local sessions to publish it explicitly.')
-                elif kind == 'targets':
-                    for item in self.targets.get_children(): self.targets.delete(item)
-                    self.target_rows = {}
-                    for row in value: self.target_rows[self.targets.insert('', 'end', values=(row['node_id'], row['name']))] = row
-                elif kind == 'messages':
-                    rendered = '\n\n'.join(row['id']+' • '+row['status']+' • '+row['target_node']+'\n'+row['result'] for row in value)
-                    self.replies.configure(state='normal');self.replies.delete('1.0', 'end');self.replies.insert('1.0', rendered);self.replies.configure(state='disabled')
         except queue.Empty: pass
         self.after(200, self._drain)
 

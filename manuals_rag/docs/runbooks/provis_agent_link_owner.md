@@ -1,84 +1,73 @@
-# Owner Agent Link
+# Owner Agent Communication
 
-Owner verification is opened with **Ctrl+Shift+A**. After successful Microsoft owner verification, a small arrow appears at the bottom of the main node panel. It expands or collapses the owner controls inside the app; ordinary employees do not see the arrow. Signing out or expiry removes the controls and arrow. It does not grant access
-by itself. Fresh Microsoft sign-in is checked by the gateway against the
-configured tenant, approved public client, delegated scope, enrollment role,
-and the owner's exact Entra object ID. Node/app/operator inference credentials
-do not authorize this feature. The enrolled node's identity must also match.
+Owner verification opens with **Ctrl+Shift+A**. The Microsoft owner sign-in is
+checked by the gateway against the configured tenant, approved public client,
+delegated scope, enrollment role, exact owner Entra object ID, and the node's
+existing enrollment identity. Inference credentials do not authorize this
+feature. The owner capability expires at the earlier of the Microsoft token
+expiry or one hour. Microsoft tokens are not saved.
 
-Gateway activation is separate from deploying the node UI. Set the root-owned
-gateway environment's `INFERENCE_AGENT_LINK_OWNER_OBJECT_ID` to
-`feb94da3-80b4-4f51-b6aa-3688b9b8e41e` for John's requested account only, deploy
-this revision, and restart only `inference-fabric-gateway.service` after its
-preflight. Preserve all existing inference authentication and worker restrictions.
-The feature is disabled when the owner setting is absent.
+Gateway activation remains a separate deployment step. The root-owned gateway
+environment must set `INFERENCE_AGENT_LINK_OWNER_OBJECT_ID` to
+`feb94da3-80b4-4f51-b6aa-3688b9b8e41e` for John's requested account, and the
+gateway revision must be deployed after preflight. Preserve current inference
+authentication and worker restrictions. The feature remains unavailable when
+the owner setting or the required conversation API revision is absent.
 
-## Session workflow
+## Chat workflow
 
-1. Open the private panel and verify the Microsoft account on each participating
-   PC. The short-lived owner capability expires after at most one hour, bounded
-   by the Microsoft access-token expiry. Microsoft tokens are not saved.
-2. Choose **local Codex sessions** and publish only the desired existing threads.
-   Existing-server mode uses `codex app-server proxy`; an operator can provide
-   an existing local socket through `PROVIS_CODEX_CONTROL_SOCKET`.
-   John's approved dedicated mode instead starts a connector-owned Codex
-   app-server over private stdio. It opens no TCP listener and keeps the user's
-   normal model, approval and sandbox defaults. Set `server_mode` to `dedicated`
-   in the private per-user `ProVIS/codex-owner-settings.json` file (under
-   LOCALAPPDATA on Windows or ~/.config on Linux).
-   Choose **New owner session** to create an empty session, then publish it
-   explicitly. Dedicated mode lists only those locally registered sessions;
-   it never imports existing desktop conversations. A per-user lock prevents
-   another dedicated connector from operating those sessions concurrently.
-3. On a sender PC, refresh published sessions, select a destination, and send a
-   message. Replies appear only in the private panel, never in node activity.
-4. Busy sessions remain queued until idle. An interrupted, claimed delivery
-   becomes **uncertain** and is never automatically resent. Inspect the target
-   conversation before deciding whether to send a new request.
+After owner sign-in, the app connects automatically to a connector-owned Codex
+app-server over private stdio. It does not proxy or list the user's unrelated
+desktop threads. Each node keeps one locally owned Codex thread for the Node
+Channel and one for each direct-message peer. The private
+`ProVIS/codex-owner-sessions.json` and `codex-owner-conversations.json` files
+retain the mapping so reconnects reuse those threads. The normal Codex model,
+sandbox, and approval settings remain in effect; remote messages cannot grant
+local approvals.
 
-The connector creates a thread only through **New owner session** in explicitly
-selected dedicated mode. It does not change models, override sandbox/approval
-policies, restart the desktop, or silently fall back between connection modes.
-Unsupported approval requests are not granted remotely; the delivery reports
-that a local approval is needed. Normal employee inference is independent.
+The chat tabs include one **Node Channel** and one-to-one conversations with
+nodes enrolled to the same Entra subject and tenant. The roster reports online
+when a node has a fresh owner-session registration; otherwise it is shown
+offline. Posts record a fixed recipient snapshot. Nodes that join after a post
+can read channel history but are not added to that post's recipient list.
+Direct messages can remain queued for an offline enrolled peer and are bound to
+that peer's local conversation when it registers again.
 
-Owner sessions are protected with Windows user-bound DPAPI or a private Linux
-file. The gateway stores bounded messages/replies in a private SQLite mailbox,
-retains them for at most 24 hours, and removes submitted message text on
-completion. HTTP access logging remains disabled. Published targets expire
-unless renewed. Sign out removes the node's published targets and local session.
-The same operating-system account and company IT administrators remain trusted.
+Recipient states progress through `queued`, `admitted`, `executing`, and
+`replied`, with `failed`, `blocked`, `skipped`, or `uncertain` where relevant.
+The execution record names the actual node. A channel agent is instructed to
+ignore unrelated posts, respond once when addressed, and never rebroadcast an
+agent reply. The server uses a unique message/recipient record and a stable
+delivery ID so reconnects cannot add duplicate recipients or accepted replies.
+Uncertain claims are not automatically retried; inspect the conversation
+before manually sending a new message.
 
-## Assistant command interface
+Conversation history and pending recipient delivery are stored in the private
+gateway SQLite mailbox. Owner sign-out expires the local capability and removes
+the node's online registration; it does not erase the user's Codex conversation
+history or its stable local thread mapping. Ordinary node inference and signed
+app updates remain separate from owner chat.
 
-The bundled `provis_agent_link.py` can be used by a user-authorized assistant:
+## Signed app updates
 
-```text
-python provis_agent_link.py targets
-python provis_agent_link.py send --input message.json
-python provis_agent_link.py messages
-```
-
-`message.json` contains `id` (a fresh UUID), `node_id`, `thread_id`, and `message`.
-Keep the same UUID when checking an uncertain submission; never retry blindly.
-Use `--input -` for JSON on stdin. This interface requires the owner's active
-panel sign-in and does not grant an assistant standing permission to send
-arbitrary messages. Human authorization must exist for the requested message.
-For the Linux zipapp, use `python3 inference-node.pyz --agent-link targets`.
+The private owner area retains **App updates**. Its panel lists enrolled nodes
+and signed releases, then uses **Update selected PC** after an explicit
+confirmation. Source logic verifies the signed manifest and downloaded artifact
+hash, waits for the node to become idle, preserves the existing configuration,
+launches the candidate, and rolls back to the previous app if the candidate
+fails its health probe. An enabled heartbeat indicates updater readiness; it
+does not prove that an update has been requested or applied.
 
 ## Verification boundary
 
-Authorization, TTL/revocation, explicit publication, claims, duplicate handling,
-busy targets, protected capabilities, and HTTP gates are executable tests.
-The current ProVisWork Codex desktop process uses its private stdio transport;
-its default shared control socket is unavailable (Windows error 10050).
-The approved dedicated stdio connection initialized successfully on ProVisWork;
-this does not grant control of the live desktop's existing conversations.
-The approved single-PC gateway mailbox round trip on ProVisWork completed and
-returned exactly PROVIS_LINK_OK. Its test publication was revoked afterward.
-Cross-PC delivery has not been verified; require explicit authorization for a
-specific target/message before testing it. The final .6 owner drawer and
-scrollable layout were checked in the signed-in employee session.
-See [the setup handoff](provis_node_agent_setup_handoff_20261017.md).
+The chat state machine, local session reuse, UI tabs, duplicate handling,
+recipient snapshotting, and the Dell/sender identity regression are covered by
+local tests. The cross-PC chat experience requires the matching gateway API and
+owner setting to be deployed. A source-level test does not establish that the
+current gateway or every employee node has that revision. Do not infer network
+failure from a Linux node's OS or routing output. Never change enrollment,
+credentials, VPN, or access policy as a chat workaround.
 
-Protocol reference: https://learn.chatgpt.com/docs/app-server
+The previous manual **New owner session**, **Choose local Codex sessions**, and
+**Refresh remote sessions** flow has been replaced in source by automatic chat
+registration. The release and deployment remain separate actions.

@@ -23,6 +23,7 @@ PACKAGE_ROOT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src/manuals_ra
 BROKER_PACKAGE_ROOT = REPO_ROOT / "provis_inference_node/src/provis_inference_node"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
 INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
+BRAND_ASSET_ROOT = REPO_ROOT / "manuals_rag/assets/brand"
 
 LINUX_SETUP = '''#!/bin/sh
 set -eu
@@ -161,6 +162,8 @@ $InstallerRoot = Join-Path $Root "installers"
 if (Test-Path $InstallerRoot -PathType Container) {
     $InstallerArgs = @("--add-data", ($InstallerRoot + ";installers"))
 }
+$BrandAsset = Join-Path $Root "src\assets\brand\provis-lens.png"
+if (-not (Test-Path $BrandAsset -PathType Leaf)) { throw "PROVIS Lens icon is missing: $BrandAsset" }
 & $Python @PythonArgs -m PyInstaller --noconfirm --clean --onefile --noconsole `
     --name PROVISInferenceNode `
     --distpath (Join-Path $Root "dist") `
@@ -168,6 +171,7 @@ if (Test-Path $InstallerRoot -PathType Container) {
     --specpath $Root `
     --paths (Join-Path $Root "src") `
     --add-data ((Join-Path $Root "provis-node-config.json") + ";.") `
+    --add-data ($BrandAsset + ";assets\brand") `
     --collect-all cryptography `
     @InstallerArgs `
     (Join-Path $Root "src\run_inference_node_client.py")
@@ -360,6 +364,7 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
             source / "provis_inference_node",
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
+        shutil.copytree(BRAND_ASSET_ROOT, source / "assets" / "brand")
         for name in (
             "run_inference_node_client.py",
             "run_inference_node_agent.py",

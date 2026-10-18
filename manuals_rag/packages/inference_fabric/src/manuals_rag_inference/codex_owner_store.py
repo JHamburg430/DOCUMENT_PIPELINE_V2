@@ -44,6 +44,54 @@ def add_session(identifier, name):
     sessions[identifier] = name
     private_json(root() / 'codex-owner-sessions.json', sessions)
 
+def conversation_sessions():
+    """Return stable local Codex thread IDs keyed by PROVIS conversation."""
+    path = root() / 'codex-owner-conversations.json'
+    if not path.exists():
+        return {}
+    if path.is_symlink() or path.stat().st_size > 16384:
+        raise PermissionError('Bounded private conversation registry required')
+    value = json.loads(path.read_text())
+    if type(value) is not dict or len(value) > 60:
+        raise ValueError('Bounded conversation registry required')
+    sessions = owned_sessions()
+    for key, identifier in value.items():
+        if (type(key) is not str or not 1 <= len(key) <= 140
+                or not (key == 'channel' or key.startswith('dm:'))
+                or str(uuid.UUID(identifier)) != identifier or identifier not in sessions):
+            raise ValueError('Invalid conversation session mapping')
+    return value
+
+def bind_conversation(key, identifier):
+    from .node_updater import private_json
+    if type(key) is not str or not 1 <= len(key) <= 140 or not (key == 'channel' or key.startswith('dm:')):
+        raise ValueError('Invalid conversation key')
+    identifier = str(uuid.UUID(identifier))
+    sessions = owned_sessions()
+    if identifier not in sessions:
+        raise PermissionError('Only a connector-owned Codex conversation can be bound')
+    mappings = conversation_sessions()
+    if len(mappings) >= 60 and key not in mappings:
+        raise ValueError('Conversation capacity reached')
+    mappings[key] = identifier
+    private_json(root() / 'codex-owner-conversations.json', mappings)
+
+def agent_identity():
+    """Return the stable non-secret identity for this node's local Codex agent."""
+    path = root() / 'codex-owner-agent.json'
+    if path.exists():
+        if path.is_symlink() or path.stat().st_size > 256:
+            raise PermissionError('Private local agent identity required')
+        value = json.loads(path.read_text())
+        identifier = value.get('agent_id') if type(value) is dict else None
+        if str(uuid.UUID(identifier)) != identifier:
+            raise ValueError('Invalid local agent identity')
+        return identifier
+    from .node_updater import private_json
+    identifier = str(uuid.uuid4())
+    private_json(path, {'agent_id':identifier})
+    return identifier
+
 class ServerLock:
     """Only one dedicated server may operate this node's published sessions."""
     def __init__(self):

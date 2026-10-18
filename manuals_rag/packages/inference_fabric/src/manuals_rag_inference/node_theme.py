@@ -4,8 +4,8 @@ import os
 from pathlib import Path
 
 PALETTES = {
-    'light': dict(background='#f3f6fb', card='#ffffff', text='#122743', muted='#65758c', button='#edf2fa', hover='#dbe7fa', track='#e8edf5', header='#122743'),
-    'dark': dict(background='#101722', card='#1b2635', text='#edf3ff', muted='#a5b5ca', button='#29394d', hover='#364c68', track='#334258', header='#0c1420'),
+    'light': dict(background='#f3f6fb', card='#ffffff', text='#122743', muted='#65758c', link='#165d69', button='#edf2fa', hover='#dbe7fa', track='#e8edf5', header='#122743'),
+    'dark': dict(background='#101722', card='#1b2635', text='#edf3ff', muted='#a5b5ca', link='#83d8e4', button='#29394d', hover='#364c68', track='#334258', header='#0c1420'),
 }
 
 

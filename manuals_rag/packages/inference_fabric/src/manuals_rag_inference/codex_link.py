@@ -146,6 +146,22 @@ class CodexLink:
         add_session(identifier, name.strip())
         return {'id': identifier, 'name': name.strip()}
 
+    def ensure_conversation(self, key, name):
+        """Reuse one dedicated, locally owned Codex thread per PROVIS chat."""
+        if self.mode != 'dedicated':
+            raise PermissionError('PROVIS conversations require the connector-owned Codex server')
+        from .codex_owner_store import bind_conversation, conversation_sessions
+        from .codex_owner_store import owned_sessions
+        existing = conversation_sessions().get(key)
+        sessions = owned_sessions()
+        if existing and existing in sessions:
+            self.allowed.add(existing)
+            return {'id': existing, 'name': sessions[existing]}
+        created = self.create_session(name)
+        bind_conversation(key, created['id'])
+        self.allowed.add(created['id'])
+        return created
+
     def publish(self, threads):
         available = {row['id'] for row in self.sessions()}
         if not set(threads).issubset(available): raise PermissionError('Select an existing local session')

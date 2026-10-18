@@ -121,6 +121,22 @@ def _default_node_id() -> str:
     return value or "provis-inference-node"
 
 
+def _application_asset_path(name: str) -> Path:
+    """Resolve packaged or source-tree visual assets deterministically."""
+    candidates: list[Path] = []
+    if getattr(sys, "frozen", False):
+        frozen_root = getattr(sys, "_MEIPASS", "")
+        if frozen_root:
+            candidates.append(Path(str(frozen_root)) / "assets" / "brand" / name)
+    script_dir = Path(__file__).resolve().parent
+    candidates.extend((script_dir / "assets" / "brand" / name,
+                       script_dir.parent / "assets" / "brand" / name))
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError(f"PROVIS desktop asset is missing: {name}")
+
+
 from manuals_rag_inference.node_presentation import public_events, utilization
 from manuals_rag_inference.node_system import (
     OLLAMA_DOWNLOAD_PAGE,
@@ -142,6 +158,13 @@ class InferenceNodeClient(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("PROVIS Inference Node")
+        self._application_icon = None
+        try:
+            self._application_icon = tk.PhotoImage(file=str(_application_asset_path("provis-lens.png")))
+            self.iconphoto(True, self._application_icon)
+        except (OSError, tk.TclError):
+            # Keep startup usable in source-only or deliberately minimal builds.
+            self._application_icon = None
         self.geometry("440x740")
         self.resizable(False, False)
         self.configure(bg="#f3f6fb")
@@ -421,12 +444,12 @@ class InferenceNodeClient(tk.Tk):
         colors = PALETTES[self.theme]
         self.theme_button_var.set('Light mode' if self.theme == 'dark' else 'Dark mode')
         background_roles = {'#f3f6fb': 'background', 'white': 'card', '#ffffff': 'card', '#122743': 'header'}
-        foreground_roles = {'#122743': 'text', '#65758c': 'muted'}
+        foreground_roles = {'#122743': 'text', '#65758c': 'muted', '#165d69': 'link'}
         for palette in PALETTES.values():
             background_roles.update({palette[role]: role for role in ('background', 'card', 'header')})
-            foreground_roles.update({palette[role]: role for role in ('text', 'muted')})
+            foreground_roles.update({palette[role]: role for role in ('text', 'muted', 'link')})
         def visit(widget):
-            if isinstance(widget, (tk.Tk, tk.Toplevel, tk.Frame, tk.Label, tk.Button, tk.Text, tk.Canvas)):
+            if isinstance(widget, (tk.Tk, tk.Toplevel, tk.Frame, tk.LabelFrame, tk.Label, tk.Button, tk.Text, tk.Canvas)):
                 if not hasattr(widget, '_appearance_roles'):
                     roles = {}
                     for option, mapping in [('background', background_roles), ('foreground', foreground_roles)]:

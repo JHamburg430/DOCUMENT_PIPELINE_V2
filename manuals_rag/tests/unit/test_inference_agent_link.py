@@ -53,7 +53,7 @@ def test_only_explicit_targets_and_claimed_node_can_receive_or_complete(link):
     assert link.dispatch('poll', receiver, {})['job'] is None
     with pytest.raises(PermissionError): link.dispatch('complete', source, {**job, 'status': 'completed', 'result': 'reply'})
     link.dispatch('complete', receiver, {**job, 'status': 'completed', 'result': 'Synthetic reply'})
-    assert send(link, source, job_id)['status'] == 'completed'
+    assert send(link, source, job_id)['status'] == 'replied'
     assert link.db.execute('SELECT message FROM jobs WHERE id=?', (job_id,)).fetchone()[0] == ''
     assert link.dispatch('messages', source, {})['messages'][0]['result'] == 'Synthetic reply'
 
@@ -155,3 +155,114 @@ def test_codex_reply_is_bound_to_the_started_turn_without_policy_overrides():
     assert connector.send('selected', 'Synthetic request') == {'status': 'completed', 'result': 'Synthetic reply'}
     assert calls[1] == ('thread/resume', {'threadId': 'selected', 'excludeTurns': True})
     assert set(calls[2][1]) == {'threadId', 'input'}
+
+
+def _workspace_service(path, node_ids, now=None):
+    records = [SimpleNamespace(node_id=node, secret='secret-'+node,
+        identity_subject='john', identity_tenant='tenant', enrollment_method='entra')
+        for node in node_ids]
+    class Validator:
+        def validate(self, token):
+            return {'subject':'john','tenant_id':'tenant','object_id':OWNER,
+                    'expires_at_epoch':500000}
+    clock = now or [1000.0]
+    service = AgentLink(Validator(), SimpleNamespace(nodes=lambda: records),
+                        owner_object_id=OWNER, path=path, clock=lambda:clock[0])
+    service.test_nodes = records
+    service.test_clock = clock
+    return service
+
+
+def _register_workspace_node(service, node, peer_ids):
+    token = login(service, node)
+    direct = [{'peer_node_id':peer,'thread_id':f'dm-{node}-{peer}'} for peer in peer_ids if peer != node]
+    service.dispatch('register', token, {'agent_id':str(uuid.uuid5(uuid.NAMESPACE_DNS,'agent:'+node)),
+        'channel_thread_id':'channel-'+node,'direct_threads':direct})
+    return token
+
+
+def test_channel_fanout_has_three_durable_recipients_and_one_reply_each_after_reconnect(tmp_path):
+    nodes = ['node-a','node-b','node-c']
+    path = tmp_path/'channel.db'
+    service = _workspace_service(path, nodes)
+    tokens = {node:_register_workspace_node(service,node,nodes) for node in nodes}
+    for node, token in tokens.items():
+        participant = next(row for row in service.dispatch('workspace',token,{})['participants'] if row['node_id']==node)
+        assert participant['online'] is True
+        assert participant['agent_id']==str(uuid.uuid5(uuid.NAMESPACE_DNS,'agent:'+node))
+    message_id = str(uuid.uuid4())
+    original = {'id':message_id,'kind':'channel','message':'Status for the three-node test'}
+    posted = service.dispatch('post',tokens['node-a'],original)
+    snapshot = posted['messages'][0]
+    assert [row['node_id'] for row in snapshot['recipients']] == nodes
+    for node in nodes:
+        job = service.dispatch('poll',tokens[node],{'ready_thread_ids':['channel-'+node]})['job']
+        assert job and job['target_node']==node and job['kind']=='channel'
+        assert job['recipient_snapshot']==nodes
+        assert job['target_agent_id']==str(uuid.uuid5(uuid.NAMESPACE_DNS,'agent:'+node))
+        claim={'id':job['id'],'claim':job['claim'],'agent_id':job['target_agent_id']}
+        assert service.dispatch('executing',tokens[node],claim)['executing_node']==node
+        service.dispatch('complete',tokens[node],{'id':job['id'],'claim':job['claim'],
+            'agent_id':job['target_agent_id'],'status':'completed','result':'One test reply from '+node})
+        assert service.dispatch('poll',tokens[node],{'ready_thread_ids':['channel-'+node]})['job'] is None
+        with pytest.raises(PermissionError):
+            service.dispatch('complete',tokens[node],{'id':job['id'],'claim':job['claim'],
+                'agent_id':job['target_agent_id'],'status':'completed','result':'Duplicate reply'})
+    history = service.dispatch('history',tokens['node-a'],{'conversation_id':posted['conversation_id']})
+    assert len(history['messages'])==1  # Agent replies are records, never new broadcasts.
+    recipients = history['messages'][0]['recipients']
+    assert len(recipients)==3
+    assert {row['status'] for row in recipients}=={'replied'}
+    assert {row['executing_node'] for row in recipients}==set(nodes)
+    assert {row['agent_id'] for row in recipients}=={str(uuid.uuid5(uuid.NAMESPACE_DNS,'agent:'+node)) for node in nodes}
+    service.db.close()
+
+    # A gateway restart drops owner capabilities but keeps durable messages,
+    # recipient snapshots, claims and replies. Retrying the same id is inert.
+    service = _workspace_service(path, nodes)
+    tokens = {node:_register_workspace_node(service,node,nodes) for node in nodes}
+    replay = service.dispatch('post',tokens['node-a'],original)
+    assert replay['conversation_id']==posted['conversation_id']
+    assert len(replay['messages'][0]['recipients'])==3
+    assert all(row['status']=='replied' for row in replay['messages'][0]['recipients'])
+    assert all(service.dispatch('poll',tokens[node],{'ready_thread_ids':['channel-'+node]})['job'] is None for node in nodes)
+    service.db.close()
+
+
+def test_newly_joined_node_is_not_added_to_an_existing_broadcast_snapshot(tmp_path):
+    service = _workspace_service(tmp_path/'join.db',['node-a','node-b'])
+    first = _register_workspace_node(service,'node-a',['node-a','node-b'])
+    second = _register_workspace_node(service,'node-b',['node-a','node-b'])
+    posted = service.dispatch('post',first,{'id':str(uuid.uuid4()),'kind':'channel','message':'pre-join broadcast'})
+    assert {row['node_id'] for row in posted['messages'][0]['recipients']}=={'node-a','node-b'}
+    service.test_nodes.append(SimpleNamespace(node_id='node-c',secret='secret-node-c',
+        identity_subject='john',identity_tenant='tenant',enrollment_method='entra'))
+    service.test_clock[0] += 86401
+    third = login(service,'node-c')
+    service.dispatch('register',third,{'agent_id':str(uuid.uuid5(uuid.NAMESPACE_DNS,'agent:node-c')),
+        'channel_thread_id':'channel-node-c','direct_threads':[
+        {'peer_node_id':'node-a','thread_id':'dm-node-c-node-a'},
+        {'peer_node_id':'node-b','thread_id':'dm-node-c-node-b'}]})
+    second = _register_workspace_node(service,'node-b',['node-a','node-b','node-c'])
+    assert service.dispatch('poll',third,{'ready_thread_ids':['channel-node-c']})['job'] is None
+    assert service.dispatch('poll',second,{'ready_thread_ids':['channel-node-b']})['job'] is not None
+    assert len(service.dispatch('history',second,{'conversation_id':posted['conversation_id']})['messages'][0]['recipients'])==2
+    service.db.close()
+
+
+def test_job_2a8c9425_is_delivered_on_dell_while_sender_identity_stays_distinct(tmp_path):
+    source_node, dell_node = 'john-System-Product-Name','Johns_Dell_V2'
+    service = _workspace_service(tmp_path/'dell-attribution.db',[source_node,dell_node])
+    source = _register_workspace_node(service,source_node,[source_node,dell_node])
+    dell = _register_workspace_node(service,dell_node,[source_node,dell_node])
+    identifier='2a8c9425-4993-4b20-a52f-d4d1296c746c'
+    posted=service.dispatch('post',source,{'id':identifier,'kind':'dm','target_node_id':dell_node,
+        'message':'Synthetic identity attribution regression'})
+    job=service.dispatch('poll',dell,{'ready_thread_ids':['dm-Johns_Dell_V2-john-System-Product-Name']})['job']
+    assert job['id']==identifier
+    assert job['source_node']==source_node
+    assert job['target_node']==dell_node
+    assert job['thread_id']=='dm-Johns_Dell_V2-john-System-Product-Name'
+    assert job['target_agent_id']==str(uuid.uuid5(uuid.NAMESPACE_DNS,'agent:'+dell_node))
+    assert [row['node_id'] for row in posted['messages'][0]['recipients']]==[dell_node]
+    service.db.close()
