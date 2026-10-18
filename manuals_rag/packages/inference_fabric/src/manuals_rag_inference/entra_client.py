@@ -3,10 +3,37 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import hmac
+import secrets
 import time
 from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+
+class EntraHttpError(RuntimeError):
+    def __init__(self, status: int) -> None:
+        self.http_status = status
+        super().__init__("Entra authentication request failed")
+
+
+class EntraNetworkError(ConnectionError):
+    def __init__(self) -> None:
+        super().__init__("Entra authentication service is unavailable")
+
+
+class _HttpResult(dict):
+    def __init__(self, values: dict, http_status: int | None = None) -> None:
+        super().__init__(values)
+        self.http_status = http_status
+
+
+def _with_http_status(error: Exception, result: dict) -> Exception:
+    status = getattr(result, "http_status", None)
+    if status is not None:
+        error.http_status = status
+    return error
 
 
 def fetch_enrollment_config(*, gateway_url: str) -> dict:
@@ -43,7 +70,7 @@ def _post_form(url: str, values: dict[str, str], *, timeout: float = 10.0) -> di
     )
     try:
         with urlopen(request, timeout=timeout) as response:
-            return _decode_json_object(response.read())
+            return _HttpResult(_decode_json_object(response.read()), getattr(response, "status", None))
     except HTTPError as error:
         # Microsoft Entra uses HTTP 400 for normal device-code states such as
         # authorization_pending and slow_down. Return only the parsed OAuth
@@ -51,13 +78,13 @@ def _post_form(url: str, values: dict[str, str], *, timeout: float = 10.0) -> di
         # or surfacing raw authentication responses.
         try:
             result = _decode_json_object(error.read(64 * 1024))
-        except Exception as parse_error:
-            raise RuntimeError(f"Entra authentication request failed (HTTP {error.code})") from parse_error
+        except Exception:
+            raise EntraHttpError(error.code) from None
         if str(result.get("error") or ""):
-            return result
-        raise RuntimeError(f"Entra authentication request failed (HTTP {error.code})")
-    except URLError as error:
-        raise RuntimeError("Entra authentication service is unavailable") from error
+            return _HttpResult(result, error.code)
+        raise EntraHttpError(error.code) from None
+    except URLError:
+        raise EntraNetworkError() from None
 
 
 def request_device_code(*, tenant_id: str, client_id: str, scope: str) -> dict:
@@ -69,7 +96,7 @@ def request_device_code(*, tenant_id: str, client_id: str, scope: str) -> dict:
         {"client_id": client_id.strip(), "scope": scope.strip()},
     )
     if not result.get("device_code"):
-        raise RuntimeError("Entra device sign-in could not be started")
+        raise _with_http_status(RuntimeError("Entra device sign-in could not be started"), result)
     return result
 
 
@@ -95,10 +122,10 @@ def poll_device_token(*, tenant_id: str, client_id: str, device_code: str, inter
             time.sleep(min(wait_seconds, max(0.0, remaining)))
             continue
         if error in {"authorization_declined", "access_denied"}:
-            raise PermissionError("Microsoft sign-in was denied")
+            raise _with_http_status(PermissionError("Microsoft sign-in was denied"), result)
         if error in {"expired_token", "bad_verification_code", "invalid_grant"}:
-            raise TimeoutError("Microsoft sign-in expired or was cancelled")
-        raise RuntimeError("Microsoft sign-in could not be completed")
+            raise _with_http_status(TimeoutError("Microsoft sign-in expired or was cancelled"), result)
+        raise _with_http_status(RuntimeError("Microsoft sign-in could not be completed"), result)
 
 
 def enroll_node_with_entra(*, gateway_url: str, access_token: str, node_id: str, endpoint: str, agent_url: str, tailnet_name: str) -> dict:
@@ -116,3 +143,59 @@ def enroll_node_with_entra(*, gateway_url: str, access_token: str, node_id: str,
     )
     with urlopen(request, timeout=15) as response:
         return json.loads(response.read().decode())
+
+
+def verify_node_registration_with_entra(*, gateway_url: str, access_token: str, node_id: str, shared_secret: str) -> bool:
+    """Ask the gateway to verify owner and saved-secret proof without returning credentials."""
+    if not node_id or not shared_secret:
+        return False
+    challenge = secrets.token_urlsafe(32)
+    proof = json.dumps({"node_id": node_id, "challenge": challenge}, sort_keys=True, separators=(",", ":")).encode()
+    signature = hmac.new(shared_secret.encode(), proof, hashlib.sha256).hexdigest()
+    body = json.dumps({"node_id": node_id, "challenge": challenge, "signature": signature}).encode()
+    request = Request(
+        f"{gateway_url.rstrip('/')}/v1/nodes/verify-registration/entra",
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"},
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            result = json.loads(response.read().decode())
+    except HTTPError as error:
+        if error.code in {401, 403, 404}:
+            denied = PermissionError("saved node registration could not be verified")
+            denied.http_status = error.code
+            denied.diagnostic_category = "permission_denied"
+            raise denied from None
+        raise
+    except URLError:
+        raise EntraNetworkError() from None
+    return isinstance(result, dict) and result.get("status") == "accepted"
+
+
+def returning_node_registration(*, config: dict, gateway_url: str, tenant_id: str, client_id: str, scope: str,
+                                access_token: str, node_id: str, enroll, verify) -> dict:
+    """Reuse only an owner-verified saved registration; enroll only an empty new config."""
+    saved = bool(config.get("shared_secret") or config.get("node_id"))
+    if not saved:
+        return enroll()
+    required = ("node_id", "shared_secret", "gateway_url", "entra_tenant_id", "entra_client_id", "entra_scope")
+    if not all(str(config.get(key) or "").strip() for key in required):
+        raise PermissionError("saved node registration could not be verified")
+    if str(config["node_id"]) != node_id:
+        raise PermissionError("saved node registration could not be verified")
+    if str(config["gateway_url"]).rstrip("/") != gateway_url.rstrip("/"):
+        raise PermissionError("saved node registration could not be verified")
+    if str(config["entra_tenant_id"]) != tenant_id or str(config["entra_client_id"]) != client_id or str(config["entra_scope"]) != scope:
+        raise PermissionError("saved node registration could not be verified")
+    if not verify(
+        gateway_url=gateway_url,
+        access_token=access_token,
+        node_id=node_id,
+        shared_secret=str(config["shared_secret"]),
+    ):
+        error = PermissionError("saved node registration could not be verified")
+        error.diagnostic_category = "permission_denied"
+        raise error
+    return dict(config)

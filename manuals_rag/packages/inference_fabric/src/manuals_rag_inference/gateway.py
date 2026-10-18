@@ -183,6 +183,35 @@ class InferenceGateway:
             "enrollment_method": node.enrollment_method,
         }
 
+    def verify_node_registration_with_entra(self, *, access_token: str, node_id: str, challenge: str, signature: str) -> bool:
+        """Verify the current Entra owner and saved node proof without returning credentials."""
+        if self.enrollment is None or self.entra_validator is None:
+            return False
+        if not node_id or not challenge or len(challenge) > 128 or not signature:
+            return False
+        try:
+            identity = self.entra_validator.validate(access_token)
+        except Exception:
+            return False
+        node = next((item for item in self.enrollment.nodes() if item.node_id == node_id), None)
+        if node is None or node.enrollment_method != "entra":
+            return False
+        if not node.identity_subject or not node.identity_tenant:
+            return False
+        if not hmac.compare_digest(node.identity_subject, str(identity.get("subject") or "")):
+            return False
+        if not hmac.compare_digest(node.identity_tenant, str(identity.get("tenant_id") or "")):
+            return False
+        # Prove the client still has the unchanged node credential. A revoked
+        # or replaced registration cannot pass this check.
+        secret = self.node_secrets.get(node_id)
+        enrolled_secret = node.secret.encode()
+        if secret is None or not hmac.compare_digest(secret, enrolled_secret):
+            return False
+        proof = {"node_id": node_id, "challenge": challenge}
+        expected = node_request_signature(proof, secret)
+        return hmac.compare_digest(expected, signature)
+
     def enrollment_config(self) -> dict[str, Any]:
         """Return non-secret bootstrap settings needed by the desktop client."""
         if self.entra_validator is None or not self.entra_client_id or not self.entra_scope:
@@ -752,6 +781,17 @@ def create_gateway_handler(gateway: InferenceGateway):
                         tailnet_name=str(payload.get("tailnet_name") or ""),
                     )
                     self._send(200, result)
+                    return
+                if self.path == "/v1/nodes/verify-registration/entra":
+                    authorization = str(self.headers.get("Authorization") or "")
+                    scheme, _, access_token = authorization.partition(" ")
+                    accepted = scheme.lower() == "bearer" and bool(access_token.strip()) and gateway.verify_node_registration_with_entra(
+                        access_token=access_token.strip(),
+                        node_id=str(payload.get("node_id") or ""),
+                        challenge=str(payload.get("challenge") or ""),
+                        signature=str(payload.get("signature") or ""),
+                    )
+                    self._send(200 if accepted else 403, {"status": "accepted" if accepted else "denied"})
                     return
                 if self.path == "/v1/nodes/pairing-token":
                     gateway.authorize_operator(self.headers.get("X-Gateway-Token"))

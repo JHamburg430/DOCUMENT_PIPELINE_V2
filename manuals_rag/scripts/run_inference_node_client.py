@@ -30,7 +30,10 @@ from manuals_rag_inference.entra_client import (
     fetch_enrollment_config,
     poll_device_token,
     request_device_code,
+    returning_node_registration,
+    verify_node_registration_with_entra,
 )
+from manuals_rag_inference.connect_diagnostics import append_connect_diagnostic
 
 
 def _default_config_path() -> str:
@@ -170,6 +173,7 @@ class InferenceNodeClient(tk.Tk):
         self.configure(bg="#f3f6fb")
         self.protocol("WM_DELETE_WINDOW", self._close_requested)
         self.config_path = os.getenv("INFERENCE_NODE_CONFIG_PATH", _default_config_path())
+        self.connect_diagnostics_path = str(Path(self.config_path).with_name("inference-node-diagnostics.jsonl"))
         self.theme_path = Path(self.config_path).with_name('inference-node-ui.json')
         self.theme = load_theme(self.theme_path)
         self.ui_font = 'Segoe UI' if os.name == 'nt' else 'DejaVu Sans'
@@ -644,9 +648,11 @@ class InferenceNodeClient(tk.Tk):
         return server, agent, gateway_url
 
     def _connect_worker(self, values: dict[str, str]) -> None:
+        phase = "saved_registration_load"
         try:
             config = _load_node_config(self.config_path)
             if not config.get("shared_secret"):
+                phase = "legacy_enrollment"
                 if not values["gateway_url"] or not values["pairing_token"]:
                     raise RuntimeError("use Sign in with Microsoft 365 for first connection, or provide a legacy pairing token")
                 result = enroll_node(
@@ -658,13 +664,18 @@ class InferenceNodeClient(tk.Tk):
                     tailnet_name=values["tailnet_name"],
                 )
                 config.update(result)
+            phase = "local_service_start"
             self.worker_queue.put(("connected", self._persist_and_start(config, values)))
+            append_connect_diagnostic(self.connect_diagnostics_path, "connect_complete")
         except Exception as error:
+            append_connect_diagnostic(self.connect_diagnostics_path, phase, error=error)
             self.worker_queue.put(("error", str(error)))
 
     def _entra_connect_worker(self, values: dict[str, str]) -> None:
+        phase = "gateway_discovery"
         try:
             values = self._resolve_values(values)
+            phase = "device_code_request"
             device = request_device_code(
                 tenant_id=values["entra_tenant_id"],
                 client_id=values["entra_client_id"],
@@ -677,6 +688,7 @@ class InferenceNodeClient(tk.Tk):
             verification_url = str(device.get("verification_uri_complete") or device.get("verification_uri") or "")
             if verification_url:
                 webbrowser.open(verification_url)
+            phase = "device_code_poll"
             token = poll_device_token(
                 tenant_id=values["entra_tenant_id"],
                 client_id=values["entra_client_id"],
@@ -685,18 +697,32 @@ class InferenceNodeClient(tk.Tk):
                 expires_in=int(device.get("expires_in") or 900),
             )
             config = _load_node_config(self.config_path)
-            result = enroll_node_with_entra(
+            phase = "entra_registration_check"
+            result = returning_node_registration(
+                config=config,
                 gateway_url=values["gateway_url"],
+                tenant_id=values["entra_tenant_id"],
+                client_id=values["entra_client_id"],
+                scope=values["entra_scope"],
                 access_token=str(token["access_token"]),
                 node_id=values["node_id"],
-                endpoint=values["ollama_url"],
-                agent_url=values["agent_url"],
-                tailnet_name=values["tailnet_name"],
+                verify=verify_node_registration_with_entra,
+                enroll=lambda: enroll_node_with_entra(
+                    gateway_url=values["gateway_url"],
+                    access_token=str(token["access_token"]),
+                    node_id=values["node_id"],
+                    endpoint=values["ollama_url"],
+                    agent_url=values["agent_url"],
+                    tailnet_name=values["tailnet_name"],
+                ),
             )
             config.update(result)
             config.update({"entra_tenant_id": values["entra_tenant_id"], "entra_client_id": values["entra_client_id"], "entra_scope": values["entra_scope"]})
+            phase = "local_service_start"
             self.worker_queue.put(("connected", self._persist_and_start(config, values)))
+            append_connect_diagnostic(self.connect_diagnostics_path, "connect_complete")
         except Exception as error:
+            append_connect_diagnostic(self.connect_diagnostics_path, phase, error=error)
             self.worker_queue.put(("error", str(error)))
 
     def _set_inference(self, enabled: bool) -> None:
