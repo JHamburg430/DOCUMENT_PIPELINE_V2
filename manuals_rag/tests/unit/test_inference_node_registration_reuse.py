@@ -212,7 +212,7 @@ def test_http_registration_verification_returns_no_node_or_credential_data():
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
-    enrollment.revoke(node.node_id)
+    enrollment.revoke(created["node_id"])
     assert not gateway.verify_node_registration_with_entra(
-        access_token="owner", node_id=node.node_id, challenge="challenge", signature="signature"
+        access_token="owner", node_id=created["node_id"], challenge="challenge", signature="signature"
     )
