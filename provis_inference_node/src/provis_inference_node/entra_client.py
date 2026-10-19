@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import hashlib
 import hmac
-import secrets
 import time
 from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from .registration_proof import registration_proof_bytes
 
 
 class _HttpResult(dict):
@@ -161,9 +161,28 @@ def verify_node_registration_with_entra(*, gateway_url: str, access_token: str, 
     """Ask the gateway to verify this signed-in owner against a saved registration."""
     if not node_id.strip() or not shared_secret:
         return False
-    challenge = secrets.token_urlsafe(32)
-    proof = json.dumps({"node_id": node_id, "challenge": challenge}, sort_keys=True, separators=(",", ":")).encode()
-    signature = hmac.new(shared_secret.encode(), proof, hashlib.sha256).hexdigest()
+    challenge_request = Request(
+        f"{gateway_url.rstrip('/')}/v1/nodes/registration-challenge/entra",
+        data=json.dumps({"node_id": node_id}).encode(), method="POST",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"},
+    )
+    try:
+        with urlopen(challenge_request, timeout=15) as response:
+            issued = _decode_json_object(response.read(16385))
+    except HTTPError as error:
+        if error.code in {401, 403, 404}:
+            denied = PermissionError("saved node registration could not be verified")
+            denied.http_status = error.code
+            denied.diagnostic_category = "permission_denied"
+            raise denied from None
+        raise EntraHttpError(error.code) from None
+    except URLError:
+        raise EntraNetworkError() from None
+    challenge = issued.get("challenge")
+    if issued.get("status") != "challenge" or not isinstance(challenge, str) or len(challenge) != 43:
+        raise PermissionError("saved node registration could not be verified")
+    signature = hmac.new(shared_secret.encode(), registration_proof_bytes(node_id, challenge, access_token), hashlib.sha256).hexdigest()
+    body = json.dumps({"node_id": node_id, "challenge": challenge, "signature": signature}).encode()
     request = Request(
         f"{gateway_url.rstrip('/')}/v1/nodes/verify-registration/entra",
         data=json.dumps({"node_id": node_id, "challenge": challenge, "signature": signature}).encode(),

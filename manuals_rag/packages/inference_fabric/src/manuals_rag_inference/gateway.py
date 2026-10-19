@@ -27,6 +27,7 @@ from .scheduler import InferenceScheduler, SchedulerPolicy
 from .control import sign_command
 from .enrollment import EnrollmentManager
 from .entra import EntraTokenValidator
+from .registration_proof import RegistrationChallenges
 from .streaming import NDJSONResponse, relay_ndjson, watch_disconnect
 
 
@@ -110,6 +111,7 @@ class InferenceGateway:
         if any(not isinstance(app, str) or not app or not isinstance(nodes, (list, tuple)) or not nodes or any(not isinstance(node, str) or not node for node in nodes) for app, nodes in self.application_worker_allowlist.items()):
             raise ValueError("invalid application worker allowlist")
         self._heartbeat_lock = threading.Lock()
+        self._registration_challenges = RegistrationChallenges()
         self.agent_link = None
         self.installer_catalog = None
         self._last_heartbeat_observed: dict[str, float] = {}
@@ -183,34 +185,44 @@ class InferenceGateway:
             "enrollment_method": node.enrollment_method,
         }
 
-    def verify_node_registration_with_entra(self, *, access_token: str, node_id: str, challenge: str, signature: str) -> bool:
-        """Verify the current Entra owner and saved node proof without returning credentials."""
+    def _registration_owner(self, access_token: str, node_id: str):
         if self.enrollment is None or self.entra_validator is None:
-            return False
-        if not node_id or not challenge or len(challenge) > 128 or not signature:
-            return False
+            return None
+        if not isinstance(node_id, str) or not 1 <= len(node_id) <= 128:
+            return None
         try:
             identity = self.entra_validator.validate(access_token)
+            node = next((item for item in self.enrollment.nodes() if item.node_id == node_id), None)
+            if node is None or node.enrollment_method != "entra" or not node.identity_subject or not node.identity_tenant:
+                return None
+            if not hmac.compare_digest(node.identity_subject, str(identity.get("subject") or "")):
+                return None
+            if not hmac.compare_digest(node.identity_tenant, str(identity.get("tenant_id") or "")):
+                return None
+            secret = self.node_secrets.get(node_id)
+            if secret is None or not hmac.compare_digest(secret, node.secret.encode()):
+                return None
+            return identity, secret
         except Exception:
+            return None
+
+    def create_node_registration_challenge_with_entra(self, *, access_token: str, node_id: str):
+        owner = self._registration_owner(access_token, node_id)
+        if owner is None:
+            return None
+        identity, _ = owner
+        return self._registration_challenges.issue(
+            node_id=node_id, subject=identity["subject"], tenant=identity["tenant_id"], access_token=access_token)
+
+    def verify_node_registration_with_entra(self, *, access_token: str, node_id: str, challenge: str, signature: str) -> bool:
+        """Verify an unchanged registration using a token-bound one-use server nonce."""
+        owner = self._registration_owner(access_token, node_id)
+        if owner is None:
             return False
-        node = next((item for item in self.enrollment.nodes() if item.node_id == node_id), None)
-        if node is None or node.enrollment_method != "entra":
-            return False
-        if not node.identity_subject or not node.identity_tenant:
-            return False
-        if not hmac.compare_digest(node.identity_subject, str(identity.get("subject") or "")):
-            return False
-        if not hmac.compare_digest(node.identity_tenant, str(identity.get("tenant_id") or "")):
-            return False
-        # Prove the client still has the unchanged node credential. A revoked
-        # or replaced registration cannot pass this check.
-        secret = self.node_secrets.get(node_id)
-        enrolled_secret = node.secret.encode()
-        if secret is None or not hmac.compare_digest(secret, enrolled_secret):
-            return False
-        proof = {"node_id": node_id, "challenge": challenge}
-        expected = node_request_signature(proof, secret)
-        return hmac.compare_digest(expected, signature)
+        identity, secret = owner
+        return self._registration_challenges.consume(
+            node_id=node_id, subject=identity["subject"], tenant=identity["tenant_id"], access_token=access_token,
+            challenge=challenge, signature=signature, secret=secret)
 
     def enrollment_config(self) -> dict[str, Any]:
         """Return non-secret bootstrap settings needed by the desktop client."""
@@ -781,6 +793,15 @@ def create_gateway_handler(gateway: InferenceGateway):
                         tailnet_name=str(payload.get("tailnet_name") or ""),
                     )
                     self._send(200, result)
+                    return
+                if self.path == "/v1/nodes/registration-challenge/entra":
+                    scheme, _, token = str(self.headers.get("Authorization") or "").partition(" ")
+                    challenge = None
+                    if scheme.lower() == "bearer" and token.strip():
+                        challenge = gateway.create_node_registration_challenge_with_entra(
+                            access_token=token.strip(), node_id=str(payload.get("node_id") or ""))
+                    self._send(200 if challenge else 403,
+                               {"status": "challenge", "challenge": challenge} if challenge else {"status": "denied"})
                     return
                 if self.path == "/v1/nodes/verify-registration/entra":
                     authorization = str(self.headers.get("Authorization") or "")

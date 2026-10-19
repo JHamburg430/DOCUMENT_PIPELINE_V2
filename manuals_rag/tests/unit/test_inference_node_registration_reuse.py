@@ -1,4 +1,6 @@
 import json
+import hashlib
+import hmac
 import os
 import threading
 from http.server import ThreadingHTTPServer
@@ -10,6 +12,7 @@ import pytest
 from manuals_rag_inference.enrollment import EnrollmentManager
 from manuals_rag_inference.gateway import InferenceGateway, create_gateway_handler, node_request_signature
 from manuals_rag_inference.entra_client import returning_node_registration
+from manuals_rag_inference.registration_proof import registration_proof_bytes
 
 
 def _config():
@@ -122,18 +125,18 @@ def test_gateway_verifies_current_entra_owner_tenant_and_saved_secret_only():
         agent_url="http://127.0.0.1:8765",
         tailnet_name="provis-tailnet",
     )
-    challenge = "random-single-use-test-challenge"
+    challenge = gateway.create_node_registration_challenge_with_entra(access_token="owner", node_id=created["node_id"])
     proof = {"node_id": created["node_id"], "challenge": challenge}
-    signature = node_request_signature(proof, created["shared_secret"].encode())
+    signature = hmac.new(created["shared_secret"].encode(), registration_proof_bytes(created["node_id"], challenge, "owner"), hashlib.sha256).hexdigest()
     arguments = {"node_id": created["node_id"], "challenge": challenge, "signature": signature}
 
-    assert gateway.verify_node_registration_with_entra(access_token="owner", **arguments) is True
     assert gateway.verify_node_registration_with_entra(access_token="other-owner", **arguments) is False
     assert gateway.verify_node_registration_with_entra(access_token="other-tenant", **arguments) is False
     assert gateway.verify_node_registration_with_entra(access_token="invalid", **arguments) is False
     assert gateway.verify_node_registration_with_entra(
         access_token="owner", node_id="johns-dell", challenge="other", signature=signature
     ) is False
+    assert gateway.verify_node_registration_with_entra(access_token="owner", **arguments) is True
     assert set(created) == {"node_id", "shared_secret", "endpoint", "agent_url", "tailnet_name", "enrollment_method"}
 
 
@@ -157,7 +160,6 @@ def test_revoked_or_non_entra_registration_is_not_reusable():
     )
 
 
-@pytest.mark.skipif(os.name == "nt", reason="Windows sandbox may prohibit loopback sockets")
 def test_http_registration_verification_returns_no_node_or_credential_data():
     class FakeValidator:
         def validate(self, token):
@@ -181,11 +183,18 @@ def test_http_registration_verification_returns_no_node_or_credential_data():
     thread.start()
     try:
         def request(token):
-            challenge = "unique-test-challenge-" + token
-            signature = node_request_signature(
-                {"node_id": created["node_id"], "challenge": challenge},
-                created["shared_secret"].encode(),
+            challenge_request = Request(
+                f"http://127.0.0.1:{server.server_port}/v1/nodes/registration-challenge/entra",
+                data=json.dumps({"node_id": created["node_id"]}).encode(), method="POST",
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
             )
+            with urlopen(challenge_request, timeout=5) as response:
+                issued = json.loads(response.read())
+            assert set(issued) == {"status", "challenge"}
+            assert issued["status"] == "challenge"
+            challenge = issued["challenge"]
+            signature = hmac.new(created["shared_secret"].encode(),
+                registration_proof_bytes(created["node_id"], challenge, token), hashlib.sha256).hexdigest()
             req = Request(
                 f"http://127.0.0.1:{server.server_port}/v1/nodes/verify-registration/entra",
                 data=json.dumps({"node_id": created["node_id"], "challenge": challenge, "signature": signature}).encode(),
@@ -208,11 +217,15 @@ def test_http_registration_verification_returns_no_node_or_credential_data():
             assert error.code == 403
             assert body == {"status": "denied"}
             assert "shared_secret" not in json.dumps(body)
+        # Revoke after issuing a valid nonce and constructing its correct proof.
+        # A rejection of an arbitrary invalid signature would not test revocation.
+        revoked_request = request("owner")
+        enrollment.revoke(created["node_id"])
+        with pytest.raises(HTTPError) as revoked:
+            urlopen(revoked_request, timeout=5)
+        assert revoked.value.code == 403
+        assert json.loads(revoked.value.read()) == {"status": "denied"}
     finally:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
-    enrollment.revoke(created["node_id"])
-    assert not gateway.verify_node_registration_with_entra(
-        access_token="owner", node_id=created["node_id"], challenge="challenge", signature="signature"
-    )

@@ -12,6 +12,11 @@ on:
       - "manuals_rag/windows_installer/**"
       - "manuals_rag/tests/unit/test_provis_node_windows_installer.py"
       - "manuals_rag/tests/unit/test_inference_node_*.py"
+      - "manuals_rag/tests/unit/test_inference_registration_proof.py"
+      - "provis_inference_node/tests/test_registration_reuse.py"
+      - "provis_inference_node/src/provis_inference_node/registration_proof.py"
+      - "provis_inference_node/src/provis_inference_node/entra_client.py"
+      - "provis_inference_node/src/provis_inference_node/gateway.py"
       - "manuals_rag/tests/unit/test_inference_native_linux_updates.py"
       - "manuals_rag/requirements-node-ci.txt"
       - ".github/workflows/provis-inference-node-ci.yml"
@@ -20,6 +25,7 @@ on:
       - main
       - master
       - codex/provis-node-reconcile-20261017
+      - codex/node-registration-replay-*
     paths:
       - "manuals_rag/packages/inference_fabric/**"
       - "provis_inference_node/src/provis_inference_node/openai_broker.py"
@@ -30,6 +36,11 @@ on:
       - "manuals_rag/windows_installer/**"
       - "manuals_rag/tests/unit/test_provis_node_windows_installer.py"
       - "manuals_rag/tests/unit/test_inference_node_*.py"
+      - "manuals_rag/tests/unit/test_inference_registration_proof.py"
+      - "provis_inference_node/tests/test_registration_reuse.py"
+      - "provis_inference_node/src/provis_inference_node/registration_proof.py"
+      - "provis_inference_node/src/provis_inference_node/entra_client.py"
+      - "provis_inference_node/src/provis_inference_node/gateway.py"
       - "manuals_rag/tests/unit/test_inference_native_linux_updates.py"
       - "manuals_rag/requirements-node-ci.txt"
       - ".github/workflows/provis-inference-node-ci.yml"
@@ -64,7 +75,13 @@ jobs:
             manuals_rag/tests/unit/test_inference_node_listener_refresh.py \
             manuals_rag/tests/unit/test_inference_native_linux_updates.py \
             manuals_rag/tests/unit/test_inference_node_broker_gateway.py \
-            manuals_rag/tests/unit/test_installer_release.py
+            manuals_rag/tests/unit/test_installer_release.py \
+            manuals_rag/tests/unit/test_inference_node_registration_reuse.py \
+            manuals_rag/tests/unit/test_inference_registration_proof.py \
+            manuals_rag/tests/unit/test_inference_node_connect_diagnostics.py \
+            manuals_rag/tests/unit/test_inference_fabric_entra.py \
+            manuals_rag/tests/unit/test_inference_entra_contract.py \
+            provis_inference_node/tests/test_registration_reuse.py
       - name: Build unsigned Linux smoke artifact
         env:
           PYTHONPATH: manuals_rag/packages/inference_fabric/src:manuals_rag/scripts:provis_inference_node/src

@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-import secrets
 import sys
 import unittest
 from pathlib import Path
@@ -14,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from provis_inference_node.enrollment import EnrollmentManager
 from provis_inference_node.gateway import InferenceGateway
 from provis_inference_node.entra_client import reuse_or_enroll_node_with_entra
+from provis_inference_node.registration_proof import registration_proof_bytes
 
 
 class FakeValidator:
@@ -44,10 +44,10 @@ class RegistrationReuseTests(unittest.TestCase):
             tailnet_name="private",
         )
 
-    def challenge(self, *, node_id="NODE-1", secret=None, challenge=None):
-        challenge = challenge or secrets.token_urlsafe(32)
+    def challenge(self, *, node_id="NODE-1", secret=None):
+        challenge = self.gateway.create_node_registration_challenge_with_entra(access_token="valid-token", node_id=node_id) or "not-issued"
         secret = secret or self.registration["shared_secret"]
-        payload = json.dumps({"node_id": node_id, "challenge": challenge}, sort_keys=True, separators=(",", ":")).encode()
+        payload = registration_proof_bytes(node_id, challenge, "valid-token")
         return challenge, hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
     def verify(self, *, token="valid-token", node_id="NODE-1", challenge=None, signature=None):
@@ -65,28 +65,30 @@ class RegistrationReuseTests(unittest.TestCase):
         self.assertEqual(self.manager.nodes()[0].secret, self.registration["shared_secret"])
 
     def test_repeated_sign_in_uses_fresh_challenge_without_reenrollment(self):
-        self.assertTrue(self.verify(challenge="first"))
-        self.assertTrue(self.verify(challenge="second"))
+        self.assertTrue(self.verify())
+        self.assertTrue(self.verify())
         self.assertEqual(len(self.manager.nodes()), 1)
 
     def test_replayed_challenge_is_denied_but_fresh_recovery_challenge_works(self):
-        challenge, signature = self.challenge(challenge="replay-me")
+        challenge, signature = self.challenge()
         self.assertTrue(self.verify(challenge=challenge, signature=signature))
         self.assertFalse(self.verify(challenge=challenge, signature=signature))
-        self.assertTrue(self.verify(challenge="recovery"))
+        self.assertTrue(self.verify())
 
     def test_invalid_authentication_and_owner_mismatch_fail_closed(self):
-        self.assertFalse(self.verify(token="expired-token", challenge="expired"))
+        challenge, signature = self.challenge()
+        self.assertFalse(self.verify(token="expired-token", challenge=challenge, signature=signature))
         self.gateway.entra_validator = FakeValidator({"subject": "other-user", "tenant_id": "tenant-1"})
-        self.assertFalse(self.verify(challenge="wrong-owner"))
+        self.assertFalse(self.verify(challenge=challenge, signature=signature))
         self.gateway.entra_validator = FakeValidator({"subject": "subject-1", "tenant_id": "other-tenant"})
-        self.assertFalse(self.verify(challenge="wrong-tenant"))
+        self.assertFalse(self.verify(challenge=challenge, signature=signature))
 
     def test_missing_revoked_invalid_registration_and_bad_proof_fail_closed(self):
-        self.assertFalse(self.verify(node_id="MISSING", challenge="missing"))
-        self.assertFalse(self.verify(challenge="bad-proof", signature="0" * 64))
+        self.assertFalse(self.verify(node_id="MISSING"))
+        challenge, signature = self.challenge()
+        self.assertFalse(self.verify(challenge=challenge, signature="0" * 64))
         self.manager.revoke("NODE-1")
-        self.assertFalse(self.verify(challenge="revoked"))
+        self.assertFalse(self.verify(challenge=challenge, signature=signature))
 
     def test_first_enrollment_still_uses_enrollment_route_and_duplicate_fails(self):
         self.assertEqual(len(self.manager.nodes()), 1)
