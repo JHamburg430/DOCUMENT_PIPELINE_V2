@@ -75,6 +75,7 @@ class NodeSnapshot:
     remote_updates_enabled: bool = False
     gpu_placement_mode: str = ""
     onnx_providers: tuple[str, ...] = ()
+    host_resources: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

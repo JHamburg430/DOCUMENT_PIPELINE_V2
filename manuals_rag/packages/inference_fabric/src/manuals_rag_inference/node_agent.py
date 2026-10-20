@@ -23,6 +23,7 @@ from .control import ControlPolicy, verify_command
 from .gateway import heartbeat_signature, node_request_signature
 from .models import GpuSnapshot, LoadedModel, NodeSnapshot
 from .onnx_backend import OnnxBackend
+from .host_resources import HostResourceSampler
 from .streaming import NDJSONResponse, relay_ndjson, watch_disconnect
 from provis_inference_node.openai_broker import OpenAIBrokerMixin, create_openai_broker_handler, create_openai_broker_server
 
@@ -227,6 +228,7 @@ class OllamaNode(OpenAIBrokerMixin):
         self.proxy_only = proxy_only
         self.allowed_applications = tuple(item for item in allowed_applications if item)
         self._request_lock = threading.Lock()
+        self._host_resource_sampler = HostResourceSampler()
         self._active_by_model: dict[str, int] = {}
         self._last_used_by_model: dict[str, float] = {}
         self._seen_inference_requests: dict[str, float] = {}
@@ -376,6 +378,7 @@ class OllamaNode(OpenAIBrokerMixin):
             installed_model_capabilities=model_capabilities,
             capabilities=("chat", "embeddings", "onnx") if self.onnx_backend.enabled else ("chat", "embeddings"),
             onnx_providers=self.onnx_backend.providers,
+            host_resources=self._host_resource_sampler.sample(),
             gpu_placement_mode=os.getenv("INFERENCE_NODE_GPU_PLACEMENT_MODE", "multi_gpu"),
         )
 

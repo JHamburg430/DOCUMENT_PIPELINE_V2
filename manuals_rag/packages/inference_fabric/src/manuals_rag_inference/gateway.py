@@ -583,6 +583,7 @@ class InferenceGateway:
 
 def _snapshot_from_payload(payload: dict[str, Any]) -> NodeSnapshot:
     from .models import GpuSnapshot, LoadedModel
+    from .host_resources import validate_host_resources
 
     return NodeSnapshot(
         node_id=str(payload["node_id"]),
@@ -603,6 +604,7 @@ def _snapshot_from_payload(payload: dict[str, Any]) -> NodeSnapshot:
         remote_updates_enabled=payload.get("remote_updates_enabled") is True,
         gpu_placement_mode=str(payload.get("gpu_placement_mode") or ""),
         onnx_providers=tuple(str(provider) for provider in payload.get("onnx_providers") or []),
+        host_resources=validate_host_resources(payload.get("host_resources")),
         installed_models=tuple(str(model) for model in payload.get("installed_models") or []),
         installed_model_capabilities={str(model): tuple(capabilities) for model, capabilities in (payload.get("installed_model_capabilities") or {}).items()},
     )
