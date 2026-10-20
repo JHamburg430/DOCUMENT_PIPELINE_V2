@@ -14,6 +14,7 @@ def _node(*gpus, providers=()):
         capabilities=("chat", "embeddings", "onnx") if providers else ("chat", "embeddings"),
         onnx_providers=tuple(providers),
         installed_models=("model",),
+        host_resources={'observed_at_epoch':time.time(),'memory_available_bytes':32*1024**3},
     )
 
 

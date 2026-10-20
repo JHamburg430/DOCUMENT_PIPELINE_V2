@@ -1,7 +1,9 @@
 """Node app updater. Signed artifacts only; no remote shell or general installer."""
 import hashlib
+from contextlib import contextmanager
 import hmac
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -47,8 +49,14 @@ def private_json(path, value):
     with temp.open('x', encoding='utf-8') as stream:
         temp.chmod(0o600)
         json.dump(value, stream)
+        stream.flush()
+        os.fsync(stream.fileno())
     os.replace(temp, path)
     path.chmod(0o600)
+    if os.name != 'nt':
+        fd = os.open(path.parent, os.O_RDONLY)
+        try: os.fsync(fd)
+        finally: os.close(fd)
 
 
 def root_for(config_path):
@@ -110,11 +118,14 @@ def stage(update, *, config_path, settings, gateway, current_version):
 
 
 class UpdateWorker:
-    def __init__(self, agent, gateway, config_path, settings, busy, emit):
+    def __init__(self, agent, gateway, config_path, settings, busy, emit, *, probe_plan=None):
         self.agent, self.gateway, self.config_path = agent, gateway, config_path
         self.settings, self.busy, self.emit = settings, busy, emit
         self.stop = threading.Event()
         self.applying = False
+        self.ack_checked = False
+        self.ack_status = None
+        self.probe_plan = probe_plan
         self.thread = threading.Thread(target=self.run, daemon=True, name='provis-app-update')
         self.thread.start()
 
@@ -127,6 +138,20 @@ class UpdateWorker:
             update = None
             previous = self.agent.inference_enabled
             try:
+                if not self.ack_checked:
+                    if not self.agent.heartbeat_accepted.is_set(): continue
+                    if self.probe_plan:
+                        path,plan,manifest=validate_plan(self.probe_plan,self.config_path,self.settings)
+                        if manifest['version'] != self.settings['version']:
+                            raise PermissionError('Probe release mismatch')
+                        if not _committed_healthy(path,plan,manifest,self.config_path): continue
+                    state = recover_healthy_ack(self.config_path, self.settings, self.agent.node_id)
+                    if state != self.ack_status:
+                        self.agent._record_activity('app_update_ack', '', state or 'none')
+                        self.ack_status = state
+                    if state in ('pending', 'blocked', 'exhausted'): continue
+                    self.ack_checked = True
+                    self.probe_plan = None
                 update = request(self.gateway, self.agent.secret, 'poll', {'node_id':self.agent.node_id}).get('update')
                 if not update: continue
                 self.applying = True
@@ -161,6 +186,8 @@ class UpdateWorker:
 
 
 def validate_plan(plan_path, config_path, settings):
+    if Path(plan_path).is_symlink() or Path(plan_path).parent.is_symlink():
+        raise PermissionError('Private updater plan required')
     path = Path(plan_path).resolve(strict=True)
     root = root_for(config_path)
     if path.name != 'plan.json' or path.parent.parent != root or path.is_symlink() or path.stat().st_size>32768:
@@ -251,6 +278,11 @@ def _start_candidate(args, launch):
 
 def helper(plan_path, config_path, settings, *, launch=None, sleep=time.sleep):
     path, plan, manifest = validate_plan(plan_path,config_path,settings)
+    # A committed, proven healthy app must never be relaunched or rolled back
+    # merely because its terminal network acknowledgement was interrupted.
+    if _committed_healthy(path, plan, manifest, config_path):
+        deliver_healthy_ack(path, plan, manifest, config_path)
+        return True
     deadline=time.monotonic()+60
     while _pid_running(plan['parent_pid']):
         if time.monotonic()>deadline:
@@ -259,6 +291,7 @@ def helper(plan_path, config_path, settings, *, launch=None, sleep=time.sleep):
     target=path.parent/manifest['filename']
     child=job=None
     committed=False
+    uncertain_commit=False
     try:
         child,job=_start_candidate(command(target)+['--update-probe',str(path)],launch)
         deadline=time.monotonic()+100
@@ -267,15 +300,24 @@ def helper(plan_path, config_path, settings, *, launch=None, sleep=time.sleep):
             if receipt.exists():
                 data=json.loads(receipt.read_text(encoding='utf-8'))
                 if data == {'nonce':plan['probe_nonce'],'version':manifest['version'],'node_id':plan['node_id']}:
+                    _ack_state(path, plan)  # durable intent before the pointer
                     private_json(root_for(config_path)/'active.json', {'release':plan['release']})
                     committed=True
-                    _report_plan(plan,'healthy')
+                    deliver_healthy_ack(path, plan, manifest, config_path)
                     return True
             sleep(.5)
     except Exception:
-        pass
+        # replace() may have committed the pointer before a later chmod/fsync
+        # error. Read it back before considering rollback.
+        try: committed = committed or _committed_healthy(path,plan,manifest,config_path)
+        except (OSError,ValueError,PermissionError):
+            uncertain_commit=True
     finally:
-        if job and committed: job.close()
+        if job and (committed or uncertain_commit): job.close()
+    if committed:
+        return True  # acknowledgement/storage errors cannot undo healthy commit
+    if uncertain_commit:
+        return False  # inspect locally; cannot prove rollback would be safe
     try:
         if job: job.kill()
         backup=json.loads((path.parent/'config-backup.json').read_text(encoding='utf-8'))
@@ -287,6 +329,132 @@ def helper(plan_path, config_path, settings, *, launch=None, sleep=time.sleep):
     finally:
         if job: job.close()
     return False
+
+
+ACK_LIMIT = 6
+ACK_LIFETIME = 3600
+
+
+def _bounded_json(path, limit=32768):
+    if path.is_symlink() or path.stat().st_size > limit:
+        raise PermissionError('Bounded private updater state required')
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+def _committed_healthy(path, plan, manifest, config_path):
+    pointer = root_for(config_path)/'active.json'
+    if not pointer.exists() or not (path.parent/'healthy.json').exists(): return False
+    return (_bounded_json(pointer) == {'release':plan['release']} and
+            _bounded_json(path.parent/'healthy.json') ==
+            {'nonce':plan['probe_nonce'], 'version':manifest['version'], 'node_id':plan['node_id']})
+
+
+def _ack_state(path, plan, *, clock=time.time):
+    target = path.parent/'healthy-ack.json'
+    if target.exists():
+        state = _bounded_json(target, 4096)
+        if (state.get('id') != plan['id'] or state.get('release_id') != path.parent.name or
+                state.get('state') not in ('pending', 'acknowledged', 'blocked', 'exhausted') or
+                type(state.get('attempts')) is not int or not 0 <= state['attempts'] <= ACK_LIMIT or
+                any(type(state.get(k)) not in (int,float) or not math.isfinite(state[k])
+                    for k in ('created', 'next_at'))):
+            raise PermissionError('Acknowledgement state mismatch')
+        return state
+    state = {'id':plan['id'], 'release_id':path.parent.name, 'state':'pending',
+             'attempts':0, 'created':clock(), 'next_at':0}
+    private_json(target, state)
+    return state
+
+
+@contextmanager
+def _ack_lock(path):
+    """Process-scoped OS lock releases on crash; stale lock files do not lock."""
+    import errno
+    import stat
+    target=path.parent/'healthy-ack.lock'
+    if target.is_symlink(): raise PermissionError('Private acknowledgement lock required')
+    fd=os.open(target,os.O_RDWR|os.O_CREAT|getattr(os,'O_NOFOLLOW',0),0o600)
+    acquired=False
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode): raise PermissionError('Regular lock required')
+        if os.name=='nt':
+            import msvcrt
+            try: msvcrt.locking(fd,msvcrt.LK_NBLCK,1);acquired=True
+            except OSError as error:
+                if error.errno not in (errno.EACCES,errno.EAGAIN,errno.EDEADLK): raise
+        else:
+            import fcntl
+            try: fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB);acquired=True
+            except BlockingIOError: pass
+        yield acquired
+    finally:
+        os.close(fd)
+
+
+def deliver_healthy_ack(path, plan, manifest, config_path, **options):
+    with _ack_lock(path) as acquired:
+        if not acquired: return 'pending'
+        return _deliver_healthy_ack(path,plan,manifest,config_path,**options)
+
+
+def _deliver_healthy_ack(path, plan, manifest, config_path, *, send=None, clock=time.time, sleep=time.sleep):
+    """Only report an existing signed plan; never poll, queue, or change config."""
+    if not _committed_healthy(path, plan, manifest, config_path):
+        raise PermissionError('Committed healthy release required')
+    state = _ack_state(path, plan, clock=clock)
+    target = path.parent/'healthy-ack.json'
+    if state['state'] != 'pending': return state['state']
+    config = _bounded_json(Path(config_path))
+    if (config.get('node_id') != plan['node_id'] or config.get('gateway_url') != plan['gateway'] or
+            not isinstance(config.get('shared_secret'), str) or not config['shared_secret']):
+        state['state'] = 'blocked';private_json(target, state);return 'blocked'
+    payload = {'node_id':plan['node_id'], 'id':plan['id'], 'claim':plan['claim'], 'status':'healthy'}
+    for _ in range(3):
+        now = clock()
+        if state['attempts'] >= ACK_LIMIT or not 0 <= now-state['created'] <= ACK_LIFETIME:
+            state['state']='exhausted';private_json(target,state);break
+        if state['next_at'] > now: break
+        # Persist the attempt before transmission. A killed helper consumes an
+        # attempt; a lost success response can safely resend the same claim.
+        state['attempts'] += 1
+        state['next_at'] = now + min(30, 2**(state['attempts']-1))
+        private_json(target,state)
+        try:
+            result = (send or request)(plan['gateway'], config['shared_secret'].encode(), 'report', payload, timeout=5)
+            if result != {'id':plan['id'], 'status':'healthy'}:
+                raise PermissionError('Exact healthy acknowledgement required')
+            state['state']='acknowledged'
+        except HTTPError as exc:
+            if exc.code < 500 and exc.code not in (408,429): state['state']='blocked'
+        except PermissionError:
+            state['state']='blocked'
+        except URLError as exc:
+            import ssl
+            if isinstance(exc.reason, ssl.SSLError): state['state']='blocked'
+        except (TimeoutError, ConnectionError, OSError):
+            pass
+        except Exception:
+            state['state']='blocked'
+        if state['state']=='pending' and state['attempts'] >= ACK_LIMIT: state['state']='exhausted'
+        private_json(target,state)
+        if state['state'] != 'pending': break
+        sleep(max(0, min(30, state['next_at']-clock())))
+    return state['state']
+
+
+def recover_healthy_ack(config_path, settings, node_id, **delivery_options):
+    """Called after the running app has freshly reconnected on each restart."""
+    pointer=root_for(config_path)/'active.json'
+    if not pointer.exists(): return None
+    doc=_bounded_json(pointer)['release']
+    manifest=verify_release(doc,settings['public_keys'],platform=platform_id())
+    if manifest['version'] != settings['version']: return None
+    path=root_for(config_path)/manifest['release_id']/'plan.json'
+    if not path.exists(): return None  # manual installs have no queued claim
+    path,plan,verified=validate_plan(path,config_path,settings)
+    if plan['release'] != doc or plan['node_id'] != node_id:
+        raise PermissionError('Active acknowledgement identity mismatch')
+    return deliver_healthy_ack(path,plan,verified,config_path,**delivery_options)
 
 
 def _report_plan(plan, status):

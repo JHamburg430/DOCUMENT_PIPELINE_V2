@@ -22,6 +22,7 @@ class AgentLink:
         self.sessions = {}
         self.targets = {}
         self.updates = None
+        self.diagnostic = None  # separate explicit runtime opt-in
         self.db = sqlite3.connect(str(path), check_same_thread=False)
         if str(path) != ':memory:': Path(path).chmod(0o600)
         self.db.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, source TEXT, target TEXT, thread TEXT, message TEXT, status TEXT, result TEXT, created REAL, claimed REAL, claim_hash TEXT, message_hash TEXT)')
@@ -273,20 +274,34 @@ class AgentLink:
                                             for node, agent, status, executing, result in recipients]})
         return {'conversation_id': conversation, 'messages': messages}
 
-    def dispatch(self, action, bearer, payload):
+    def _authorized_session(self, bearer):
+        self._cleanup()
+        session = self.sessions.get(self._hash(bearer))
+        if session is None: raise PermissionError('Owner sign-in required')
+        node_id, expiry, enrollment_pin, workspace = session
+        record = next((node for node in self.enrollment.nodes() if node.node_id == node_id), None)
+        if (record is None or self._hash(record.secret) != enrollment_pin or
+                record.enrollment_method != 'entra' or
+                self._workspace({'tenant_id':record.identity_tenant,'subject':record.identity_subject}) != workspace):
+            raise PermissionError('Current enrollment required')
+        return session
+
+    def dispatch(self, action, bearer, payload, *, cancelled=None):
         if type(payload) is not dict:
             raise ValueError('Object required')
         if action == 'session':
             return self.session(bearer, payload)
+        if action == 'diagnostic-inference':
+            with self.lock:
+                source, _, _, workspace = self._authorized_session(bearer)
+                if self.diagnostic is None: raise PermissionError('Owner diagnostics disabled')
+            result = self.diagnostic.run(workspace,source,payload,cancelled=cancelled)
+            with self.lock:
+                if self._authorized_session(bearer)[3] != workspace:
+                    raise PermissionError('Owner workspace changed')
+            return result
         with self.lock:
-            self._cleanup()
-            session = self.sessions.get(self._hash(bearer))
-            if session is None:
-                raise PermissionError('Owner sign-in required')
-            node_id, expiry, enrollment_pin, workspace = session
-            record = next((node for node in self.enrollment.nodes() if node.node_id == node_id), None)
-            if record is None or self._hash(record.secret) != enrollment_pin:
-                raise PermissionError('Current enrollment required')
+            node_id, expiry, enrollment_pin, workspace = self._authorized_session(bearer)
             if action in ('update-nodes', 'update-releases', 'request-update', 'update-status'):
                 if self.updates is None: raise PermissionError('Remote updates are not configured')
                 return self.updates.owner(action, node_id, payload)

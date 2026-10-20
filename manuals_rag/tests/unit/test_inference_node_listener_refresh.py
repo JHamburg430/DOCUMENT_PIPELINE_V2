@@ -92,6 +92,8 @@ def test_fallback_to_primary_restart_refreshes_gateway_endpoint(tmp_path, monkey
         def __init__(self, **_kwargs):
             self.app_metadata = {}
             self.allowed_applications = ("manuals_rag",)
+            from types import SimpleNamespace
+            self.onnx_backend = SimpleNamespace(set_device=lambda _device:None)
         def set_inference_enabled(self, _enabled): pass
         def publish_heartbeat(self, _gateway): pass
 

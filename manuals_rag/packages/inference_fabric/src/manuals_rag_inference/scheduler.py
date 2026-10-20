@@ -34,6 +34,7 @@ class InferenceScheduler:
         self._reservations: dict[str, set[str]] = {}
         self._reservation_models: dict[str, dict[str, str]] = {}
         self._reservation_placements: dict[str, dict[str, dict[str, int]]] = {}
+        self._reservation_shared_bytes: dict[str, dict[str, int]] = {}
 
     def upsert_node(self, snapshot: NodeSnapshot) -> None:
         with self._lock:
@@ -62,13 +63,25 @@ class InferenceScheduler:
     def _placement_for(self, request: InferenceRequest, node: NodeSnapshot) -> tuple[GpuPlacement | None, str, int]:
         if request.backend == "onnx" and not node.onnx_providers:
             return None, "onnx_runtime_unavailable", 0
-        if not node.gpus:
+        backends = {'cuda','rocm','metal','vulkan'} if request.backend == 'ollama' else set()
+        if request.backend == 'onnx':
+            if 'OpenVINOExecutionProvider' in node.onnx_providers: backends.add('openvino')
+            if 'CUDAExecutionProvider' in node.onnx_providers: backends.add('cuda')
+            if 'ROCMExecutionProvider' in node.onnx_providers: backends.add('rocm')
+        gpus = [gpu for gpu in node.gpus if gpu.healthy and gpu.backend in backends]
+        if not gpus:
             return None, "no_gpu", 0
 
         reserved = self._reserved_vram_by_gpu(node.node_id)
         devices = []
-        for gpu in node.gpus:
-            free = gpu.available_vram_mb - reserved.get(gpu.gpu_id, 0)
+        loaded = next((m for m in node.loaded_models if m.name == request.model and m.placement_known), None)
+        for gpu in gpus:
+            # Resident model memory is reusable, not a second model allocation.
+            # Credit only explicitly measured per-device placement, capped by
+            # observed usage. Unknown placement stays conservatively uncredited.
+            credit = loaded.vram_by_gpu_mb.get(gpu.gpu_id,0) if loaded else 0
+            credit = min(credit,gpu.used_vram_mb,gpu.total_vram_mb) if type(credit) is int and credit>0 else 0
+            free = gpu.available_vram_mb + credit - reserved.get(gpu.gpu_id, 0)
             if not gpu.memory_unknown:
                 free -= self.policy.reserved_vram_mb
             devices.append((gpu, max(0, free)))
@@ -81,12 +94,25 @@ class InferenceScheduler:
             return None, "invalid_gpu_placement_mode", 0
         if not request.allow_multi_gpu:
             mode = "single_gpu"
+        if mode == 'single_gpu' and request.min_gpu_count > 1:
+            return None, 'minimum_gpu_count_unavailable', 0
 
         # OpenVINO manages shared Intel memory and can select GPU.0/GPU.1 or
         # AUTO/MULTI itself. Preserve the device inventory for observability,
         # but do not invent VRAM numbers when the driver cannot report them.
         unknown = [(gpu, free) for gpu, free in devices if gpu.memory_unknown]
         if request.backend == "onnx" and unknown:
+            resources=node.host_resources or {}
+            available=resources.get('memory_available_bytes')
+            stamp=resources.get('observed_at_epoch')
+            fresh=(type(stamp) in (int,float) and math.isfinite(stamp) and
+                   0 <= self._clock()-stamp <= self.policy.heartbeat_ttl_seconds)
+            needed=max(request.model_size_bytes,required*1024*1024)+1024**3
+            reserved_shared=sum(self._reservation_shared_bytes.get(node.node_id,{}).values())
+            if not fresh or type(available) is not int or available-reserved_shared < needed:
+                return None, 'shared_memory_headroom_unavailable', 0
+            if len(unknown) < request.min_gpu_count:
+                return None, 'minimum_gpu_count_unavailable', 0
             if mode == "single_gpu":
                 gpu = unknown[0][0]
                 return GpuPlacement("single_gpu", (gpu.gpu_id,), {}, "onnx"), "eligible", 0
@@ -129,7 +155,8 @@ class InferenceScheduler:
             return False, "node_unhealthy", False, 0, None
         if not node.inference_enabled:
             return False, "inference_disabled", False, 0, None
-        if self._clock() - node.observed_at_epoch > self.policy.heartbeat_ttl_seconds:
+        age=self._clock()-node.observed_at_epoch
+        if not math.isfinite(age) or not 0 <= age <= self.policy.heartbeat_ttl_seconds:
             return False, "node_heartbeat_stale", False, 0, None
         if node.allowed_applications and request.application not in node.allowed_applications:
             return False, "application_not_allowed_on_node", False, 0, None
@@ -142,7 +169,7 @@ class InferenceScheduler:
         if model_capabilities and set(request.required_capabilities) - set(model_capabilities):
             return False, "missing_model_capabilities", False, 0, None
         reserved = len(self._reservations.get(node.node_id, set()))
-        if node.queued_requests + reserved >= self.policy.max_queue_depth:
+        if node.active_requests + node.queued_requests + reserved >= self.policy.max_queue_depth:
             return False, "queue_full", False, 0, None
         loaded = next((item for item in node.loaded_models if item.name == request.model), None)
         requires_pull = loaded is None and request.model not in node.installed_models
@@ -184,6 +211,17 @@ class InferenceScheduler:
             app_bonus = 200.0 if request.application in self.policy.interactive_applications else 0.0
             reserved = len(self._reservations.get(node.node_id, set()))
             queue_penalty = float((node.queued_requests + reserved) * 50 + (node.active_requests + reserved) * 25)
+            selected=set(placement.gpu_ids)
+            loads=[gpu.utilization_percent for gpu in node.gpus if gpu.gpu_id in selected
+                   and type(gpu.utilization_percent) in (int,float) and math.isfinite(gpu.utilization_percent)
+                   and 0 <= gpu.utilization_percent <= 100]
+            if loads: queue_penalty += sum(loads)/len(loads)*.5
+            resources=node.host_resources or {}
+            cpu=resources.get('cpu_percent');stamp=resources.get('observed_at_epoch')
+            if (type(cpu) in (int,float) and math.isfinite(cpu) and 0 <= cpu <= 100 and
+                    type(stamp) in (int,float) and math.isfinite(stamp) and
+                    0 <= self._clock()-stamp <= self.policy.heartbeat_ttl_seconds):
+                queue_penalty += cpu*.25
             required_vram_mb = self._required_vram_mb(request)
             headroom_bonus = min(200.0, max(0.0, (available_vram - required_vram_mb) / 100.0))
             score = model_loaded_bonus + model_installed_bonus + app_bonus + headroom_bonus - queue_penalty + request.priority
@@ -214,6 +252,8 @@ class InferenceScheduler:
                 self._reservation_models.setdefault(decision.node_id, {})[request.request_id] = request.model
                 if decision.placement:
                     self._reservation_placements.setdefault(decision.node_id, {})[request.request_id] = dict(decision.placement.vram_by_gpu_mb)
+                    if request.backend=='onnx' and not decision.placement.vram_by_gpu_mb:
+                        self._reservation_shared_bytes.setdefault(decision.node_id,{})[request.request_id]=max(request.model_size_bytes,self._required_vram_mb(request)*1024*1024)
             return decision
 
     def release(self, node_id: str | None, request_id: str) -> bool:
@@ -234,6 +274,10 @@ class InferenceScheduler:
                 placements.pop(request_id, None)
                 if not placements:
                     self._reservation_placements.pop(node_id, None)
+            shared=self._reservation_shared_bytes.get(node_id)
+            if shared is not None:
+                shared.pop(request_id,None)
+                if not shared:self._reservation_shared_bytes.pop(node_id,None)
             if not request_ids:
                 self._reservations.pop(node_id, None)
             return True

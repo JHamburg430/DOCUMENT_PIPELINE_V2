@@ -746,7 +746,13 @@ def create_gateway_handler(gateway: InferenceGateway):
                     scheme, _, bearer = self.headers.get('Authorization', '').partition(' ')
                     if scheme.lower() != 'bearer' or not bearer:
                         raise AuthenticationError('Owner sign-in required')
-                    result = gateway.agent_link.dispatch(self.path.removeprefix('/v1/agent-link/'), bearer, payload)
+                    action = self.path.removeprefix('/v1/agent-link/')
+                    if action == 'diagnostic-inference':
+                        cancelled = threading.Event()
+                        with watch_disconnect(self.connection, cancelled.set):
+                            result = gateway.agent_link.dispatch(action, bearer, payload, cancelled=cancelled)
+                    else:
+                        result = gateway.agent_link.dispatch(action, bearer, payload)
                     self._send(200, result)
                     return
                 if self.path in {"/v1/nodes/inference", "/v1/applications/inference"}:
@@ -986,6 +992,11 @@ def run_gateway() -> None:
             raise RuntimeError('Entra authentication required for owner agent link')
         gateway.agent_link = AgentLink(entra_validator, gateway.enrollment, owner_object_id=owner_object_id,
                                       path=Path(enrollment_path).parent / 'agent-link.sqlite3')
+    if os.getenv('INFERENCE_OWNER_DIAGNOSTICS_ENABLED', 'false').lower() == 'true':
+        if gateway.agent_link is None:
+            raise RuntimeError('Owner authentication required for diagnostics')
+        from .owner_diagnostic import OwnerDiagnostic
+        gateway.agent_link.diagnostic = OwnerDiagnostic(gateway)
     release_dir = os.getenv('INFERENCE_NODE_UPDATE_RELEASE_DIR', '').strip()
     release_keys = os.getenv('INFERENCE_NODE_UPDATE_PUBLIC_KEYS_JSON', '').strip()
     if release_dir or release_keys:

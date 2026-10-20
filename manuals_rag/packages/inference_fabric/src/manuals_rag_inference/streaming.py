@@ -29,10 +29,10 @@ def _interrupt(response) -> None:
 
 
 class NDJSONResponse:
-    def __init__(self, url: str, body: dict, *, timeout: float):
+    def __init__(self, url: str, body: dict, *, timeout: float, opener=None):
         self.deadline = time.monotonic() + timeout
         request = Request(url, data=json.dumps(body).encode(), method="POST", headers={"Content-Type": "application/json"})
-        self.response = urlopen(request, timeout=timeout)
+        self.response = (opener or urlopen)(request, timeout=timeout)
         if self.response.headers.get_content_type() != "application/x-ndjson":
             self.response.close()
             raise RuntimeError("upstream does not support NDJSON streaming")

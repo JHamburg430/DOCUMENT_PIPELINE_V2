@@ -928,7 +928,8 @@ class InferenceNodeClient(tk.Tk):
                     if self.update_settings['enabled'] and self.agent.app_metadata['remote_updates_enabled']:
                         self.updater = UpdateWorker(self.agent, self.gateway_url, self.config_path, self.update_settings,
                             self._owner_busy,
-                            lambda plan: self.worker_queue.put(('app_update_apply', plan)))
+                            lambda plan: self.worker_queue.put(('app_update_apply', plan)),
+                            probe_plan=(sys.argv[2] if len(sys.argv)==3 and sys.argv[1]=='--update-probe' else None))
                     self.status_var.set("Connected to PROVIS")
                     self._update_controls()
                 elif event == 'app_update_apply':

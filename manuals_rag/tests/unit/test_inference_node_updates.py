@@ -157,7 +157,7 @@ def test_helper_commits_only_after_reconnection_receipt(tmp_path,release,monkeyp
     config,directory,plan,settings=plan_fixture(tmp_path,release)
     monkeypatch.setattr(updater,'_pid_running',lambda pid:False)
     monkeypatch.setattr(updater,'ChildJob',lambda child:SimpleNamespace(kill=lambda:pytest.fail('healthy child killed'),close=lambda:None))
-    reports=[];monkeypatch.setattr(updater,'_report_plan',lambda plan,status:reports.append(status))
+    reports=[];monkeypatch.setattr(updater,'deliver_healthy_ack',lambda *args,**kwargs:reports.append('healthy'))
     def launch(args,**kwargs):
         updater.private_json(directory/'healthy.json',{'nonce':plan['probe_nonce'],'version':release.manifest['version'],'node_id':'john'})
         return SimpleNamespace(poll=lambda:None)
@@ -303,6 +303,7 @@ def test_worker_waits_for_busy_work_and_preserves_previous_pause(tmp_path,releas
         def wait(self,seconds): self.polls+=1;return self.polls>1
         def is_set(self): return False
     worker.stop=Stop();worker.applying=False
+    worker.ack_checked=True;worker.ack_status=None  # recovery is covered separately
     reports=[];worker.report=lambda update,stage:reports.append(stage)
     worker.run()
     if busy:

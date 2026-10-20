@@ -393,7 +393,7 @@ class OllamaNode(OpenAIBrokerMixin):
             **self.app_metadata,
             installed_models=installed_models,
             installed_model_capabilities=model_capabilities,
-            capabilities=("chat", "embeddings", "onnx") if self.onnx_backend.enabled else ("chat", "embeddings"),
+            capabilities=(("chat", "embeddings", "onnx") if self.onnx_backend.enabled else ("chat", "embeddings")) + ('diagnostic_loaded_only_v1',),
             onnx_providers=self.onnx_backend.providers,
             host_resources=self._host_resource_sampler.sample(),
             gpu_placement_mode=os.getenv("INFERENCE_NODE_GPU_PLACEMENT_MODE", "multi_gpu"),
@@ -410,6 +410,10 @@ class OllamaNode(OpenAIBrokerMixin):
         # a placement field. New gateways always include it, including None.
         if "placement" in envelope:
             unsigned["placement"] = envelope.get("placement")
+        if 'diagnostic_loaded_only' in envelope:
+            if envelope['diagnostic_loaded_only'] is not True:
+                raise PermissionError('Invalid diagnostic constraint')
+            unsigned['diagnostic_loaded_only'] = True
         if not hmac.compare_digest(node_request_signature(unsigned, self.secret), signature):
             raise PermissionError("invalid node inference signature")
         request_id = str(unsigned.get("request_id") or "")
@@ -448,6 +452,11 @@ class OllamaNode(OpenAIBrokerMixin):
         model = str(payload.get("model") or "")
         if not model:
             raise ValueError("node inference model is required")
+        if unsigned.get('diagnostic_loaded_only'):
+            if (operation != 'generate' or not request_id.startswith('owner-diagnostic:') or
+                    payload.get('stream') is not True or payload.get('prompt') != 'Reply PROVIS_DIAGNOSTIC_OK only.' or
+                    payload.get('options') != {'num_predict':8,'temperature':0}):
+                raise PermissionError('Fixed bounded diagnostic required')
         if not self.inference_enabled:
             self._record_activity(operation, model, "rejected", error="inference_disabled")
             raise PermissionError("inference is disabled on this node")
@@ -495,6 +504,20 @@ class OllamaNode(OpenAIBrokerMixin):
         self._record_activity(operation, model, "started")
         with self._request_lock:
             if self._updating: raise PermissionError("App update is draining active work")
+            if envelope.get('diagnostic_loaded_only'):
+                if self._active_commands or sum(self._active_by_model.values()):
+                    raise PermissionError('Diagnostic target is busy')
+                inventory = _json_request(f'{self.endpoint}/api/ps', timeout=2)
+                loaded = next((m for m in inventory.get('models',[]) if m.get('name',m.get('model')) == model), None)
+                if loaded is None:
+                    raise PermissionError('Diagnostic model is no longer loaded')
+                # Reuse the resident runner's context instead of implicitly
+                # reloading it with a different num_ctx. Older Ollama versions
+                # that cannot report this fact must fail closed.
+                context = loaded.get('context_length')
+                if type(context) is not int or not 256 <= context <= 8192:
+                    raise PermissionError('Resident diagnostic context unavailable or too large')
+                payload = {**payload, 'options':{**payload['options'], 'num_ctx':context}}
             self._active_by_model[model] = self._active_by_model.get(model, 0) + 1
             self._last_used_by_model[model] = time.time()
         try:
