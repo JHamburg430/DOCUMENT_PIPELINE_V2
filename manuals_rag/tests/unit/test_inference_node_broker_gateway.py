@@ -124,6 +124,39 @@ def test_node_auth_without_gateway_tokens_selects_different_worker(broker):
     assert not broker.scheduler._reservations
 
 
+def test_raw_ollama_generate_stream_crosses_node_and_gateway(broker):
+    events=[{'response':'first','done':False}, {'response':'second','done':False}, {'response':'','done':True}]
+    class Ollama(BaseHTTPRequestHandler):
+        def do_POST(self):
+            payload=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+            assert self.path=='/api/generate' and payload['stream'] is True
+            self.send_response(200)
+            self.send_header('Content-Type','application/x-ndjson')
+            self.end_headers()
+            for event in events:
+                self.wfile.write(json.dumps(event).encode()+b'\n');self.wfile.flush()
+        def log_message(self,*args):pass
+    with serving(Ollama) as ollama_url:
+        worker=OllamaNode(node_id='worker',endpoint=ollama_url,tailnet_name='test',
+                          secret=broker.node_secrets['worker'],allowed_applications=('manuals_rag',))
+        with serving(create_handler(worker)) as worker_url, serving(create_gateway_handler(broker)) as gateway_url:
+            broker.node_agent_urls['worker']=worker_url
+            body=envelope(operation='generate',payload={'model':'test-model','prompt':'synthetic','stream':True})
+            with call(gateway_url,broker,body) as response:
+                received=[json.loads(line) for line in response]
+            assert [event['response'] for event in received]==events
+            assert all(event['routing']['node_id']=='worker' for event in received)
+            assert not broker.scheduler._reservations
+
+
+@pytest.mark.parametrize('event',[{'response':'text'}, {'response':123,'done':True},
+                                 {'response':{'done':'true'}}, {'error':'private upstream detail'}])
+def test_stream_parser_still_rejects_malformed_and_error_events(event):
+    from manuals_rag_inference.streaming import stream_payload
+    with pytest.raises((ValueError,RuntimeError)):
+        stream_payload(event)
+
+
 def test_local_openai_routes_dispatch_through_signed_gateway_to_selected_worker(broker):
     class Ollama(BaseHTTPRequestHandler):
         def do_POST(self):

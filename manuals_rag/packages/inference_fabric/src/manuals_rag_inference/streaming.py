@@ -11,6 +11,20 @@ from contextlib import contextmanager
 from urllib.request import Request, urlopen
 
 
+def stream_payload(event):
+    """Distinguish raw Ollama text from the gateway's wrapped response object."""
+    if not isinstance(event, dict) or event.get('error'):
+        raise RuntimeError('upstream stream failed')
+    data = event['response'] if isinstance(event.get('response'), dict) else event
+    if type(data.get('done')) is not bool:
+        raise ValueError('invalid upstream stream event')
+    if 'response' in data and type(data['response']) is not str:
+        raise ValueError('invalid upstream stream event')
+    if data.get('error'):
+        raise RuntimeError('upstream stream failed')
+    return data
+
+
 def _interrupt(response) -> None:
     # Interrupt a blocked readline before closing its buffered file.
     raw = getattr(getattr(response, "fp", None), "raw", None)
@@ -62,11 +76,7 @@ class NDJSONResponse:
         if len(line) > 2_000_000:
             raise ValueError("upstream stream event too large")
         event = json.loads(line)
-        if not isinstance(event, dict) or event.get("error"):
-            raise RuntimeError("upstream stream failed")
-        data = event.get("response", event)
-        if not isinstance(data, dict):
-            raise ValueError("invalid upstream stream event")
+        data = stream_payload(event)
         if data.get("done") is True:
             self.done = True
         return event

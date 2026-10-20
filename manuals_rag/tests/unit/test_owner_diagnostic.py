@@ -72,6 +72,20 @@ def test_exact_target_signed_transport_and_server_generated_receipt(diag):
     assert diag.streams[0].closed and diag.g.scheduler._reservations=={}
 
 
+def test_real_ollama_generate_events_complete_and_release_reservation(diag):
+    def factory(url,envelope,timeout):
+        stream=Stream([{'model':MODEL,'response':'PROVIS_', 'done':False},
+                       {'model':MODEL,'response':'DIAGNOSTIC_OK', 'done':False},
+                       {'model':MODEL,'response':'', 'done':True}])
+        diag.streams.append(stream)
+        return stream
+    diag.service.stream_factory=factory
+    result=run(diag)
+    assert result['response']=='PROVIS_DIAGNOSTIC_OK'
+    assert result['receipt']['node_id']==DELL and result['receipt']['completed']
+    assert diag.streams[0].closed and not diag.g.scheduler._reservations
+
+
 @pytest.mark.parametrize('token',['employee','operator-token','application-token','secret-source','expired'])
 def test_only_current_owner_session_can_run(diag,token):
     with pytest.raises(PermissionError):diag.link.dispatch('diagnostic-inference',token,{'target_node_id':DELL,'model':MODEL})

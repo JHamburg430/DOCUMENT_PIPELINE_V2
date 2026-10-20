@@ -12,6 +12,7 @@ from urllib.request import build_opener
 from .models import InferenceRequest
 from .node_updater import NoRedirect
 from .streaming import NDJSONResponse
+from .streaming import stream_payload
 
 
 APPLICATION = 'provis_employee_agent'
@@ -103,7 +104,7 @@ class OwnerDiagnostic:
                 if cancelled.is_set(): raise ConnectionAbortedError('Diagnostic caller disconnected')
                 if self.clock()>=deadline: raise TimeoutError('Diagnostic deadline exceeded')
                 if index>=64: raise ValueError('Diagnostic event limit exceeded')
-                data=event.get('response',event)
+                data=stream_payload(event)
                 if type(data) is not dict or event.get('error') or data.get('error'):
                     raise ValueError('Diagnostic worker failed')
                 token=data.get('response','')
