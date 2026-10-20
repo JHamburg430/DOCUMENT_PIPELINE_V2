@@ -7,7 +7,7 @@ import math
 import threading
 from dataclasses import dataclass
 
-from .models import AdmissionDecision, IdleEvictionCandidate, InferenceRequest, NodeSnapshot
+from .models import AdmissionDecision, GpuPlacement, IdleEvictionCandidate, InferenceRequest, NodeSnapshot
 
 
 @dataclass(frozen=True)
@@ -18,6 +18,9 @@ class SchedulerPolicy:
     interactive_applications: tuple[str, ...] = ("openclaw", "provis_employee_agent", "rag_console")
     require_application_allowlist: bool = False
     idle_model_ttl_seconds: float = 900.0
+    # Multi-GPU placement is the default. A request can still opt into
+    # single-GPU placement when the backend or model requires it.
+    gpu_placement_mode: str = "multi_gpu"
 
 
 class InferenceScheduler:
@@ -30,6 +33,7 @@ class InferenceScheduler:
         self._nodes: dict[str, NodeSnapshot] = {}
         self._reservations: dict[str, set[str]] = {}
         self._reservation_models: dict[str, dict[str, str]] = {}
+        self._reservation_placements: dict[str, dict[str, dict[str, int]]] = {}
 
     def upsert_node(self, snapshot: NodeSnapshot) -> None:
         with self._lock:
@@ -48,59 +52,128 @@ class InferenceScheduler:
         context_mb = max(0.0, request.context_tokens / 1000.0 * request.context_vram_mb_per_1k)
         return request.min_vram_mb + math.ceil(context_mb)
 
-    def _eligible(self, request: InferenceRequest, node: NodeSnapshot) -> tuple[bool, str, bool, int]:
+    def _reserved_vram_by_gpu(self, node_id: str) -> dict[str, int]:
+        result: dict[str, int] = {}
+        for placement in (self._reservation_placements.get(node_id) or {}).values():
+            for gpu_id, amount in placement.items():
+                result[gpu_id] = result.get(gpu_id, 0) + max(0, int(amount))
+        return result
+
+    def _placement_for(self, request: InferenceRequest, node: NodeSnapshot) -> tuple[GpuPlacement | None, str, int]:
+        if request.backend == "onnx" and not node.onnx_providers:
+            return None, "onnx_runtime_unavailable", 0
+        if not node.gpus:
+            return None, "no_gpu", 0
+
+        reserved = self._reserved_vram_by_gpu(node.node_id)
+        devices = []
+        for gpu in node.gpus:
+            free = gpu.available_vram_mb - reserved.get(gpu.gpu_id, 0)
+            if not gpu.memory_unknown:
+                free -= self.policy.reserved_vram_mb
+            devices.append((gpu, max(0, free)))
+
+        required = self._required_vram_mb(request)
+        mode = request.placement_mode or self.policy.gpu_placement_mode
+        if node.gpu_placement_mode == "single_gpu":
+            mode = "single_gpu"
+        if mode not in {"single_gpu", "multi_gpu"}:
+            return None, "invalid_gpu_placement_mode", 0
+        if not request.allow_multi_gpu:
+            mode = "single_gpu"
+
+        # OpenVINO manages shared Intel memory and can select GPU.0/GPU.1 or
+        # AUTO/MULTI itself. Preserve the device inventory for observability,
+        # but do not invent VRAM numbers when the driver cannot report them.
+        unknown = [(gpu, free) for gpu, free in devices if gpu.memory_unknown]
+        if request.backend == "onnx" and unknown:
+            if mode == "single_gpu":
+                gpu = unknown[0][0]
+                return GpuPlacement("single_gpu", (gpu.gpu_id,), {}, "onnx"), "eligible", 0
+            gpu_ids = tuple(gpu.gpu_id for gpu, _ in unknown)
+            return GpuPlacement("multi_gpu", gpu_ids, {}, "onnx"), "eligible", 0
+
+        devices.sort(key=lambda item: item[1], reverse=True)
+        if mode == "single_gpu":
+            for gpu, free in devices:
+                if free >= required:
+                    return GpuPlacement("single_gpu", (gpu.gpu_id,), {gpu.gpu_id: required}, request.backend), "eligible", free
+            return None, "insufficient_vram_on_single_gpu", sum(free for _, free in devices)
+
+        selected = []
+        remaining = required
+        for gpu, free in devices:
+            if free <= 0:
+                continue
+            selected.append((gpu, free))
+            remaining -= free
+            if remaining <= 0 and len(selected) >= max(1, request.min_gpu_count):
+                break
+        if remaining > 0 or len(selected) < max(1, request.min_gpu_count):
+            return None, "insufficient_vram_for_multi_gpu_placement", sum(free for _, free in devices)
+        allocation: dict[str, int] = {}
+        remaining = required
+        for gpu, free in selected:
+            amount = min(free, remaining)
+            allocation[gpu.gpu_id] = amount
+            remaining -= amount
+        placement = GpuPlacement("multi_gpu", tuple(gpu.gpu_id for gpu, _ in selected), allocation, request.backend)
+        return placement, "eligible", sum(free for _, free in devices)
+
+    def _eligible(self, request: InferenceRequest, node: NodeSnapshot) -> tuple[bool, str, bool, int, GpuPlacement | None]:
         if request.allowed_node_ids and node.node_id not in request.allowed_node_ids:
-            return False, "application_worker_not_approved", False, 0
+            return False, "application_worker_not_approved", False, 0, None
         if request.model_size_bytes <= 0 or request.min_vram_mb <= 0:
-            return False, "invalid_model_resource_requirements", False, 0
+            return False, "invalid_model_resource_requirements", False, 0, None
         if not node.healthy:
-            return False, "node_unhealthy", False, 0
+            return False, "node_unhealthy", False, 0, None
         if not node.inference_enabled:
-            return False, "inference_disabled", False, 0
+            return False, "inference_disabled", False, 0, None
         if self._clock() - node.observed_at_epoch > self.policy.heartbeat_ttl_seconds:
-            return False, "node_heartbeat_stale", False, 0
+            return False, "node_heartbeat_stale", False, 0, None
         if node.allowed_applications and request.application not in node.allowed_applications:
-            return False, "application_not_allowed_on_node", False, 0
+            return False, "application_not_allowed_on_node", False, 0, None
         if self.policy.require_application_allowlist and not node.allowed_applications:
-            return False, "application_allowlist_missing", False, 0
+            return False, "application_allowlist_missing", False, 0, None
         missing = set(request.required_capabilities) - set(node.capabilities)
         if missing:
-            return False, f"missing_capabilities:{','.join(sorted(missing))}", False, 0
+            return False, f"missing_capabilities:{','.join(sorted(missing))}", False, 0, None
         model_capabilities = node.installed_model_capabilities.get(request.model)
         if model_capabilities and set(request.required_capabilities) - set(model_capabilities):
-            return False, "missing_model_capabilities", False, 0
+            return False, "missing_model_capabilities", False, 0, None
         reserved = len(self._reservations.get(node.node_id, set()))
         if node.queued_requests + reserved >= self.policy.max_queue_depth:
-            return False, "queue_full", False, 0
+            return False, "queue_full", False, 0, None
         loaded = next((item for item in node.loaded_models if item.name == request.model), None)
-        required_vram_mb = self._required_vram_mb(request)
-        loaded_vram = sum(g.available_vram_mb for g in node.gpus)
         requires_pull = loaded is None and request.model not in node.installed_models
-        if loaded is not None and loaded.active_requests > 0:
-            loaded_vram = max(0, loaded_vram)
-        if loaded_vram - self.policy.reserved_vram_mb < required_vram_mb:
+        placement, placement_reason, loaded_vram = self._placement_for(request, node)
+        if placement is None:
             if not request.allow_eviction:
-                return False, "insufficient_vram_without_eviction", requires_pull, loaded_vram
+                return False, placement_reason, requires_pull, loaded_vram, None
             if not node.request_accounting_available:
-                return False, "eviction_request_accounting_unavailable", requires_pull, loaded_vram
+                return False, "eviction_request_accounting_unavailable", requires_pull, loaded_vram, None
             idle_candidates = tuple(
                 item.name
                 for item in sorted(node.loaded_models, key=lambda item: item.last_used_epoch)
                 if item.active_requests == 0 and item.name != request.model
             )
             if not idle_candidates:
-                return False, "insufficient_vram_without_idle_eviction_candidate", requires_pull, loaded_vram
-        if not node.gpus:
-            return False, "no_gpu", requires_pull, loaded_vram
-        return True, "eligible", requires_pull, loaded_vram
+                return False, "insufficient_vram_without_idle_eviction_candidate", requires_pull, loaded_vram, None
+            # Eviction changes capacity only after the command executes. Do
+            # not claim a placement before that point.
+            return False, placement_reason, requires_pull, loaded_vram, None
+        return True, "eligible", requires_pull, loaded_vram, placement
 
     def _choose_unlocked(self, request: InferenceRequest) -> AdmissionDecision:
-        candidates: list[tuple[float, NodeSnapshot, bool, tuple[str, ...]]] = []
+        candidates: list[tuple[float, NodeSnapshot, bool, tuple[str, ...], GpuPlacement]] = []
         rejected: list[str] = []
         for node in self._nodes.values():
-            eligible, reason, requires_pull, available_vram = self._eligible(request, node)
+            eligible, reason, requires_pull, available_vram, placement = self._eligible(request, node)
             if not eligible:
                 rejected.append(f"{node.node_id}:{reason}")
+                continue
+            if placement is None:
+                rejected.append(f"{node.node_id}:placement_unavailable")
                 continue
             if requires_pull and not request.allow_model_pull:
                 rejected.append(f"{node.node_id}:model_not_installed_and_pull_not_allowed")
@@ -121,11 +194,11 @@ class InferenceScheduler:
                     for item in sorted(node.loaded_models, key=lambda item: item.last_used_epoch)
                     if item.active_requests == 0 and item.name != request.model
                 )
-            candidates.append((score, node, requires_pull, evictions))
+            candidates.append((score, node, requires_pull, evictions, placement))
         if not candidates:
             return AdmissionDecision(False, request.request_id, reason="; ".join(rejected) or "no_eligible_nodes")
-        score, node, requires_pull, evictions = max(candidates, key=lambda item: item[0])
-        return AdmissionDecision(True, request.request_id, node.node_id, node.endpoint, "eligible", score, requires_pull, evictions, requires_model_warm=not any(model.name == request.model for model in node.loaded_models))
+        score, node, requires_pull, evictions, placement = max(candidates, key=lambda item: item[0])
+        return AdmissionDecision(True, request.request_id, node.node_id, node.endpoint, "eligible", score, requires_pull, evictions, requires_model_warm=not any(model.name == request.model for model in node.loaded_models), placement=placement)
 
     def choose(self, request: InferenceRequest) -> AdmissionDecision:
         with self._lock:
@@ -139,6 +212,8 @@ class InferenceScheduler:
             if decision.admitted and decision.node_id:
                 self._reservations.setdefault(decision.node_id, set()).add(request.request_id)
                 self._reservation_models.setdefault(decision.node_id, {})[request.request_id] = request.model
+                if decision.placement:
+                    self._reservation_placements.setdefault(decision.node_id, {})[request.request_id] = dict(decision.placement.vram_by_gpu_mb)
             return decision
 
     def release(self, node_id: str | None, request_id: str) -> bool:
@@ -154,6 +229,11 @@ class InferenceScheduler:
                 models.pop(request_id, None)
                 if not models:
                     self._reservation_models.pop(node_id, None)
+            placements = self._reservation_placements.get(node_id)
+            if placements is not None:
+                placements.pop(request_id, None)
+                if not placements:
+                    self._reservation_placements.pop(node_id, None)
             if not request_ids:
                 self._reservations.pop(node_id, None)
             return True

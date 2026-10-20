@@ -22,6 +22,7 @@ from urllib.error import HTTPError
 from .control import ControlPolicy, verify_command
 from .gateway import heartbeat_signature, node_request_signature
 from .models import GpuSnapshot, LoadedModel, NodeSnapshot
+from .onnx_backend import OnnxBackend
 from .streaming import NDJSONResponse, relay_ndjson, watch_disconnect
 from provis_inference_node.openai_broker import OpenAIBrokerMixin, create_openai_broker_handler, create_openai_broker_server
 
@@ -194,7 +195,7 @@ def _detect_tailscale_ipv4() -> str | None:
 def _gpu_snapshots() -> tuple[GpuSnapshot, ...]:
     try:
         completed = subprocess.run(
-            ["nvidia-smi", "--query-gpu=index,name,memory.total,memory.used,utilization.gpu,temperature.gpu", "--format=csv,noheader,nounits"],
+            ["nvidia-smi", "--query-gpu=index,uuid,name,memory.total,memory.used,utilization.gpu,temperature.gpu", "--format=csv,noheader,nounits"],
             check=True, capture_output=True, text=True, timeout=2,
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
@@ -203,10 +204,14 @@ def _gpu_snapshots() -> tuple[GpuSnapshot, ...]:
     snapshots = []
     for line in completed.stdout.splitlines():
         fields = [item.strip() for item in line.split(",")]
-        if len(fields) != 6:
+        if len(fields) not in {6, 7}:
             continue
         try:
-            snapshots.append(GpuSnapshot(fields[0], fields[1], int(fields[2]), int(fields[3]), float(fields[4]), float(fields[5])))
+            if len(fields) == 7:
+                index, uuid, name, total, used, utilization, temperature = fields
+                snapshots.append(GpuSnapshot(uuid, name, int(total), int(used), float(utilization), float(temperature), gpu_uuid=uuid, gpu_index=int(index), backend="cuda", memory_unknown=False))
+            else:
+                snapshots.append(GpuSnapshot(fields[0], fields[1], int(fields[2]), int(fields[3]), float(fields[4]), float(fields[5])))
         except ValueError:
             continue
     return tuple(snapshots)
@@ -234,6 +239,7 @@ class OllamaNode(OpenAIBrokerMixin):
         self._probe_health: dict[str, tuple[str, str]] = {}
         self._inventory_lock = threading.Lock()
         self._model_metadata: dict[str, tuple[str, tuple[str, ...]]] = {}
+        self.onnx_backend = OnnxBackend.from_env()
 
     def _inventory(self) -> tuple[tuple[str, ...], dict[str, tuple[str, ...]]]:
         payload = _json_request(f"{self.endpoint}/api/tags")
@@ -256,7 +262,11 @@ class OllamaNode(OpenAIBrokerMixin):
                     self._model_metadata[model] = (digest, capabilities)
                 except Exception:
                     pass
-            return installed, {model: self._model_metadata.get(model, ("", ()))[1] for model in installed}
+            onnx_models = self.onnx_backend.model_names()
+            installed = tuple(sorted(set(installed) | set(onnx_models)))
+            capabilities = {model: self._model_metadata.get(model, ("", ()))[1] for model in installed if model not in onnx_models}
+            capabilities.update({model: self.onnx_backend.capabilities(model) for model in onnx_models})
+            return installed, capabilities
 
     def _record_probe(self, operation: str, status: str, error: str = "") -> None:
         state = (status, error)
@@ -315,7 +325,17 @@ class OllamaNode(OpenAIBrokerMixin):
                 with self._request_lock:
                     active_requests = self._active_by_model.get(model, 0)
                     last_used = self._last_used_by_model.get(model, 0.0)
-                loaded.append(LoadedModel(model, int(item.get("size_vram") or item.get("size") or 0), tuple(str(item.get("gpu_id")) for _ in [0] if item.get("gpu_id")), last_used, active_requests))
+                gpu_ids = item.get("gpu_ids") or ((item.get("gpu_id"),) if item.get("gpu_id") else ())
+                vram_by_gpu = item.get("vram_by_gpu_mb") or {}
+                loaded.append(LoadedModel(
+                    model,
+                    int(item.get("size_vram") or item.get("size") or 0),
+                    tuple(str(value) for value in gpu_ids),
+                    last_used,
+                    active_requests,
+                    {str(key): int(value) for key, value in vram_by_gpu.items()},
+                    bool(item.get("placement_known") or vram_by_gpu),
+                ))
         except Exception as error:
             ollama_healthy = False
             self._record_probe("ollama", "failed", error.__class__.__name__)
@@ -328,8 +348,15 @@ class OllamaNode(OpenAIBrokerMixin):
             installed_models = ()
             model_capabilities = {}
             self._record_probe("model_inventory", "unavailable", error.__class__.__name__)
-        gpus = _gpu_snapshots()
+        gpus = list(_gpu_snapshots())
+        for device in self.onnx_backend.gpu_devices():
+            gpus.append(GpuSnapshot(device, device.removeprefix("openvino:"), 0, 0, 0.0, None, gpu_uuid=device, gpu_index=None, backend="openvino", memory_unknown=True))
+        gpus = tuple(gpus)
         self._record_probe("gpu", "detected" if gpus else "unavailable", "" if gpus else "gpu_probe_unavailable")
+        if self.onnx_backend.enabled:
+            self._record_probe("onnx_runtime", "available")
+        elif self.onnx_backend.manifest:
+            self._record_probe("onnx_runtime", "unavailable", "onnx_runtime_unavailable")
         with self._request_lock:
             active_requests = sum(self._active_by_model.values())
         return NodeSnapshot(
@@ -347,6 +374,9 @@ class OllamaNode(OpenAIBrokerMixin):
             **self.app_metadata,
             installed_models=installed_models,
             installed_model_capabilities=model_capabilities,
+            capabilities=("chat", "embeddings", "onnx") if self.onnx_backend.enabled else ("chat", "embeddings"),
+            onnx_providers=self.onnx_backend.providers,
+            gpu_placement_mode=os.getenv("INFERENCE_NODE_GPU_PLACEMENT_MODE", "multi_gpu"),
         )
 
     def _authorize_inference(self, envelope: dict, signature: str) -> tuple[str, dict, str]:
@@ -356,6 +386,10 @@ class OllamaNode(OpenAIBrokerMixin):
             "request_id": envelope.get("request_id"),
             "issued_at": envelope.get("issued_at"),
         }
+        # Keep verification compatible with older gateways that did not sign
+        # a placement field. New gateways always include it, including None.
+        if "placement" in envelope:
+            unsigned["placement"] = envelope.get("placement")
         if not hmac.compare_digest(node_request_signature(unsigned, self.secret), signature):
             raise PermissionError("invalid node inference signature")
         request_id = str(unsigned.get("request_id") or "")
@@ -371,11 +405,26 @@ class OllamaNode(OpenAIBrokerMixin):
                 raise PermissionError("duplicate node inference request")
             self._seen_inference_requests[request_id] = issued_at
         operation = str(unsigned.get("operation") or "")
-        if operation not in {"chat", "generate", "embeddings"}:
+        if operation not in {"chat", "generate", "embeddings", "onnx"}:
             raise PermissionError("unsupported node inference operation")
         payload = unsigned.get("payload")
         if not isinstance(payload, dict):
             raise ValueError("node inference payload must be an object")
+        placement = unsigned.get("placement")
+        if placement is not None:
+            if not isinstance(placement, dict):
+                raise ValueError("node inference placement must be an object")
+            mode = str(placement.get("mode") or "")
+            backend = str(placement.get("backend") or "")
+            gpu_ids = placement.get("gpu_ids")
+            if mode not in {"single_gpu", "multi_gpu"} or backend not in {"ollama", "onnx"}:
+                raise ValueError("invalid node inference placement")
+            if not isinstance(gpu_ids, list) or not gpu_ids or len(set(gpu_ids)) != len(gpu_ids):
+                raise ValueError("node inference placement must identify unique GPUs")
+            if operation == "onnx" and backend != "onnx":
+                raise ValueError("ONNX inference requires an ONNX placement")
+            if operation != "onnx" and backend != "ollama":
+                raise ValueError("Ollama inference requires an Ollama placement")
         model = str(payload.get("model") or "")
         if not model:
             raise ValueError("node inference model is required")
@@ -394,12 +443,15 @@ class OllamaNode(OpenAIBrokerMixin):
             self._active_by_model[model] = self._active_by_model.get(model, 0) + 1
             self._last_used_by_model[model] = time.time()
         try:
-            response = _json_request(
-                f"{self.endpoint}/api/{ollama_operation}",
-                method="POST",
-                body=payload,
-                timeout=900.0,
-            )
+            if operation == "onnx":
+                response = self.onnx_backend.infer(model, payload)
+            else:
+                response = _json_request(
+                    f"{self.endpoint}/api/{ollama_operation}",
+                    method="POST",
+                    body=payload,
+                    timeout=900.0,
+                )
             self._record_activity(operation, model, "completed", started_at=started_at)
             return response
         except Exception as error:

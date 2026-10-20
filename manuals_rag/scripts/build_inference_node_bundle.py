@@ -24,6 +24,7 @@ BROKER_PACKAGE_ROOT = REPO_ROOT / "provis_inference_node/src/provis_inference_no
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
 INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
 BRAND_ASSET_ROOT = REPO_ROOT / "manuals_rag/assets/brand"
+OPTIONAL_REQUIREMENTS = REPO_ROOT / "manuals_rag/requirements-inference-onnx.txt"
 
 LINUX_SETUP = '''#!/bin/sh
 set -eu
@@ -381,6 +382,8 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
         (stage / 'start-node-setup.sh').chmod(0o755)
         if INSTALLER_ROOT.is_dir():
             shutil.copytree(INSTALLER_ROOT, stage / "installers")
+        if OPTIONAL_REQUIREMENTS.is_file():
+            shutil.copy2(OPTIONAL_REQUIREMENTS, stage / OPTIONAL_REQUIREMENTS.name)
         _write_text(stage, "provis-node-config.json", json.dumps(managed_config(gateway_url, update_config), indent=2) + "\n")
         _write_text(stage, "README.md", README)
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:

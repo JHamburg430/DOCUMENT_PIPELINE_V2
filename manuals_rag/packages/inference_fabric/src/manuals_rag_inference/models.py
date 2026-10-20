@@ -15,6 +15,13 @@ class GpuSnapshot:
     utilization_percent: float = 0.0
     temperature_c: float | None = None
     healthy: bool = True
+    power_w: float | None = None
+    # ``gpu_id`` remains the wire-compatible identifier. New nodes populate it
+    # with a stable UUID and expose the human-facing index separately.
+    gpu_uuid: str = ""
+    gpu_index: int | None = None
+    backend: str = "cuda"
+    memory_unknown: bool = False
 
     @property
     def available_vram_mb(self) -> int:
@@ -28,6 +35,21 @@ class LoadedModel:
     gpu_ids: tuple[str, ...] = ()
     last_used_epoch: float = 0.0
     active_requests: int = 0
+    vram_by_gpu_mb: dict[str, int] = field(default_factory=dict)
+    placement_known: bool = False
+
+
+@dataclass(frozen=True)
+class GpuPlacement:
+    """The concrete device reservation selected for one inference request."""
+
+    mode: str = "multi_gpu"
+    gpu_ids: tuple[str, ...] = ()
+    vram_by_gpu_mb: dict[str, int] = field(default_factory=dict)
+    backend: str = "ollama"
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 @dataclass(frozen=True)
@@ -51,6 +73,8 @@ class NodeSnapshot:
     node_app_version: str = ""
     node_app_platform: str = ""
     remote_updates_enabled: bool = False
+    gpu_placement_mode: str = ""
+    onnx_providers: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -72,6 +96,10 @@ class InferenceRequest:
     allow_model_pull: bool = False
     allow_eviction: bool = False
     allowed_node_ids: tuple[str, ...] = ()
+    backend: str = "ollama"
+    placement_mode: str = "multi_gpu"
+    min_gpu_count: int = 1
+    allow_multi_gpu: bool = True
 
 
 @dataclass(frozen=True)
@@ -81,12 +109,19 @@ class ModelSpec:
     size_bytes: int
     min_vram_mb: int
     capabilities: tuple[str, ...]
+    backend: str = "ollama"
+    min_gpu_count: int = 1
+    allow_multi_gpu: bool = True
 
     def __post_init__(self) -> None:
         if self.size_bytes <= 0 or self.min_vram_mb <= 0:
             raise ValueError("model resource requirements must be positive")
         if not self.capabilities:
             raise ValueError("model capabilities must not be empty")
+        if self.backend not in {"ollama", "onnx"}:
+            raise ValueError("model backend must be ollama or onnx")
+        if self.min_gpu_count < 1:
+            raise ValueError("min_gpu_count must be positive")
 
 
 @dataclass(frozen=True)
@@ -100,6 +135,7 @@ class AdmissionDecision:
     requires_model_pull: bool = False
     eviction_candidates: tuple[str, ...] = ()
     requires_model_warm: bool = False
+    placement: GpuPlacement | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
