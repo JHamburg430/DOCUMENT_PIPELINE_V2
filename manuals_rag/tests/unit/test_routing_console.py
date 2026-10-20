@@ -226,3 +226,53 @@ def test_owner_worker_check_uses_existing_exact_target_and_cleanup(console):
         assert len(console.calls) == 1 and not console.g.scheduler._reservations
         assert http(base, '/v1/routing/diagnostic', dict(body, allow_model_pull=True), cookie=cookie)[0] == 400
         assert len(console.calls) == 1
+
+
+def remembered_cookie(console, base):
+    _, _, headers = http(base, '/v1/routing/login/start', {})
+    flow = headers['Set-Cookie'].split(';')[0]
+    console.clock[0] += 6
+    status, _, headers = http(base, '/v1/routing/login/poll', {}, cookie=flow)
+    assert status == 200 and 'Max-Age=34560000' in headers['Set-Cookie']
+    return headers['Set-Cookie'].split(';')[0]
+
+
+def test_remembered_pc_survives_token_expiry_and_gateway_restart(console, tmp_path):
+    import sqlite3
+    link = console.g.agent_link
+    path = tmp_path / 'owner.sqlite'
+    link.db.backup(sqlite3.connect(path))
+    link.db.close()
+    link.db = sqlite3.connect(path, check_same_thread=False)
+    with serving(create_gateway_handler(console.g)) as base:
+        cookie = remembered_cookie(console, base)
+        token = cookie.split('=', 1)[1]
+        assert token not in str(link.db.execute('SELECT * FROM routing_devices').fetchall())
+        assert link._hash(token) not in link.sessions
+        console.clock[0] += 86400 * 90
+        link.sessions.clear()
+        link.db.close()
+        link.db = sqlite3.connect(path, check_same_thread=False)
+        console.g.routing_console = RoutingConsole(console.g, ORIGIN, clock=lambda: console.clock[0])
+        status, _, headers = http(base, '/v1/routing/state', cookie=cookie)
+        assert status == 200 and 'Max-Age=34560000' in headers['Set-Cookie']
+        assert http(base, '/v1/routing/diagnostic', {'target_node_id': DELL, 'model': MODEL}, cookie=cookie)[0] == 200
+        assert not link.sessions
+        assert http(base, '/v1/routing/logout', {}, cookie=cookie)[0] == 200
+        assert http(base, '/v1/routing/state', cookie=cookie)[0] == 401
+        console.g.routing_console = RoutingConsole(console.g, ORIGIN)
+        assert http(base, '/v1/routing/state', cookie=cookie)[0] == 401
+
+
+@pytest.mark.parametrize('change', ['secret', 'subject', 'tenant', 'owner', 'removed'])
+def test_remembered_pc_does_not_bypass_revocation(console, change):
+    with serving(create_gateway_handler(console.g)) as base:
+        cookie = remembered_cookie(console, base)
+        record = next(n for n in console.records if n.node_id == 'Johns_Dell_V2')
+        # Login selects the lexically first owned enrolled record.
+        if change == 'secret': record.secret = 'replaced'
+        elif change == 'subject': record.identity_subject = 'different'
+        elif change == 'tenant': record.identity_tenant = 'different'
+        elif change == 'owner': console.g.agent_link.owner = 'different'
+        else: console.records.remove(record)
+        assert http(base, '/v1/routing/state', cookie=cookie)[0] == 401

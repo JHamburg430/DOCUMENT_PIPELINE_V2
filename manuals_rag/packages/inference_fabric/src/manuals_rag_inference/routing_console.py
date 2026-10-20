@@ -2,6 +2,7 @@
 import hashlib
 from http.cookies import SimpleCookie
 import json
+import logging
 from pathlib import Path
 import re
 import secrets
@@ -17,6 +18,7 @@ from .node_updater import NoRedirect
 COOKIE = '__Secure-provis-routing'
 FLOW = '__Secure-provis-routing-flow'
 PREFIX = '/v1/routing/'
+REMEMBER_AGE = 400 * 86400  # Browser maximum; renewed while this PC is used.
 
 
 class OwnerRequired(PermissionError):
@@ -51,6 +53,51 @@ class RoutingConsole:
         self.flows = {}
         self.starts = []
         self.lock = threading.RLock()
+        # Only opaque credential hashes are persisted, never Microsoft tokens.
+        with gateway.agent_link.lock:
+            gateway.agent_link.db.execute('''CREATE TABLE IF NOT EXISTS routing_devices (
+                token_hash TEXT PRIMARY KEY, owner TEXT NOT NULL, node_id TEXT NOT NULL,
+                enrollment_pin TEXT NOT NULL, workspace TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0)''')
+            gateway.agent_link.db.commit()
+
+    def _remember(self, token, session):
+        link = self.gateway.agent_link
+        node_id, _, pin, workspace = session
+        with link.lock:
+            link.db.execute('INSERT INTO routing_devices(token_hash,owner,node_id,enrollment_pin,workspace) VALUES(?,?,?,?,?)',
+                            (link._hash(token), link.owner, node_id, pin, workspace))
+            link.db.commit()
+
+    def _device(self, token):
+        link = self.gateway.agent_link
+        with link.lock:
+            row = link.db.execute('SELECT owner,node_id,enrollment_pin,workspace,revoked FROM routing_devices WHERE token_hash=?',
+                                  (link._hash(token),)).fetchone()
+            if row is None:
+                # Upgrade a currently valid pre-update browser session once.
+                session = link._authorized_session(token)
+                self._remember(token, session)
+                return session
+            owner, node_id, pin, workspace, revoked = row
+            record = next((n for n in self.gateway.enrollment.nodes() if n.node_id == node_id), None)
+            if (revoked or owner != link.owner or record is None or record.enrollment_method != 'entra' or
+                    link._hash(record.secret) != pin or
+                    link._workspace({'tenant_id': record.identity_tenant, 'subject': record.identity_subject}) != workspace or
+                    record.identity_tenant.casefold() != self.gateway.entra_validator.config.tenant_id.casefold()):
+                raise PermissionError('Current owner enrollment required')
+            return node_id, self.clock() + 60, pin, workspace
+
+    def _diagnostic(self, token, payload, cancelled):
+        # Remembered browser credentials cannot be used as mailbox credentials.
+        link = self.gateway.agent_link
+        short = secrets.token_urlsafe(48)
+        with link.lock:
+            link.sessions[link._hash(short)] = self._device(token)
+        try:
+            return link.dispatch('diagnostic-inference', short, payload, cancelled=cancelled)
+        finally:
+            with link.lock:
+                link.sessions.pop(link._hash(short), None)
 
     def _cookie(self, handler, name):
         raw = handler.headers.get('Cookie', '')
@@ -66,8 +113,7 @@ class RoutingConsole:
             raise OwnerRequired('Owner sign-in required')
         link = self.gateway.agent_link
         try:
-            with link.lock:
-                link._authorized_session(token)
+            self._device(token)
         except PermissionError:
             raise OwnerRequired('Owner sign-in expired') from None
         return token
@@ -155,10 +201,14 @@ class RoutingConsole:
             if not records:
                 raise OwnerRequired('Current company enrollment required')
             session = g.agent_link.session(access_token, {'node_id': sorted(records, key=lambda n: n.node_id)[0].node_id})
-            age = max(1, min(3600, int(session['expires_at_epoch'] - self.clock())))
+            token = secrets.token_urlsafe(48)
+            with g.agent_link.lock:
+                source = g.agent_link._authorized_session(session['session_token'])
+                self._remember(token, source)
+                g.agent_link.sessions.pop(g.agent_link._hash(session['session_token']), None)
             with self.lock:
                 self.flows.pop(identifier, None)
-            return {'status': 'verified'}, (COOKIE, session['session_token'], age)
+            return {'status': 'verified'}, (COOKIE, token, REMEMBER_AGE)
         except OwnerRequired:
             with self.lock:
                 self.flows.pop(identifier, None)
@@ -199,8 +249,8 @@ class RoutingConsole:
                 self._send(handler, 200, Path(__file__).with_name('routing_console.html').read_text(encoding='utf-8'), html=True)
                 return True
             if handler.command == 'GET' and path == PREFIX + 'state':
-                self._owner(handler)
-                self._send(handler, 200, self.state())
+                token = self._owner(handler)
+                self._send(handler, 200, self.state(), cookie=(COOKIE, token, REMEMBER_AGE))
                 return True
             if handler.command != 'POST':
                 self._send(handler, 404, {'error': 'Route not found'})
@@ -224,13 +274,17 @@ class RoutingConsole:
                 token = self._owner(handler)
                 actor = hashlib.sha256(token.encode()).hexdigest()
                 if path == PREFIX + 'logout' and payload == {}:
-                    self.gateway.agent_link.dispatch('logout', token, {})
+                    link = self.gateway.agent_link
+                    with link.lock:
+                        link.db.execute('UPDATE routing_devices SET revoked=1 WHERE token_hash=?', (link._hash(token),))
+                        link.db.commit()
+                        link.sessions.pop(link._hash(token), None)
                     result, cookie = {'signed_out': True}, (COOKIE, '', 0)
                 elif path == PREFIX + 'diagnostic' and set(payload) == {'target_node_id', 'model'}:
                     from .streaming import watch_disconnect
                     cancelled = threading.Event()
                     with watch_disconnect(handler.connection, cancelled.set):
-                        result = self.gateway.agent_link.dispatch('diagnostic-inference', token, payload, cancelled=cancelled)
+                        result = self._diagnostic(token, payload, cancelled)
                 elif path == PREFIX + 'preview' and set(payload) == {'rules', 'expected_revision'}:
                     result = self.gateway.routing_rules.preview(payload['rules'], payload['expected_revision'], actor)
                     g = self.gateway
@@ -253,6 +307,7 @@ class RoutingConsole:
             self._send(handler, 409, {'error': str(error)})
         except (ValueError, TypeError, KeyError, json.JSONDecodeError):
             self._send(handler, 400, {'error': 'Invalid routing request or sign-in response'})
-        except Exception:
+        except Exception as error:
+            logging.getLogger(__name__).warning('routing_request_failed category=%s', type(error).__name__)
             self._send(handler, 503, {'error': 'Routing console temporarily unavailable'})
         return True
