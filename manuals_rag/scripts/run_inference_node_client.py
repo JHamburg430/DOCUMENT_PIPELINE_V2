@@ -16,6 +16,7 @@ import webbrowser
 from pathlib import Path
 from tkinter import messagebox, ttk
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 from manuals_rag_inference.node_agent import (
     _detect_tailscale_ipv4,
@@ -182,6 +183,10 @@ class InferenceNodeClient(tk.Tk):
         self.update_settings = _managed_update_settings()
         self.server = None
         self.agent = None
+        self.attached = False
+        self.attached_url = ""
+        self.attached_status: dict[str, object] = {}
+        self.attach_existing = os.getenv("INFERENCE_NODE_ATTACH_EXISTING", "false").lower() == "true"
         self.gateway_url = ""
         self.worker_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.fields: dict[str, tk.StringVar] = {
@@ -212,10 +217,44 @@ class InferenceNodeClient(tk.Tk):
         self._apply_theme()
         self.tray = NodeTray(lambda event, value: self.worker_queue.put((event, value)))
         self._load_saved_values()
+        if self.attach_existing:
+            self.after(600, self._attach_existing_node)
         threading.Thread(target=self._metrics_worker, daemon=True, name="provis-utilization").start()
         self.after(800, self._position_panel)
         self.after(250, self._drain_worker_queue)
         self.after(1000, self._refresh_activity)
+
+    def _attached_request(self, path: str, method: str = "GET", payload: dict | None = None) -> dict:
+        config = _load_node_config(self.config_path)
+        port = int(config.get("port") or os.getenv("INFERENCE_NODE_PORT", "8765"))
+        host = str(config.get("bind") or "").strip()
+        if not host or host in {"0.0.0.0", "::", "::0"}:
+            host = urlparse(str(config.get("agent_url") or "")).hostname or "127.0.0.1"
+        self.attached_url = f"http://{host}:{port}"
+        body = None
+        headers = {"Accept": "application/json"}
+        if payload is not None:
+            body = json.dumps(payload).encode()
+            headers["Content-Type"] = "application/json"
+            token = str(config.get("local_control_token") or "").strip()
+            if token:
+                headers["X-Node-Local-Token"] = token
+        request = Request(f"{self.attached_url}{path}", data=body, method=method, headers=headers)
+        with urlopen(request, timeout=2) as response:
+            return json.loads(response.read().decode())
+
+    def _attach_existing_node(self) -> None:
+        try:
+            status = self._attached_request("/v1/node/status")
+            self.attached_status = status
+            self.attached = True
+            self.status_var.set("Connected to PROVIS")
+            self._update_controls()
+        except Exception:
+            self.attached = False
+            self.status_var.set("PROVIS service is not available")
+            self._update_controls()
+            self.after(3000, self._attach_existing_node)
 
     def _build_ui(self) -> None:
         navy, muted, blue = "#122743", "#65758c", "#225fe5"
@@ -533,7 +572,7 @@ class InferenceNodeClient(tk.Tk):
         }
         for key, value in values.items():
             self.fields[key].set(str(value))
-        if config.get("shared_secret"):
+        if config.get("shared_secret") and not self.attach_existing:
             self.status_var.set("Saved enrollment found; reconnecting automatically")
             self.after(600, self._resume_saved_enrollment)
 
@@ -727,13 +766,29 @@ class InferenceNodeClient(tk.Tk):
 
     def _set_inference(self, enabled: bool) -> None:
         if self.updater and self.updater.applying: return
-        if self.agent is None:
+        if self.agent is not None:
+            self.agent.set_inference_enabled(enabled)
+            self._update_controls()
             return
-        self.agent.set_inference_enabled(enabled)
-        self._update_controls()
+        if not self.attached:
+            return
+        try:
+            result = self._attached_request(
+                "/v1/node/settings",
+                method="POST",
+                payload={"action": "enable_inference" if enabled else "disable_inference"},
+            )
+            self.attached_status.update(result)
+            self._update_controls()
+        except Exception as error:
+            self.status_var.set(f"Node control failed: {error.__class__.__name__}")
 
     def _disconnect(self) -> None:
         if self.owner_panel is not None: self.owner_panel._sign_out()
+        if self.attached and self.agent is None:
+            self._set_inference(False)
+            self.status_var.set("Sharing paused on the connected node")
+            return
         if self.agent is None or not self.gateway_url:
             self.status_var.set("No connected gateway")
             return
@@ -799,6 +854,7 @@ class InferenceNodeClient(tk.Tk):
                     endpoints = local_broker_endpoints(getattr(broker_server, "server_port", 0))
                     self.local_endpoint_var.set(endpoints[0] if endpoints else "Local inference endpoint disabled")
                     self.local_endpoint_copy_button.configure(state="normal" if endpoints else "disabled")
+                    self.attached = False
                     from manuals_rag_inference.node_updater import UpdateWorker
                     if self.update_settings['enabled'] and self.agent.app_metadata['remote_updates_enabled']:
                         self.updater = UpdateWorker(self.agent, self.gateway_url, self.config_path, self.update_settings,
@@ -817,6 +873,7 @@ class InferenceNodeClient(tk.Tk):
                 elif event == "disconnected":
                     self._clear_signin_code()
                     self._stop_server()
+                    self.attached = False
                     self.status_var.set("Disconnected safely from gateway")
                     self._update_controls()
                 elif event == "disconnect_error":
@@ -834,19 +891,22 @@ class InferenceNodeClient(tk.Tk):
         self.after(250, self._drain_worker_queue)
 
     def _update_controls(self) -> None:
-        connected = self.agent is not None
+        connected = self.agent is not None or self.attached
         self.entra_button.configure(state="disabled" if connected else "normal")
         state = "normal" if connected and not (self.updater and self.updater.applying) else "disabled"
         self.enable_button.configure(state=state)
         self.disable_button.configure(state=state)
-        self.disconnect_button.configure(state=state)
-        if connected:
+        self.disconnect_button.configure(state="normal" if self.agent is not None else "disabled")
+        if self.agent is not None:
             self.inference_var.set("Inference enabled" if self.agent.inference_enabled else "Inference disabled")
+        elif self.attached:
+            self.inference_var.set("Inference enabled" if self.attached_status.get("inference_enabled") else "Inference disabled")
         else:
             self.inference_var.set("Inference disabled")
 
     def _refresh_activity(self) -> None:
         self._update_controls()
+        events = []
         if self.agent is not None:
             events = self.agent.activity()
             heartbeat = next((event for event in reversed(events) if event.get("operation") == "heartbeat"), None)
@@ -866,6 +926,26 @@ class InferenceNodeClient(tk.Tk):
             with self.agent._request_lock:
                 active = sum(self.agent._active_by_model.values())
             self.work_var.set(f"{active} active request" + ("s" if active != 1 else "") if active else "No active work")
+        elif self.attached:
+            try:
+                status = self._attached_request("/v1/node/status")
+                self.attached_status.update(status)
+                events = self._attached_request("/v1/node/activity").get("events", [])
+                self.status_var.set("Connected to PROVIS")
+                rows = public_events(events)
+                if rows != self._last_rows:
+                    self._last_rows = rows
+                    for item in self.activity_view.get_children():
+                        self.activity_view.delete(item)
+                    for row in rows:
+                        self.activity_view.insert("", "end", values=row)
+                    children = self.activity_view.get_children()
+                    if children:
+                        self.activity_view.see(children[-1])
+                self.work_var.set("No active work")
+            except Exception:
+                self.attached = False
+                self.status_var.set("PROVIS service is not available")
         self.after(1000, self._refresh_activity)
 
     def _owner_busy(self):
