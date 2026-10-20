@@ -213,3 +213,16 @@ def test_invalid_origin_or_missing_owner_configuration_refused(console):
     console.g.agent_link = None
     with pytest.raises(ValueError):
         RoutingConsole(console.g, ORIGIN)
+
+
+def test_owner_worker_check_uses_existing_exact_target_and_cleanup(console):
+    with serving(create_gateway_handler(console.g)) as base:
+        body = {'target_node_id': DELL, 'model': MODEL}
+        assert http(base, '/v1/routing/diagnostic', body)[0] == 401
+        cookie = COOKIE + '=' + console.token
+        assert http(base, '/v1/routing/diagnostic', body, cookie=cookie, origin='https://evil.example')[0] == 403
+        status, result, _ = http(base, '/v1/routing/diagnostic', body, cookie=cookie)
+        assert status == 200 and result['receipt']['node_id'] == DELL
+        assert len(console.calls) == 1 and not console.g.scheduler._reservations
+        assert http(base, '/v1/routing/diagnostic', dict(body, allow_model_pull=True), cookie=cookie)[0] == 400
+        assert len(console.calls) == 1

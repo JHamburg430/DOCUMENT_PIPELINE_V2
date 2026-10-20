@@ -182,6 +182,7 @@ class RoutingConsole:
                           'version': snapshot.node_app_version if snapshot else '',
                           'active_requests': snapshot.active_requests if snapshot else 0,
                           'queued_requests': snapshot.queued_requests if snapshot else 0,
+                          'loaded_models': [model.name for model in snapshot.loaded_models if model.name in g.model_catalog and g.model_catalog[model.name].backend == 'ollama' and 'chat' in g.model_catalog[model.name].capabilities] if snapshot else [],
                           'gpus': [{'name': gpu.name, 'total_vram_mb': gpu.total_vram_mb} for gpu in snapshot.gpus] if snapshot else []})
         applications = sorted(set(g.application_tokens) | set(g.node_default_applications))
         return {'revision': document['revision'], 'rules': document['rules'], 'history': document['history'],
@@ -225,6 +226,11 @@ class RoutingConsole:
                 if path == PREFIX + 'logout' and payload == {}:
                     self.gateway.agent_link.dispatch('logout', token, {})
                     result, cookie = {'signed_out': True}, (COOKIE, '', 0)
+                elif path == PREFIX + 'diagnostic' and set(payload) == {'target_node_id', 'model'}:
+                    from .streaming import watch_disconnect
+                    cancelled = threading.Event()
+                    with watch_disconnect(handler.connection, cancelled.set):
+                        result = self.gateway.agent_link.dispatch('diagnostic-inference', token, payload, cancelled=cancelled)
                 elif path == PREFIX + 'preview' and set(payload) == {'rules', 'expected_revision'}:
                     result = self.gateway.routing_rules.preview(payload['rules'], payload['expected_revision'], actor)
                     g = self.gateway
