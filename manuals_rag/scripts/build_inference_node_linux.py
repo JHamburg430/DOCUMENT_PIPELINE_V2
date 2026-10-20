@@ -24,6 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_PARENT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src"
 BROKER_PARENT = REPO_ROOT / "provis_inference_node/src"
 APP_SOURCE = REPO_ROOT / "manuals_rag/scripts/run_inference_node_client.py"
+MCP_SOURCE = REPO_ROOT / "manuals_rag/scripts/run_agent_link_mcp.py"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
 INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
 BRAND_ASSET_ROOT = REPO_ROOT / "manuals_rag/assets/brand"
@@ -98,6 +99,7 @@ def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[s
         f"{BRAND_ASSET_ROOT / 'provis-lens.png'}{separator}assets/brand",
         "--collect-all",
         "cryptography",
+        "--hidden-import=provis_agent_link_mcp",
         *_optional_onnx_imports(),
         *_optional_tray_imports(),
         str(APP_SOURCE),
@@ -105,6 +107,16 @@ def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[s
     if INSTALLER_ROOT.is_dir():
         args[-1:-1] = ["--add-data", f"{INSTALLER_ROOT}{separator}installers"]
     return args
+
+
+def mcp_pyinstaller_args(output: Path, work_root: Path) -> list[str]:
+    """Return the console build command for the stdio MCP companion."""
+    return [
+        sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--console",
+        "--name", output.name, "--distpath", str(output.parent),
+        "--workpath", str(work_root / "mcp-build"), "--specpath", str(work_root / "mcp-spec"),
+        "--paths", str(PACKAGE_PARENT), "--paths", str(SOURCE_ROOT), str(MCP_SOURCE),
+    ]
 
 
 def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
@@ -128,6 +140,7 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
                 "there, then rebuild the Linux artifact"
             ) from exc
         subprocess.run(pyinstaller_args(output, config_path, root), check=True)
+        subprocess.run(mcp_pyinstaller_args(output.with_name("PROVISAgentLinkMCP"), root), check=True)
     if not output.is_file():
         raise RuntimeError(f"PyInstaller completed without creating {output}")
     output.chmod(0o755)

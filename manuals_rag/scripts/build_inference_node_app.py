@@ -35,6 +35,8 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
         shutil.copytree(BROKER_PACKAGE_ROOT, stage / "provis_inference_node", ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         shutil.copy2(APP_SOURCE, stage / "node_app.py")
         shutil.copy2(REPO_ROOT / 'manuals_rag/scripts/provis_agent_link.py', stage / 'provis_agent_link.py')
+        shutil.copy2(REPO_ROOT / 'manuals_rag/scripts/provis_agent_link_mcp.py', stage / 'provis_agent_link_mcp.py')
+        shutil.copy2(REPO_ROOT / 'manuals_rag/scripts/run_agent_link_mcp.py', stage / 'run_agent_link_mcp.py')
         shutil.copytree(BRAND_ASSET_ROOT, stage / "assets" / "brand")
         if INSTALLER_ROOT.is_dir():
             shutil.copytree(INSTALLER_ROOT, stage / "installers")

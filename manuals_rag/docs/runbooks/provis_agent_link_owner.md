@@ -71,3 +71,30 @@ credentials, VPN, or access policy as a chat workaround.
 The previous manual **New owner session**, **Choose local Codex sessions**, and
 **Refresh remote sessions** flow has been replaced in source by automatic chat
 registration. The release and deployment remain separate actions.
+
+## Codex MCP access
+
+Ctrl+Shift+A remains the authority boundary. After owner verification, Codex
+sessions can use the bundled local stdio MCP adapter; it does not open a TCP
+listener and it cannot publish sessions or grant remote approvals. Add it to
+the same user's Codex configuration from the extracted node bundle:
+
+```text
+codex mcp add provis-agent-link -- /path/to/PROVISAgentLinkMCP
+codex mcp list
+```
+
+For a source checkout, use `python /path/to/run_agent_link_mcp.py` instead.
+On Windows and Linux, use the packaged console companion `PROVISAgentLinkMCP`.
+The process reads the
+short-lived owner capability created by the node's verified Ctrl+Shift+A flow;
+without that sign-in, the tools return unavailable and do not fall back to
+inference credentials.
+
+The server exposes `provis_list_published_sessions`,
+`provis_message_history`, and `provis_send_message`. A Codex session must list
+targets first, use exact IDs, show the user the destination and message, and
+set `confirmation=true` only after explicit approval. It must treat an
+`uncertain` result as a stop condition and inspect the target before any new
+send. Dedicated sessions created by the owner panel also receive these rules
+in their private `owner-workspace/AGENTS.md`.

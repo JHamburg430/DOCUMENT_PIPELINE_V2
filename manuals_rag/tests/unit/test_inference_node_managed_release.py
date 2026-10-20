@@ -23,6 +23,8 @@ def test_managed_bundle_contains_nonsecret_config_and_pyinstaller_data_contract(
     output = build(tmp_path / "managed.zip", gateway_url="https://inference.example.test")
     with zipfile.ZipFile(output) as archive:
         names = set(archive.namelist())
+        assert "provis-inference-node/src/provis_agent_link_mcp.py" in names
+        assert "provis-inference-node/src/run_agent_link_mcp.py" in names
         assert "provis-inference-node/provis-node-config.json" in names
         assert "provis-inference-node/src/run_inference_node_client.py" in names
         assert "provis-inference-node/src/provis_inference_node/openai_broker.py" in names
@@ -50,4 +52,7 @@ def test_linux_release_is_one_file_and_embeds_managed_config(tmp_path):
     assert str(linux_builder.BRAND_ASSET_ROOT / "provis-lens.png") + os.pathsep + "assets/brand" in args
     assert str(linux_builder.PACKAGE_PARENT) in args
     assert str(linux_builder.SOURCE_ROOT) in args
+    mcp_args = linux_builder.mcp_pyinstaller_args(output.with_name("PROVISAgentLinkMCP"), tmp_path / "work")
+    assert "--console" in mcp_args
+    assert str(linux_builder.MCP_SOURCE) in mcp_args
     assert str(linux_builder.BROKER_PARENT) in args

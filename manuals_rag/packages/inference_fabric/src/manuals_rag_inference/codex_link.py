@@ -14,6 +14,36 @@ import time
 from pathlib import Path
 
 
+OWNER_SESSION_AGENTS = """# PROVIS owner Codex session
+
+This is a dedicated session created from the PROVIS owner panel. The local
+`provis-agent-link` MCP server is available only after the owner has verified
+identity with Ctrl+Shift+A and the short-lived owner capability is active.
+
+Use `provis_list_published_sessions` before addressing another PC. Use the
+exact returned `node_id` and `thread_id`; do not infer a destination from a
+display name. Before `provis_send_message`, show the user the exact
+destination and message and obtain approval. Set `confirmation` to true only
+after that approval. Never resend an `uncertain` delivery automatically;
+inspect the target Codex session or message history first. Remote approvals,
+shell execution, credential access, and inference-policy changes are outside
+this link.
+"""
+
+
+def _ensure_owner_workspace_instructions():
+    from .codex_owner_store import root
+    workspace = root() / 'owner-workspace'
+    workspace.mkdir(mode=0o700, exist_ok=True)
+    instructions = workspace / 'AGENTS.md'
+    if instructions.is_symlink():
+        raise PermissionError('Private owner session instructions required')
+    if not instructions.exists():
+        instructions.write_text(OWNER_SESSION_AGENTS, encoding='utf-8')
+        if os.name != 'nt':
+            instructions.chmod(0o600)
+
+
 def codex_executable():
     candidates = [shutil.which('codex')]
     if os.name == 'nt':
@@ -29,6 +59,8 @@ class CodexLink:
         self.mode = server_mode() if mode is None else mode
         if self.mode not in ('proxy', 'dedicated'):
             raise ValueError('Explicit supported Codex connection mode required')
+        if self.mode == 'dedicated':
+            _ensure_owner_workspace_instructions()
         self.server_lock = None
         self.process = None
         self.lock = threading.RLock()
@@ -137,8 +169,8 @@ class CodexLink:
         from .codex_owner_store import root, owned_sessions, add_session
         if len(owned_sessions()) >= 60:
             raise ValueError('Owner session capacity reached')
+        _ensure_owner_workspace_instructions()
         workspace = root() / 'owner-workspace'
-        workspace.mkdir(mode=0o700, exist_ok=True)
         # Start an empty owned session, preserving the user's normal model and
         # approval defaults. No inference or forwarded message is sent here.
         result = self.rpc('thread/start', {'cwd': str(workspace)})

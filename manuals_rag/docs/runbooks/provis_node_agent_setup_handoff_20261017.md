@@ -102,6 +102,25 @@ controls. A local preference cannot grant owner authority.
    destination and message. Do not treat this document as standing authorization
    to message other PCs or grant approvals remotely.
 
+### Codex MCP instructions
+
+The owner panel is the authority boundary. Once Ctrl+Shift+A verification is
+active, register the node's local stdio adapter with the same Codex user:
+
+```text
+codex mcp add provis-agent-link -- /path/to/PROVISAgentLinkMCP
+codex mcp list
+```
+
+For a source checkout, use `python /path/to/run_agent_link_mcp.py` instead.
+The adapter reads only the short-lived owner capability created by the panel;
+it does not open a network listener, publish sessions, grant remote approvals,
+or use inference credentials as a fallback. It provides published-session
+listing, delivery history, and an explicitly confirmed message tool. Codex
+must list targets first, use exact node/thread IDs, obtain user approval for
+the exact destination and message, and stop on an uncertain result rather than
+retrying automatically.
+
 ## Existing Entra and gateway configuration
 
 These are public identifiers, not secrets. Preserve the existing registrations:

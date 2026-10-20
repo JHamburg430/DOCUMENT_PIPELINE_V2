@@ -180,6 +180,7 @@ if (-not (Test-Path $BrandAsset -PathType Leaf)) { throw "PROVIS Lens icon is mi
     --add-data ((Join-Path $Root "provis-node-config.json") + ";.") `
     --add-data ($BrandAsset + ";assets\brand") `
     --collect-all cryptography `
+    --hidden-import provis_agent_link_mcp `
     --collect-all onnxruntime `
     --collect-all openvino `
     --collect-all numpy `
@@ -191,6 +192,19 @@ if (-not (Test-Path $Output -PathType Leaf)) {
     throw "PyInstaller completed without creating the expected executable: $Output"
 }
 Write-Host "Created: $Output"
+& $Python @PythonArgs -m PyInstaller --noconfirm --clean --onefile --console `
+    --name PROVISAgentLinkMCP `
+    --distpath (Join-Path $Root "dist") `
+    --workpath (Join-Path $Root "mcp-build") `
+    --specpath (Join-Path $Root "mcp-spec") `
+    --paths (Join-Path $Root "src") `
+    (Join-Path $Root "src\run_agent_link_mcp.py")
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
+$McpOutput = Join-Path $Root "dist\PROVISAgentLinkMCP.exe"
+if (-not (Test-Path $McpOutput -PathType Leaf)) {
+    throw "PyInstaller completed without creating the expected MCP executable: $McpOutput"
+}
+Write-Host "Created: $McpOutput"
 '''
 
 
@@ -313,6 +327,28 @@ the one-file executable loads the same nonsecret JSON embedded with
 PyInstaller. A managed executable therefore works without Python, developer
 environment variables, or a special working directory.
 
+## Owner Agent Link and Codex MCP
+
+The owner-only Agent Link is opened with **Ctrl+Shift+A**. Complete Microsoft
+verification before using it. It is the authority boundary for publishing
+Codex sessions and sending cross-PC messages.
+
+After verification, register the local stdio adapter with Codex:
+
+```text
+codex mcp add provis-agent-link -- /path/to/PROVISAgentLinkMCP
+codex mcp list
+```
+
+For a source checkout, use `python /path/to/run_agent_link_mcp.py` instead.
+The adapter exposes published-session listing, delivery history, and an
+explicitly confirmed send. It does not open a TCP listener, publish sessions,
+grant remote approvals, or retry uncertain deliveries. Codex must list targets,
+use exact node/thread IDs, show the user the exact destination and message,
+and set `confirmation=true` only after approval. Without an active owner
+verification, the adapter returns unavailable and does not use inference
+credentials as a fallback.
+
 Employees do not enter the gateway URL, tenant ID, client ID, scope, node
 name, or application allowlist. If the bundle has no managed gateway URL, it
 fails closed and asks for the managed installer.
@@ -380,6 +416,8 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
             "run_inference_node_client.py",
             "run_inference_node_agent.py",
             "provis_agent_link.py",
+            "provis_agent_link_mcp.py",
+            "run_agent_link_mcp.py",
             "build_inference_node_linux.py",
         ):
             shutil.copy2(SOURCE_ROOT / name, source / name)

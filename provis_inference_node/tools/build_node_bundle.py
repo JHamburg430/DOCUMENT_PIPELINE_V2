@@ -76,6 +76,10 @@ with open(sys.argv[1], encoding="utf-8") as stream:
 if url.scheme.lower() != "https" or not url.hostname or url.username or url.password or url.query or url.fragment:
     raise SystemExit("Managed gateway_url must be a valid HTTPS URL without credentials, query, or fragment.")
 PY
+PYTHON_LIBDIR="$($PYTHON_BIN -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR") or "")')"
+if [[ -n "$PYTHON_LIBDIR" && -d "$PYTHON_LIBDIR" ]]; then
+    export LD_LIBRARY_PATH="$PYTHON_LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
 if ! "$PYTHON_BIN" -c 'import sys, tkinter; assert sys.version_info >= (3, 10)' >/dev/null 2>&1; then
     echo "Python 3.10+ with Tkinter is required to build the Linux desktop executable." >&2
     exit 1
