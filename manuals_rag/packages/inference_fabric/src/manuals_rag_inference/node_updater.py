@@ -93,6 +93,16 @@ def command(app=None):
     return [app] if app.lower().endswith('.exe') else [sys.executable, app]
 
 
+def independent_app_environment():
+    """Give a frozen restart its own runtime before the parent deletes its copy.
+
+    PyInstaller otherwise treats same-executable children as workers sharing
+    the parent's extraction directory. Updaters and restarted apps outlive it.
+    This public bootloader setting also works when launched from source.
+    """
+    return {**os.environ, 'PYINSTALLER_RESET_ENVIRONMENT': '1'}
+
+
 def stage(update, *, config_path, settings, gateway, current_version):
     manifest = verify_release(update['release'], settings['public_keys'], platform=platform_id(), current_version=current_version)
     root = root_for(config_path)
@@ -244,14 +254,14 @@ class ChildJob:
 
 def _start_candidate(args, launch):
     if os.name != 'nt' or launch is not None:
-        child=(launch or subprocess.Popen)(args)
+        child=(launch or subprocess.Popen)(args, env=independent_app_environment())
         return child,ChildJob(child)
     # Assign the new Windows process to its job BEFORE allowing its bootloader
     # to start. Every GUI child is contained; rollback never kills another app.
     import _winapi
     import ctypes
     handle,thread,pid,_=_winapi.CreateProcess(args[0],subprocess.list2cmdline(args),None,None,False,
-                                            4|subprocess.CREATE_NO_WINDOW,None,None,subprocess.STARTUPINFO())
+                                            4|subprocess.CREATE_NO_WINDOW,independent_app_environment(),None,subprocess.STARTUPINFO())
     class Child:
         _handle=handle
         def poll(self):
@@ -324,7 +334,7 @@ def helper(plan_path, config_path, settings, *, launch=None, sleep=time.sleep):
         private_json(config_path, backup)
         # Previous app reports rollback only after its own fresh heartbeat.
         flags={'creationflags':subprocess.CREATE_NO_WINDOW} if os.name=='nt' else {}
-        (launch or subprocess.Popen)(command(plan['previous_app'])+['--update-rollback',str(path)], **flags)
+        (launch or subprocess.Popen)(command(plan['previous_app'])+['--update-rollback',str(path)], env=independent_app_environment(), **flags)
     except Exception: _report_plan(plan,'interrupted')
     finally:
         if job: job.close()

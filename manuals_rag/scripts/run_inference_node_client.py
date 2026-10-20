@@ -933,10 +933,10 @@ class InferenceNodeClient(tk.Tk):
                     self.status_var.set("Connected to PROVIS")
                     self._update_controls()
                 elif event == 'app_update_apply':
-                    from manuals_rag_inference.node_updater import command
+                    from manuals_rag_inference.node_updater import command, independent_app_environment
                     import subprocess
                     flags = {'creationflags':subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {}
-                    subprocess.Popen(command()+['--update-helper',str(value)], **flags)
+                    subprocess.Popen(command()+['--update-helper',str(value)], env=independent_app_environment(), **flags)
                     self._stop_server()
                     self._finish_quit()
                     return
@@ -1094,12 +1094,16 @@ def main() -> None:
         from provis_agent_link import main as owner_tool
         owner_tool()
         return
-    from manuals_rag_inference.node_updater import helper, active_app, command, validate_plan, private_json, _report_plan
+    from manuals_rag_inference.node_updater import helper, active_app, command, validate_plan, private_json, _report_plan, independent_app_environment
     import subprocess
     settings = _managed_update_settings()
     config_path = os.getenv('INFERENCE_NODE_CONFIG_PATH', _default_config_path())
     mode = sys.argv[1] if len(sys.argv)>1 else ''
     if mode == '--self-test':
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        test_key = Ed25519PrivateKey.generate()
+        test_message = b'PROVIS_PACKAGED_SIGNATURE_SELF_TEST'
+        test_key.public_key().verify(test_key.sign(test_message), test_message)
         from manuals_rag_inference.onnx_runtime import require_bundled_runtime, probe_runtime
         onnx_status = require_bundled_runtime()
         onnx_probe = probe_runtime('CPU')
@@ -1107,6 +1111,7 @@ def main() -> None:
             'gateway_configured': bool(_load_managed_gateway_url()),
             'updater_enabled': bool(settings['enabled']),
             'python_embedded': bool(getattr(sys, 'frozen', False)),
+            'ed25519_signature_verified': True,
             'onnx_runtime_version': onnx_status['version'],
             'openvino_provider': 'OpenVINOExecutionProvider' in onnx_status['providers'],
             'intel_gpu_count': len(onnx_status['intel_gpus']),
@@ -1124,7 +1129,7 @@ def main() -> None:
     elif settings['enabled']:
         target = active_app(config_path, settings)
         if target:
-            subprocess.Popen(command(target), creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+            subprocess.Popen(command(target), env=independent_app_environment(), creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
             return
     instance = SingleInstance()
     if instance.existing:

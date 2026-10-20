@@ -159,6 +159,7 @@ def test_helper_commits_only_after_reconnection_receipt(tmp_path,release,monkeyp
     monkeypatch.setattr(updater,'ChildJob',lambda child:SimpleNamespace(kill=lambda:pytest.fail('healthy child killed'),close=lambda:None))
     reports=[];monkeypatch.setattr(updater,'deliver_healthy_ack',lambda *args,**kwargs:reports.append('healthy'))
     def launch(args,**kwargs):
+        assert kwargs['env']['PYINSTALLER_RESET_ENVIRONMENT'] == '1'
         updater.private_json(directory/'healthy.json',{'nonce':plan['probe_nonce'],'version':release.manifest['version'],'node_id':'john'})
         return SimpleNamespace(poll=lambda:None)
     assert updater.helper(directory/'plan.json',config,settings,launch=launch)
@@ -248,7 +249,10 @@ def test_failed_start_relaunches_previous_and_restores_config(tmp_path,release,m
     monkeypatch.setattr(updater,'_pid_running',lambda pid:False)
     stopped=[];monkeypatch.setattr(updater,'ChildJob',lambda child:SimpleNamespace(kill=lambda:stopped.append(True),close=lambda:None))
     launched=[]
-    def launch(args,**kwargs): launched.append(args);return SimpleNamespace(poll=lambda:1)
+    def launch(args,**kwargs):
+        assert kwargs['env']['PYINSTALLER_RESET_ENVIRONMENT'] == '1'
+        launched.append(args)
+        return SimpleNamespace(poll=lambda:1)
     assert not updater.helper(directory/'plan.json',config,settings,launch=launch)
     assert stopped==[True]
     assert json.loads(config.read_text(encoding='utf-8'))=={'shared_secret':'fixture'}
