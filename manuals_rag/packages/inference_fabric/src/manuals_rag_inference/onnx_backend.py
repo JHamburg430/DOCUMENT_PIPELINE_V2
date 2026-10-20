@@ -1,8 +1,7 @@
-"""Optional ONNX Runtime backend with OpenVINO/Intel device support.
+"""ONNX Runtime backend with OpenVINO/Intel device support.
 
-The inference fabric remains dependency-free unless an operator explicitly
-installs an ONNX Runtime wheel and registers models through
-``INFERENCE_ONNX_MODELS_JSON``. The backend accepts tensor inputs rather than
+Signed desktop apps include the runtime automatically. Administrators register
+approved models through ``INFERENCE_ONNX_MODELS_JSON``. The backend accepts tensor inputs rather than
 pretending that arbitrary ONNX graphs are OpenAI-compatible chat models.
 """
 
@@ -43,12 +42,14 @@ class OnnxBackend:
     turn into arbitrary local file execution.
     """
 
-    def __init__(self, manifest: dict[str, dict[str, Any]] | None = None) -> None:
+    def __init__(self, manifest: dict[str, dict[str, Any]] | None = None, *, device: str = 'AUTO') -> None:
         self.manifest = manifest or self._load_manifest()
         self._sessions: dict[str, Any] = {}
         self._lock = threading.RLock()
         self._ort: Any | None = None
         self._providers: tuple[str, ...] = ()
+        self._device = device
+        self._devices: tuple[str, ...] = ()
         self._load_runtime()
 
     @classmethod
@@ -77,14 +78,18 @@ class OnnxBackend:
         return result
 
     def _load_runtime(self) -> None:
-        if not self.manifest:
-            return
         try:
             import onnxruntime as ort
-        except ImportError:
+        except (ImportError, OSError):
             return
         self._ort = ort
         self._providers = tuple(str(item) for item in ort.get_available_providers())
+        try:
+            from openvino import Core
+            from .onnx_runtime import detected_openvino_devices
+            self._devices = tuple(item['id'] for item in detected_openvino_devices(Core()))
+        except Exception:
+            self._devices = ()
 
     @property
     def enabled(self) -> bool:
@@ -96,7 +101,15 @@ class OnnxBackend:
 
     @property
     def device_type(self) -> str:
-        return os.getenv("INFERENCE_ONNX_DEVICE", "AUTO").strip().upper() or "AUTO"
+        return os.getenv("INFERENCE_ONNX_DEVICE", self._device).strip().upper() or "AUTO"
+
+    def set_device(self, device: str) -> None:
+        device = str(device).upper()
+        if device not in {'AUTO', 'CPU', *self._devices}:
+            raise OnnxBackendError('The selected OpenVINO device is unavailable')
+        with self._lock:
+            self._device = device
+            self._sessions.clear()
 
     def _provider_configuration(self) -> tuple[list[str], list[dict[str, str]]]:
         if self._ort is None:
@@ -107,8 +120,12 @@ class OnnxBackend:
             # OpenVINO supports AUTO, GPU/GPU.N, MULTI and HETERO device
             # strings. AUTO is the default so Intel integrated GPUs are used
             # when available while retaining a CPU fallback.
+            selected = self.device_type
+            if selected == 'AUTO':
+                targets = [item for item in self._devices if item.startswith(('GPU', 'NPU'))]
+                selected = 'AUTO:'+','.join(targets+['CPU']) if targets else 'CPU'
             providers.append("OpenVINOExecutionProvider")
-            options.append({"device_type": self.device_type})
+            options.append({"device_type": selected})
         for provider in ("CUDAExecutionProvider", "DmlExecutionProvider", "CPUExecutionProvider"):
             if provider in self._providers and provider not in providers:
                 providers.append(provider)
@@ -127,12 +144,7 @@ class OnnxBackend:
             if not path.is_file():
                 raise OnnxBackendError("registered ONNX model is unavailable")
             providers, options = self._provider_configuration()
-            try:
-                session = self._ort.InferenceSession(str(path), providers=providers, provider_options=options)
-            except TypeError:
-                # Older ORT wheels do not accept provider_options in this
-                # position. Preserve the same provider order without options.
-                session = self._ort.InferenceSession(str(path), providers=providers)
+            session = self._ort.InferenceSession(str(path), providers=providers, provider_options=options)
             self._sessions[model] = session
             return session
 
@@ -145,17 +157,14 @@ class OnnxBackend:
         return tuple(sorted(self.manifest)) if self.enabled else ()
 
     def gpu_devices(self) -> tuple[str, ...]:
-        if not self.enabled or "OpenVINOExecutionProvider" not in self._providers:
+        if self._ort is None or "OpenVINOExecutionProvider" not in self._providers:
             return ()
         device = self.device_type
         if device == "CPU":
             return ()
-        configured = os.getenv("INFERENCE_ONNX_OPENVINO_DEVICES", "").strip()
-        if configured:
-            return tuple(f"openvino:{item.strip()}" for item in configured.split(",") if item.strip())
-        if device.startswith(("GPU", "MULTI", "HETERO", "AUTO")):
-            return ("openvino:GPU.0",)
-        return ()
+        # Runtime/provider availability does not prove an Intel GPU exists.
+        return tuple(f'openvino:{item}' for item in self._devices if item.startswith('GPU')
+                     and (device == 'AUTO' or device == item or device == 'GPU'))
 
     def infer(self, model: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not self.enabled:

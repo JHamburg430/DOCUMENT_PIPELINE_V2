@@ -62,6 +62,8 @@ def _optional_onnx_imports() -> list[str]:
         "onnxruntime",
         "--collect-all",
         "numpy",
+        "--collect-all",
+        "openvino",
     ]
 
 
@@ -106,6 +108,8 @@ def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[s
 
 
 def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
+    from manuals_rag_inference.onnx_runtime import require_bundled_runtime
+    require_bundled_runtime()
     gateway_url = _validate_managed_gateway_url(gateway_url)
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)

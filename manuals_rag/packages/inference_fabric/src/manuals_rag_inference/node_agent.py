@@ -236,6 +236,7 @@ class OllamaNode(OpenAIBrokerMixin):
         self._updating = False
         self._active_commands = 0
         self.app_metadata = {}
+        self.config_path = None
         self.heartbeat_accepted = threading.Event()
         self._activity: deque[dict[str, object]] = deque(maxlen=200)
         self._probe_health: dict[str, tuple[str, str]] = {}
@@ -293,6 +294,22 @@ class OllamaNode(OpenAIBrokerMixin):
         with self._request_lock:
             self._updating = True
             self._inference_enabled = False
+
+    def set_onnx_device(self, device: str) -> None:
+        if os.getenv('INFERENCE_ONNX_DEVICE'):
+            raise PermissionError('The accelerator selection is managed by the service environment')
+        with self._request_lock:
+            if self._updating or self._active_commands or any(self._active_by_model.values()):
+                raise PermissionError('Wait for active inference to finish before changing accelerator')
+            try:
+                self.onnx_backend.set_device(device)
+            except RuntimeError as error:
+                raise ValueError('The selected OpenVINO device is unavailable') from error
+            if self.config_path:
+                config = _load_node_config(self.config_path)
+                config['onnx_device'] = self.onnx_backend.device_type
+                _save_node_config(self.config_path, config)
+        self._record_activity('accelerator_settings', '', 'updated')
 
     def cancel_update(self, previous):
         with self._request_lock:
@@ -650,6 +667,7 @@ def create_handler(
                     "node_id": agent.node_id,
                     "inference_enabled": agent.inference_enabled,
                     "activity_count": len(agent.activity()),
+                    "onnx_device": agent.onnx_backend.device_type,
                 })
             elif self.path == "/v1/node/activity":
                 self._send(200, {"events": agent.activity()})
@@ -688,10 +706,14 @@ def create_handler(
                         raise ValueError("settings body too large")
                     payload = json.loads(self.rfile.read(length).decode())
                     action = str(payload.get("action") or "")
-                    if action not in {"enable_inference", "disable_inference"}:
+                    if action not in {"enable_inference", "disable_inference", "set_onnx_device"}:
                         raise ValueError("unsupported node setting")
-                    agent.set_inference_enabled(action == "enable_inference")
-                    self._send(200, {"node_id": agent.node_id, "inference_enabled": agent.inference_enabled})
+                    if action == 'set_onnx_device':
+                        agent.set_onnx_device(str(payload.get('device') or ''))
+                    else:
+                        agent.set_inference_enabled(action == "enable_inference")
+                    self._send(200, {"node_id": agent.node_id, "inference_enabled": agent.inference_enabled,
+                                     "onnx_device": agent.onnx_backend.device_type})
                 except PermissionError as error:
                     self._send(403, {"detail": str(error)})
                 except (KeyError, ValueError, json.JSONDecodeError) as error:
@@ -794,6 +816,14 @@ def create_node_server(config_path: str | None = None, *, app_metadata=None, sta
         allowed_applications=allowed_applications,
     )
     agent.app_metadata = dict(app_metadata or {})
+    agent.config_path = config_path
+    configured_onnx_device = str(config.get('onnx_device') or 'AUTO')
+    try:
+        agent.onnx_backend.set_device(configured_onnx_device)
+    except ValueError:
+        agent.onnx_backend.set_device('AUTO')
+    except RuntimeError:
+        agent.onnx_backend.set_device('AUTO')
     agent.set_inference_enabled(startup_enabled)
     bind = os.getenv("INFERENCE_NODE_BIND") or str(config.get("bind") or tailscale_ipv4 or "127.0.0.1")
     if os.getenv("INFERENCE_NODE_REQUIRE_PRODUCTION", "false").lower() == "true":

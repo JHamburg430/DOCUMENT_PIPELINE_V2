@@ -226,11 +226,12 @@ class InferenceNodeClient(tk.Tk):
 
     def _attached_request(self, path: str, method: str = "GET", payload: dict | None = None) -> dict:
         config = _load_node_config(self.config_path)
-        port = int(config.get("port") or os.getenv("INFERENCE_NODE_PORT", "8765"))
+        advertised = urlparse(str(config.get('agent_url') or ''))
+        port = int(advertised.port or config.get("port") or os.getenv("INFERENCE_NODE_PORT", "8765"))
         host = str(config.get("bind") or "").strip()
         if not host or host in {"0.0.0.0", "::", "::0"}:
             host = urlparse(str(config.get("agent_url") or "")).hostname or "127.0.0.1"
-        self.attached_url = f"http://{host}:{port}"
+        self.attached_url = f"http://{'['+host+']' if ':' in host else host}:{port}"
         body = None
         headers = {"Accept": "application/json"}
         if payload is not None:
@@ -240,12 +241,19 @@ class InferenceNodeClient(tk.Tk):
             if token:
                 headers["X-Node-Local-Token"] = token
         request = Request(f"{self.attached_url}{path}", data=body, method=method, headers=headers)
-        with urlopen(request, timeout=2) as response:
-            return json.loads(response.read().decode())
+        from urllib.request import build_opener
+        from manuals_rag_inference.node_updater import NoRedirect
+        with build_opener(NoRedirect()).open(request, timeout=2) as response:
+            raw = response.read(262145)
+        if len(raw) > 262144:
+            raise ValueError('Local node response exceeded its limit')
+        return json.loads(raw.decode())
 
     def _attach_existing_node(self) -> None:
         try:
             status = self._attached_request("/v1/node/status")
+            if status.get('node_id') != _load_node_config(self.config_path).get('node_id'):
+                raise ValueError('Local node identity mismatch')
             self.attached_status = status
             self.attached = True
             self.status_var.set("Connected to PROVIS")
@@ -361,8 +369,11 @@ class InferenceNodeClient(tk.Tk):
         panel.protocol("WM_DELETE_WINDOW", panel.withdraw)
         colors = PALETTES[self.theme]
         panel.configure(bg=colors["background"])
-        body = tk.Frame(panel, bg=colors["background"], padx=20, pady=18)
-        body.pack(fill="both", expand=True)
+        from manuals_rag_inference.scrollable_body import ScrollableBody
+        panel.theme = self.theme
+        self.settings_scroll = ScrollableBody(panel)
+        self.settings_scroll.pack(fill='both', expand=True)
+        body = self.settings_scroll.content
         tk.Label(body, text="Settings", bg=colors["background"], fg=colors["text"], font=(self.ui_font, 18, "bold")).pack(anchor="w")
         tk.Label(body, text="Local prerequisites and private-network controls", bg=colors["background"], fg=colors["muted"], font=(self.ui_font, 10)).pack(anchor="w", pady=(3, 14))
         refresh = ttk.Button(body, text="Refresh status", command=self._refresh_settings)
@@ -381,6 +392,17 @@ class InferenceNodeClient(tk.Tk):
             controls = tk.Frame(card, bg=colors["card"])
             controls.pack(fill="x")
             return card, status_var, detail_var, controls
+
+        _, status, detail, controls = row('onnx', 'ONNX / Intel acceleration', 'Included automatically in the signed app; detects available Intel accelerators')
+        self.settings_vars.update({'onnx_status': status, 'onnx_detail': detail})
+        self.onnx_device_var = tk.StringVar(value=str(_load_node_config(self.config_path).get('onnx_device') or 'AUTO'))
+        ttk.Label(controls, text='Device').pack(side='left', padx=(0, 8))
+        self.onnx_device_choice = ttk.Combobox(controls, textvariable=self.onnx_device_var, values=('AUTO',), state='disabled', width=12)
+        self.onnx_device_choice.pack(side='left')
+        self.onnx_device_choice.bind('<<ComboboxSelected>>', self._set_onnx_device)
+        ttk.Button(controls, text='Test device', command=self._test_onnx_device).pack(side='left', padx=8)
+        from manuals_rag_inference.onnx_runtime import INTEL_DRIVER_PAGE
+        ttk.Button(controls, text='Intel driver setup', command=lambda: self._open_settings_link(INTEL_DRIVER_PAGE, 'Intel driver setup opened. The operating system may require administrator approval.')).pack(side='right')
 
         _, status, detail, controls = row("ollama", "Ollama", "Local inference engine; Install downloads the latest official installer")
         self.settings_vars.update({"ollama_status": status, "ollama_detail": detail})
@@ -418,7 +440,7 @@ class InferenceNodeClient(tk.Tk):
     def _refresh_settings(self) -> None:
         if self.settings_panel is None or not self.settings_panel.winfo_exists():
             return
-        for key in ("ollama_status", "gpu_status", "tailscale_status"):
+        for key in ("ollama_status", "gpu_status", "tailscale_status", 'onnx_status'):
             if key in self.settings_vars:
                 self.settings_vars[key].set("Checking…")
         endpoint = self.fields["ollama_url"].get() if "ollama_url" in self.fields else "http://127.0.0.1:11434"
@@ -437,6 +459,16 @@ class InferenceNodeClient(tk.Tk):
         ollama = statuses.get("ollama", {})
         gpu = statuses.get("gpu", {})
         tailscale = statuses.get("tailscale", {})
+        from manuals_rag_inference.onnx_runtime import device_choices
+        onnx = statuses.get('onnx', {})
+        labels = {'intel_gpu_ready': 'Intel GPU ready', 'cpu_ready': 'CPU ready · no Intel GPU detected',
+                  'not_installed': 'Updated signed app required', 'provider_missing': 'OpenVINO provider missing'}
+        self.settings_vars['onnx_status'].set(labels.get(onnx.get('status'), 'Unavailable'))
+        device_names = ', '.join(item['name'] for item in onnx.get('devices', [])) or 'No devices detected'
+        self.settings_vars['onnx_detail'].set(('Installed automatically with this app' if onnx.get('bundled') and onnx.get('installed') else 'Installed in this environment' if onnx.get('installed') else 'Install the current signed PROVIS app to include the runtime')
+            + (f" · Runtime {onnx['version']}" if onnx.get('version') else '') + '\n' + device_names
+            + '\nIntel GPU availability requires a compatible operating-system driver. ONNX models are assigned separately from Ollama models.')
+        self.onnx_device_choice.configure(values=device_choices(onnx), state='readonly' if onnx.get('installed') and not os.getenv('INFERENCE_ONNX_DEVICE') else 'disabled')
         ollama_installed = bool(ollama.get("installed"))
         tailscale_installed = bool(tailscale.get("installed"))
         self.settings_vars["ollama_status"].set(str(ollama.get("status", "unknown")).replace("_", " ").title())
@@ -468,6 +500,37 @@ class InferenceNodeClient(tk.Tk):
         if not messagebox.askyesno("Install component", f"Download and launch the {source} {component} installer? The operating system may request administrator approval.", parent=self.settings_panel):
             return
         threading.Thread(target=self._installer_worker, args=(component,), daemon=True, name=f"provis-install-{component}").start()
+
+    def _set_onnx_device(self, event=None) -> None:
+        device = self.onnx_device_var.get()
+        try:
+            if self.agent is not None:
+                self.agent.set_onnx_device(device)
+            elif self.attached:
+                self._attached_request('/v1/node/settings', method='POST', payload={'action': 'set_onnx_device', 'device': device})
+            else:
+                from manuals_rag_inference.onnx_runtime import runtime_status, device_choices
+                if device not in device_choices(runtime_status()):
+                    raise ValueError('Selected device is unavailable')
+                config = _load_node_config(self.config_path)
+                config['onnx_device'] = device
+                _save_node_config(self.config_path, config)
+            self.settings_vars['settings_note'].set('Accelerator preference saved. AUTO selects an available device for assigned ONNX models.')
+        except Exception as error:
+            self.settings_vars['settings_note'].set(f'Accelerator preference was not changed: {error.__class__.__name__}. Refresh status and wait for active work to finish.')
+            self.onnx_device_var.set(str(_load_node_config(self.config_path).get('onnx_device') or 'AUTO'))
+
+    def _test_onnx_device(self):
+        self.settings_vars['settings_note'].set('Testing the selected device with a synthetic tensor…')
+        threading.Thread(target=self._onnx_probe_worker, args=(self.onnx_device_var.get(),), daemon=True).start()
+
+    def _onnx_probe_worker(self, device):
+        from manuals_rag_inference.onnx_runtime import probe_runtime
+        try:
+            result = probe_runtime(device)
+            self.worker_queue.put(('onnx_probe', f"ONNX test passed on {result['device']} using OpenVINO."))
+        except Exception as error:
+            self.worker_queue.put(('onnx_probe', f'ONNX test failed: {error.__class__.__name__}. Refresh status and check the selected device driver.'))
 
     def _installer_worker(self, component: str) -> None:
         self.worker_queue.put(("settings_action", (component, launch_managed_installer(component))))
@@ -847,6 +910,9 @@ class InferenceNodeClient(tk.Tk):
                     if self.settings_panel is not None and self.settings_panel.winfo_exists():
                         self.settings_vars["settings_note"].set(f"{action}: {status}.")
                         self.after(1200, self._refresh_settings)
+                elif event == 'onnx_probe':
+                    if self.settings_panel is not None and self.settings_panel.winfo_exists():
+                        self.settings_vars['settings_note'].set(value)
                 elif event == "connected":
                     self._clear_signin_code()
                     self.server, self.agent, self.gateway_url = value
@@ -1026,10 +1092,17 @@ def main() -> None:
     config_path = os.getenv('INFERENCE_NODE_CONFIG_PATH', _default_config_path())
     mode = sys.argv[1] if len(sys.argv)>1 else ''
     if mode == '--self-test':
+        from manuals_rag_inference.onnx_runtime import require_bundled_runtime, probe_runtime
+        onnx_status = require_bundled_runtime()
+        onnx_probe = probe_runtime('CPU')
         print(json.dumps({
             'gateway_configured': bool(_load_managed_gateway_url()),
             'updater_enabled': bool(settings['enabled']),
             'python_embedded': bool(getattr(sys, 'frozen', False)),
+            'onnx_runtime_version': onnx_status['version'],
+            'openvino_provider': 'OpenVINOExecutionProvider' in onnx_status['providers'],
+            'intel_gpu_count': len(onnx_status['intel_gpus']),
+            'onnx_probe': onnx_probe,
         }, sort_keys=True))
         return
     if mode in ('--update-helper', '--update-probe', '--update-rollback') and (not settings['enabled'] or len(sys.argv)!=3):

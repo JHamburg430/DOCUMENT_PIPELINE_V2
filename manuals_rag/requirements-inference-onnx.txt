@@ -1,5 +1,5 @@
-# Optional ONNX Runtime path for the inference node.
-# OpenVINO exposes Intel CPU, integrated/discrete GPU, and NPU execution
-# providers. Keep this separate from the dependency-free node bundle.
-numpy>=2.0,<3
+# Runtime bundled automatically in signed Windows and Linux node apps.
+# Intel GPU drivers remain operating-system prerequisites.
+numpy==2.3.5
 onnxruntime-openvino==1.24.1
+openvino==2025.4.1

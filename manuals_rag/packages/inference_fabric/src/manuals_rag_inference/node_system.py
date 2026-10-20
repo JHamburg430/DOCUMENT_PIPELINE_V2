@@ -144,10 +144,12 @@ def gpu_driver_status() -> dict[str, object]:
 
 
 def system_status(ollama_endpoint: str) -> dict[str, dict[str, object]]:
+    from .onnx_runtime import runtime_status
     return {
         "ollama": ollama_status(ollama_endpoint),
         "tailscale": tailscale_status(),
         "gpu": gpu_driver_status(),
+        "onnx": runtime_status(),
     }
 
 

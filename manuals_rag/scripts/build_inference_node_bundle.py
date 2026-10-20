@@ -159,6 +159,12 @@ if ($LASTEXITCODE -ne 0) {
     & $Python @PythonArgs -m pip install --user "cryptography>=42,<51"
 }
 $InstallerArgs = @()
+$RuntimeRequirements = Join-Path $Root "requirements-inference-onnx.txt"
+if (-not (Test-Path $RuntimeRequirements -PathType Leaf)) { throw "Pinned node runtime requirements are missing" }
+& $Python @PythonArgs -m pip install --user -r $RuntimeRequirements
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
+& $Python @PythonArgs -c "import sys; sys.path.insert(0, sys.argv[1]); from manuals_rag_inference.onnx_runtime import require_bundled_runtime; require_bundled_runtime()" (Join-Path $Root "src")
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
 $InstallerRoot = Join-Path $Root "installers"
 if (Test-Path $InstallerRoot -PathType Container) {
     $InstallerArgs = @("--add-data", ($InstallerRoot + ";installers"))
@@ -174,6 +180,9 @@ if (-not (Test-Path $BrandAsset -PathType Leaf)) { throw "PROVIS Lens icon is mi
     --add-data ((Join-Path $Root "provis-node-config.json") + ";.") `
     --add-data ($BrandAsset + ";assets\brand") `
     --collect-all cryptography `
+    --collect-all onnxruntime `
+    --collect-all openvino `
+    --collect-all numpy `
     @InstallerArgs `
     (Join-Path $Root "src\run_inference_node_client.py")
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -189,7 +198,8 @@ README = r'''# PROVIS Inference Node
 
 This is a portable node client for the internal, Tailscale-only PROVIS
 inference fabric. It serves all approved inference workloads, not just RAG.
-It uses Python's standard library and does not install packages at runtime.
+Signed employee apps include the ONNX Runtime/OpenVINO/NumPy stack and do not
+require employees to install Python packages. GPU drivers remain OS prerequisites.
 
 ## Requirements
 
