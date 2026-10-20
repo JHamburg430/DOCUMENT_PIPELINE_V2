@@ -22,6 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / "manuals_rag/packages/inference_fabric/src/manuals_rag_inference"
 SOURCE_ROOT = REPO_ROOT / "manuals_rag/scripts"
 INSTALLER_ROOT = REPO_ROOT / "manuals_rag/installers"
+OPTIONAL_REQUIREMENTS = REPO_ROOT / "manuals_rag/requirements-inference-onnx.txt"
 
 LINUX_SETUP = '''#!/bin/sh
 set -eu
@@ -370,6 +371,8 @@ def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
         (stage / 'start-node-setup.sh').chmod(0o755)
         if INSTALLER_ROOT.is_dir():
             shutil.copytree(INSTALLER_ROOT, stage / "installers")
+        if OPTIONAL_REQUIREMENTS.is_file():
+            shutil.copy2(OPTIONAL_REQUIREMENTS, stage / OPTIONAL_REQUIREMENTS.name)
         _write_text(stage, "provis-node-config.json", json.dumps(managed_config(gateway_url, update_config), indent=2) + "\n")
         _write_text(stage, "README.md", README)
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:

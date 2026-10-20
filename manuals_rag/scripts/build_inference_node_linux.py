@@ -47,6 +47,22 @@ def _optional_tray_imports() -> list[str]:
     ]
 
 
+def _optional_onnx_imports() -> list[str]:
+    """Embed ONNX Runtime only when the build host installed the optional stack."""
+    try:
+        import numpy  # noqa: F401
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        return []
+    return [
+        "--hidden-import=onnxruntime",
+        "--collect-all",
+        "onnxruntime",
+        "--collect-all",
+        "numpy",
+    ]
+
+
 def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[str]:
     """Return the reproducible one-file build command for tests and tooling."""
     separator = os.pathsep
@@ -74,6 +90,7 @@ def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[s
         f"{config_path}{separator}.",
         "--collect-all",
         "cryptography",
+        *_optional_onnx_imports(),
         *_optional_tray_imports(),
         str(APP_SOURCE),
     ]

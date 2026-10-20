@@ -40,6 +40,9 @@ class NodeBundleTests(unittest.TestCase):
                         ["bash", "-n"], input=script, text=True, capture_output=True, check=False
                     )
                     self.assertEqual(result.returncode, 0, result.stderr)
+                build_script = archive.read("provis-inference-node/build-node-linux.sh").decode()
+                self.assertIn('sysconfig.get_config_var("LIBDIR")', build_script)
+                self.assertIn('LD_LIBRARY_PATH=', build_script)
                 self.assertNotIn(b"INFERENCE_GATEWAY_TOKEN", archive.read("provis-inference-node/provis-node-config.json"))
 
     def test_linux_config_uses_xdg_without_importing_rag(self) -> None:

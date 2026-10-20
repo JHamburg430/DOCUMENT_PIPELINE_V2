@@ -46,7 +46,9 @@ The scheduler receives an `InferenceRequest` with the application, workload,
 model, model-size/VRAM requirement, capabilities, priority, and whether model
 pull or eviction is allowed. It admits only healthy nodes with a fresh
 heartbeat, permitted application access, required capabilities, queue headroom,
-and sufficient VRAM. A warm model receives a strong placement preference, but
+and sufficient VRAM. Multi-GPU placement is the default: known CUDA devices are
+selected by stable GPU UUID and VRAM is reserved per device, while a request can
+explicitly opt into `single_gpu`. A warm model receives a strong placement preference, but
 VRAM headroom and queue pressure still affect the final score.
 
 The gateway's model catalog is authoritative in production. It rejects models
@@ -83,8 +85,31 @@ The gateway prototype exposes:
 - `POST /v1/node/command`
 
 The agent reports GPU state from `nvidia-smi` and loaded models from Ollama's
-local process endpoint. It exposes only two control actions: `pull_model` and
-`evict_model`. It does not expose Docker, SSH, or arbitrary shell execution.
+local process endpoint. It also reports the optional ONNX Runtime providers and
+Intel OpenVINO devices when configured. It exposes only two control actions:
+`pull_model` and `evict_model`. It does not expose Docker, SSH, or arbitrary
+shell execution.
+
+### ONNX and Intel integrated GPUs
+
+ONNX is an optional, manifest-driven inference backend. Install the pinned
+requirements in `manuals_rag/requirements-inference-onnx.txt` on nodes that
+need it, set `INFERENCE_ONNX_MODELS_JSON` to an allowlist of absolute `.onnx`
+paths, and use an authoritative model-catalog entry with `backend: "onnx"` and
+the `onnx` capability. The ONNX request contract is tensor-based:
+`{"model": "name", "inputs": {"input_name": [[...]]}}`; it is not an
+automatic conversion of arbitrary chat models.
+
+The portable source bundle expects those optional wheels in the node's Python
+environment. The self-contained Linux executable embeds them when the build
+machine has them installed; otherwise it remains an Ollama-only executable.
+
+When `OpenVINOExecutionProvider` is present, the node defaults to OpenVINO's
+`AUTO` device selection, with `GPU.0` as the reported integrated-GPU device
+when the driver exposes it. `INFERENCE_ONNX_DEVICE` can select `GPU`, `GPU.0`,
+`MULTI`, or `HETERO`; `INFERENCE_ONNX_OPENVINO_DEVICES` controls the inventory
+reported to the scheduler. The provider is optional, so an Ollama-only node
+continues to run without NumPy or ONNX Runtime.
 
 Commands require an HMAC signature, a recent timestamp, an allowed model
 prefix configured on the node, and a model-size limit. Tailscale grants/tags must restrict which

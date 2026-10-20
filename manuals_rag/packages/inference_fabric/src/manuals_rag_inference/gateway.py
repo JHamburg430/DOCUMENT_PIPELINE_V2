@@ -300,7 +300,7 @@ class InferenceGateway:
         return body
 
     def infer(self, request: InferenceRequest, *, operation: str, payload: dict[str, Any]) -> dict[str, Any]:
-        if operation not in {"chat", "generate", "embeddings"}:
+        if operation not in {"chat", "generate", "embeddings", "onnx"}:
             raise ValueError("unsupported inference operation")
         request = self._authoritative_request(request)
         payload = dict(payload)
@@ -316,6 +316,8 @@ class InferenceGateway:
             ollama_operation = {"embeddings": "embed"}.get(operation, operation)
             timeout = max(30.0, (request.max_latency_ms or 180000) / 1000.0)
             node_agent_url = self.node_agent_urls.get(decision.node_id or "")
+            if operation == "onnx" and not node_agent_url:
+                raise RuntimeError("onnx_requires_node_agent")
             if self.require_node_agents and not node_agent_url:
                 raise RuntimeError("node_agent_required_for_inference")
             if node_agent_url:
@@ -327,6 +329,7 @@ class InferenceGateway:
                     "payload": payload,
                     "request_id": request.request_id,
                     "issued_at": time.time(),
+                    "placement": decision.placement.to_dict() if decision.placement else None,
                 }
                 response = self._post(
                     f"{node_agent_url.rstrip('/')}/v1/node/inference",
@@ -395,7 +398,14 @@ class InferenceGateway:
             raise InferencePhaseError("admission_rejected", request.model, "model_capability_unavailable")
         from dataclasses import replace
 
-        return replace(request, model_size_bytes=spec.size_bytes, min_vram_mb=spec.min_vram_mb)
+        return replace(
+            request,
+            model_size_bytes=spec.size_bytes,
+            min_vram_mb=spec.min_vram_mb,
+            backend=spec.backend,
+            min_gpu_count=spec.min_gpu_count,
+            allow_multi_gpu=spec.allow_multi_gpu,
+        )
 
     def _prepare_node(self, request: InferenceRequest, decision) -> None:
         """Perform only explicitly authorized preparation before inference."""
@@ -515,6 +525,8 @@ def _snapshot_from_payload(payload: dict[str, Any]) -> NodeSnapshot:
         node_app_version=str(payload.get("node_app_version") or "")[:40],
         node_app_platform=str(payload.get("node_app_platform") or "")[:40],
         remote_updates_enabled=payload.get("remote_updates_enabled") is True,
+        gpu_placement_mode=str(payload.get("gpu_placement_mode") or "multi_gpu"),
+        onnx_providers=tuple(str(provider) for provider in payload.get("onnx_providers") or []),
         installed_models=tuple(str(model) for model in payload.get("installed_models") or []),
         installed_model_capabilities={str(model): tuple(capabilities) for model, capabilities in (payload.get("installed_model_capabilities") or {}).items()},
     )
@@ -522,14 +534,14 @@ def _snapshot_from_payload(payload: dict[str, Any]) -> NodeSnapshot:
 
 def _request_from_payload(payload: dict[str, Any]) -> InferenceRequest:
     fields = {key: payload[key] for key in ("request_id", "application", "workload", "model", "model_size_bytes", "min_vram_mb")}
-    fields.update({key: payload[key] for key in ("context_tokens", "context_vram_mb_per_1k", "priority", "max_latency_ms", "allow_model_pull", "allow_eviction") if key in payload})
+    fields.update({key: payload[key] for key in ("context_tokens", "context_vram_mb_per_1k", "priority", "max_latency_ms", "allow_model_pull", "allow_eviction", "backend", "placement_mode", "min_gpu_count", "allow_multi_gpu") if key in payload})
     fields["required_capabilities"] = tuple(payload.get("required_capabilities") or ["chat"])
     return InferenceRequest(**fields)
 
 
 def _broker_request_from_payload(metadata: dict[str, Any], operation: str) -> InferenceRequest:
     fields = {key: metadata[key] for key in ("request_id", "application", "model")}
-    fields.update(workload=f"node_{operation}", model_size_bytes=0, min_vram_mb=0)
+    fields.update(workload=f"node_{operation}", model_size_bytes=1, min_vram_mb=1, backend="onnx" if operation == "onnx" else "ollama")
     for key, default, lower, upper in (("context_tokens", 0, 0, 1_000_000), ("priority", 50, 0, 100), ("max_latency_ms", 180000, 1, 900000)):
         value = metadata.get(key, default)
         if type(value) is not int or not lower <= value <= upper:
@@ -543,7 +555,7 @@ def _broker_request_from_payload(metadata: dict[str, Any], operation: str) -> In
     capabilities = metadata.get("required_capabilities", [])
     if not isinstance(capabilities, list) or len(capabilities) > 32 or any(not isinstance(item, str) for item in capabilities):
         raise ValueError("invalid required capabilities")
-    fields["required_capabilities"] = tuple(sorted(set(capabilities) | {"embeddings" if operation == "embeddings" else "chat"}))
+    fields["required_capabilities"] = tuple(sorted(set(capabilities) | ({"embeddings"} if operation == "embeddings" else {"onnx"} if operation == "onnx" else {"chat"})))
     return InferenceRequest(**fields)
 
 
@@ -556,6 +568,9 @@ def _model_catalog_from_payload(payload: dict[str, Any]) -> dict[str, ModelSpec]
             size_bytes=int(item.get("size_bytes") or 0),
             min_vram_mb=int(item.get("min_vram_mb") or 0),
             capabilities=tuple(str(value) for value in (item.get("capabilities") or [])),
+            backend=str(item.get("backend") or "ollama"),
+            min_gpu_count=max(1, int(item.get("min_gpu_count") or 1)),
+            allow_multi_gpu=bool(item.get("allow_multi_gpu", True)),
         )
     return catalog
 
@@ -641,7 +656,7 @@ def create_gateway_handler(gateway: InferenceGateway):
                     metadata = payload["request"]
                     operation = payload.get("operation")
                     model_payload = payload.get("payload")
-                    if operation not in {"chat", "generate", "embeddings"} or not isinstance(model_payload, dict):
+                    if operation not in {"chat", "generate", "embeddings", "onnx"} or not isinstance(model_payload, dict):
                         raise ValueError("invalid inference operation or payload")
                     if "stream" in model_payload and not isinstance(model_payload["stream"], bool):
                         raise ValueError("stream must be a boolean")
