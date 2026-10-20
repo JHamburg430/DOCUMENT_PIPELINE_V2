@@ -108,6 +108,9 @@ class InferenceGateway:
         self.node_default_port = int(node_default_port)
         self.allow_node_agent_endpoint_refresh = allow_node_agent_endpoint_refresh is True
         self.application_worker_allowlist = dict(application_worker_allowlist or {})
+        self.enrolled_worker_admission = None
+        self.routing_rules = None
+        self.routing_console = None
         if any(not isinstance(app, str) or not app or not isinstance(nodes, (list, tuple)) or not nodes or any(not isinstance(node, str) or not node for node in nodes) for app, nodes in self.application_worker_allowlist.items()):
             raise ValueError("invalid application worker allowlist")
         self._heartbeat_lock = threading.Lock()
@@ -457,11 +460,21 @@ class InferenceGateway:
             finally:
                 self.scheduler.release(decision.node_id, request.request_id)
 
+    def authorized_worker_ids(self, application: str) -> tuple[str, ...]:
+        if self.enrolled_worker_admission is not None:
+            members = self.enrolled_worker_admission.allowed_node_ids(self, application)
+        else:
+            members = tuple(self.application_worker_allowlist.get(application, ()))
+        return self.routing_rules.allowed_node_ids(application, members) if self.routing_rules is not None else members
+
     def _authoritative_request(self, request: InferenceRequest) -> InferenceRequest:
         """Use central catalog truth instead of caller-supplied model resources."""
         from dataclasses import replace
         # Worker restrictions are server-owned; callers cannot widen or bypass them.
-        request = replace(request, allowed_node_ids=tuple(self.application_worker_allowlist.get(request.application, ())))
+        workers = self.authorized_worker_ids(request.application)
+        if (self.enrolled_worker_admission is not None or self.routing_rules is not None) and not workers:
+            raise AuthorizationError('No approved enrolled worker for application')
+        request = replace(request, allowed_node_ids=workers, worker_priorities=self.routing_rules.priorities(request.application, workers) if self.routing_rules is not None else {})
         if not self.model_catalog:
             if self.require_model_catalog:
                 raise RuntimeError("model_catalog_required")
@@ -485,6 +498,8 @@ class InferenceGateway:
 
     def _prepare_node(self, request: InferenceRequest, decision) -> None:
         """Perform only explicitly authorized preparation before inference."""
+        if (self.enrolled_worker_admission is not None or self.routing_rules is not None) and decision.node_id not in self.authorized_worker_ids(request.application):
+            raise AuthorizationError('Worker enrollment or application approval changed')
         if not decision.requires_model_pull and not decision.eviction_candidates and not decision.requires_model_warm:
             return
         if decision.eviction_candidates and not request.allow_eviction:
@@ -670,6 +685,8 @@ def create_gateway_handler(gateway: InferenceGateway):
             return self.rfile.read(length)
 
         def do_GET(self) -> None:  # noqa: N802
+            if getattr(gateway, 'routing_console', None) is not None and gateway.routing_console.handle(self):
+                return
             if self.path == "/health":
                 self._send(200, {"status": "ok", "nodes": len(gateway.scheduler.snapshots())})
             elif self.path == '/v1/agent-link/availability':
@@ -725,6 +742,8 @@ def create_gateway_handler(gateway: InferenceGateway):
                 self._send(404, {"detail": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
+            if getattr(gateway, 'routing_console', None) is not None and gateway.routing_console.handle(self):
+                return
             try:
                 raw = self._body()
                 payload = json.loads(raw.decode())
@@ -984,6 +1003,8 @@ def run_gateway() -> None:
         ),
         require_node_agents=require_node_agents,
     )
+    from .worker_admission import configure_worker_admission
+    configure_worker_admission(gateway, os.getenv('INFERENCE_WORKER_ADMISSION_MODE', 'static').strip())
     owner_object_id = os.getenv('INFERENCE_AGENT_LINK_OWNER_OBJECT_ID', '').strip()
     if owner_object_id:
         from pathlib import Path
@@ -997,6 +1018,13 @@ def run_gateway() -> None:
             raise RuntimeError('Owner authentication required for diagnostics')
         from .owner_diagnostic import OwnerDiagnostic
         gateway.agent_link.diagnostic = OwnerDiagnostic(gateway)
+    routing_origin = os.getenv('INFERENCE_ROUTING_CONSOLE_ORIGIN', '').strip()
+    if routing_origin:
+        from .routing_console import RoutingConsole
+        from .routing_rules import RoutingRules
+        rules_path = os.environ['INFERENCE_ROUTING_RULES_PATH']
+        gateway.routing_rules = RoutingRules(rules_path, lambda: set(gateway.application_tokens) | set(gateway.node_default_applications), lambda: [node.node_id for node in gateway.enrollment.nodes()])
+        gateway.routing_console = RoutingConsole(gateway, routing_origin)
     release_dir = os.getenv('INFERENCE_NODE_UPDATE_RELEASE_DIR', '').strip()
     release_keys = os.getenv('INFERENCE_NODE_UPDATE_PUBLIC_KEYS_JSON', '').strip()
     if release_dir or release_keys:

@@ -31,7 +31,7 @@ class OwnerDiagnostic:
                 AgentLink._workspace({'tenant_id':record.identity_tenant,'subject':record.identity_subject}) != workspace):
             raise PermissionError('Target is outside owner workspace')
         approved = record.allowed_applications or g.node_default_applications
-        if APPLICATION not in approved or target not in g.application_worker_allowlist.get(APPLICATION, ()):
+        if APPLICATION not in approved or target not in g.authorized_worker_ids(APPLICATION):
             raise PermissionError('Target is not approved for diagnostic application')
         node = next((n for n in g.scheduler.snapshots() if n.node_id == target), None)
         if (node is None or not node.healthy or not node.inference_enabled or

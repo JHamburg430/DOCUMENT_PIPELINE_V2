@@ -225,6 +225,7 @@ class InferenceScheduler:
             required_vram_mb = self._required_vram_mb(request)
             headroom_bonus = min(200.0, max(0.0, (available_vram - required_vram_mb) / 100.0))
             score = model_loaded_bonus + model_installed_bonus + app_bonus + headroom_bonus - queue_penalty + request.priority
+            score += request.worker_priorities.get(node.node_id, 0) * 10000
             evictions = ()
             if request.allow_eviction and available_vram - self.policy.reserved_vram_mb < required_vram_mb:
                 evictions = tuple(

@@ -97,6 +97,7 @@ class InferenceRequest:
     allow_model_pull: bool = False
     allow_eviction: bool = False
     allowed_node_ids: tuple[str, ...] = ()
+    worker_priorities: dict[str, int] = field(default_factory=dict)
     backend: str = "ollama"
     placement_mode: str = "multi_gpu"
     min_gpu_count: int = 1
