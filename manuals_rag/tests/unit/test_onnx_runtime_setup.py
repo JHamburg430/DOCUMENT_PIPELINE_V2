@@ -6,6 +6,7 @@ import pytest
 from manuals_rag_inference.onnx_runtime import runtime_status, device_choices, require_bundled_runtime
 from manuals_rag_inference.onnx_backend import OnnxBackend, OnnxBackendError
 from manuals_rag_inference.node_agent import OllamaNode
+from manuals_rag_inference import onnx_runtime
 
 
 def install_fake_runtime(monkeypatch, devices=('CPU',), providers=('OpenVINOExecutionProvider', 'CPUExecutionProvider')):
@@ -14,6 +15,7 @@ def install_fake_runtime(monkeypatch, devices=('CPU',), providers=('OpenVINOExec
     core = types.SimpleNamespace(available_devices=list(devices), get_property=lambda device, key: 'Intel '+device)
     monkeypatch.setitem(sys.modules, 'onnxruntime', ort)
     monkeypatch.setitem(sys.modules, 'openvino', types.SimpleNamespace(Core=lambda: core))
+    monkeypatch.setattr(onnx_runtime, 'get_device_inventory', lambda: {'devices': onnx_runtime.detected_openvino_devices(core)})
 
 
 def test_provider_installation_does_not_fabricate_an_intel_gpu(monkeypatch):
@@ -67,6 +69,7 @@ def test_signed_release_requires_successful_device_enumeration(monkeypatch):
     def fail():
         raise OSError('private native diagnostic must not escape')
     monkeypatch.setitem(sys.modules, 'openvino', types.SimpleNamespace(Core=fail))
+    monkeypatch.setattr(onnx_runtime, 'get_device_inventory', fail)
     status = runtime_status()
     assert 'private' not in str(status)
     with pytest.raises(RuntimeError, match='enumerate'):
@@ -77,6 +80,7 @@ def test_non_intel_opencl_gpu_is_not_advertised_as_an_intel_accelerator(monkeypa
     install_fake_runtime(monkeypatch, ('CPU', 'GPU.0'))
     core = types.SimpleNamespace(available_devices=['CPU', 'GPU.0'], get_property=lambda device, key: 'CPU' if device == 'CPU' else 'NVIDIA GeForce RTX 3080 Ti')
     monkeypatch.setitem(sys.modules, 'openvino', types.SimpleNamespace(Core=lambda: core))
+    monkeypatch.setattr(onnx_runtime, 'get_device_inventory', lambda: {'devices': onnx_runtime.detected_openvino_devices(core)})
     assert runtime_status()['intel_gpus'] == []
     backend = OnnxBackend()
     assert backend.gpu_devices() == ()
@@ -100,3 +104,29 @@ def test_device_setting_preserves_enrollment_and_cannot_interrupt_active_work(mo
     monkeypatch.setenv('INFERENCE_ONNX_DEVICE', 'CPU')
     with pytest.raises(PermissionError):
         node.set_onnx_device('AUTO')
+
+
+def test_discovery_uses_a_bounded_fixed_helper_without_enrollment_arguments(monkeypatch):
+    monkeypatch.setattr(onnx_runtime, '_inventory_cache', None)
+    monkeypatch.setattr(sys, 'frozen', True, raising=False)
+    calls = []
+    def run(command, **options):
+        calls.append((command, options))
+        return types.SimpleNamespace(returncode=0, stdout=b'{"devices":[{"id":"CPU","name":"CPU"}]}')
+    monkeypatch.setattr(onnx_runtime.subprocess, 'run', run)
+    assert onnx_runtime.get_device_inventory()['devices'][0]['id'] == 'CPU'
+    assert onnx_runtime.get_device_inventory()['devices'][0]['id'] == 'CPU'
+    assert len(calls) == 1
+    assert calls[0][0] == [sys.executable, '--accelerator-probe']
+    assert calls[0][1]['timeout'] == 20
+    assert not calls[0][1].get('shell')
+
+
+def test_discovery_does_not_import_python_openvino_into_onnx_process(monkeypatch):
+    install_fake_runtime(monkeypatch)
+    original = onnx_runtime.importlib.import_module
+    def guarded_import(name, *args, **kwargs):
+        assert name != 'openvino', 'Python SDK must stay in the helper process'
+        return original(name, *args, **kwargs)
+    monkeypatch.setattr(onnx_runtime.importlib, 'import_module', guarded_import)
+    assert runtime_status()['status'] == 'cpu_ready'

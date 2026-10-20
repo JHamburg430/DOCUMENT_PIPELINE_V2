@@ -108,8 +108,9 @@ def pyinstaller_args(output: Path, config_path: Path, work_root: Path) -> list[s
 
 
 def build(output: Path, *, gateway_url: str = "", update_config=None) -> Path:
-    from manuals_rag_inference.onnx_runtime import require_bundled_runtime
+    from manuals_rag_inference.onnx_runtime import require_bundled_runtime, probe_runtime
     require_bundled_runtime()
+    probe_runtime('CPU')
     gateway_url = _validate_managed_gateway_url(gateway_url)
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)

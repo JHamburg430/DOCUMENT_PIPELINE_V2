@@ -79,15 +79,15 @@ class OnnxBackend:
 
     def _load_runtime(self) -> None:
         try:
-            import onnxruntime as ort
+            from .onnx_runtime import load_onnx_runtime
+            ort = load_onnx_runtime()
         except (ImportError, OSError):
             return
         self._ort = ort
         self._providers = tuple(str(item) for item in ort.get_available_providers())
         try:
-            from openvino import Core
-            from .onnx_runtime import detected_openvino_devices
-            self._devices = tuple(item['id'] for item in detected_openvino_devices(Core()))
+            from .onnx_runtime import get_device_inventory
+            self._devices = tuple(item['id'] for item in get_device_inventory()['devices'])
         except Exception:
             self._devices = ()
 

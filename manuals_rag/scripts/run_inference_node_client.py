@@ -448,6 +448,8 @@ class InferenceNodeClient(tk.Tk):
 
     def _settings_status_worker(self, endpoint: str) -> None:
         try:
+            from manuals_rag_inference.onnx_runtime import clear_device_cache
+            clear_device_cache()
             result = system_status(endpoint)
             self.worker_queue.put(("settings_status", result))
         except Exception as error:
@@ -462,7 +464,8 @@ class InferenceNodeClient(tk.Tk):
         from manuals_rag_inference.onnx_runtime import device_choices
         onnx = statuses.get('onnx', {})
         labels = {'intel_gpu_ready': 'Intel GPU ready', 'cpu_ready': 'CPU ready · no Intel GPU detected',
-                  'not_installed': 'Updated signed app required', 'provider_missing': 'OpenVINO provider missing'}
+                  'not_installed': 'Updated signed app required', 'provider_missing': 'OpenVINO provider missing',
+                  'device_unavailable': 'Device discovery unavailable'}
         self.settings_vars['onnx_status'].set(labels.get(onnx.get('status'), 'Unavailable'))
         device_names = ', '.join(item['name'] for item in onnx.get('devices', [])) or 'No devices detected'
         self.settings_vars['onnx_detail'].set(('Installed automatically with this app' if onnx.get('bundled') and onnx.get('installed') else 'Installed in this environment' if onnx.get('installed') else 'Install the current signed PROVIS app to include the runtime')
@@ -1081,6 +1084,10 @@ class InferenceNodeClient(tk.Tk):
 
 
 def main() -> None:
+    if len(sys.argv) == 2 and sys.argv[1] == '--accelerator-probe':
+        from manuals_rag_inference.onnx_runtime import core_device_probe
+        print(json.dumps(core_device_probe()))
+        return
     if not getattr(sys, 'frozen', False) and len(sys.argv) > 1 and sys.argv[1] == '--agent-link':
         sys.argv.pop(1)
         from provis_agent_link import main as owner_tool
