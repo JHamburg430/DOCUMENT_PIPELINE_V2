@@ -1,5 +1,9 @@
 # PROVIS Inference Node release pipeline
 
+> Historical pre-consolidation reference. Follow the supported
+> [PROVIS inference CI/CD path](provis_inference_cicd.md). Commands below describe
+> low-level helpers/schemas, not an alternate publication path or approval.
+
 ## Automated checks
 
 The `PROVIS Inference Node CI` workflow runs on relevant pull requests and

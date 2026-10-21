@@ -1,0 +1,64 @@
+{
+  "name": "PROVIS Approved Release Publication",
+  "on": {
+    "workflow_dispatch": {
+      "inputs": {
+        "version": {
+          "description": "Exact approved four-part numeric version",
+          "required": true,
+          "type": "string"
+        },
+        "approval_sha256": {
+          "description": "Approved signed provenance envelope SHA256",
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "concurrency": {
+    "group": "provis-approved-publication",
+    "cancel-in-progress": false
+  },
+  "jobs": {
+    "publish": {
+      "if": "${{ false && github.ref == 'refs/heads/main' }}",
+      "name": "Bootstrap hold \u2014 no publisher access provisioned",
+      "environment": "provis-release-publication",
+      "runs-on": [
+        "self-hosted",
+        "linux",
+        "provis-trusted-publisher"
+      ],
+      "timeout-minutes": 20,
+      "steps": [
+        {
+          "uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "with": {
+            "ref": "main",
+            "persist-credentials": false
+          }
+        },
+        {
+          "name": "Verify and reconcile only pre-approved signed bytes",
+          "shell": "bash",
+          "env": {
+            "RELEASE_VERSION": "${{ inputs.version }}",
+            "APPROVAL_SHA256": "${{ inputs.approval_sha256 }}",
+            "PROVIS_GITHUB_PUBLISH_TOKEN": "${{ secrets.PROVIS_RELEASE_GITHUB_TOKEN }}",
+            "APPROVED_BUNDLES": "${{ vars.PROVIS_APPROVED_BUNDLES }}",
+            "PUBLIC_KEYS": "${{ vars.PROVIS_RELEASE_PUBLIC_KEYS }}",
+            "APP_CATALOG": "${{ vars.PROVIS_APP_CATALOG }}",
+            "INSTALLER_CATALOG": "${{ vars.PROVIS_INSTALLER_CATALOG }}",
+            "RELEASE_LEDGER": "${{ vars.PROVIS_RELEASE_LEDGER }}",
+            "PUBLISH_PYTHON": "${{ vars.PROVIS_PUBLISH_PYTHON }}"
+          },
+          "run": "set -euo pipefail\n[[ \"$RELEASE_VERSION\" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$ ]] || exit 2\n[[ \"$APPROVAL_SHA256\" =~ ^[0-9a-f]{64}$ ]] || exit 2\nfor required in APPROVED_BUNDLES PUBLIC_KEYS APP_CATALOG INSTALLER_CATALOG RELEASE_LEDGER PUBLISH_PYTHON; do\n  [[ -n \"${!required}\" && \"${!required}\" == /* ]] || exit 2\ndone\n\"$PUBLISH_PYTHON\" manuals_rag/scripts/provis_release_pipeline.py verify --bundle \"$APPROVED_BUNDLES/$RELEASE_VERSION\" --public-keys \"$PUBLIC_KEYS\"\n\"$PUBLISH_PYTHON\" manuals_rag/scripts/provis_release_pipeline.py publish --execute --bundle \"$APPROVED_BUNDLES/$RELEASE_VERSION\" --public-keys \"$PUBLIC_KEYS\" --approval-sha256 \"$APPROVAL_SHA256\" --app-catalog \"$APP_CATALOG\" --installer-catalog \"$INSTALLER_CATALOG\" --ledger \"$RELEASE_LEDGER\"\n"
+        }
+      ]
+    }
+  }
+}
