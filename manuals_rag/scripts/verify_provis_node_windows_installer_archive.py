@@ -14,7 +14,7 @@ REQUIRED_MODULES = {
     "provis_node_windows_installer_gui",
     "manuals_rag_inference.node_release",
 }
-REQUIRED_DATA = {"provis-lens.png"}
+REQUIRED_DATA = {"provis-lens.png", "provis-installer-binding.json"}
 
 
 def verify(path: Path) -> None:
