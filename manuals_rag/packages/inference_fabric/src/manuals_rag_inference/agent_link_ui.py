@@ -39,6 +39,7 @@ class OwnerPanel(tk.Toplevel):
         self.update_button = ttk.Button(login, text='App updates', command=self._updates, state='disabled')
         # Private actions are not displayed before server-verified owner sign-in.
         self.update_dialog = None
+        self.mcp_dialog = None
         self.status = tk.StringVar(value='Sign in to verify owner access. This does not change inference enrollment.')
         tk.Label(body, textvariable=self.status, wraplength=660, justify='left', bg=colors['background'], fg=colors['muted']).pack(anchor='w', pady=10)
         self.body = body
@@ -66,6 +67,7 @@ class OwnerPanel(tk.Toplevel):
         else:
             self.update_button.pack(side='left')
         tk.Label(private, text='Agent communication', bg=colors['background'], fg=colors['text'], font=(self.app.ui_font, 15, 'bold')).pack(anchor='w', pady=(0, 6))
+        ttk.Button(private, text='Set up Codex communication', command=self._mcp_setup).pack(anchor='w', pady=(0, 8))
         tk.Label(private, text='The Node Channel reaches the fixed workspace snapshot for each post. Direct conversations keep their own history.', bg=colors['background'], fg=colors['muted'], wraplength=680, justify='left').pack(anchor='w', pady=(0, 8))
         self.notebook = ttk.Notebook(private)
         self.notebook.pack(fill='both', expand=True)
@@ -164,6 +166,9 @@ class OwnerPanel(tk.Toplevel):
         row['composer'].delete('1.0', 'end')
 
     def _hide_private(self):
+        if self.mcp_dialog is not None and self.mcp_dialog.winfo_exists():
+            self.mcp_dialog.destroy()
+        self.mcp_dialog = None
         if self.update_button.winfo_exists():
             self.update_button.configure(state='disabled')
             self.update_button.pack_forget()
@@ -173,6 +178,17 @@ class OwnerPanel(tk.Toplevel):
             self.private = None
         self.conversation_tabs = {}
         self.workspace_view = None
+
+    def _mcp_setup(self):
+        import time
+        runtime = self.runtime
+        if not runtime or time.time() >= runtime.session.get('expires_at_epoch', 0):
+            return
+        if self.mcp_dialog is not None and self.mcp_dialog.winfo_exists():
+            self.mcp_dialog.lift()
+            return
+        from .codex_mcp_ui import CodexMcpPanel
+        self.mcp_dialog = CodexMcpPanel(self)
 
     def emit(self, kind, value, epoch=None):
         try: self.events.put_nowait((self.auth_epoch if epoch is None else epoch, kind, value))

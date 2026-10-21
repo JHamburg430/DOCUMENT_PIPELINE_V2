@@ -31,6 +31,12 @@ def _dpapi(raw, decrypt=False):
 
 
 def default_path():
+    explicit = os.getenv('PROVIS_AGENT_LINK_SESSION_PATH', '').strip()
+    if explicit:
+        target = Path(explicit)
+        if not target.is_absolute() or target.is_symlink():
+            raise PermissionError('Absolute regular owner session path required')
+        return target
     root = Path(os.environ['LOCALAPPDATA']) / 'ProVIS' if os.name == 'nt' else Path.home() / '.config/ProVIS'
     return root / 'agent-link-session.json'
 

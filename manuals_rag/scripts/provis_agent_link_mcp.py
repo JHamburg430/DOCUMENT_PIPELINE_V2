@@ -74,12 +74,11 @@ class McpServer:
     def __init__(self, session_loader=load_session, caller=call):
         self.session_loader = session_loader
         self.caller = caller
-        self.session = None
 
     def _owner_call(self, action: str, payload: dict | None = None) -> dict:
-        if self.session is None:
-            self.session = self.session_loader()
-        session = self.session
+        # A long-running Codex process must observe sign-out, expiry and a new
+        # owner sign-in immediately instead of retaining the first capability.
+        session = self.session_loader()
         return self.caller(session["gateway_url"], session["session_token"], action, payload or {})
 
     def _tool(self, name: str, arguments: object) -> dict:

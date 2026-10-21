@@ -1085,6 +1085,9 @@ class InferenceNodeClient(tk.Tk):
 
 
 def main() -> None:
+    if sys.argv[1:] == ['--agent-link-mcp']:
+        from manuals_rag_inference.mcp_stdio import run_stdio
+        raise SystemExit(run_stdio())
     if len(sys.argv) == 2 and sys.argv[1] == '--accelerator-probe':
         from manuals_rag_inference.onnx_runtime import core_device_probe
         print(json.dumps(core_device_probe()))

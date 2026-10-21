@@ -65,3 +65,22 @@ def test_mcp_stdio_handles_initialize_tools_and_notification():
     rows = [json.loads(line) for line in output_stream.getvalue().splitlines()]
     assert rows[0]["result"]["protocolVersion"] == "2024-11-05"
     assert rows[1]["id"] == 2
+
+
+def test_running_mcp_observes_owner_signout_and_fresh_signin():
+    sessions = iter([
+        {'gateway_url':'https://gateway.example','session_token':'first'},
+        None,
+        {'gateway_url':'https://gateway.example','session_token':'new-owner-capability'},
+    ])
+    calls=[]
+    def load():
+        session=next(sessions)
+        if session is None:raise PermissionError('Owner signed out')
+        return session
+    server=agent_link_mcp.McpServer(session_loader=load,caller=lambda gateway,token,*args:calls.append(token) or {})
+    tool=request('tools/call',params={'name':'provis_message_history','arguments':{}})
+    assert not server.handle(tool)['result'].get('isError')
+    assert server.handle(tool)['result']['isError'] is True
+    assert not server.handle(tool)['result'].get('isError')
+    assert calls==['first','new-owner-capability']
