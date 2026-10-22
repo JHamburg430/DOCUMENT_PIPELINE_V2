@@ -325,6 +325,8 @@ def ci(packaging=False,evidence_dir=None):
                 binary=Path(temporary)/('PROVISInferenceNodeInstaller.exe' if os.name=='nt' else 'PROVISInferenceNode')
                 builder='build_provis_node_windows_installer.py' if os.name=='nt' else 'build_inference_node_linux.py'
                 run('native-packaging',[sys.executable,str(ROOT/'manuals_rag/scripts'/builder),'--output',str(binary),*([] if os.name=='nt' else ['--gateway-url','https://gateway.invalid:8445'])])
+                if os.name=='nt':
+                    run('installer-archive-contract',[sys.executable,str(ROOT/'manuals_rag/scripts/verify_provis_node_windows_installer_archive.py'),str(binary)])
                 run('frozen-self-test',[str(binary),'--self-test'])
                 report['smoke_artifact']={'sha256':sha(binary.read_bytes()),'size':binary.stat().st_size,'production_artifact':False}
         report['complete']=True

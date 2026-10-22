@@ -318,3 +318,60 @@ def test_frozen_metadata_is_bounded_and_not_executed(tmp_path):
 @pytest.mark.parametrize('pins',[{}, {'fixture':'-----BEGIN PRIVATE KEY-----'}, {'fixture':base64.b64encode(b'x'*64).decode()}, {'fixture':123}])
 def test_only_bounded_public_verification_pins_are_accepted(pins):
     with pytest.raises(ValueError):pipeline.public_pins(pins)
+
+
+@pytest.mark.parametrize('boundary', [
+    'app-artifact', 'app-metadata', 'installer-artifact', 'installer-metadata',
+    'catalog-receipt', 'completion-receipt',
+])
+def test_interruption_after_durable_catalog_or_receipt_write_reconciles(bundle,tmp_path,monkeypatch,boundary):
+    """An exit after visibility but before acknowledgment must preserve exact bytes."""
+    github=FakeGitHub()
+    append=pipeline.append_exact
+    interrupted=False
+    def fail_after_write(path,raw):
+        nonlocal interrupted
+        result=append(path,raw)
+        path=Path(path)
+        matches={
+            'app-artifact':path.parent==tmp_path/'apps' and path.suffix=='.artifact',
+            'app-metadata':path.parent==tmp_path/'apps' and path.suffix=='.json',
+            'installer-artifact':path.parent==tmp_path/'installers' and path.suffix=='.artifact',
+            'installer-metadata':path.parent==tmp_path/'installers' and path.suffix=='.json',
+            'catalog-receipt':path.name.startswith('event-') and '-03-catalog-' in path.name,
+            'completion-receipt':path.name.startswith('complete-'),
+        }
+        if matches[boundary] and not interrupted:
+            interrupted=True
+            raise OSError('fixture interruption after durable write')
+        return result
+    monkeypatch.setattr(pipeline,'append_exact',fail_after_write)
+    with pytest.raises(OSError,match='fixture interruption'):run(bundle,tmp_path,github)
+    assert interrupted
+    before={p:p.read_bytes() for d in ('apps','installers','ledger') for p in (tmp_path/d).iterdir()}
+    monkeypatch.setattr(pipeline,'append_exact',append)
+    assert run(bundle,tmp_path,github)['complete']
+    assert all(p.read_bytes()==raw for p,raw in before.items())
+
+
+def test_ci_dependency_set_supports_entra_preflight():
+    requirements=(ROOT/'manuals_rag/requirements-node-ci.txt').read_text().splitlines()
+    assert 'PyJWT[crypto]==2.10.1' in requirements
+
+
+def test_windows_ci_checks_installer_archive_before_self_test(tmp_path,monkeypatch):
+    """Exercise command orchestration without requiring a Windows build on Linux."""
+    import types
+    calls=[]
+    def subprocess_run(args,**kwargs):
+        calls.append((args,kwargs))
+        if '--output' in args:Path(args[args.index('--output')+1]).write_bytes(b'fixture')
+        return types.SimpleNamespace(returncode=0,check_returncode=lambda:None)
+    # Replace this module's OS view only; pathlib must retain the real host OS.
+    monkeypatch.setattr(pipeline,'os',types.SimpleNamespace(environ={},pathsep=pipeline.os.pathsep,name='nt'))
+    monkeypatch.setattr(pipeline.subprocess,'run',subprocess_run)
+    monkeypatch.setattr(pipeline.subprocess,'check_output',lambda args,**kwargs:'a'*40 if args[1]=='rev-parse' else '')
+    pipeline.ci(packaging=True)
+    names=[Path(args[1]).name for args,_ in calls]
+    assert names.index('verify_provis_node_windows_installer_archive.py') < len(names)-1
+    assert calls[-1][0][1:] == ['--self-test']
