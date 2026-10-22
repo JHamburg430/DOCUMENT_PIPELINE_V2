@@ -3,3 +3,5 @@ pytest==8.4.2
 cryptography==46.0.3
 pyinstaller==6.17.0
 Pillow==10.4.0
+# Gateway preflight tests exercise the optional Entra dependency check.
+PyJWT[crypto]==2.10.1
