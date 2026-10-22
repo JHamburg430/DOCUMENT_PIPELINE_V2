@@ -1,3 +1,7 @@
+> **Node application moved:** Active development, Windows/Linux builds, installers, tests and node release work now live in [JHamburg430/PROVIS_INFERENCE_NODE](https://github.com/JHamburg430/PROVIS_INFERENCE_NODE).
+>
+> Use that repository for new node changes. The instructions below describe the historical copy and may be outdated. Existing gateway deployment remains in DOCUMENT_PIPELINE_V2; installed nodes, enrollments and signing keys were not moved or reset.
+
 # PROVIS Inference Node
 
 This is the standalone node application used by the central PROVIS inference
