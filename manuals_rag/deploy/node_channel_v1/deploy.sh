@@ -199,10 +199,10 @@ import json
 import os
 
 payload = json.loads(os.environ["AVAILABILITY"])
-assert payload.get("protocol") == os.environ["EXPECTED_PROTOCOL"], payload
-assert payload.get("available") is True, payload
-assert payload.get("lifecycle", {}).get("heartbeat_seconds") == 6, payload
-assert payload.get("lifecycle", {}).get("lease_seconds") == 30, payload
+assert payload.get("node_channel_protocol") == os.environ["EXPECTED_PROTOCOL"], payload
+assert payload.get("enabled") is True, payload
+assert payload.get("heartbeat_seconds") == 6, payload
+assert payload.get("lease_seconds") == 30, payload
 print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
 PY
 
