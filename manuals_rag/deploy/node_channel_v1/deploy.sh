@@ -16,6 +16,7 @@ OVERLAY_SHA256="687ff9601c9a31a8c499d41fc6b6d9e3d3d267b047d5425067521b2a7ddbfece
 LIVE_GATEWAY_SHA256="2465b129ed513c60a7aa13a7389f9b2a7b7629087a02d6f7061f37a2f9afb7d5"
 LIVE_AGENT_LINK_SHA256="782eb831d5e6512969e6734946803cc56ef2eb78ae63577f97e3f9357f66ad50"
 LIVE_AGENT_CLIENT_SHA256="c232167bc97bb08e1d20dfe2fcaf0ef579e43f2577c48f09ec12bbad78372291"
+PROTOCOL_FILE_SHA256="86ecfe0b5194581ff611f0347f47d362a148db120c0dd04143f03b476d047a00"
 FILES=(gateway.py agent_link.py agent_link_client.py node_channel_protocol.py)
 MUTATED=0
 
@@ -41,7 +42,9 @@ systemctl is-active --quiet "$SERVICE"
 for file in gateway.py agent_link.py agent_link_client.py; do
   test -f "$PKG/$file"
 done
-test ! -e "$PKG/node_channel_protocol.py"
+if [[ -e "$PKG/node_channel_protocol.py" ]]; then
+  test "$(sha256sum "$PKG/node_channel_protocol.py" | awk '{print $1}')" = "$PROTOCOL_FILE_SHA256"
+fi
 test "$(sha256sum "$PKG/gateway.py" | awk '{print $1}')" = "$LIVE_GATEWAY_SHA256"
 test "$(sha256sum "$PKG/agent_link.py" | awk '{print $1}')" = "$LIVE_AGENT_LINK_SHA256"
 test "$(sha256sum "$PKG/agent_link_client.py" | awk '{print $1}')" = "$LIVE_AGENT_CLIENT_SHA256"
@@ -179,14 +182,17 @@ for file in "${FILES[@]}"; do
 done
 
 systemctl restart "$SERVICE"
-for _ in $(seq 1 30); do
-  systemctl is-active --quiet "$SERVICE" && break
+availability=""
+for _ in $(seq 1 60); do
+  if systemctl is-active --quiet "$SERVICE"; then
+    availability="$(curl --fail --silent --show-error --max-time 3 \
+      http://127.0.0.1:8780/v1/agent-link/availability 2>/dev/null || true)"
+    [[ -n "$availability" ]] && break
+  fi
   sleep 1
 done
 systemctl is-active --quiet "$SERVICE"
-
-availability="$(curl --fail --silent --show-error --max-time 10 \
-  http://127.0.0.1:8780/v1/agent-link/availability)"
+test -n "$availability"
 AVAILABILITY="$availability" EXPECTED_PROTOCOL="$PROTOCOL" \
   /opt/manuals-rag-inference/.venv/bin/python - <<'PY'
 import json
