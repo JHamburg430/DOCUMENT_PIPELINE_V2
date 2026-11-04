@@ -6,6 +6,7 @@ import pytest
 
 from manuals_rag_inference.agent_link import AgentLink
 from manuals_rag_inference.agent_link_session import save_session, load_session
+from manuals_rag_inference.node_channel_protocol import PROTOCOL_HEADER, PROTOCOL_ID
 
 OWNER = 'feb94da3-80b4-4f51-b6aa-3688b9b8e41e'
 
@@ -53,7 +54,7 @@ def test_only_explicit_targets_and_claimed_node_can_receive_or_complete(link):
     assert link.dispatch('poll', receiver, {})['job'] is None
     with pytest.raises(PermissionError): link.dispatch('complete', source, {**job, 'status': 'completed', 'result': 'reply'})
     link.dispatch('complete', receiver, {**job, 'status': 'completed', 'result': 'Synthetic reply'})
-    assert send(link, source, job_id)['status'] == 'completed'
+    assert send(link, source, job_id)['status'] == 'replied'
     assert link.db.execute('SELECT message FROM jobs WHERE id=?', (job_id,)).fetchone()[0] == ''
     assert link.dispatch('messages', source, {})['messages'][0]['result'] == 'Synthetic reply'
 
@@ -114,12 +115,49 @@ def test_http_route_checks_owner_identity_and_never_accepts_node_credentials(lin
     from manuals_rag_inference.gateway import create_gateway_handler
     gateway = SimpleNamespace(agent_link=link)
     with serving(create_gateway_handler(gateway)) as url:
+        stale = Request(url+'/v1/agent-link/session', data=b'{"node_id":"work"}',
+                        headers={'Authorization': 'Bearer owner-token'})
+        with pytest.raises(HTTPError) as mismatch: urlopen(stale, timeout=3)
+        assert mismatch.value.code == 409
         for token in ('application-token', 'node-secret', 'employee-token'):
-            request = Request(url+'/v1/agent-link/session', data=b'{"node_id":"work"}', headers={'Authorization': 'Bearer '+token})
+            request = Request(url+'/v1/agent-link/session', data=b'{"node_id":"work"}', headers={
+                'Authorization': 'Bearer '+token, PROTOCOL_HEADER: PROTOCOL_ID})
             with pytest.raises(HTTPError) as denied: urlopen(request, timeout=3)
             assert denied.value.code == 403
-        request = Request(url+'/v1/agent-link/session', data=b'{"node_id":"work"}', headers={'Authorization': 'Bearer owner-token'})
-        with urlopen(request, timeout=3) as response: assert json.load(response)['session_token']
+        request = Request(url+'/v1/agent-link/session', data=b'{"node_id":"work"}', headers={
+            'Authorization': 'Bearer owner-token', PROTOCOL_HEADER: PROTOCOL_ID})
+        with urlopen(request, timeout=3) as response:
+            assert json.load(response)['node_channel_protocol'] == PROTOCOL_ID
+
+
+def test_node_channel_register_discover_address_deliver_and_expire(link):
+    source, receiver = login(link, 'work'), login(link, 'john')
+    source_agent, receiver_agent = str(uuid.uuid4()), str(uuid.uuid4())
+    link.dispatch('register', source, {'agent_id': source_agent,
+        'channel_thread_id': 'channel-work', 'direct_threads': [
+            {'peer_node_id': 'john', 'thread_id': 'dm-work-john'}]})
+    link.dispatch('register', receiver, {'agent_id': receiver_agent,
+        'channel_thread_id': 'channel-john', 'direct_threads': [
+            {'peer_node_id': 'work', 'thread_id': 'dm-john-work'}]})
+    workspace = link.dispatch('workspace', source, {})
+    assert workspace['node_channel_protocol'] == PROTOCOL_ID
+    assert {row['node_id'] for row in workspace['participants'] if row['online']} == {'work', 'john'}
+    message_id = str(uuid.uuid4())
+    posted = link.dispatch('post', source, {'id': message_id, 'kind': 'channel',
+        'target_node_id': 'john', 'message': 'status', 'origin': 'owner_mcp', 'hop_count': 0})
+    assert posted['messages'][0]['body'] == '@john: status'
+    assert link.dispatch('poll', source, {'ready_thread_ids': ['channel-work']})['job'] is None
+    job = link.dispatch('poll', receiver, {'ready_thread_ids': ['channel-john']})['job']
+    assert job['recipient_snapshot'] == ['john'] and job['target_agent_id'] == receiver_agent
+    link.dispatch('executing', receiver, {'id': job['id'], 'claim': job['claim'],
+                                          'agent_id': receiver_agent})
+    link.dispatch('complete', receiver, {'id': job['id'], 'claim': job['claim'],
+        'agent_id': receiver_agent, 'status': 'completed', 'result': 'one reply'})
+    assert len(link.dispatch('history', source,
+        {'conversation_id': workspace['channel_id']})['messages']) == 1
+    link.test_clock[0] += 31
+    assert not any(row['online'] for row in link.dispatch('workspace', source, {})['participants'])
+    assert 'lease_expired' in {row['event'] for row in link.dispatch('audit', source, {})['receipts']}
 
 
 def test_codex_connector_cannot_target_an_unpublished_or_busy_thread():

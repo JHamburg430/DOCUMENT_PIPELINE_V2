@@ -28,6 +28,13 @@ from .control import sign_command
 from .enrollment import EnrollmentManager
 from .entra import EntraTokenValidator
 from .streaming import NDJSONResponse, relay_ndjson, watch_disconnect
+from .node_channel_protocol import (
+    PROTOCOL_HEADER,
+    ProtocolVersionError,
+    availability as node_channel_availability,
+    require_protocol,
+)
+from .node_release import DEFAULT_VERSION
 
 
 class AuthenticationError(PermissionError):
@@ -580,7 +587,11 @@ def create_gateway_handler(gateway: InferenceGateway):
             if self.path == "/health":
                 self._send(200, {"status": "ok", "nodes": len(gateway.scheduler.snapshots())})
             elif self.path == '/v1/agent-link/availability':
-                self._send(200, {'enabled': gateway.agent_link is not None})
+                self._send(200, node_channel_availability(
+                    gateway.agent_link is not None,
+                    component='gateway',
+                    release=DEFAULT_VERSION,
+                ))
             elif self.path == "/v1/node/enrollment-config":
                 try:
                     self._send(200, gateway.enrollment_config())
@@ -622,6 +633,7 @@ def create_gateway_handler(gateway: InferenceGateway):
                     if gateway.agent_link is None:
                         self._send(503, {'detail': 'Owner agent link is not enabled'})
                         return
+                    require_protocol(self.headers.get(PROTOCOL_HEADER))
                     if len(raw) > 65536:
                         raise ValueError('Owner request too large')
                     scheme, _, bearer = self.headers.get('Authorization', '').partition(' ')
@@ -735,6 +747,8 @@ def create_gateway_handler(gateway: InferenceGateway):
                 self._send(403, {"detail": str(error)})
             except PermissionError as error:
                 self._send(403, {"detail": str(error)})
+            except ProtocolVersionError as error:
+                self._send(409, {"detail": str(error), "code": "node_channel_version_mismatch"})
             except (KeyError, ValueError, json.JSONDecodeError) as error:
                 self._send(400, {"detail": "invalid node inference request" if self.path in {"/v1/nodes/inference", "/v1/applications/inference"} else str(error)})
             except (RuntimeError, urllib.error.URLError) as error:

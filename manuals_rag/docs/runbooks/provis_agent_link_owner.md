@@ -18,15 +18,19 @@ The feature is disabled when the owner setting is absent.
 1. Open the private panel and verify the Microsoft account on each participating
    PC. The short-lived owner capability expires after at most one hour, bounded
    by the Microsoft access-token expiry. Microsoft tokens are not saved.
-2. Choose **local Codex sessions** and publish only the desired existing threads.
-   This requires a supported connection to that PC's existing Codex app-server.
-   The connector invokes `codex app-server proxy`; an operator can provide an
-   existing local socket through `PROVIS_CODEX_CONTROL_SOCKET`.
-3. On a sender PC, refresh published sessions, select a destination, and send a
-   message. Replies appear only in the private panel, never in node activity.
+2. The node connects to its connector-owned local Codex server, creates or
+   recovers the dedicated Node Channel conversation, and automatically registers
+   it. Registration never occurs before both owner verification and local Codex
+   connection succeed.
+3. The node renews a 30-second public-session lease every 6 seconds. On a sender
+   PC, select one exact current PC name and send one owner-approved message.
+   Non-addressed nodes receive no job and do not invoke Codex.
 4. Busy sessions remain queued until idle. An interrupted, claimed delivery
    becomes **uncertain** and is never automatically resent. Inspect the target
    conversation before deciding whether to send a new request.
+5. Sign-out unregisters immediately. Crash, restart, or lost connectivity expires
+   the registration closed after 30 seconds; restart recovery re-registers the
+   same stable local conversation after owner capability renewal.
 
 The connector does not create threads, change models, override sandbox/approval
 policies, restart Codex, or fall back to a second independent agent server.
@@ -35,31 +39,25 @@ that a local approval is needed. Normal employee inference is independent.
 
 Owner sessions are protected with Windows user-bound DPAPI or a private Linux
 file. The gateway stores bounded messages/replies in a private SQLite mailbox,
-retains them for at most 24 hours, and removes submitted message text on
-completion. HTTP access logging remains disabled. Published targets expire
-unless renewed. Sign out removes the node's published targets and local session.
-The same operating-system account and company IT administrators remain trusted.
+retains delivery envelopes for at most 24 hours, and removes submitted message
+text on completion. Sanitized audit receipts store identifiers, status,
+timestamps, and hashes only. Sign out removes the node's registration and local
+session. The same operating-system account and company IT administrators remain
+trusted.
 
-## Assistant command interface
+## MCP interface
 
-The bundled `provis_agent_link.py` can be used by a user-authorized assistant:
-
-```text
-python provis_agent_link.py targets
-python provis_agent_link.py send --input message.json
-python provis_agent_link.py messages
-```
-
-`message.json` contains `id` (a fresh UUID), `node_id`, `thread_id`, and `message`.
-Keep the same UUID when checking an uncertain submission; never retry blindly.
-Use `--input -` for JSON on stdin. This interface requires the owner's active
-panel sign-in and does not grant an assistant standing permission to send
-arbitrary messages. Human authorization must exist for the requested message.
-For the Linux zipapp, use `python3 inference-node.pyz --agent-link targets`.
+The loopback MCP exposes `provis_node_channel_status`,
+`provis_list_node_workspaces`, `provis_list_connected_nodes`,
+`provis_message_history`, and `provis_send_message`. The status tool reports a
+stale node/gateway protocol explicitly instead of returning an empty target
+list. Sending requires one exact listed `pc_name`, the exact user-approved
+message, and explicit confirmation. Embedded addresses, delivery envelopes,
+nonzero hops, self-targets, and expired targets are rejected.
 
 ## Verification boundary
 
-Authorization, TTL/revocation, explicit publication, claims, duplicate handling,
+Authorization, TTL/revocation, automatic gated registration, claims, duplicate handling,
 busy targets, protected capabilities, and HTTP gates are executable tests.
 The current ProVisWork Codex desktop process uses its private stdio transport;
 its default shared control socket is unavailable (Windows error 10050).
@@ -68,3 +66,5 @@ Do not claim a live agent-to-agent round trip until both PC connectors are
 verified and an explicitly authorized synthetic message has returned a reply.
 
 Protocol reference: https://learn.chatgpt.com/docs/app-server
+
+Node Channel contract: [provis-node-channel/1](provis_node_channel_protocol_v1.md)
