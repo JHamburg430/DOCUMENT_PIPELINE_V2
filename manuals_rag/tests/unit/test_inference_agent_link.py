@@ -28,6 +28,30 @@ def link(tmp_path):
 def login(link, node): return link.session('owner-token', {'node_id': node})['session_token']
 
 
+def test_published_existing_codex_session_requires_exact_target(link):
+    source, receiver = login(link, 'work'), login(link, 'john')
+    link.dispatch('register', receiver, {
+        'agent_id': str(uuid.uuid4()), 'channel_thread_id': 'channel-john',
+        'direct_threads': [{'peer_node_id': 'work', 'thread_id': 'dm-john-work'}],
+        'published_sessions': [{'id': 'existing-thread', 'name': 'Existing work'}],
+    })
+    participant = next(row for row in link.dispatch('workspace', source, {})['participants']
+                       if row['node_id'] == 'john')
+    assert participant['codex_sessions'] == [{'id': 'existing-thread', 'name': 'Existing work'}]
+    base = {'kind': 'channel', 'target_node_id': 'john', 'message': 'Continue work',
+            'origin': 'owner_mcp', 'hop_count': 0}
+    with pytest.raises(PermissionError, match='published'):
+        link.dispatch('post', source, {**base, 'id': str(uuid.uuid4()),
+                                       'target_session_id': 'unselected-thread'})
+    assert link.db.execute('SELECT count(*) FROM conversation_messages').fetchone()[0] == 0
+    link.dispatch('post', source, {**base, 'id': str(uuid.uuid4()),
+                                   'target_session_id': 'existing-thread'})
+    assert link.dispatch('poll', receiver, {'ready_thread_ids': ['channel-john']})['job'] is None
+    job = link.dispatch('poll', receiver, {'ready_thread_ids': ['existing-thread']})['job']
+    assert job['thread_id'] == 'existing-thread'
+    assert job['message'] == '@john: Continue work'
+
+
 def publish(link, token): return link.dispatch('publish', token, {'threads': [{'id': 'selected-thread', 'name': 'Explicit owner session'}]})
 
 
