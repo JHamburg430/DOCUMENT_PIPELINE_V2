@@ -151,7 +151,17 @@ def test_http_route_checks_owner_identity_and_never_accepts_node_credentials(lin
         request = Request(url+'/v1/agent-link/session', data=b'{"node_id":"work"}', headers={
             'Authorization': 'Bearer owner-token', PROTOCOL_HEADER: PROTOCOL_ID})
         with urlopen(request, timeout=3) as response:
-            assert json.load(response)['node_channel_protocol'] == PROTOCOL_ID
+            owner = json.load(response)
+            assert owner['node_channel_protocol'] == PROTOCOL_ID
+        poll = Request(url+'/v1/agent-link/reply-poll', data=b'{}', headers={
+            'Authorization': 'Bearer '+owner['session_token'], PROTOCOL_HEADER: PROTOCOL_ID})
+        with urlopen(poll, timeout=3) as response:
+            assert json.load(response) == {'replies': []}
+        stale_poll = Request(url+'/v1/agent-link/reply-poll', data=b'{}', headers={
+            'Authorization': 'Bearer '+owner['session_token']})
+        with pytest.raises(HTTPError) as stale_reply:
+            urlopen(stale_poll, timeout=3)
+        assert stale_reply.value.code == 409
 
 
 def test_node_channel_register_discover_address_deliver_and_expire(link):
@@ -182,6 +192,72 @@ def test_node_channel_register_discover_address_deliver_and_expire(link):
     link.test_clock[0] += 31
     assert not any(row['online'] for row in link.dispatch('workspace', source, {})['participants'])
     assert 'lease_expired' in {row['event'] for row in link.dispatch('audit', source, {})['receipts']}
+
+
+def test_replies_wait_for_source_owner_and_never_leak_session_identity(link):
+    source, receiver = login(link, 'work'), login(link, 'john')
+    source_agent, receiver_agent = str(uuid.uuid4()), str(uuid.uuid4())
+    link.dispatch('register', source, {'agent_id': source_agent,
+        'channel_thread_id': 'channel-work', 'direct_threads': [
+            {'peer_node_id': 'john', 'thread_id': 'dm-work-john'}]})
+    link.dispatch('register', receiver, {'agent_id': receiver_agent,
+        'channel_thread_id': 'channel-john', 'direct_threads': [
+            {'peer_node_id': 'work', 'thread_id': 'dm-john-work'}]})
+
+    def complete(message):
+        posted = link.dispatch('post', source, {'id': str(uuid.uuid4()), 'kind': 'channel',
+            'target_node_id': 'john', 'message': message,
+            'origin': 'owner_ui', 'hop_count': 0})
+        job = link.dispatch('poll', receiver, {'ready_thread_ids': ['channel-john']})['job']
+        assert job['conversation_id'] == posted['conversation_id']
+        link.dispatch('executing', receiver, {'id': job['id'], 'claim': job['claim'],
+                                              'agent_id': receiver_agent})
+        link.dispatch('complete', receiver, {'id': job['id'], 'claim': job['claim'],
+            'agent_id': receiver_agent, 'status': 'completed', 'result': 'reply to ' + message})
+        return job['id']
+
+    accepted_id = complete('accepted case')
+    pending = link.dispatch('reply-poll', source, {})['replies']
+    assert pending[0]['id'] == accepted_id
+    assert pending[0]['thread_id'] == 'channel-work'
+    assert pending[0]['from_node'] == 'john'
+    assert link.dispatch('reply-poll', receiver, {})['replies'] == []
+    assert 'reply_thread_id' not in link.dispatch('messages', receiver, {})['messages'][0]
+    with pytest.raises(PermissionError, match='Pending reply'):
+        link.dispatch('reply-decide', receiver, {'id': accepted_id,
+            'thread_id': 'channel-work', 'decision': 'accepted'})
+    accepted = {'id': accepted_id, 'thread_id': 'channel-work', 'decision': 'accepted'}
+    assert link.dispatch('reply-decide', source, accepted)['decision'] == 'accepted'
+    assert link.dispatch('reply-decide', source, accepted)['decision'] == 'accepted'
+    assert link.dispatch('reply-poll', source, {})['replies'] == []
+
+    rejected_id = complete('rejected case')
+    rejected = {'id': rejected_id, 'thread_id': 'channel-work', 'decision': 'rejected'}
+    assert link.dispatch('reply-decide', source, rejected)['decision'] == 'rejected'
+    with pytest.raises(PermissionError, match='Pending reply'):
+        link.dispatch('reply-decide', source, {**rejected, 'decision': 'accepted'})
+    assert len(link.dispatch('history', source, {'conversation_id':
+        link.dispatch('workspace', source, {})['channel_id']})['messages']) == 2
+    assert 'reply_decision' in {row['event'] for row in link.dispatch('audit', source, {})['receipts']}
+
+
+def test_reply_migration_preserves_existing_jobs(link, tmp_path):
+    import sqlite3
+    path = tmp_path / 'old-agent-link.db'
+    db = sqlite3.connect(path)
+    db.execute('CREATE TABLE jobs (id TEXT PRIMARY KEY, source TEXT, target TEXT, thread TEXT, message TEXT, status TEXT, result TEXT, created REAL, claimed REAL, claim_hash TEXT, message_hash TEXT)')
+    db.execute("INSERT INTO jobs VALUES ('old','work','john','thread','body','queued','',1,0,'','hash')")
+    db.commit()
+    db.close()
+
+    migrated = AgentLink(link.validator, link.enrollment, owner_object_id=OWNER,
+                         path=path, clock=lambda: link.test_clock[0])
+    columns = {row[1] for row in migrated.db.execute('PRAGMA table_info(jobs)')}
+    assert {'reply_thread', 'reply_decision'} <= columns
+    assert migrated.db.execute(
+        "SELECT id,reply_thread,reply_decision FROM jobs WHERE id='old'").fetchone() == (
+            'old', '', 'pending')
+    migrated.db.close()
 
 
 def test_codex_connector_cannot_target_an_unpublished_or_busy_thread():
@@ -217,3 +293,4 @@ def test_codex_reply_is_bound_to_the_started_turn_without_policy_overrides():
     assert connector.send('selected', 'Synthetic request') == {'status': 'completed', 'result': 'Synthetic reply'}
     assert calls[1] == ('thread/resume', {'threadId': 'selected', 'excludeTurns': True})
     assert set(calls[2][1]) == {'threadId', 'input'}
+

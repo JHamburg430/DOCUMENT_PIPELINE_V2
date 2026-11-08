@@ -3,10 +3,15 @@
 PROTOCOL_ID = "provis-node-channel/1"
 PROTOCOL_HEADER = "X-ProVIS-Node-Channel-Protocol"
 CLIENT_RELEASE_HEADER = "X-ProVIS-Node-Release"
-MINIMUM_NODE_RELEASE = "2026.11.4.1"
+MINIMUM_NODE_RELEASE = "2026.11.7.4"
 LEASE_SECONDS = 30
 HEARTBEAT_SECONDS = 6
 CLAIM_TIMEOUT_SECONDS = 600
+NODE_CHANNEL_ACTIONS = frozenset({
+    "session", "register", "heartbeat", "unregister", "workspace", "history",
+    "audit", "post", "executing", "publish", "targets", "send", "poll",
+    "complete", "messages", "reply-poll", "reply-decide", "logout",
+})
 
 
 class ProtocolVersionError(ValueError):
@@ -45,3 +50,4 @@ def validate_availability(document):
             "must be upgraded before Node Channel discovery can be used."
         )
     return document
+

@@ -19,7 +19,7 @@ def call(gateway, token, action, payload=None):
     parsed = urlsplit(gateway)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError('Managed HTTPS gateway required')
-    if action not in {'availability', 'session', 'register', 'heartbeat', 'unregister', 'workspace', 'history', 'audit', 'post', 'executing', 'publish', 'targets', 'send', 'poll', 'complete', 'messages', 'logout', 'update-nodes', 'update-releases', 'request-update', 'update-status', 'diagnostic-inference'}:
+    if action not in {'availability', 'session', 'register', 'heartbeat', 'unregister', 'workspace', 'history', 'audit', 'post', 'executing', 'publish', 'targets', 'send', 'poll', 'complete', 'messages', 'reply-poll', 'reply-decide', 'logout', 'update-nodes', 'update-releases', 'request-update', 'update-status', 'diagnostic-inference'}:
         raise ValueError('Unsupported owner action')
     request = Request(
         gateway.rstrip('/') + '/v1/agent-link/' + action,
@@ -62,3 +62,4 @@ def call(gateway, token, action, payload=None):
                 f'a stale gateway ({actual or "protocol missing"}); {PROTOCOL_ID} is required.'
             )
     return result
+

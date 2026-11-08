@@ -25,15 +25,20 @@ The feature is disabled when the owner setting is absent.
 3. The node renews a 30-second public-session lease every 6 seconds. On a sender
    PC, select one exact current PC name and send one owner-approved message.
    Non-addressed nodes receive no job and do not invoke Codex.
-4. Busy sessions remain queued until idle. An interrupted, claimed delivery
-   becomes **uncertain** and is never automatically resent. Inspect the target
-   conversation before deciding whether to send a new request.
+4. Busy sessions remain queued until idle. Completed responses appear in the
+   sender's Notifications list with per-response **Accept & add to session**
+   and **Reject** controls. Accept appends the response to the existing
+   registered channel/direct session without starting or steering a user turn;
+   Reject records the decision and does not inject the response. An interrupted,
+   claimed delivery becomes **uncertain** and is never automatically resent.
+   Inspect the original request before sending a new one.
 5. Sign-out unregisters immediately. Crash, restart, or lost connectivity expires
    the registration closed after 30 seconds; restart recovery re-registers the
    same stable local conversation after owner capability renewal.
 
-The connector does not create threads, change models, override sandbox/approval
-policies, restart Codex, or fall back to a second independent agent server.
+The connector uses the existing registered Codex thread; it does not create
+forks, change models, override sandbox/approval policies, restart Codex, or fall
+back to a second independent agent server.
 Unsupported approval requests are not granted remotely; the delivery reports
 that a local approval is needed. Normal employee inference is independent.
 
@@ -58,7 +63,8 @@ nonzero hops, self-targets, and expired targets are rejected.
 ## Verification boundary
 
 Authorization, TTL/revocation, automatic gated registration, claims, duplicate handling,
-busy targets, protected capabilities, and HTTP gates are executable tests.
+busy-session queuing, accept/reject authorization, accepted-reply insertion without
+starting a turn, protected capabilities, and HTTP gates are executable tests.
 The current ProVisWork Codex desktop process uses its private stdio transport;
 its default shared control socket is unavailable (Windows error 10050).
 Connecting that live desktop instance needs a supported control-socket setup.
@@ -68,3 +74,4 @@ verified and an explicitly authorized synthetic message has returned a reply.
 Protocol reference: https://learn.chatgpt.com/docs/app-server
 
 Node Channel contract: [provis-node-channel/1](provis_node_channel_protocol_v1.md)
+

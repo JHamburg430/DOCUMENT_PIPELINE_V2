@@ -48,9 +48,30 @@ snapshot.
 `poll` returns work only to that exact registered node and connector-owned
 thread. Before any model call, the node independently verifies the target,
 single-recipient snapshot, and visible exact address. Address mismatches are
-completed as `skipped` without invoking Codex. `executing` and `complete` require
-the one-time claim and stable agent ID. Agent replies update the receipt; they
-never create another channel message.
+completed as `skipped` without invoking Codex. Busy registered sessions remain
+queued until idle; the receiver runs the response in its existing registered
+thread. `executing` and `complete` require the one-time claim and stable agent
+ID. A successful reply remains on the original job and is never posted as
+another channel message.
+
+The gateway records the sender's registered local channel thread (or the
+sender's registered direct thread for a DM) as the reply destination. The source
+node app polls `reply-poll` and shows each completed response in a pending
+Notifications list. The user must choose **Accept & add to session** or
+**Reject** for each response. Accept appends the response as an assistant
+history item to the registered session using Codex `thread/inject_items`, then
+records `reply-decide: accepted`; reject records `reply-decide: rejected`
+without adding content to the session. Neither action starts or steers a turn.
+The injected item carries the original request ID as an idempotency marker.
+Within one running connector process, retry after an interrupted acknowledgement
+does not append the item twice. The current Codex server on supported installs
+does not expose the history lookup needed to prove that an earlier injection
+survived a connector restart. Therefore a pending notification can reappear
+after restart; inspect the destination session before accepting that same
+request again. The gateway verifies the source capability, job ownership,
+completion status, decision, and registered destination. Older gateways that
+do not implement these optional reply actions remain usable, but cannot show
+response notifications until upgraded.
 
 ## Replay, expiry, and audit
 
@@ -63,3 +84,4 @@ The gateway appends sanitized receipts for registration, heartbeat, expiry,
 unregister, post, claim, execution, and completion. Receipts contain identifiers,
 status, timestamps, and hashes only—never credentials, raw messages, prompts, or
 model output. `audit` is restricted to the verified owner workspace.
+
