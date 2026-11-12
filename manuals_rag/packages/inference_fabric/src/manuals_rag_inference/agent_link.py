@@ -48,7 +48,8 @@ class AgentLink:
             left_node TEXT NOT NULL, right_node TEXT NOT NULL, created REAL NOT NULL)''')
         self.db.execute('''CREATE TABLE IF NOT EXISTS conversation_messages (
             id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, source_node TEXT NOT NULL,
-            body TEXT NOT NULL, created REAL NOT NULL, body_hash TEXT NOT NULL)''')
+            body TEXT NOT NULL, created REAL NOT NULL, body_hash TEXT NOT NULL,
+            target_session_id TEXT NOT NULL DEFAULT '')''')
         self.db.execute('''CREATE TABLE IF NOT EXISTS conversation_recipients (
             message_id TEXT NOT NULL, node_id TEXT NOT NULL, job_id TEXT NOT NULL UNIQUE,
             agent_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, executing_node TEXT NOT NULL DEFAULT '', result TEXT NOT NULL DEFAULT '',
@@ -60,7 +61,8 @@ class AgentLink:
         # Forward-compatible additions for a mailbox created by an earlier
         # development build of this conversation branch.
         for table, column in (('workspace_nodes','agent_id'),('conversation_recipients','agent_id'),
-                              ('workspace_nodes','published_sessions')):
+                              ('workspace_nodes','published_sessions'),
+                              ('conversation_messages','target_session_id')):
             if column not in {row[1] for row in self.db.execute(f'PRAGMA table_info({table})')}:
                 default = "'[]'" if column == 'published_sessions' else "''"
                 self.db.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT {default}")
@@ -377,16 +379,18 @@ class AgentLink:
         if self.db.execute('SELECT count(*) FROM jobs').fetchone()[0] + len(set(recipients)) > 512:
             raise ValueError('Conversation delivery capacity reached')
         digest = self._hash(body)
-        prior = self.db.execute('SELECT conversation_id,source_node,body_hash FROM conversation_messages WHERE id=?', (identifier,)).fetchone()
+        prior = self.db.execute('SELECT conversation_id,source_node,body_hash,target_session_id FROM conversation_messages WHERE id=?', (identifier,)).fetchone()
         if prior:
-            if prior != (conversation, node_id, digest):
+            if prior != (conversation, node_id, digest, target_session or ''):
                 raise PermissionError('Message identifier already used')
             return self._conversation_snapshot(conversation)
         endpoints = sorted((node_id, target)) if target else ('', '')
         self.db.execute('INSERT INTO conversations VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING',
                         (conversation, workspace, kind, *endpoints, self.clock()))
-        self.db.execute('INSERT INTO conversation_messages VALUES(?,?,?,?,?,?)',
-                        (identifier, conversation, node_id, body, self.clock(), digest))
+        self.db.execute('''INSERT INTO conversation_messages
+            (id,conversation_id,source_node,body,created,body_hash,target_session_id)
+            VALUES(?,?,?,?,?,?,?)''',
+            (identifier, conversation, node_id, body, self.clock(), digest, target_session or ''))
         for recipient in sorted(set(recipients)):
             recipient_row = self.db.execute('SELECT channel_thread,direct_threads,agent_id FROM workspace_nodes WHERE node_id=? AND workspace=?', (recipient, workspace)).fetchone()
             thread = ''
@@ -591,8 +595,14 @@ class AgentLink:
                 rows = self.db.execute('''SELECT id,target,reply_thread,result,created
                     FROM jobs WHERE source=? AND status='replied' AND reply_decision='pending'
                     AND reply_thread<>'' ORDER BY created,id LIMIT 10''', (node_id,)).fetchall()
-                return {'replies': [{'id': row[0], 'from_node': row[1], 'thread_id': row[2],
-                                     'result': row[3], 'created_at': row[4]} for row in rows]}
+                replies = []
+                for row in rows:
+                    candidate = {'id': row[0], 'from_node': row[1], 'thread_id': row[2],
+                                 'result': row[3], 'created_at': row[4]}
+                    if len(json.dumps({'replies': replies + [candidate]}).encode()) > 700000:
+                        break
+                    replies.append(candidate)
+                return {'replies': replies}
             if action == 'reply-decide':
                 identifier, reply_thread, decision = (payload.get(key) for key in ('id', 'thread_id', 'decision'))
                 if (set(payload) != {'id', 'thread_id', 'decision'} or type(identifier) is not str or
