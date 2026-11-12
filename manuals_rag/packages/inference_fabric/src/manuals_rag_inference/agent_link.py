@@ -33,16 +33,23 @@ class AgentLink:
         self.db = sqlite3.connect(str(path), check_same_thread=False)
         if str(path) != ':memory:': Path(path).chmod(0o600)
         self.db.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, source TEXT, target TEXT, thread TEXT, message TEXT, status TEXT, result TEXT, created REAL, claimed REAL, claim_hash TEXT, message_hash TEXT)')
+        # Route a completed response to the sender's registered local session.
+        # This is an acknowledgement channel, not a second Node Channel post.
+        for column, declaration in (('reply_thread', "TEXT NOT NULL DEFAULT ''"),
+                                     ('reply_decision', "TEXT NOT NULL DEFAULT 'pending'")):
+            if column not in {row[1] for row in self.db.execute('PRAGMA table_info(jobs)')}:
+                self.db.execute(f'ALTER TABLE jobs ADD COLUMN {column} {declaration}')
         self.db.execute('''CREATE TABLE IF NOT EXISTS workspace_nodes (
             node_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, channel_thread TEXT NOT NULL,
             direct_threads TEXT NOT NULL, agent_id TEXT NOT NULL DEFAULT '', owner_session TEXT NOT NULL, lease_until REAL NOT NULL,
-            updated REAL NOT NULL)''')
+            updated REAL NOT NULL, published_sessions TEXT NOT NULL DEFAULT '[]')''')
         self.db.execute('''CREATE TABLE IF NOT EXISTS conversations (
             id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL,
             left_node TEXT NOT NULL, right_node TEXT NOT NULL, created REAL NOT NULL)''')
         self.db.execute('''CREATE TABLE IF NOT EXISTS conversation_messages (
             id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, source_node TEXT NOT NULL,
-            body TEXT NOT NULL, created REAL NOT NULL, body_hash TEXT NOT NULL)''')
+            body TEXT NOT NULL, created REAL NOT NULL, body_hash TEXT NOT NULL,
+            target_session_id TEXT NOT NULL DEFAULT '')''')
         self.db.execute('''CREATE TABLE IF NOT EXISTS conversation_recipients (
             message_id TEXT NOT NULL, node_id TEXT NOT NULL, job_id TEXT NOT NULL UNIQUE,
             agent_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, executing_node TEXT NOT NULL DEFAULT '', result TEXT NOT NULL DEFAULT '',
@@ -53,9 +60,12 @@ class AgentLink:
             occurred REAL NOT NULL, detail_hash TEXT NOT NULL)''')
         # Forward-compatible additions for a mailbox created by an earlier
         # development build of this conversation branch.
-        for table, column in (('workspace_nodes','agent_id'),('conversation_recipients','agent_id')):
+        for table, column in (('workspace_nodes','agent_id'),('conversation_recipients','agent_id'),
+                              ('workspace_nodes','published_sessions'),
+                              ('conversation_messages','target_session_id')):
             if column not in {row[1] for row in self.db.execute(f'PRAGMA table_info({table})')}:
-                self.db.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
+                default = "'[]'" if column == 'published_sessions' else "''"
+                self.db.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT {default}")
         self.db.commit()
 
     def session(self, bearer, payload):
@@ -152,7 +162,7 @@ class AgentLink:
         # Owner workspaces are tied to the Entra subject and tenant, not to
         # inference admission or the device's network status.
         sessions = {row[0]: row for row in self.db.execute(
-            'SELECT node_id,workspace,channel_thread,direct_threads,agent_id,owner_session,lease_until,updated FROM workspace_nodes WHERE workspace=?',
+            'SELECT node_id,workspace,channel_thread,direct_threads,agent_id,owner_session,lease_until,updated,published_sessions FROM workspace_nodes WHERE workspace=?',
             (workspace,)).fetchall()}
         enrolled = []
         for record in self.enrollment.nodes():
@@ -174,6 +184,7 @@ class AgentLink:
                 'last_seen': row[7] if row else None,
                 'lease_expires_at': max(0, row[6]) if row else None,
                 'node_channel_protocol': PROTOCOL_ID if row else None,
+                'codex_sessions': json.loads(row[8]) if row and online else [],
             })
         return sorted(enrolled, key=lambda item: item['node_id'].casefold())
 
@@ -197,16 +208,32 @@ class AgentLink:
         allowed = {row['node_id'] for row in self._enrolled_workspace_nodes(workspace)}
         if set(normalized) - allowed:
             raise PermissionError('Direct conversation peer is outside this owner workspace')
+        published = payload.get('published_sessions', [])
+        if type(published) is not list or len(published) > 16:
+            raise ValueError('Select at most 16 existing Codex sessions')
+        published_ids = set()
+        normalized_published = []
+        for item in published:
+            if (type(item) is not dict or set(item) != {'id', 'name'} or
+                    type(item.get('id')) is not str or not 1 <= len(item['id']) <= 200 or
+                    type(item.get('name')) is not str or not 1 <= len(item['name']) <= 160):
+                raise ValueError('Bounded published session metadata required')
+            if item['id'] == channel_thread or item['id'] in normalized.values() or item['id'] in published_ids:
+                raise ValueError('Published session identities must be distinct')
+            published_ids.add(item['id'])
+            normalized_published.append({'id': item['id'], 'name': item['name']})
         lease_until = min(expiry, self.clock() + LEASE_SECONDS)
         packed = json.dumps(normalized, sort_keys=True, separators=(',', ':'))
+        packed_published = json.dumps(normalized_published, sort_keys=True, separators=(',', ':'))
         owner_hash = bearer
         self.db.execute("UPDATE conversation_recipients SET agent_id=?,updated=? WHERE node_id=? AND status='queued'",
                         (agent_id, self.clock(), node_id))
-        self.db.execute('''INSERT INTO workspace_nodes(node_id,workspace,channel_thread,direct_threads,agent_id,owner_session,lease_until,updated)
-            VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(node_id) DO UPDATE SET workspace=excluded.workspace,
+        self.db.execute('''INSERT INTO workspace_nodes(node_id,workspace,channel_thread,direct_threads,agent_id,owner_session,lease_until,updated,published_sessions)
+            VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(node_id) DO UPDATE SET workspace=excluded.workspace,
             channel_thread=excluded.channel_thread,direct_threads=excluded.direct_threads,
-            agent_id=excluded.agent_id,owner_session=excluded.owner_session,lease_until=excluded.lease_until,updated=excluded.updated''',
-            (node_id, workspace, channel_thread, packed, agent_id, owner_hash, lease_until, self.clock()))
+            agent_id=excluded.agent_id,owner_session=excluded.owner_session,lease_until=excluded.lease_until,
+            updated=excluded.updated,published_sessions=excluded.published_sessions''',
+            (node_id, workspace, channel_thread, packed, agent_id, owner_hash, lease_until, self.clock(), packed_published))
         for key in list(self.targets):
             if key[0] == node_id:
                 del self.targets[key]
@@ -217,6 +244,10 @@ class AgentLink:
             self.targets[(node_id, thread)] = {'node_id': node_id, 'thread_id': thread,
                                                'name': 'DM with ' + peer, 'lease_until': lease_until,
                                                'owner_session': owner_hash}
+        for item in normalized_published:
+            self.targets[(node_id, item['id'])] = {'node_id': node_id, 'thread_id': item['id'],
+                                                  'name': item['name'], 'lease_until': lease_until,
+                                                  'owner_session': owner_hash}
         # Bind pending deliveries to the recipient's stable local Codex
         # conversation as it becomes available, without changing their
         # original recipient snapshot.
@@ -302,6 +333,9 @@ class AgentLink:
         kind = payload.get('kind')
         target = self._node_id(payload.get('target_node_id')) if kind in ('channel', 'dm') else ''
         body = payload.get('message')
+        target_session = payload.get('target_session_id')
+        if target_session is not None and (type(target_session) is not str or not 1 <= len(target_session) <= 200):
+            raise ValueError('Bounded target session identity required')
         if payload.get('origin') not in ('owner_ui', 'owner_mcp') or payload.get('hop_count') != 0:
             raise PermissionError('Only a fresh owner-authored, zero-hop message may be posted')
         if type(body) is not str or not body.strip() or len(body) > 12000:
@@ -328,6 +362,13 @@ class AgentLink:
             recipients = [target]
         else:
             raise ValueError('Supported conversation required')
+        if target_session is not None:
+            target_row = next((row for row in self._enrolled_workspace_nodes(workspace)
+                               if row['node_id'] == target), None)
+            if not target_row or not target_row['online']:
+                raise PermissionError('Target Codex session is not currently connected')
+            if target_session not in {item['id'] for item in target_row['codex_sessions']}:
+                raise PermissionError('Exact locally published Codex session required')
         # The visible address is part of every immutable agent-message
         # envelope as well as its routing metadata. A receiver can therefore
         # apply an exact, model-independent address check before invoking
@@ -338,29 +379,43 @@ class AgentLink:
         if self.db.execute('SELECT count(*) FROM jobs').fetchone()[0] + len(set(recipients)) > 512:
             raise ValueError('Conversation delivery capacity reached')
         digest = self._hash(body)
-        prior = self.db.execute('SELECT conversation_id,source_node,body_hash FROM conversation_messages WHERE id=?', (identifier,)).fetchone()
+        prior = self.db.execute('SELECT conversation_id,source_node,body_hash,target_session_id FROM conversation_messages WHERE id=?', (identifier,)).fetchone()
         if prior:
-            if prior != (conversation, node_id, digest):
+            if prior != (conversation, node_id, digest, target_session or ''):
                 raise PermissionError('Message identifier already used')
             return self._conversation_snapshot(conversation)
         endpoints = sorted((node_id, target)) if target else ('', '')
         self.db.execute('INSERT INTO conversations VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING',
                         (conversation, workspace, kind, *endpoints, self.clock()))
-        self.db.execute('INSERT INTO conversation_messages VALUES(?,?,?,?,?,?)',
-                        (identifier, conversation, node_id, body, self.clock(), digest))
+        self.db.execute('''INSERT INTO conversation_messages
+            (id,conversation_id,source_node,body,created,body_hash,target_session_id)
+            VALUES(?,?,?,?,?,?,?)''',
+            (identifier, conversation, node_id, body, self.clock(), digest, target_session or ''))
         for recipient in sorted(set(recipients)):
             recipient_row = self.db.execute('SELECT channel_thread,direct_threads,agent_id FROM workspace_nodes WHERE node_id=? AND workspace=?', (recipient, workspace)).fetchone()
             thread = ''
             if recipient_row:
-                if kind == 'channel':
+                if target_session is not None:
+                    thread = target_session
+                elif kind == 'channel':
                     thread = recipient_row[0]
                 else:
                     thread = json.loads(recipient_row[1]).get(node_id, '')
             # Addressed messages have exactly one recipient, so the durable
             # delivery ID remains the caller-visible message ID.
             job_id = identifier
-            self.db.execute('INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                            (job_id, node_id, recipient, thread, body, 'queued', '', self.clock(), 0, '', digest))
+            source_row = self.db.execute(
+                'SELECT channel_thread,direct_threads FROM workspace_nodes WHERE node_id=? AND workspace=?',
+                (node_id, workspace)).fetchone()
+            if source_row:
+                reply_thread = (source_row[0] if kind == 'channel' else
+                                json.loads(source_row[1]).get(target, ''))
+            else:
+                reply_thread = ''
+            self.db.execute('''INSERT INTO jobs
+                (id,source,target,thread,message,status,result,created,claimed,claim_hash,message_hash,reply_thread,reply_decision)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                (job_id, node_id, recipient, thread, body, 'queued', '', self.clock(), 0, '', digest, reply_thread, 'pending'))
             recipient_agent = recipient_row[2] if recipient_row else ''
             self.db.execute('INSERT INTO conversation_recipients(message_id,node_id,job_id,agent_id,status,updated) VALUES(?,?,?,?,?,?)',
                             (identifier, recipient, job_id, recipient_agent, 'queued', self.clock()))
@@ -474,7 +529,10 @@ class AgentLink:
                     return {'id': identifier, 'status': existing[4]}
                 if self.db.execute('SELECT count(*) FROM jobs').fetchone()[0] >= 256:
                     raise ValueError('Message capacity reached')
-                self.db.execute('INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?)', (identifier, node_id, target, thread, message, 'queued', '', self.clock(), 0, '', self._hash(message)))
+                self.db.execute('''INSERT INTO jobs
+                    (id,source,target,thread,message,status,result,created,claimed,claim_hash,message_hash,reply_thread,reply_decision)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,'','pending')''',
+                    (identifier, node_id, target, thread, message, 'queued', '', self.clock(), 0, '', self._hash(message)))
                 self.db.commit()
                 return {'id': identifier, 'status': 'queued'}
             if action == 'poll':
@@ -531,6 +589,37 @@ class AgentLink:
                             status=public_status, detail=result)
                 self.db.commit()
                 return {'id': identifier, 'status': public_status}
+            if action == 'reply-poll':
+                if payload:
+                    raise ValueError('Reply polling takes no fields')
+                rows = self.db.execute('''SELECT id,target,reply_thread,result,created
+                    FROM jobs WHERE source=? AND status='replied' AND reply_decision='pending'
+                    AND reply_thread<>'' ORDER BY created,id LIMIT 10''', (node_id,)).fetchall()
+                replies = []
+                for row in rows:
+                    candidate = {'id': row[0], 'from_node': row[1], 'thread_id': row[2],
+                                 'result': row[3], 'created_at': row[4]}
+                    if len(json.dumps({'replies': replies + [candidate]}).encode()) > 700000:
+                        break
+                    replies.append(candidate)
+                return {'replies': replies}
+            if action == 'reply-decide':
+                identifier, reply_thread, decision = (payload.get(key) for key in ('id', 'thread_id', 'decision'))
+                if (set(payload) != {'id', 'thread_id', 'decision'} or type(identifier) is not str or
+                        type(reply_thread) is not str or not reply_thread or
+                        decision not in ('accepted', 'rejected')):
+                    raise ValueError('Exact accept or reject decision required')
+                changed = self.db.execute('''UPDATE jobs SET reply_decision=?
+                    WHERE id=? AND source=? AND status='replied' AND reply_thread=? AND reply_decision='pending' ''',
+                    (decision, identifier, node_id, reply_thread)).rowcount
+                if changed:
+                    self._audit('reply_decision', node_id, node_id, identifier, status=decision)
+                    self.db.commit()
+                else:
+                    row = self.db.execute('SELECT source,status,reply_thread,reply_decision FROM jobs WHERE id=?', (identifier,)).fetchone()
+                    if not (row and row[0] == node_id and row[1] == 'replied' and row[2] == reply_thread and row[3] == decision):
+                        raise PermissionError('Pending reply for this source node required')
+                return {'id': identifier, 'decision': decision}
             if action == 'messages':
                 rows = self.db.execute('SELECT id,source,target,thread,status,result,created FROM jobs WHERE source=? OR target=? ORDER BY created DESC LIMIT 30', (node_id, node_id)).fetchall()
                 messages = []
@@ -545,3 +634,4 @@ class AgentLink:
                 self.db.commit()
                 return {'signed_out': True, 'node_channel_protocol': PROTOCOL_ID}
             raise ValueError('Unsupported owner operation')
+

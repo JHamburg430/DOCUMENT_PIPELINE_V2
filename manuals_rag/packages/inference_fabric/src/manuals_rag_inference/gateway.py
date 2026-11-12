@@ -29,6 +29,7 @@ from .enrollment import EnrollmentManager
 from .entra import EntraTokenValidator
 from .streaming import NDJSONResponse, relay_ndjson, watch_disconnect
 from .node_channel_protocol import (
+    NODE_CHANNEL_ACTIONS,
     PROTOCOL_HEADER,
     ProtocolVersionError,
     availability as node_channel_availability,
@@ -633,13 +634,15 @@ def create_gateway_handler(gateway: InferenceGateway):
                     if gateway.agent_link is None:
                         self._send(503, {'detail': 'Owner agent link is not enabled'})
                         return
-                    require_protocol(self.headers.get(PROTOCOL_HEADER))
                     if len(raw) > 65536:
                         raise ValueError('Owner request too large')
                     scheme, _, bearer = self.headers.get('Authorization', '').partition(' ')
                     if scheme.lower() != 'bearer' or not bearer:
                         raise AuthenticationError('Owner sign-in required')
-                    result = gateway.agent_link.dispatch(self.path.removeprefix('/v1/agent-link/'), bearer, payload)
+                    action = self.path.removeprefix('/v1/agent-link/')
+                    if action in NODE_CHANNEL_ACTIONS:
+                        require_protocol(self.headers.get(PROTOCOL_HEADER))
+                    result = gateway.agent_link.dispatch(action, bearer, payload)
                     self._send(200, result)
                     return
                 if self.path in {"/v1/nodes/inference", "/v1/applications/inference"}:
@@ -867,3 +870,4 @@ def run_gateway() -> None:
                                                    gateway.agent_link.db, gateway.agent_link.lock)
     server = ThreadingHTTPServer((bind, int(os.getenv("INFERENCE_GATEWAY_PORT", "8780"))), create_gateway_handler(gateway))
     server.serve_forever()
+
