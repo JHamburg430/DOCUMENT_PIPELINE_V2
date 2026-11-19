@@ -48,6 +48,18 @@ class InferenceScheduler:
         context_mb = max(0.0, request.context_tokens / 1000.0 * request.context_vram_mb_per_1k)
         return request.min_vram_mb + math.ceil(context_mb)
 
+    @classmethod
+    def _incremental_required_vram_mb(cls, request: InferenceRequest, *, model_loaded: bool) -> int:
+        required = cls._required_vram_mb(request)
+        if model_loaded:
+            # GPU telemetry already subtracts resident model weights from
+            # available VRAM. Requiring min_vram_mb again double-counts those
+            # weights and rejects every follow-up request after a successful
+            # warm. A loaded model needs only the request's incremental context
+            # reservation.
+            required = max(0, required - request.min_vram_mb)
+        return required
+
     def _eligible(self, request: InferenceRequest, node: NodeSnapshot) -> tuple[bool, str, bool, int]:
         if request.allowed_node_ids and node.node_id not in request.allowed_node_ids:
             return False, "application_worker_not_approved", False, 0
@@ -73,7 +85,7 @@ class InferenceScheduler:
         if node.queued_requests + reserved >= self.policy.max_queue_depth:
             return False, "queue_full", False, 0
         loaded = next((item for item in node.loaded_models if item.name == request.model), None)
-        required_vram_mb = self._required_vram_mb(request)
+        required_vram_mb = self._incremental_required_vram_mb(request, model_loaded=loaded is not None)
         loaded_vram = sum(g.available_vram_mb for g in node.gpus)
         requires_pull = loaded is None and request.model not in node.installed_models
         if loaded is not None and loaded.active_requests > 0:
@@ -111,7 +123,7 @@ class InferenceScheduler:
             app_bonus = 200.0 if request.application in self.policy.interactive_applications else 0.0
             reserved = len(self._reservations.get(node.node_id, set()))
             queue_penalty = float((node.queued_requests + reserved) * 50 + (node.active_requests + reserved) * 25)
-            required_vram_mb = self._required_vram_mb(request)
+            required_vram_mb = self._incremental_required_vram_mb(request, model_loaded=loaded is not None)
             headroom_bonus = min(200.0, max(0.0, (available_vram - required_vram_mb) / 100.0))
             score = model_loaded_bonus + model_installed_bonus + app_bonus + headroom_bonus - queue_penalty + request.priority
             evictions = ()

@@ -8,7 +8,7 @@ import pytest
 from manuals_rag_inference import node_agent
 from manuals_rag_inference.control import sign_command
 from manuals_rag_inference.gateway import _snapshot_from_payload
-from manuals_rag_inference.models import GpuSnapshot, InferenceRequest, NodeSnapshot
+from manuals_rag_inference.models import GpuSnapshot, InferenceRequest, LoadedModel, NodeSnapshot
 from manuals_rag_inference.scheduler import InferenceScheduler
 
 
@@ -81,6 +81,63 @@ def test_admission_distinguishes_disk_inventory_from_loaded_models(installed, al
     if admitted:
         assert decision.requires_model_pull is requires_pull
         assert decision.requires_model_warm is True
+
+
+def test_loaded_model_weights_are_not_double_counted_against_free_vram():
+    scheduler = InferenceScheduler()
+    snapshot = NodeSnapshot(
+        "worker",
+        "http://localhost:11434",
+        "test",
+        (GpuSnapshot("0", "test", 24000, 10000),),
+        loaded_models=(LoadedModel("qwen3.5:9b", 6603314868),),
+        installed_models=("qwen3.5:9b",),
+        observed_at_epoch=time.time(),
+    )
+    scheduler.upsert_node(snapshot)
+    request = InferenceRequest(
+        "test",
+        "openclaw",
+        "chat",
+        "qwen3.5:9b",
+        6603314868,
+        16000,
+        context_tokens=4000,
+        context_vram_mb_per_1k=120,
+    )
+
+    decision = scheduler.choose(request)
+
+    assert decision.admitted is True
+    assert decision.node_id == "worker"
+
+
+def test_unloaded_model_still_reserves_weights_and_context():
+    scheduler = InferenceScheduler()
+    snapshot = NodeSnapshot(
+        "worker",
+        "http://localhost:11434",
+        "test",
+        (GpuSnapshot("0", "test", 24000, 10000),),
+        installed_models=("qwen3.5:9b",),
+        observed_at_epoch=time.time(),
+    )
+    scheduler.upsert_node(snapshot)
+    request = InferenceRequest(
+        "test",
+        "openclaw",
+        "chat",
+        "qwen3.5:9b",
+        6603314868,
+        16000,
+        context_tokens=4000,
+        context_vram_mb_per_1k=120,
+    )
+
+    decision = scheduler.choose(request)
+
+    assert decision.admitted is False
+    assert "insufficient_vram" in decision.reason
 
 
 def warm(agent):
